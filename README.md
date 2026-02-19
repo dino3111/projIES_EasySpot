@@ -1,4 +1,4 @@
-# ies2526-group-project-g703
+# Smart Parking Web Application
 
 ### Grupo : G703
 - Claudino Martins - DevOPS - 127368
