@@ -1,26 +1,20 @@
 ---
 name: Feature request
-about: Feature request template
+about: Suggest an idea for this project
 title: ''
-labels: feature
+labels: ''
 assignees: ''
 
 ---
 
-**Description:**
-<!--
-A clear and concise description of what the problem is and/or what needs to be done.
--->
- (Add description here.)
+**Is your feature request related to a problem? Please describe.**
+A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]
 
-**Child issues:**
-<!--
-If applicable, divide this task in smaller issues that are independent of each other.
--->
-- [ ] (Add child issue here.)
+**Describe the solution you'd like**
+A clear and concise description of what you want to happen.
 
-**Attachments:**
-<!--
+**Describe alternatives you've considered**
+A clear and concise description of any alternative solutions or features you've considered.
+
+**Additional context**
 Add any other context or screenshots about the feature request here.
--->
- (Add attachment here.)
