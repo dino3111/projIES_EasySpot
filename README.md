@@ -1,10 +1,10 @@
 # EasySpot  
 ### IES Group Project G703
----
-## About
+
+## About:
 EasySpot is a real-time parking analytics platform that shows live parking occupancy, EV charger status, and accessible-bay availability across urban sites.
 
-## Team
+## Team:
 
 | Número Mecanográfico | Nome | Role |
 |----------------------|------|------|
