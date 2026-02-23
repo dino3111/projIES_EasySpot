@@ -1,12 +1,14 @@
-# Smart Parking Web Application
+# EasySpot  
+### IES Group Project G703
+---
+## About
+EasySpot is a real-time parking analytics platform that shows live parking occupancy, EV charger status, and accessible-bay availability across urban sites.
 
-### Grupo : G703
-- Claudino Martins - DevOPS - 127368
-- Inês Gomes - Product Owner - 125895
-- Maria Mané - Team Manager - 125102
-- Martim Gil - Architect - 124833
+## Team
 
-### Projeto: 
-- A smart parking web application that integrates occupancy and vehicle detection sensor data to optimize parking space allocation.
-
-
+| Número Mecanográfico | Nome | Role |
+|----------------------|------|------|
+| 127368 | Claudino Martins | DevOPS |
+| 125895 | Inês Gomes | Product Owner |
+| 125102 | Maria Mané | Team Maneger |
+| 124833 | Martim Gil | Architect |
