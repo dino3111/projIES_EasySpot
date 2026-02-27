@@ -1,0 +1,93 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-added-large-files
+      - id: detect-aws-credentials
+
+  # Python formatting + lint (use ruff for speed; black + isort for formatting)
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: v0.0.261
+    hooks:
+      - id: ruff
+        args: [--fix]   
+
+  - repo: https://github.com/psf/black
+    rev: 24.1.0
+    hooks:
+      - id: black
+        language_version: python3.11
+
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.12.0
+    hooks:
+      - id: isort
+        files: \\.(py)$
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.5.1
+    hooks:
+      - id: mypy
+        additional_dependencies: ['types-all']
+
+  - repo: https://github.com/pyupio/safety-db
+    rev: v2024.4.10
+    hooks:
+      - id: safety
+        args: ['check', '--full-report']
+        files: ^requirements.*\\.txt$|^pyproject\\.toml$
+
+  # JS/TS lint & format (ESLint + Prettier mirrors)
+  - repo: https://github.com/pre-commit/mirrors-eslint
+    rev: v8.45.0
+    hooks:
+      - id: eslint
+        files: \\.(js|jsx|ts|tsx)$
+        additional_dependencies: ['eslint', 'eslint-config-prettier', 'eslint-plugin-prettier']
+
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v2.8.8
+    hooks:
+      - id: prettier
+        files: \\.(js|jsx|ts|tsx|json|md|css|scss|html)$
+
+  # SQL linter (sqlfluff) - configure dialect in repo .sqlfluff or args
+  - repo: https://github.com/sqlfluff/sqlfluff
+    rev: 1.3.9
+    hooks:
+      - id: sqlfluff
+        args: ["lint", "--dialect", "postgres"]  # change dialect if needed
+
+  # Dockerfile lints
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.13.0
+    hooks:
+      - id: hadolint
+
+  # Local hook examples for Java formatting or running Maven/Gradle checks.
+  # These are 'local' hooks that run commands from the repository (require Java and maven/gradle on PATH)
+  - repo: local
+    hooks:
+      - id: java-format-check
+        name: Java format check (maven/gradle)
+        entry: bash -c "if [ -f mvnw ] || [ -f pom.xml ]; then ./mvnw -q -DskipTests -Pformat || mvn -q -DskipTests -Pformat; elif [ -f gradlew ] || [ -f build.gradle ]; then ./gradlew spotlessCheck || true; else echo 'No Java build files found'; fi"
+        language: system
+        types: [java, xml]
+
+      - id: node-deps-lint
+        name: Node lint check via npm
+        entry: bash -c "if [ -f package.json ]; then npm --no-install run lint --if-present || echo 'no lint script'; else echo 'no package.json'; fi"
+        language: system
+        files: \\.(js|jsx|ts|tsx|json)$
+
+  # Optional: check commit message 
+  - repo: https://github.com/conventional-changelog/commitlint
+    rev: v17.6.7
+    hooks:
+      - id: commitlint
+        stages: [commit-msg]
+        files: ''
