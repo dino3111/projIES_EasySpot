@@ -25,6 +25,7 @@ jobs:
           node-version: '18'
 
       - name: Install deps
+        if: hashFiles('package-lock.json') != '' || hashFiles('package.json') != ''
         run: npm ci
 
       - name: Run semantic-release

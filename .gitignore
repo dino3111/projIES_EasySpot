@@ -64,7 +64,7 @@ package-lock.json.tmp
 
 # Editor/IDE local history for frontend tools
 .vscode/
-.idea/
+# .idea/  # IDE project files are tracked in this repo
 .history/
 
 # Java / Spring / backend (Maven & Gradle)
