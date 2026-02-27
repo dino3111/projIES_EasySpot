@@ -1,0 +1,56 @@
+# Normalize text files and enforce LF endings in the repository
+* text=auto eol=lf
+
+# Explicitly set LF for common text/code files (helpful on Windows)
+*.md text eol=lf
+*.markdown text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.xml text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.scss text eol=lf
+*.js text eol=lf
+*.jsx text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.py text eol=lf
+*.java text eol=lf
+*.gradle text eol=lf
+Dockerfile text eol=lf
+*.sh text eol=lf
+
+# Ensure Makefiles use native tabs (do not convert)
+Makefile text eol=lf
+
+# Treat binary files as binary (no EOL conversion, no diffs)
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.zip binary
+*.tar.gz binary
+*.tgz binary
+*.jar binary
+*.war binary
+*.exe binary
+*.dll binary
+
+# Linguist / GitHub repository settings helper 
+# Tell GitHub to ignore vendor / generated directories from language stats
+vendor/** linguist-vendored
+node_modules/** linguist-vendored
+dist/** linguist-generated
+build/** linguist-generated
+
+# Optional: don't include certain files in archives created by GitHub web UI
+.github/** export-ignore
+docs/** export-ignore
+
+# Mark scripts as executable if committed that way (use chmod +x locally)
+# Example for shell scripts in scripts/ folder
+scripts/*.sh text eol=lf
+
+# End of .gitattributes

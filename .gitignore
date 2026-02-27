@@ -1,0 +1,250 @@
+# Global / OS
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*~.nib
+
+# Logs and runtime data
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+/tmp/
+/temp/
+*.seed
+*.pid
+*.pid.lock
+
+# Node / React / frontend
+# dependencies
+node_modules/
+.pnp.cjs
+.pnp.js
+
+# production
+/build
+/dist
+/.next
+/.nuxt
+/out
+/.parcel-cache
+/.cache
+
+# Local env files
+.env
+.env.local
+.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# misc
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json.tmp
+.pnpm-debug.log
+
+# Editor/IDE local history for frontend tools
+.vscode/
+.idea/
+.history/
+
+# Java / Spring / backend (Maven & Gradle)
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+.gradle-test-kit/
+gradle-app.setting
+
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+
+# Eclipse
+.classpath
+.project
+.settings/
+.metadata/
+bin/
+
+# IntelliJ / JetBrains
+*.iml
+*.ipr
+*.iws
+.idea/
+out/
+
+# Generated jars, wars, ears
+*.jar
+*.war
+*.ear
+
+# Spring Boot devtools 
+spring-boot-devtools.properties
+restart/ 
+
+# Python
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+build/
+dist/
+eggs/
+*.egg-info/
+.installed.cfg
+*.egg
+pip-wheel-metadata/
+wheelhouse/
+
+# Virtual environments
+.env/
+.venv/
+venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+
+# Pytest / test caches
+.pytest_cache/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*,cover
+
+# mypy / caches
+.mypy_cache/
+.dmypy.json
+
+# Django stuff
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Databases / SQL / DB files
+*.db
+*.sqlite
+*.sqlite3
+*.h2.db
+
+# SQL dump/backups 
+*.sql.gz
+*.sql.bz2
+*.dump
+*.bak.sql
+*.backup.sql
+
+# Docker
+# Ignore docker build outputs, local compose overrides
+docker-compose.override.yml
+docker-compose.*.yml
+# Do not ignore primary Dockerfiles or .dockerignore files; only ignore local/temporary variants
+**/Dockerfile.*.local
+**/Dockerfile.*.tmp
+**/.dockerignore.local
+docker-compose.local.yml
+docker-compose.dev.yml
+
+# Container data/volumes
+volumes/
+tmp_volume/
+data/
+
+# Secrets, keys, certificates
+# Private keys
+*.key
+*.pem
+*.p12
+*.jks
+keystore.*
+*.crt
+*.cert
+
+# Credentials / secret stores
+credentials.yml
+credentials.yml.enc
+secret-*.json
+secrets.*.json
+*.env.*.secret
+
+# AWS / GCP / Azure local creds
+*.aws/credentials
+.gcloud/
+.azure/
+
+# CI / build artifacts / coverage
+coverage/
+*.lcov
+.nyc_output/
+reports/
+site/
+build-reports/
+target/
+
+# GitHub actions runner caches
+.github/actions/**/*.tgz
+
+# IDEs / Editors
+# VS Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+
+# JetBrains IDEs (IntelliJ, PyCharm)
+.idea/
+*.iml
+*.iws
+.idea/**/workspace.xml
+.idea/**/tasks.xml
+.idea/**/gradle.xml
+.idea/**/dictionaries
+.idea/**/shelf
+
+# Sublime Text
+*.sublime-workspace
+*.sublime-project
+
+# Emacs
+*~
+\#*\#
+.#*
+
+# Terraform plan files, state
+*.tfstate
+*.tfstate.*
+crash.log
+
+# Editorconfig and gitattributes local edits
+.gitattributes.local
+

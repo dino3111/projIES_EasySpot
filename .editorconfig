@@ -1,0 +1,79 @@
+# EditorConfig - top-most file
+root = true
+
+# Default settings
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+max_line_length = 120
+
+# Markdown, YAML and text files
+[*.md]
+trim_trailing_whitespace = false
+max_line_length = off
+
+[*.yml]
+indent_size = 2
+
+[*.yaml]
+indent_size = 2
+
+[*.json]
+indent_size = 2
+
+# Frontend / JS/TS
+[*.{js,jsx,ts,tsx,vue}]
+indent_size = 2
+
+# Style & config for package files
+[package.json]
+indent_size = 2
+charset = utf-8
+
+# Python - 4 spaces
+[*.py]
+indent_size = 4
+max_line_length = 88
+
+# Java (Spring) - 4 spaces
+[*.{java,xml,properties,gradle}]
+indent_size = 4
+
+# SQL files - 2 or 4 depending on team preference 
+[*.sql]
+indent_size = 2
+
+# Dockerfiles and shell scripts - use LF and no trimming (safer)
+[Dockerfile]
+end_of_line = lf
+trim_trailing_whitespace = false
+
+[*.sh]
+end_of_line = lf
+trim_trailing_whitespace = false
+indent_style = space
+indent_size = 2
+
+# Makefiles require tabs
+[Makefile]
+indent_style = tab
+trim_trailing_whitespace = false
+
+# Binary files - don't apply editorconfig rules
+[*.png]
+trim_trailing_whitespace = false
+[*.jpg]
+trim_trailing_whitespace = false
+[*.jpeg]
+trim_trailing_whitespace = false
+[*.gif]
+trim_trailing_whitespace = false
+[*.ico]
+trim_trailing_whitespace = false
+[*.pdf]
+trim_trailing_whitespace = false
+
