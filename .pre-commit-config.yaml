@@ -1,3 +1,4 @@
+---
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0
@@ -74,13 +75,19 @@ repos:
     hooks:
       - id: java-format-check
         name: Java format check (maven/gradle)
-        entry: bash -c "if [ -f mvnw ] || [ -f pom.xml ]; then ./mvnw -q -DskipTests -Pformat || mvn -q -DskipTests -Pformat; elif [ -f gradlew ] || [ -f build.gradle ]; then ./gradlew spotlessCheck || true; else echo 'No Java build files found'; fi"
+        entry: bash -c 'if [ -f mvnw ] || [ -f pom.xml ]; then \
+          ./mvnw -q -DskipTests -Pformat || \
+          mvn -q -DskipTests -Pformat; elif [ -f gradlew ] || \
+          [ -f build.gradle ]; then ./gradlew spotlessCheck || \
+          true; else echo "No Java build files found"; fi'
         language: system
         types: [java, xml]
 
       - id: node-deps-lint
         name: Node lint check via npm
-        entry: bash -c "if [ -f package.json ]; then npm --no-install run lint --if-present || echo 'no lint script'; else echo 'no package.json'; fi"
+        entry: bash -c 'if [ -f package.json ]; then \
+          npm --no-install run lint --if-present || \
+          echo "no lint script"; else echo "no package.json"; fi'
         language: system
         files: \.(js|jsx|ts|tsx|json)$
 

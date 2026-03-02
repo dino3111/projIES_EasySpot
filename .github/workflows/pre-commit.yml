@@ -1,3 +1,4 @@
+---
 name: Pre-commit checks (PRs)
 
 on:
@@ -23,7 +24,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-          cache: 'npm'
 
       - name: Set up Java (Temurin)
         uses: actions/setup-java@v4
@@ -50,7 +50,8 @@ jobs:
         run: |
           # Run only on files changed in the PR to speed up runs
           git fetch origin ${{ github.event.pull_request.base.ref }} --depth=1
-          CHANGED=$(git diff --name-only origin/${{ github.event.pull_request.base.ref }}...HEAD)
+          CHANGED=$(git diff --name-only \
+            origin/${{ github.event.pull_request.base.ref }}...HEAD)
           if [ -z "$CHANGED" ]; then
             echo "No changed files detected."
             exit 0
