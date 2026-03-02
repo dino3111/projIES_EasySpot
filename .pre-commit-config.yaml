@@ -36,7 +36,7 @@ repos:
         additional_dependencies: ['types-all']
 
   - repo: https://github.com/pyupio/safety-db
-    rev: v2024.4.10
+    rev: e29f6f3f58b33cb1f6caf3e9621218b3e22a4ef0
     hooks:
       - id: safety
         args: ['check', '--full-report']
@@ -48,7 +48,10 @@ repos:
     hooks:
       - id: eslint
         files: \.(js|jsx|ts|tsx)$
-        additional_dependencies: ['eslint', 'eslint-config-prettier', 'eslint-plugin-prettier']
+        additional_dependencies:
+          - eslint
+          - eslint-config-prettier
+          - eslint-plugin-prettier
 
   - repo: https://github.com/pre-commit/mirrors-prettier
     rev: v2.8.8
@@ -78,16 +81,16 @@ repos:
         entry: bash -c 'if [ -f mvnw ] || [ -f pom.xml ]; then \
           ./mvnw -q -DskipTests -Pformat || \
           mvn -q -DskipTests -Pformat; elif [ -f gradlew ] || \
-          [ -f build.gradle ]; then ./gradlew spotlessCheck || \
-          true; else echo "No Java build files found"; fi'
+          [ -f build.gradle ]; then ./gradlew spotlessCheck; \
+          else echo "No Java build files found"; fi'
         language: system
         types: [java, xml]
 
       - id: node-deps-lint
         name: Node lint check via npm
-        entry: bash -c 'if [ -f package.json ]; then \
-          npm --no-install run lint --if-present || \
-          echo "no lint script"; else echo "no package.json"; fi'
+        entry: bash -c 'if [ ! -f package.json ]; then \
+          echo "no package.json"; exit 0; fi; \
+          npm --no-install run lint --if-present || exit 1'
         language: system
         files: \.(js|jsx|ts|tsx|json)$
 

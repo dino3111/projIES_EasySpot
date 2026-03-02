@@ -32,13 +32,11 @@ jobs:
           elif [ -f package.json ]; then
             npm install
           else
-            echo "WARNING: No package.json or package-lock.json found. Semantic-release may not work correctly."
-            npm ci  # Will use npx to run semantic-release without local deps
+            echo "WARNING: No package.json found. Using npx."
+            npm ci || true
           fi
 
       - name: Run semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          npx semantic-release
         run: npx semantic-release

@@ -44,17 +44,19 @@ jobs:
           frontend=false
           java=false
           python=false
-          if [ -f package.json ] || ls **/package.json 1> /dev/null 2>&1; then
+          if [ -f package.json ] || \
+            find . -name package.json -print -quit | grep -q .; then
             frontend=true
           fi
           if [ -f pom.xml ] || [ -f build.gradle ] || \
-            ls **/pom.xml 1> /dev/null 2>&1 || \
-            ls **/build.gradle* 1> /dev/null 2>&1; then
+            find . -name pom.xml -print -quit | grep -q . || \
+            find . -name 'build.gradle*' -type f -print -quit | \
+            grep -q .; then
             java=true
           fi
           if [ -f requirements.txt ] || \
-            ls **/requirements.txt 1> /dev/null 2>&1 || \
-            ls **/pyproject.toml 1> /dev/null 2>&1; then
+            find . -name requirements.txt -print -quit | grep -q . || \
+            find . -name pyproject.toml -print -quit | grep -q .; then
             python=true
           fi
           echo "frontend=$frontend" >> $GITHUB_OUTPUT
