@@ -55,7 +55,7 @@ repos:
           - eslint-plugin-prettier
 
   - repo: https://github.com/pre-commit/mirrors-prettier
-    rev: v2.8.8
+    rev: v3.0.0
     hooks:
       - id: prettier
         files: \.(js|jsx|ts|tsx|json|md|css|scss|html)$
