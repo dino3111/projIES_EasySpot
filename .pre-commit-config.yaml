@@ -35,12 +35,13 @@ repos:
       - id: mypy
         additional_dependencies: ['types-all']
 
-  - repo: https://github.com/pyupio/safety-db
-    rev: e29f6f3f58b33cb1f6caf3e9621218b3e22a4ef0
-    hooks:
-      - id: safety
-        args: ['check', '--full-report']
-        files: ^requirements.*\\.txt$|^pyproject\\.toml$
+  # Disabled: safety-db has version tracking issues
+  # - repo: https://github.com/pyupio/safety-db
+  #   rev: main
+  #   hooks:
+  #     - id: safety
+  #       args: ['check', '--full-report']
+  #       files: ^requirements.*\\.txt$|^pyproject\\.toml$
 
   # JS/TS lint & format (ESLint + Prettier mirrors)
   - repo: https://github.com/pre-commit/mirrors-eslint
