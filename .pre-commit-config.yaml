@@ -51,10 +51,10 @@ repos:
         args: ["--dialect", "postgres"]  # change dialect if needed
 
   # Dockerfile lints
-  - repo: https://github.com/pre-commit/mirrors-hadolint
-    rev: b3555ba9c2bfd9401e79f2f0da68dd1ae38e10c7  # v2.12.0
+  - repo: https://github.com/hadolint/hadolint
+    rev: 57e1618d78fd469a92c1e584e8c9313024656623  # v2.14.0
     hooks:
-      - id: hadolint
+      - id: hadolint-docker
 
   # Local hook examples for Java formatting or running Maven/Gradle checks.
   # These are 'local' hooks that run commands from the repository (require Java and maven/gradle on PATH)
@@ -74,7 +74,7 @@ repos:
 
   # Optional: check commit message 
   - repo: https://github.com/conventional-changelog/commitlint
-    rev: v17.6.7
+    rev: a90ffe98bc4abe16a353f836927d2f8867797080  # v17.6.7
     hooks:
       - id: commitlint
         stages: [commit-msg]
