@@ -1,3 +1,4 @@
+---
 name: Pre-commit checks (PRs)
 
 on:
@@ -23,7 +24,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-          cache: 'npm'
 
       - name: Set up Java (Temurin)
         uses: actions/setup-java@v4
@@ -40,8 +40,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install pre-commit
-          npm ci || npm install --no-audit --prefer-offline || true
-          # Install sqlfluff if using sql hooks (pre-commit will normally install, but ensure availability)
+          # Install sqlfluff so the sqlfluff-lint hook is available
           pip install sqlfluff
 
       - name: Run pre-commit on changed files
@@ -49,8 +48,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Run only on files changed in the PR to speed up runs
-          git fetch origin ${{ github.event.pull_request.base.ref }} --depth=1
-          CHANGED=$(git diff --name-only origin/${{ github.event.pull_request.base.ref }}...HEAD)
+          git fetch origin ${{ github.event.pull_request.base.ref }} \
+            --depth=1
+          CHANGED=$(git diff --name-only \
+            origin/${{ github.event.pull_request.base.ref }}...HEAD)
           if [ -z "$CHANGED" ]; then
             echo "No changed files detected."
             exit 0
