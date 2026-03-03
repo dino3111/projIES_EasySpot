@@ -51,7 +51,7 @@ repos:
         args: ["--dialect", "postgres"]  # change dialect if needed
 
   # Dockerfile lints
-  - repo: https://github.com/hadolint/hadolint
+  - repo: https://github.com/pre-commit/mirrors-hadolint
     rev: v2.13.0
     hooks:
       - id: hadolint
