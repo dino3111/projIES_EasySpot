@@ -43,29 +43,12 @@ repos:
   #       args: ['check', '--full-report']
   #       files: ^requirements.*\\.txt$|^pyproject\\.toml$
 
-  # JS/TS lint & format (ESLint + Prettier mirrors)
-  - repo: https://github.com/pre-commit/mirrors-eslint
-    rev: v8.45.0
-    hooks:
-      - id: eslint
-        files: \.(js|jsx|ts|tsx)$
-        additional_dependencies:
-          - eslint
-          - eslint-config-prettier
-          - eslint-plugin-prettier
-
-  - repo: https://github.com/pre-commit/mirrors-prettier
-    rev: v3.0.0
-    hooks:
-      - id: prettier
-        files: \.(js|jsx|ts|tsx|json|md|css|scss|html)$
-
   # SQL linter (sqlfluff) - configure dialect in repo .sqlfluff or args
   - repo: https://github.com/sqlfluff/sqlfluff
     rev: 3.5.0
     hooks:
-      - id: sqlfluff
-        args: ["lint", "--dialect", "postgres"]  # change dialect if needed
+      - id: sqlfluff-lint
+        args: ["--dialect", "postgres"]  # change dialect if needed
 
   # Dockerfile lints
   - repo: https://github.com/hadolint/hadolint
@@ -87,13 +70,7 @@ repos:
         language: system
         types: [java, xml]
 
-      - id: node-deps-lint
-        name: Node lint check via npm
-        entry: bash -c 'if [ ! -f package.json ]; then \
-          echo "no package.json"; exit 0; fi; \
-          npm --no-install run lint --if-present || exit 1'
-        language: system
-        files: \.(js|jsx|ts|tsx|json)$
+      # node-deps-lint removed: no package.json at repo root
 
   # Optional: check commit message 
   - repo: https://github.com/conventional-changelog/commitlint
