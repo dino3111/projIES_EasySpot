@@ -1,0 +1,76 @@
+---
+version: 2
+updates:
+  # Frontend: npm dependencies
+  # Update directory when frontend is in a subdirectory (e.g., ./frontend)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      time: "03:00"
+    open-pull-requests-limit: 5
+    allow:
+      - dependency-type: "all"
+    labels:
+      - "dependencies"
+      - "frontend"
+    target-branch: "develop"
+    reviewers:
+      - "detiuaveiro/easyspot-devs"
+
+  # Python: pip dependencies
+  # Update directory when Python backend is in a subdirectory (e.g., ./backend)
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      time: "04:00"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "python"
+    target-branch: "develop"
+
+
+  # Java: Maven dependencies
+  - package-ecosystem: "maven"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      time: "05:00"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "java"
+    target-branch: "develop"
+
+
+  # Java: Gradle dependencies
+  - package-ecosystem: "gradle"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "sunday"
+      time: "06:00"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "java"
+    target-branch: "develop"
+
+
+  # Docker base images
+  - package-ecosystem: "docker"
+    directory: "/" 
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "03:00"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "docker"
+    target-branch: "develop"

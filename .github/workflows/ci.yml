@@ -1,0 +1,72 @@
+---
+name: CI - repository validation
+
+on:
+  push:
+    branches: ["master", "develop"]
+  pull_request:
+    branches: ["master", "develop"]
+
+jobs:
+  lint-configs:
+    name: Lint configs (YAML / JSON / Markdown / Dockerfile)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Super-Linter (light, config files)
+        uses: github/super-linter@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VALIDATE_ALL_CODEBASE: false
+          VALIDATE_YAML: true
+          VALIDATE_JSON: true
+          VALIDATE_MARKDOWN: true
+          VALIDATE_DOCKERFILE: true
+          DEFAULT_BRANCH: master
+          YAML_CONFIG_FILETYPES: .yaml,.yml
+
+  repo-scan:
+    name: Repository scan (detect stacks — no installs)
+    runs-on: ubuntu-latest
+    outputs:
+      has_frontend: ${{ steps.check.outputs.frontend }}
+      has_java: ${{ steps.check.outputs.java }}
+      has_python: ${{ steps.check.outputs.python }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect common stack files
+        id: check
+        run: |
+          frontend=false
+          java=false
+          python=false
+          if [ -f package.json ] || \
+            find . -name package.json -print -quit | grep -q .; then
+            frontend=true
+          fi
+          if [ -f pom.xml ] || [ -f build.gradle ] || \
+            find . -name pom.xml -print -quit | grep -q . || \
+            find . -name 'build.gradle*' -type f -print -quit | \
+            grep -q .; then
+            java=true
+          fi
+          if [ -f requirements.txt ] || \
+            find . -name requirements.txt -print -quit | grep -q . || \
+            find . -name pyproject.toml -print -quit | grep -q .; then
+            python=true
+          fi
+          echo "frontend=$frontend" >> $GITHUB_OUTPUT
+          echo "java=$java" >> $GITHUB_OUTPUT
+          echo "python=$python" >> $GITHUB_OUTPUT
+
+      - name: Summary / guidance
+        run: |
+          echo "Repository scan summary:"
+          echo " - Frontend (package.json): ${{ steps.check.outputs.frontend }}"
+          echo " - Java (pom/gradle): ${{ steps.check.outputs.java }}"
+          echo " - Python (requirements/pyproject): ${{ steps.check.outputs.python }}"
+          echo ""

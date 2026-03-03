@@ -1,0 +1,81 @@
+---
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: cef0300fd0fc4d2a87a85fa2093c6b283ea36f4b  # v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-added-large-files
+      - id: detect-aws-credentials
+
+  # Python formatting + lint (use ruff for speed; black + isort for formatting)
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: f6346ef27faac608d493bf3926528b308d175d9e  # v0.0.261
+    hooks:
+      - id: ruff
+        args: [--fix]   
+
+  - repo: https://github.com/psf/black
+    rev: 0e6e46b9eb45f5a22062fe84c2c2ff46bd0d738e  # 24.1.0
+    hooks:
+      - id: black
+        language_version: python3.11
+
+  - repo: https://github.com/PyCQA/isort
+    rev: e44834b7b294701f596c9118d6c370f86671a50d  # 5.12.0
+    hooks:
+      - id: isort
+        files: \.(py)$
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: 08cbc46b6e135adec84911b20e98e5bc52032152  # v1.5.1
+    hooks:
+      - id: mypy
+        additional_dependencies: ['types-all']
+
+  # Disabled: safety-db has version tracking issues
+  # - repo: https://github.com/pyupio/safety-db
+  #   rev: main
+  #   hooks:
+  #     - id: safety
+  #       args: ['check', '--full-report']
+  #       files: ^requirements.*\\.txt$|^pyproject\\.toml$
+
+  # SQL linter (sqlfluff) - configure dialect in repo .sqlfluff or args
+  - repo: https://github.com/sqlfluff/sqlfluff
+    rev: 7f5ad66db2fe906827280fd6dfef6eb83565b4e8  # 3.5.0
+    hooks:
+      - id: sqlfluff-lint
+        args: ["--dialect", "postgres"]  # change dialect if needed
+
+  # Dockerfile lints
+  - repo: https://github.com/hadolint/hadolint
+    rev: 57e1618d78fd469a92c1e584e8c9313024656623  # v2.14.0
+    hooks:
+      - id: hadolint-docker
+
+  # Local hook examples for Java formatting or running Maven/Gradle checks.
+  # These are 'local' hooks that run commands from the repository (require Java and maven/gradle on PATH)
+  - repo: local
+    hooks:
+      - id: java-format-check
+        name: Java format check (maven/gradle)
+        entry: bash -c 'if [ -f mvnw ] || [ -f pom.xml ]; then \
+          ./mvnw -q -DskipTests -Pformat || \
+          mvn -q -DskipTests -Pformat; elif [ -f gradlew ] || \
+          [ -f build.gradle ]; then ./gradlew spotlessCheck; \
+          else echo "No Java build files found"; fi'
+        language: system
+        types: [java, xml]
+
+      # node-deps-lint removed: no package.json at repo root
+
+  # Optional: check commit message 
+  - repo: https://github.com/conventional-changelog/commitlint
+    rev: a90ffe98bc4abe16a353f836927d2f8867797080  # v17.6.7
+    hooks:
+      - id: commitlint
+        stages: [commit-msg]
+        files: ''
