@@ -10,5 +10,5 @@ EasySpot is a real-time parking analytics platform that shows live parking occup
 |----------------------|------|------|
 | 127368 | Claudino Martins | DevOPS |
 | 125895 | Inês Gomes | Product Owner |
-| 125102 | Maria Mané | Team Maneger |
+| 125102 | Maria Mané | Team Manager |
 | 124833 | Martim Gil | Architect |
