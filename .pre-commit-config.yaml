@@ -60,11 +60,3 @@ repos:
           else echo "No Java build files found"; fi'
         language: system
         types: [java, xml]
-
-  # Optional: check commit message
-  - repo: https://github.com/conventional-changelog/commitlint
-    rev: a90ffe98bc4abe16a353f836927d2f8867797080  # v17.6.7
-    hooks:
-      - id: commitlint
-        stages: [commit-msg]
-        files: ''
