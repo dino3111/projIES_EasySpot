@@ -14,6 +14,7 @@ jobs:
       contents: write   # required to create releases/tags
       packages: write   # required to publish packages (if needed)
       issues: write
+      pull-requests: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,16 +26,16 @@ jobs:
         with:
           node-version: '18'
 
-      - name: Install deps
+      - name: Install semantic-release plugins
         run: |
-          if [ -f package-lock.json ]; then
-            npm ci
-          elif [ -f package.json ]; then
-            npm install
-          else
-            echo "WARNING: No package.json found. Using npx."
-            npm ci || true
-          fi
+          npm install --no-save \
+            semantic-release \
+            @semantic-release/commit-analyzer \
+            @semantic-release/release-notes-generator \
+            @semantic-release/changelog \
+            @semantic-release/npm \
+            @semantic-release/git \
+            @semantic-release/github
 
       - name: Run semantic-release
         env:
