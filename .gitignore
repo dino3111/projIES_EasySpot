@@ -178,7 +178,6 @@ docker-compose.dev.yml
 # Container data/volumes
 volumes/
 tmp_volume/
-data/
 
 # Secrets, keys, certificates
 # Private keys
