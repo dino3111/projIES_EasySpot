@@ -1,0 +1,87 @@
+import { Link, useLocation } from 'react-router';
+import { useProfile } from '../context/ProfileContext';
+
+const condutorNav = [
+  { path: '/', icon: 'fa-list', label: 'Lista de Parques', exact: true },
+  { path: '/mapa', icon: 'fa-map-location-dot', label: 'Mapa', exact: false },
+  { path: '/gastos', icon: 'fa-receipt', label: 'Gastos', exact: false },
+  { path: '/favoritos', icon: 'fa-star', label: 'Favoritos', exact: false },
+  { path: '/perfil', icon: 'fa-user', label: 'Perfil', exact: false },
+];
+
+const gestorNav = [
+  { path: '/gestor/dashboard', icon: 'fa-chart-line', label: 'Painel de Desempenho', exact: true },
+  { path: '/gestor/tarifas-ocorrencias', icon: 'fa-file-invoice-dollar', label: 'Tarifas & Ocorrências', exact: false },
+  { path: '/perfil', icon: 'fa-gear', label: 'Definições', exact: false },
+];
+
+export function Sidebar() {
+  const location = useLocation();
+  const { profile } = useProfile();
+
+  const navItems = profile === 'gestor' ? gestorNav : condutorNav;
+
+  const isActive = (path: string, exact: boolean) => {
+    if (exact) return location.pathname === path;
+    return location.pathname.startsWith(path);
+  };
+
+  return (
+    <aside
+      className="hidden md:flex flex-col bg-card border-r border-border transition-colors duration-300"
+      style={{ width: '220px', minWidth: '220px' }}
+      aria-label="Menu lateral"
+    >
+      <nav className="flex flex-col gap-1 p-3 pt-4">
+        {/* Separador de secção se for gestor */}
+        {profile === 'gestor' && (
+          <div className="px-3 pb-1 mb-1">
+            <p className="text-muted-foreground uppercase" style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.08em' }}>
+              Painel do Gestor
+            </p>
+          </div>
+        )}
+
+        {navItems.map((item) => {
+          const active = isActive(item.path, item.exact);
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
+                active
+                  ? 'bg-primary/20 text-primary border-l-[3px] border-primary font-bold'
+                  : 'text-foreground/60 hover:bg-black/5 dark:hover:bg-white/5 border-l-[3px] border-transparent'
+              }`}
+              style={{ fontSize: '0.9rem', textDecoration: 'none' }}
+              aria-current={active ? 'page' : undefined}
+              aria-label={item.label}
+            >
+              <i
+                className={`fas ${item.icon}`}
+                aria-hidden="true"
+                style={{ width: '18px', textAlign: 'center', fontSize: '1rem' }}
+              ></i>
+              <span style={{ fontSize: '0.875rem' }}>{item.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
+
+      {/* Badge do modo no fundo da sidebar */}
+      {profile === 'gestor' && (
+        <div className="mt-auto p-3">
+          <div className="flex items-center gap-2 rounded-xl p-2.5 bg-primary/10 border border-primary/20">
+            <div className="w-7 h-7 rounded-lg bg-primary/20 flex items-center justify-center flex-shrink-0" aria-hidden="true">
+              <i className="fas fa-building text-primary" style={{ fontSize: '0.75rem' }}></i>
+            </div>
+            <div className="min-w-0">
+              <p className="text-primary" style={{ fontSize: '0.72rem', fontWeight: 700 }}>Modo Gestor</p>
+              <p className="text-muted-foreground" style={{ fontSize: '0.62rem' }}>António Videira</p>
+            </div>
+          </div>
+        </div>
+      )}
+    </aside>
+  );
+}
