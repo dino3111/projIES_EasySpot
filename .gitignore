@@ -248,3 +248,5 @@ crash.log
 # Editorconfig and gitattributes local edits
 .gitattributes.local
 
+
+package-lock.json
