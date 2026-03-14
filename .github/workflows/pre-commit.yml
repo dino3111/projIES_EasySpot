@@ -6,6 +6,9 @@ on:
     types: [opened, synchronize, reopened]
     branches: ["master", "develop"]
 
+permissions:
+  contents: read
+
 jobs:
   pre-commit:
     runs-on: ubuntu-latest
