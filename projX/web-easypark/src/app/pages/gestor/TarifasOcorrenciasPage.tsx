@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useProfile } from '../../context/ProfileContext';
+import { mockParkingLots } from '../../data/parkingData';
 import {
   mockTariffs,
   mockIssues,
@@ -13,17 +15,58 @@ type IssueFilter = 'todos' | 'aberto' | 'em-progresso' | 'resolvido';
 type SevFilter = 'todos' | 'critica' | 'aviso' | 'info';
 
 export function TarifasOcorrenciasPage() {
+  const { managerParks } = useProfile();
   const [tab, setTab] = useState<PageTab>('tarifas');
   const [issueFilter, setIssueFilter] = useState<IssueFilter>('todos');
   const [sevFilter, setSevFilter] = useState<SevFilter>('todos');
   const [selectedIssue, setSelectedIssue] = useState<IssueReport | null>(null);
   const [editTariff, setEditTariff] = useState<TariffEntry | null>(null);
+  const [parkSearch, setParkSearch] = useState('');
 
-  const filteredIssues = mockIssues.filter((i) => {
+  // Filtrar dados apenas para os parques do gestor
+  const gestorTariffs = mockTariffs.filter(t => managerParks.includes(t.parqueId));
+  const gestorIssues = mockIssues.filter(i => 
+    gestorTariffs.some(t => t.parqueNome === i.parque)
+  );
+  const gestorBillingRecords = mockBillingRecords.filter(b => 
+    gestorTariffs.some(t => t.parqueNome === b.parqueNome)
+  );
+
+  const filteredIssues = gestorIssues.filter((i) => {
     const estadoOk = issueFilter === 'todos' || i.estado === issueFilter;
     const sevOk = sevFilter === 'todos' || i.severidade === sevFilter;
     return estadoOk && sevOk;
   });
+
+  // Função para exportar dados do tab atual
+  const handleExport = () => {
+    let data: unknown;
+    let filename: string;
+
+    if (tab === 'ocorrencias') {
+      data = filteredIssues;
+      filename = `ocorrencias-${new Date().toISOString().split('T')[0]}.json`;
+    } else if (tab === 'tarifas') {
+      data = gestorTariffs;
+      filename = `tarifas-${new Date().toISOString().split('T')[0]}.json`;
+    } else if (tab === 'faturacao') {
+      data = gestorBillingRecords;
+      filename = `faturacao-${new Date().toISOString().split('T')[0]}.json`;
+    } else {
+      return;
+    }
+
+    const jsonString = JSON.stringify(data, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="px-4 py-5 max-w-screen-xl mx-auto space-y-5">
@@ -42,9 +85,11 @@ export function TarifasOcorrenciasPage() {
           </p>
         </div>
         <button
+          onClick={handleExport}
           className="self-start sm:self-auto flex items-center gap-2 px-3 py-1.5 rounded-xl bg-card border border-border hover:bg-muted transition-colors text-foreground"
           style={{ fontSize: '0.8rem', fontWeight: 600 }}
           aria-label="Exportar dados"
+          title={`Exportar dados de ${tab === 'tarifas' ? 'Tarifários' : tab === 'ocorrencias' ? 'Ocorrências' : 'Faturação'}`}
         >
           <i className="fas fa-file-export text-primary" style={{ fontSize: '0.85rem' }} aria-hidden="true"></i>
           Exportar
@@ -62,9 +107,56 @@ export function TarifasOcorrenciasPage() {
         <TabBtn active={tab === 'faturacao'} onClick={() => setTab('faturacao')} icon="fa-receipt" label="Faturação" />
       </div>
 
+      {/* ── Painel de Seleção de Parques ────────────────────────────── */}
+      <div className="rounded-2xl p-4 bg-card border border-border">
+        <div className="flex items-center gap-2 mb-3">
+          <i className="fas fa-building text-primary" style={{ fontSize: '0.9rem' }} aria-hidden="true"></i>
+          <h3 className="text-foreground font-bold" style={{ fontSize: '0.95rem' }}>Parques Geridos</h3>
+          <span className="ml-auto text-muted-foreground" style={{ fontSize: '0.75rem' }}>({managerParks.length} parques)</span>
+        </div>
+        
+        {/* Barra de pesquisa */}
+        <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-lg bg-background border border-border">
+          <i className="fas fa-search text-muted-foreground" style={{ fontSize: '0.85rem' }}></i>
+          <input
+            type="text"
+            placeholder="Pesquisar parques..."
+            value={parkSearch}
+            onChange={(e) => setParkSearch(e.target.value)}
+            className="flex-1 bg-transparent text-foreground outline-none"
+            style={{ fontSize: '0.875rem' }}
+          />
+        </div>
+        
+        {/* Lista de parques - máximo 5 visíveis */}
+        <div className="flex flex-wrap gap-2">
+          {mockParkingLots
+            .filter(p => managerParks.includes(p.id))
+            .filter(p => p.name.toLowerCase().includes(parkSearch.toLowerCase()))
+            .slice(0, 5)
+            .map((park) => (
+              <div
+                key={park.id}
+                className="px-3 py-2 rounded-lg bg-primary/10 border border-primary/30 text-foreground flex items-center gap-2"
+                style={{ fontSize: '0.8rem' }}
+              >
+                <i className="fas fa-check-circle text-primary" style={{ fontSize: '0.75rem' }}></i>
+                <span className="font-medium">{park.name}</span>
+              </div>
+            ))}
+          {managerParks.filter(id => 
+            mockParkingLots.find(p => p.id === id && p.name.toLowerCase().includes(parkSearch.toLowerCase()))
+          ).length === 0 && (
+            <p className="text-muted-foreground w-full text-center py-2" style={{ fontSize: '0.875rem' }}>
+              Nenhum parque encontrado
+            </p>
+          )}
+        </div>
+      </div>
+
       {/* ── Conteúdo por tab ─────────────────────────────────────────── */}
       {tab === 'tarifas' && (
-        <TarifasTab onEdit={setEditTariff} />
+        <TarifasTab onEdit={setEditTariff} tariffs={gestorTariffs} />
       )}
       {tab === 'ocorrencias' && (
         <OcorrenciasTab
@@ -77,7 +169,7 @@ export function TarifasOcorrenciasPage() {
         />
       )}
       {tab === 'faturacao' && (
-        <FaturacaoTab />
+        <FaturacaoTab billingRecords={gestorBillingRecords} />
       )}
 
       {/* ── Modal de detalhe de ocorrência ───────────────────────────── */}
@@ -97,7 +189,7 @@ export function TarifasOcorrenciasPage() {
 // TAB: TARIFÁRIOS
 // ────────────────────────────────────────────────────────────────────────────
 
-function TarifasTab({ onEdit }: { onEdit: (t: TariffEntry) => void }) {
+function TarifasTab({ onEdit, tariffs }: { onEdit: (t: TariffEntry) => void; tariffs: TariffEntry[] }) {
   return (
     <div className="space-y-4">
       {/* Legenda de estados */}
@@ -124,7 +216,7 @@ function TarifasTab({ onEdit }: { onEdit: (t: TariffEntry) => void }) {
               </tr>
             </thead>
             <tbody>
-              {mockTariffs.map((t) => (
+              {tariffs.map((t) => (
                 <TariffRow key={t.parqueId} tariff={t} onEdit={onEdit} />
               ))}
             </tbody>
@@ -393,10 +485,10 @@ function IssueCard({ issue, onClick }: { issue: IssueReport; onClick: () => void
 // TAB: FATURAÇÃO
 // ────────────────────────────────────────────────────────────────────────────
 
-function FaturacaoTab() {
-  const totalPago = mockBillingRecords.filter(r => r.estado === 'pago').reduce((s, r) => s + r.total, 0);
-  const totalPendente = mockBillingRecords.filter(r => r.estado === 'pendente').reduce((s, r) => s + r.total, 0);
-  const totalContestado = mockBillingRecords.filter(r => r.estado === 'contestado').reduce((s, r) => s + r.total, 0);
+function FaturacaoTab({ billingRecords }: { billingRecords: BillingRecord[] }) {
+  const totalPago = billingRecords.filter(r => r.estado === 'pago').reduce((s, r) => s + r.total, 0);
+  const totalPendente = billingRecords.filter(r => r.estado === 'pendente').reduce((s, r) => s + r.total, 0);
+  const totalContestado = billingRecords.filter(r => r.estado === 'contestado').reduce((s, r) => s + r.total, 0);
 
   return (
     <div className="space-y-4">
@@ -425,7 +517,7 @@ function FaturacaoTab() {
               </tr>
             </thead>
             <tbody>
-              {mockBillingRecords.map((record) => (
+              {billingRecords.map((record) => (
                 <BillingRow key={record.id} record={record} />
               ))}
             </tbody>
@@ -502,16 +594,17 @@ function BillingRow({ record }: { record: BillingRecord }) {
 // ────────────────────────────────────────────────────────────────────────────
 
 function IssueModal({ issue, onClose }: { issue: IssueReport; onClose: () => void }) {
-  const [notes, setNotes] = useState(issue.notas || '');
-  const [assignee, setAssignee] = useState(issue.atribuidoA || '');
-  const [status, setStatus] = useState(issue.estado);
-
   const sevColor =
     issue.severidade === 'critica' ? '#d4183d' :
     issue.severidade === 'aviso' ? '#f59e0b' : '#3b82f6';
   const tipoIcon =
     issue.tipo === 'sensor' ? 'fa-microchip' :
     issue.tipo === 'sistema' ? 'fa-server' : 'fa-user';
+
+  const estadoBadge =
+    issue.estado === 'aberto' ? { label: 'Aberto', color: '#d4183d', bg: '#d4183d20' } :
+    issue.estado === 'em-progresso' ? { label: 'Em Progresso', color: '#f59e0b', bg: '#f59e0b20' } :
+    { label: 'Resolvido', color: '#22c55e', bg: '#22c55e20' };
 
   return (
     <div
@@ -590,82 +683,55 @@ function IssueModal({ issue, onClose }: { issue: IssueReport; onClose: () => voi
           </div>
         )}
 
-        {/* Estado */}
+        {/* Estado (visualização apenas) */}
         <div className="mb-4">
           <label className="block text-foreground mb-1.5" style={{ fontSize: '0.8rem', fontWeight: 700 }}>
             Estado da Ocorrência
           </label>
-          <div className="flex gap-2">
-            {(['aberto', 'em-progresso', 'resolvido'] as const).map((s) => {
-              const c = s === 'aberto' ? '#d4183d' : s === 'em-progresso' ? '#f59e0b' : '#22c55e';
-              const l = s === 'aberto' ? 'Aberto' : s === 'em-progresso' ? 'Em Progresso' : 'Resolvido';
-              return (
-                <button
-                  key={s}
-                  onClick={() => setStatus(s)}
-                  className="flex-1 py-2 rounded-xl border-2 transition-all"
-                  style={{
-                    fontSize: '0.72rem', fontWeight: 700,
-                    borderColor: status === s ? c : 'var(--color-border)',
-                    background: status === s ? `${c}20` : 'transparent',
-                    color: status === s ? c : 'var(--color-muted-foreground)',
-                  }}
-                >
-                  {l}
-                </button>
-              );
-            })}
+          <div className="px-3 py-2 rounded-xl border border-border bg-muted/30" style={{ fontSize: '0.85rem', fontWeight: 600, color: estadoBadge.color }}>
+            <span style={{ display: 'inline-block', background: estadoBadge.bg, padding: '0.25rem 0.75rem', borderRadius: '0.5rem' }}>
+              {estadoBadge.label}
+            </span>
           </div>
+          <p className="text-muted-foreground text-xs mt-2">
+            <i className="fas fa-info-circle mr-1" aria-hidden="true"></i>
+            Alterado pelo técnico responsável
+          </p>
         </div>
 
-        {/* Atribuição */}
-        <div className="mb-4">
-          <label htmlFor="assignee-input" className="block text-foreground mb-1.5" style={{ fontSize: '0.8rem', fontWeight: 700 }}>
-            Atribuir a
-          </label>
-          <input
-            id="assignee-input"
-            type="text"
-            value={assignee}
-            onChange={(e) => setAssignee(e.target.value)}
-            placeholder="Nome do técnico ou equipa"
-            className="w-full px-3 py-2 rounded-xl border border-border bg-muted/30 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-            style={{ fontSize: '0.85rem' }}
-          />
-        </div>
+        {/* Atribuição (visualização apenas) */}
+        {issue.atribuidoA && (
+          <div className="mb-4">
+            <label className="block text-foreground mb-1.5" style={{ fontSize: '0.8rem', fontWeight: 700 }}>
+              Atribuído a
+            </label>
+            <div className="px-3 py-2 rounded-xl border border-border bg-muted/30 text-foreground" style={{ fontSize: '0.85rem' }}>
+              <i className="fas fa-user-circle mr-1.5 text-primary" aria-hidden="true"></i>
+              {issue.atribuidoA}
+            </div>
+          </div>
+        )}
 
-        {/* Notas */}
-        <div className="mb-5">
-          <label htmlFor="notes-input" className="block text-foreground mb-1.5" style={{ fontSize: '0.8rem', fontWeight: 700 }}>
-            Notas Técnicas
-          </label>
-          <textarea
-            id="notes-input"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Adicione notas de diagnóstico ou resolução..."
-            rows={3}
-            className="w-full px-3 py-2 rounded-xl border border-border bg-muted/30 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary transition-colors resize-none"
-            style={{ fontSize: '0.85rem' }}
-          />
-        </div>
+        {/* Notas (visualização apenas) */}
+        {issue.notas && (
+          <div className="mb-5">
+            <label className="block text-foreground mb-1.5" style={{ fontSize: '0.8rem', fontWeight: 700 }}>
+              Notas Técnicas
+            </label>
+            <div className="px-3 py-2 rounded-xl border border-border bg-muted/30 text-foreground" style={{ fontSize: '0.85rem', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+              {issue.notas}
+            </div>
+          </div>
+        )}
 
         {/* Ações */}
         <div className="flex gap-2">
           <button
             onClick={onClose}
-            className="flex-1 py-2.5 rounded-xl border border-border bg-muted/40 text-muted-foreground hover:bg-muted transition-colors"
+            className="w-full py-2.5 rounded-xl border border-border bg-muted/40 text-muted-foreground hover:bg-muted transition-colors"
             style={{ fontSize: '0.85rem', fontWeight: 600 }}
           >
-            Cancelar
-          </button>
-          <button
-            onClick={onClose}
-            className="flex-1 py-2.5 rounded-xl bg-primary text-white hover:opacity-90 transition-opacity"
-            style={{ fontSize: '0.85rem', fontWeight: 700 }}
-          >
-            <i className="fas fa-save mr-1.5" aria-hidden="true"></i>
-            Guardar
+            Fechar
           </button>
         </div>
       </div>

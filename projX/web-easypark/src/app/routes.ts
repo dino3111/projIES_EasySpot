@@ -8,6 +8,9 @@ import { PerfilPage } from './pages/PerfilPage';
 import { GastosPage } from './pages/GastosPage';
 import { DashboardGestorPage } from './pages/gestor/DashboardGestorPage';
 import { TarifasOcorrenciasPage } from './pages/gestor/TarifasOcorrenciasPage';
+import { DashboardTecnicoPage } from './pages/tecnico/DashboardTecnicoPage';
+import { ManutencaoPage } from './pages/tecnico/ManutencaoPage';
+import { TechinoMapaPage } from './pages/tecnico/TechinoMapaPage';
 
 export const router = createBrowserRouter([
   {
@@ -23,6 +26,10 @@ export const router = createBrowserRouter([
       // Rotas do Gestor
       { path: 'gestor/dashboard', Component: DashboardGestorPage },
       { path: 'gestor/tarifas-ocorrencias', Component: TarifasOcorrenciasPage },
+      // Rotas do Técnico
+      { path: 'tecnico/dashboard', Component: DashboardTecnicoPage },
+      { path: 'tecnico/mapa', Component: TechinoMapaPage },
+      { path: 'tecnico/manutencao', Component: ManutencaoPage },
     ],
   },
 ]);
