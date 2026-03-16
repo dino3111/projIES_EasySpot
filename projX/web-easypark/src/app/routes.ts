@@ -8,11 +8,9 @@ import { PerfilPage } from './pages/PerfilPage';
 import { CustosPage } from './pages/CustosPage';
 import { DashboardGestorPage } from './pages/gestor/DashboardGestorPage';
 import { TarifasOcorrenciasPage } from './pages/gestor/TarifasOcorrenciasPage';
-import { ReservaPage } from './pages/ReservaPage';
-import { ReportarPage } from './pages/ReportarPage';
-import { AcessibilidadePage } from './pages/AcessibilidadePage';
-import { WelcomePage } from './pages/WelcomePage';
-import { VeiculosPage } from './pages/VeiculosPage';
+import { DashboardTecnicoPage } from './pages/tecnico/DashboardTecnicoPage';
+import { ManutencaoPage } from './pages/tecnico/ManutencaoPage';
+import { TechinoMapaPage } from './pages/tecnico/TechinoMapaPage';
 
 export const router = createBrowserRouter([
   // Página de boas-vindas — sem Layout (sem sidebar/header/bottomnav)
@@ -37,6 +35,10 @@ export const router = createBrowserRouter([
       // Rotas do Gestor
       { path: 'gestor/dashboard', Component: DashboardGestorPage },
       { path: 'gestor/tarifas-ocorrencias', Component: TarifasOcorrenciasPage },
+      // Rotas do Técnico
+      { path: 'tecnico/dashboard', Component: DashboardTecnicoPage },
+      { path: 'tecnico/mapa', Component: TechinoMapaPage },
+      { path: 'tecnico/manutencao', Component: ManutencaoPage },
     ],
   },
 ]);

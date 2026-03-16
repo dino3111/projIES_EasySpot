@@ -1,9 +1,62 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { useProfile, type DriverType, type Vehicle } from '../context/ProfileContext';
+import { useProfile } from '../context/ProfileContext';
+import { mockParkingLots } from '../data/parkingData';
+
+type UserType = 'condutor' | 'ev' | 'acessivel';
+
+const MANAGER_PASSWORD = 'IES123';
 
 export function PerfilPage() {
-  const { accountType, driverType, setDriverType, vehicles } = useProfile();
+  const { profile, managerParks, addManagerPark, removeManagerPark } = useProfile();
+  const [userType, setUserType] = useState<UserType>('condutor');
+  const [notifications, setNotifications] = useState(true);
+  const [realtime, setRealtime] = useState(true);
+  const isGestor = profile === 'gestor';
+  const isTecnico = profile === 'tecnico';
+  const isCondutor = profile === 'condutor';
+  
+  // Manager parks state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [parkToConfirm, setParkToConfirm] = useState<string | null>(null);
+  const [confirmAction, setConfirmAction] = useState<'add' | 'remove' | null>(null);
+  const [password, setPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [showDocumentation, setShowDocumentation] = useState(false);
+  
+  // Filter parks by search
+  const filteredParks = mockParkingLots.filter(park =>
+    park.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    park.address.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+  
+  // Limit visible parks to 5
+  const visibleParks = filteredParks.slice(0, 5);
+  
+  const handleConfirmAction = () => {
+    if (!password) {
+      setPasswordError('Palavra-passe é obrigatória');
+      return;
+    }
+    if (password !== MANAGER_PASSWORD) {
+      setPasswordError('Palavra-passe incorreta');
+      return;
+    }
+    
+    if (parkToConfirm && confirmAction) {
+      if (confirmAction === 'add') {
+        addManagerPark(parkToConfirm);
+      } else {
+        removeManagerPark(parkToConfirm);
+      }
+    }
+    
+    // Reset
+    setParkToConfirm(null);
+    setConfirmAction(null);
+    setPassword('');
+    setPasswordError('');
+  };
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-5">
@@ -60,37 +113,281 @@ function UserCard({ accountType }: Readonly<{ accountType: string }>) {
   );
 }
 
-function CondutorProfile({ driverType, setDriverType, vehicles }: Readonly<{ driverType: DriverType; setDriverType: (dt: DriverType) => void; vehicles: Vehicle[] }>) {
-  const [notifications, setNotifications] = useState(true);
-  const [realtime, setRealtime] = useState(true);
+      {/* Informação do técnico */}
+      {isTecnico && (
+        <>
+          <SectionHeader icon="fa-screwdriver-wrench" title="Informação do Técnico" />
+          <div className="rounded-2xl p-4 mb-5 bg-card border border-border">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-foreground font-bold" style={{ fontSize: '0.9rem' }}>
+                  Técnico de Manutenção
+                </p>
+                <p className="text-muted-foreground" style={{ fontSize: '0.75rem' }}>
+                  Equipas · Sensorística · Intervenções
+                </p>
+              </div>
+              <span
+                className="px-2.5 py-1 rounded-full bg-primary/10 text-primary"
+                style={{ fontSize: '0.7rem', fontWeight: 700 }}
+              >
+                ATIVO
+              </span>
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <div className="rounded-xl p-3 bg-background border border-border">
+                <p className="text-muted-foreground" style={{ fontSize: '0.65rem' }}>ID</p>
+                <p className="text-foreground font-semibold" style={{ fontSize: '0.85rem' }}>TEC-1042</p>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
-  return (
-    <>
-      <SectionHeader icon="fa-id-card" title="Tipo de Condutor" />
-      <div className="rounded-2xl p-4 mb-5 bg-card border border-border" role="radiogroup">
-        <p className="text-muted-foreground mb-3" style={{ fontSize: '0.78rem' }}>
-          Activa filtros e recomendações automáticas consoante o seu perfil.
-        </p>
-        <div className="space-y-2.5">
-          {([
-            { id: 'regular', icon: 'fa-car', label: 'Condutor Regular', desc: 'Prioridade por preço e distância' },
-            { id: 'ev', icon: 'fa-charging-station', label: 'Veículo Elétrico', desc: 'Prioridade a lugares com carregadores EV' },
-            { id: 'mobilidade_reduzida', icon: 'fa-wheelchair', label: 'Mobilidade Reduzida', desc: 'Lugares acessíveis e monitorizados' },
-          ] as { id: DriverType; icon: string; label: string; desc: string }[]).map((t) => (
-            <UserTypeOption key={t.id} id={t.id} icon={t.icon} label={t.label} desc={t.desc}
-              selected={driverType === t.id} onChange={() => setDriverType(t.id)} />
-          ))}
+      {/* Parques Geridos (apenas para gestor) */}
+      {isGestor && (
+        <>
+          <div className="flex items-center gap-2 justify-between mb-3">
+            <div className="flex items-center gap-2 flex-1">
+              <i className="fas fa-building text-primary" style={{ fontSize: '0.9rem' }} aria-hidden="true"></i>
+              <h2 className="text-foreground font-bold" style={{ fontSize: '0.95rem' }}>Parques Geridos</h2>
+            </div>
+            <button
+              onClick={() => setShowDocumentation(!showDocumentation)}
+              className="text-primary hover:text-primary/80 transition-colors"
+              style={{ fontSize: '0.8rem' }}
+              aria-label="Mostrar documentação"
+            >
+              <i className="fas fa-circle-question"></i>
+            </button>
+          </div>
+          
+          {/* Documentação */}
+          {showDocumentation && (
+            <div className="rounded-2xl p-4 mb-5 bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800">
+              <p className="text-sm text-yellow-900 dark:text-yellow-100 mb-2" style={{ fontSize: '0.78rem' }}>
+                <strong>📋 Documentação:</strong>
+              </p>
+              <ul className="text-xs text-yellow-800 dark:text-yellow-200 space-y-1" style={{ fontSize: '0.72rem' }}>
+                <li>• Pesquise parques por nome ou morada</li>
+                <li>• Clique em "Adicionar" ou "Remover" para modificar</li>
+                <li>• Introduza a palavra-passe <code className="bg-yellow-200 dark:bg-yellow-900 px-1 rounded">IES123</code> para confirmar</li>
+                <li>• Apenas 5 parques são mostrados de cada vez (use pesquisa para navegar)</li>
+              </ul>
+            </div>
+          )}
+          
+          <div className="rounded-2xl p-4 mb-5 bg-card border border-border">
+            {/* Barra de pesquisa */}
+            <div className="flex items-center gap-2 mb-4 px-3 py-2.5 rounded-xl bg-background border border-border">
+              <i className="fas fa-search text-muted-foreground" style={{ fontSize: '0.85rem' }}></i>
+              <input
+                type="text"
+                placeholder="Pesquisar parque..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="flex-1 bg-transparent text-foreground outline-none"
+                style={{ fontSize: '0.875rem' }}
+              />
+            </div>
+            
+            {/* Lista de parques */}
+            <div className="space-y-2.5">
+              {visibleParks.length > 0 ? (
+                visibleParks.map((park) => {
+                  const isSelected = managerParks.includes(park.id);
+                  return (
+                    <div
+                      key={park.id}
+                      className="flex items-center gap-3 rounded-xl p-3 bg-background border border-border"
+                    >
+                      <div
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                          isSelected ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200' : 'bg-gray-100 dark:bg-gray-800 text-gray-400'
+                        }`}
+                        aria-hidden="true"
+                      >
+                        <i className={`fas ${isSelected ? 'fa-check' : 'fa-building'}`} style={{ fontSize: '0.75rem' }}></i>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-foreground font-bold" style={{ fontSize: '0.875rem' }}>{park.name}</p>
+                        <p className="text-muted-foreground" style={{ fontSize: '0.72rem', lineHeight: 1.4 }}>{park.address}</p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setParkToConfirm(park.id);
+                          setConfirmAction(isSelected ? 'remove' : 'add');
+                        }}
+                        className={`px-3 py-1.5 rounded-lg font-medium transition-all text-xs ${
+                          isSelected
+                            ? 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200 hover:bg-red-200 dark:hover:bg-red-800'
+                            : 'bg-primary/10 text-primary hover:bg-primary/20'
+                        }`}
+                      >
+                        {isSelected ? 'Remover' : 'Adicionar'}
+                      </button>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="text-center py-4">
+                  <p className="text-muted-foreground" style={{ fontSize: '0.875rem' }}>Nenhum parque encontrado</p>
+                </div>
+              )}
+            </div>
+            
+            {filteredParks.length > 5 && (
+              <p className="text-muted-foreground text-center mt-3" style={{ fontSize: '0.72rem' }}>
+                Mostrando 5 de {filteredParks.length} parques · Use pesquisa para refinar
+              </p>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* Modal de confirmação */}
+      {parkToConfirm && confirmAction && (
+        <div className="fixed inset-0 bg-black/50 flex items-end z-50">
+          <div className="w-full bg-card rounded-t-2xl p-5 border-t border-border">
+            <h3 className="text-foreground font-bold mb-2" style={{ fontSize: '1rem' }}>
+              {confirmAction === 'add' ? 'Adicionar Parque?' : 'Remover Parque?'}
+            </h3>
+            <p className="text-muted-foreground mb-4" style={{ fontSize: '0.875rem' }}>
+              {confirmAction === 'add' 
+                ? 'Tem certeza que deseja adicionar este parque à sua lista?'
+                : 'Tem certeza que deseja remover este parque da sua lista?'}
+            </p>
+            
+            {/* Password input */}
+            <div className="mb-4">
+              <label className="text-foreground font-medium mb-1 block" style={{ fontSize: '0.875rem' }}>
+                Palavra-passe
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setPasswordError('');
+                }}
+                placeholder="Introduza a palavra-passe"
+                className="w-full px-3 py-2.5 rounded-lg border border-border bg-background text-foreground outline-none focus:border-primary"
+                style={{ fontSize: '0.875rem' }}
+              />
+              {passwordError && (
+                <p className="text-red-500 mt-1" style={{ fontSize: '0.72rem' }}>{passwordError}</p>
+              )}
+            </div>
+            
+            {/* Buttons */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setParkToConfirm(null);
+                  setConfirmAction(null);
+                  setPassword('');
+                  setPasswordError('');
+                }}
+                className="flex-1 px-4 py-2.5 rounded-lg border border-border text-foreground hover:bg-black/5 dark:hover:bg-white/5 transition-colors font-medium"
+                style={{ fontSize: '0.875rem' }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmAction}
+                className={`flex-1 px-4 py-2.5 rounded-lg text-white font-medium transition-all ${
+                  confirmAction === 'add' 
+                    ? 'bg-primary hover:bg-primary/90'
+                    : 'bg-red-500 hover:bg-red-600'
+                }`}
+                style={{ fontSize: '0.875rem' }}
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
         </div>
+      )}
+
+      {/* Tipo de utilizador (apenas para condutor) */}
+      {isCondutor && (
+        <>
+          <SectionHeader icon="fa-id-card" title="Tipo de Condutor" />
+          <div
+            className="rounded-2xl p-4 mb-5 bg-card border border-border"
+            role="radiogroup"
+            aria-label="Selecionar tipo de condutor"
+          >
+            <p className="text-muted-foreground mb-3" style={{ fontSize: '0.78rem' }}>
+              Selecione o seu perfil para personalizar os filtros e recomendações.
+            </p>
+            <div className="space-y-2.5">
+              <UserTypeOption
+                id="condutor"
+                icon="fa-car"
+                label="Condutor Regular"
+                desc="Estacionamento convencional, preços e distância"
+                selected={userType === 'condutor'}
+                onChange={() => setUserType('condutor')}
+              />
+              <UserTypeOption
+                id="ev"
+                icon="fa-charging-station"
+                label="Condutor Veículo Elétrico"
+                desc="Prioridade a lugares com carregadores EV"
+                selected={userType === 'ev'}
+                onChange={() => setUserType('ev')}
+              />
+              <UserTypeOption
+                id="acessivel"
+                icon="fa-wheelchair"
+                label="Mobilidade Reduzida"
+                desc="Filtros para lugares acessíveis e monitorizados"
+                selected={userType === 'acessivel'}
+                onChange={() => setUserType('acessivel')}
+              />
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Preferências */}
+      <SectionHeader icon="fa-sliders" title="Preferências" />
+      <div
+        className="rounded-2xl overflow-hidden mb-5 bg-card border border-border"
+      >
+        <ToggleRow
+          icon="fa-bell"
+          label="Notificações"
+          desc="Alertas de disponibilidade e reservas"
+          value={notifications}
+          onChange={setNotifications}
+          id="notif-toggle"
+        />
+        <div className="h-px bg-border mx-4" />
+        <ToggleRow
+          icon="fa-rotate"
+          label="Actualização Automática"
+          desc="Actualizar disponibilidade em tempo real"
+          value={realtime}
+          onChange={setRealtime}
+          id="realtime-toggle"
+        />
       </div>
 
-      <SectionHeader icon="fa-chart-bar" title="As Minhas Estatísticas" />
-      <div className="grid grid-cols-3 gap-3 mb-5">
-        <Link to="/custos" className="contents">
-          <StatCard icon="fa-receipt" value="€31.55" label="Gastos" color="var(--color-primary)" />
-        </Link>
-        <StatCard icon="fa-star" value="0" label="Favoritos" color="#f59e0b" />
-        <StatCard icon="fa-route" value="0 km" label="Poupados" color="#22c55e" />
-      </div>
+      {/* Estatísticas do utilizador */}
+      {isCondutor && (
+        <>
+          <SectionHeader icon="fa-chart-bar" title="As Minhas Estatísticas" />
+          <div className="grid grid-cols-3 gap-3 mb-5">
+            <Link to="/gastos" className="contents">
+              <StatCard icon="fa-receipt" value="€31.55" label="Gastos" color="var(--color-primary)" />
+            </Link>
+            <StatCard icon="fa-star" value="0" label="Favoritos" color="#f59e0b" />
+            <StatCard icon="fa-route" value="0 km" label="Poupados" color="#22c55e" />
+          </div>
+        </>
+      )}
 
       <SectionHeader icon="fa-sliders" title="Preferências" />
       <div className="rounded-2xl overflow-hidden mb-5 bg-card border border-border">
@@ -102,14 +399,10 @@ function CondutorProfile({ driverType, setDriverType, vehicles }: Readonly<{ dri
       </div>
 
       <SectionHeader icon="fa-gear" title="Conta" />
-      <div className="rounded-2xl overflow-hidden mb-5 bg-card border border-border">
-        <Link to="/custos" className="contents"><AccountRow icon="fa-receipt" label="Histórico de Gastos" /></Link>
-        <div className="h-px bg-border mx-4" />
-        <AccountRow icon="fa-credit-card" label="Método de Pagamento" />
-        <div className="h-px bg-border mx-4" />
-        <Link to="/veiculos" className="contents">
-          <AccountRowWithBadge icon="fa-car" label="Gerir Veículos" badge={vehicles.length > 0 ? vehicles.length.toString() : undefined} />
-        </Link>
+      <div
+        className="rounded-2xl overflow-hidden mb-5 bg-card border border-border"
+      >
+        <AccountRow icon="fa-bell" label="Gerir Notificações" />
         <div className="h-px bg-border mx-4" />
         <AccountRow icon="fa-shield-halved" label="Privacidade e Segurança" />
         <div className="h-px bg-border mx-4" />

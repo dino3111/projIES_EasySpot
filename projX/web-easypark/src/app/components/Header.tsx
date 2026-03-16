@@ -3,6 +3,20 @@ import { Link, useNavigate } from 'react-router';
 import { useLocation } from 'react-router';
 import { ThemeToggle } from './ThemeToggle';
 import { useProfile } from '../context/ProfileContext';
+import type { AppProfile } from '../context/ProfileContext';
+
+const PROFILE_OPTIONS: {
+  id: AppProfile;
+  icon: string;
+  label: string;
+  desc: string;
+  color: string;
+  home: string;
+}[] = [
+  { id: 'condutor', icon: 'fa-car',               label: 'Condutor',              desc: 'Encontrar e reservar lugares',          color: '#22c55e', home: '/' },
+  { id: 'gestor',   icon: 'fa-building',           label: 'Gestor de Parques',     desc: 'Dashboard, tarifas e ocorrências',      color: '#f59e0b', home: '/gestor/dashboard' },
+  { id: 'tecnico',  icon: 'fa-screwdriver-wrench', label: 'Técnico de Manutenção', desc: 'Diagnóstico, sensores e tarefas',       color: '#3b82f6', home: '/tecnico/dashboard' },
+];
 
 export function Header() {
   const navigate = useNavigate();
@@ -12,7 +26,8 @@ export function Header() {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const isDetailPage = location.pathname.startsWith('/parque/');
-  const isGestorMode = profile === 'gestor';
+  const currentOpt   = PROFILE_OPTIONS.find(o => o.id === profile) ?? PROFILE_OPTIONS[0];
+  const logoHome     = currentOpt.home;
 
   // Mostrar badge do tipo de condutor
   const driverTypeLabel = driverType === 'ev'
@@ -32,14 +47,10 @@ export function Header() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  function handleSwitchProfile(newProfile: 'condutor' | 'gestor') {
-    setProfile(newProfile);
+  function handleSwitchProfile(next: AppProfile, home: string) {
+    setProfile(next);
     setDropdownOpen(false);
-    if (newProfile === 'gestor') {
-      navigate('/gestor/dashboard');
-    } else {
-      navigate('/');
-    }
+    navigate(home);
   }
 
   return (
@@ -60,7 +71,7 @@ export function Header() {
             </button>
           ) : null}
           <Link
-            to={isGestorMode ? '/gestor/dashboard' : '/'}
+            to={logoHome}
             className="flex items-center gap-2.5 hover:opacity-90 transition-opacity"
             aria-label="EasySpot - Página inicial"
           >
@@ -75,14 +86,14 @@ export function Header() {
             </span>
           </Link>
 
-          {/* Badge de modo gestor */}
-          {isGestorMode && (
+          {/* Badge de modo */}
+          {profile !== 'condutor' && (
             <span
               className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/20 text-white"
               style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.05em' }}
             >
-              <i className="fas fa-building" style={{ fontSize: '0.6rem' }} aria-hidden="true"></i>
-              GESTOR
+              <i className={`fas ${currentOpt.icon}`} style={{ fontSize: '0.6rem' }} aria-hidden="true"></i>
+              {profile === 'gestor' ? 'GESTOR' : 'TÉCNICO'}
             </span>
           )}
         </div>
@@ -114,15 +125,11 @@ export function Header() {
               aria-expanded={dropdownOpen}
               aria-haspopup="true"
             >
-              {isGestorMode ? (
-                <i className="fas fa-building text-white text-lg" aria-hidden="true"></i>
-              ) : (
-                <i className="fas fa-user-circle text-white text-xl" aria-hidden="true"></i>
-              )}
+              <i className={`fas ${currentOpt.icon} text-white text-lg`} aria-hidden="true"></i>
               {/* Indicador de modo */}
               <span
-                className="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white flex items-center justify-center"
-                style={{ background: isGestorMode ? '#f59e0b' : '#22c55e' }}
+                className="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white"
+                style={{ background: currentOpt.color }}
                 aria-hidden="true"
               />
             </button>
@@ -130,90 +137,56 @@ export function Header() {
             {/* Dropdown */}
             {dropdownOpen && (
               <div
-                className="absolute right-0 top-full mt-2 w-64 bg-card border border-border rounded-2xl shadow-2xl overflow-hidden z-50"
+                className="absolute right-0 top-full mt-2 w-72 bg-card border border-border rounded-2xl shadow-2xl overflow-hidden z-50"
                 role="menu"
                 aria-label="Mudar de perfil"
               >
-                {/* Cabeçalho do dropdown */}
+                {/* Cabeçalho */}
                 <div className="px-4 py-3 border-b border-border bg-muted/30">
                   <p className="text-foreground" style={{ fontSize: '0.8rem', fontWeight: 700 }}>
                     Mudar de Perfil
                   </p>
                   <p className="text-muted-foreground" style={{ fontSize: '0.7rem' }}>
-                    Perfil atual: {isGestorMode ? 'Gestor de Parques' : 'Condutor'}
+                    Ativo: <span style={{ fontWeight: 600, color: currentOpt.color }}>{currentOpt.label}</span>
                   </p>
                 </div>
 
-                {/* Opção: Condutor */}
-                <button
-                  role="menuitem"
-                  onClick={() => handleSwitchProfile('condutor')}
-                  className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-primary/10 transition-colors text-left ${
-                    profile === 'condutor' ? 'bg-primary/10' : ''
-                  }`}
-                >
-                  <div
-                    className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                      profile === 'condutor' ? 'bg-primary text-white' : 'bg-muted text-muted-foreground'
-                    }`}
-                    aria-hidden="true"
-                  >
-                    <i className="fas fa-car" style={{ fontSize: '0.9rem' }}></i>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p
-                      className="text-foreground"
-                      style={{ fontSize: '0.85rem', fontWeight: 600 }}
+                {/* Options */}
+                {PROFILE_OPTIONS.map((opt, idx) => (
+                  <div key={opt.id}>
+                    <button
+                      role="menuitem"
+                      onClick={() => handleSwitchProfile(opt.id, opt.home)}
+                      className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-primary/10 transition-colors text-left ${
+                        profile === opt.id ? 'bg-primary/5' : ''
+                      }`}
                     >
-                      Condutor
-                    </p>
-                    <p className="text-muted-foreground" style={{ fontSize: '0.7rem' }}>
-                      Encontrar e reservar lugares
-                    </p>
+                      <div
+                        className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                        style={{
+                          background: profile === opt.id ? opt.color : 'var(--color-muted)',
+                          color: profile === opt.id ? '#fff' : 'var(--color-muted-foreground)',
+                        }}
+                        aria-hidden="true"
+                      >
+                        <i className={`fas ${opt.icon}`} style={{ fontSize: '0.9rem' }}></i>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-foreground" style={{ fontSize: '0.85rem', fontWeight: 600 }}>{opt.label}</p>
+                        <p className="text-muted-foreground" style={{ fontSize: '0.7rem' }}>{opt.desc}</p>
+                      </div>
+                      {profile === opt.id && (
+                        <i className="fas fa-circle-check text-primary flex-shrink-0" style={{ fontSize: '0.85rem' }} aria-hidden="true"></i>
+                      )}
+                    </button>
+                    {idx < PROFILE_OPTIONS.length - 1 && (
+                      <div className="h-px bg-border mx-3" aria-hidden="true" />
+                    )}
                   </div>
-                  {profile === 'condutor' && (
-                    <i className="fas fa-circle-check text-primary flex-shrink-0" style={{ fontSize: '0.85rem' }} aria-hidden="true"></i>
-                  )}
-                </button>
+                ))}
 
-                <div className="h-px bg-border mx-3" aria-hidden="true" />
-
-                {/* Opção: Gestor */}
-                <button
-                  role="menuitem"
-                  onClick={() => handleSwitchProfile('gestor')}
-                  className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-primary/10 transition-colors text-left ${
-                    profile === 'gestor' ? 'bg-primary/10' : ''
-                  }`}
-                >
-                  <div
-                    className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                      profile === 'gestor' ? 'bg-primary text-white' : 'bg-muted text-muted-foreground'
-                    }`}
-                    aria-hidden="true"
-                  >
-                    <i className="fas fa-building" style={{ fontSize: '0.9rem' }}></i>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p
-                      className="text-foreground"
-                      style={{ fontSize: '0.85rem', fontWeight: 600 }}
-                    >
-                      Gestor de Parques
-                    </p>
-                    <p className="text-muted-foreground" style={{ fontSize: '0.7rem' }}>
-                      Dashboard, tarifas e ocorrências
-                    </p>
-                  </div>
-                  {profile === 'gestor' && (
-                    <i className="fas fa-circle-check text-primary flex-shrink-0" style={{ fontSize: '0.85rem' }} aria-hidden="true"></i>
-                  )}
-                </button>
-
-                {/* Separador */}
-                <div className="h-px bg-border mx-3" aria-hidden="true" />
-
-                {/* Ir para perfil */}
+                {/* Separador + configurações */}
+                <div className="h-px bg-border" aria-hidden="true" />
                 <Link
                   to="/perfil"
                   onClick={() => setDropdownOpen(false)}
@@ -224,12 +197,8 @@ export function Header() {
                     <i className="fas fa-gear" style={{ fontSize: '0.9rem' }}></i>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-foreground" style={{ fontSize: '0.85rem', fontWeight: 600 }}>
-                      Definições de Perfil
-                    </p>
-                    <p className="text-muted-foreground" style={{ fontSize: '0.7rem' }}>
-                      Notificações e preferências
-                    </p>
+                    <p className="text-foreground" style={{ fontSize: '0.85rem', fontWeight: 600 }}>Definições de Perfil</p>
+                    <p className="text-muted-foreground" style={{ fontSize: '0.7rem' }}>Notificações e preferências</p>
                   </div>
                 </Link>
               </div>
@@ -240,3 +209,4 @@ export function Header() {
     </header>
   );
 }
+

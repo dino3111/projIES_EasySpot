@@ -9,6 +9,12 @@ interface NavTab {
   priority: number; // Para ordenar
 }
 
+const tecnicoTabs = [
+  { path: '/tecnico/dashboard', icon: 'fa-gauge-high', label: 'Painel', exact: true },
+  { path: '/tecnico/manutencao', icon: 'fa-screwdriver-wrench', label: 'Manutenção', exact: false },
+  { path: '/perfil', icon: 'fa-gear', label: 'Definições', exact: false },
+];
+
 export function BottomNav() {
   const location = useLocation();
   const { profile, driverType } = useProfile();
@@ -37,16 +43,7 @@ export function BottomNav() {
       );
     }
 
-    return baseTabs.sort((a, b) => a.priority - b.priority);
-  };
-
-  const gestorTabs: NavTab[] = [
-    { path: '/gestor/dashboard', icon: 'fa-chart-line', label: 'Dashboard', exact: true, priority: 1 },
-    { path: '/gestor/tarifas-ocorrencias', icon: 'fa-file-invoice-dollar', label: 'Tarifas', exact: false, priority: 2 },
-    { path: '/perfil', icon: 'fa-gear', label: 'Definições', exact: false, priority: 3 },
-  ];
-
-  const tabs = profile === 'gestor' ? gestorTabs : getCondutorTabs();
+  const tabs = profile === 'gestor' ? gestorTabs : profile === 'tecnico' ? tecnicoTabs : condutorTabs;
 
   const isActive = (path: string, exact: boolean) => {
     if (exact) return location.pathname === path;

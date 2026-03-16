@@ -23,19 +23,18 @@ const gestorNav: NavItem[] = [
   { path: '/perfil', icon: 'fa-gear', label: 'Definições', exact: false },
 ];
 
+const tecnicoNav = [
+  { path: '/tecnico/dashboard', icon: 'fa-gauge-high', label: 'Painel Técnico', exact: true },
+  { path: '/tecnico/manutencao', icon: 'fa-screwdriver-wrench', label: 'Diagnóstico & Manutenção', exact: false },
+  { path: '/tecnico/mapa', icon: 'fa-map-location-dot', label: 'Mapa', exact: false },
+  { path: '/perfil', icon: 'fa-gear', label: 'Definições', exact: false },
+];
+
 export function Sidebar() {
   const location = useLocation();
   const { profile, driverType } = useProfile();
 
-  const allNavItems = profile === 'gestor' ? gestorNav : condutorNav;
-  
-  // Filtrar items baseado no driverType
-  const navItems = allNavItems.filter(item => {
-    // Se não tem restrição de driverTypes, mostrar sempre
-    if (!item.driverTypes) return true;
-    // Se tem restrição, verificar se o driverType atual está na lista
-    return item.driverTypes.includes(driverType);
-  });
+  const navItems = profile === 'gestor' ? gestorNav : profile === 'tecnico' ? tecnicoNav : condutorNav;
 
   const isActive = (path: string, exact: boolean) => {
     if (exact) return location.pathname === path;
@@ -49,11 +48,11 @@ export function Sidebar() {
       aria-label="Menu lateral"
     >
       <nav className="flex flex-col gap-1 p-3 pt-4">
-        {/* Separador de secção se for gestor */}
-        {profile === 'gestor' && (
+        {/* Separador de secção */}
+        {(profile === 'gestor' || profile === 'tecnico') && (
           <div className="px-3 pb-1 mb-1">
             <p className="text-muted-foreground uppercase" style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.08em' }}>
-              Painel do Gestor
+              {profile === 'gestor' ? 'Painel do Gestor' : 'Painel Técnico'}
             </p>
           </div>
         )}
@@ -85,15 +84,22 @@ export function Sidebar() {
       </nav>
 
       {/* Badge do modo no fundo da sidebar */}
-      {profile === 'gestor' && (
+      {(profile === 'gestor' || profile === 'tecnico') && (
         <div className="mt-auto p-3">
           <div className="flex items-center gap-2 rounded-xl p-2.5 bg-primary/10 border border-primary/20">
             <div className="w-7 h-7 rounded-lg bg-primary/20 flex items-center justify-center flex-shrink-0" aria-hidden="true">
-              <i className="fas fa-building text-primary" style={{ fontSize: '0.75rem' }}></i>
+              <i
+                className={`fas ${profile === 'gestor' ? 'fa-building' : 'fa-screwdriver-wrench'} text-primary`}
+                style={{ fontSize: '0.75rem' }}
+              ></i>
             </div>
             <div className="min-w-0">
-              <p className="text-primary" style={{ fontSize: '0.72rem', fontWeight: 700 }}>Modo Gestor</p>
-              <p className="text-muted-foreground" style={{ fontSize: '0.62rem' }}>António Videira</p>
+              <p className="text-primary" style={{ fontSize: '0.72rem', fontWeight: 700 }}>
+                {profile === 'gestor' ? 'Modo Gestor' : 'Modo Técnico'}
+              </p>
+              <p className="text-muted-foreground" style={{ fontSize: '0.62rem' }}>
+                {profile === 'gestor' ? 'António Videira' : 'Laura Farias'}
+              </p>
             </div>
           </div>
         </div>
