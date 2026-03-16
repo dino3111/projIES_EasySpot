@@ -52,6 +52,20 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  /* Sobrepor variáveis DaisyUI base para modo claro */
+  --color-base-100: #ffffff;
+  --color-base-200: #f0f0f5;
+  --color-base-300: #e0e0ea;
+  --color-base-content: #18181a;
+
+  /* Sobrepor variáveis DaisyUI de cor para garantir texto branco nos botões */
+  --color-primary: #7357ec;
+  --color-primary-content: #ffffff;
+  --color-secondary: #a99be8;
+  --color-secondary-content: #ffffff;
+  --color-accent: #5948a6;
+  --color-accent-content: #ffffff;
 }
 
 .dark {
@@ -61,19 +75,20 @@
   --card-foreground: #FFFFFF;
   --popover: #18181a;
   --popover-foreground: #FFFFFF;
-  --primary: #7357ec;
-  --primary-foreground: #FFFFFF;
+  /* Primary mais claro em dark mode para garantir contraste mínimo 6:1 */
+  --primary: #b5a6f2;
+  --primary-foreground: #2e1c7c;
   --secondary: #3b3070;
-  --secondary-foreground: #a99be8;
+  --secondary-foreground: #c4baf0;
   --muted: #2e2e32;
-  --muted-foreground: #a99be8;
+  --muted-foreground: #9899b0;
   --accent: #5948a6;
   --accent-foreground: #FFFFFF;
   --destructive: #d4183d;
   --destructive-foreground: #ffffff;
   --border: #3b3070;
   --input: #18181a;
-  --ring: #7357ec;
+  --ring: #b5a6f2;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
   --chart-1: oklch(0.488 0.243 264.376);
@@ -89,6 +104,15 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(0.269 0 0);
   --sidebar-ring: oklch(0.439 0 0);
+
+  /* Sobrepor variáveis DaisyUI base para modo escuro */
+  --color-base-100: #18181a;
+  --color-base-200: #222225;
+  --color-base-300: #2e2e32;
+  --color-base-content: #ffffff;
+  /* DaisyUI primary em dark mode */
+  --color-primary: #b5a6f2;
+  --color-primary-content: #2e1c7c;
 }
 
 @theme inline {

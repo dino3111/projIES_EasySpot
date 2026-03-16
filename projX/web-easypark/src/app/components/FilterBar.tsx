@@ -5,10 +5,13 @@ interface FilterBarProps {
   showAccessibleOnly: boolean;
   showAvailableOnly: boolean;
   searchQuery: string;
+  selectedDistrict: string;
+  districts: string[];
   onEVFilterChange: (value: boolean) => void;
   onAccessibleFilterChange: (value: boolean) => void;
   onAvailableFilterChange: (value: boolean) => void;
   onSearchChange: (value: string) => void;
+  onDistrictChange: (value: string) => void;
 }
 
 export function FilterBar({
@@ -16,18 +19,24 @@ export function FilterBar({
   showAccessibleOnly,
   showAvailableOnly,
   searchQuery,
+  selectedDistrict,
+  districts,
   onEVFilterChange,
   onAccessibleFilterChange,
   onAvailableFilterChange,
   onSearchChange,
+  onDistrictChange,
 }: FilterBarProps) {
-  const activeCount = [showEVOnly, showAccessibleOnly, showAvailableOnly].filter(Boolean).length;
+  const activeCount =
+    [showEVOnly, showAccessibleOnly, showAvailableOnly].filter(Boolean).length +
+    (selectedDistrict ? 1 : 0);
+
   // No mobile, os filtros começam ocultos; no desktop ficam sempre visíveis via CSS
   const [filtersVisible, setFiltersVisible] = useState(false);
 
   return (
     <div role="region" aria-label="Pesquisa e filtros">
-      {/* Barra de pesquisa */}
+      {/* Barra de pesquisa + distrito */}
       <div className="flex gap-2 mb-3">
         <div className="relative flex-1">
           <i
@@ -54,7 +63,38 @@ export function FilterBar({
             </button>
           )}
         </div>
-        {/* Botão de filtros – toggle no mobile, decorativo (sem click) em desktop pois filtros estão sempre visíveis */}
+
+        {/* Dropdown de distrito – visível sempre em ≥sm */}
+        <div className="relative hidden sm:block">
+          <i
+            className="fas fa-map-location-dot absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-primary/60"
+            aria-hidden="true"
+            style={{ fontSize: '0.8rem' }}
+          />
+          <select
+            value={selectedDistrict}
+            onChange={(e) => onDistrictChange(e.target.value)}
+            className={`h-full rounded-xl pl-8 pr-7 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all border appearance-none cursor-pointer bg-card text-foreground ${
+              selectedDistrict
+                ? 'border-primary text-primary font-semibold'
+                : 'border-border text-muted-foreground'
+            }`}
+            style={{ fontSize: '0.85rem', minWidth: '9rem' }}
+            aria-label="Filtrar por localidade"
+          >
+            <option value="">Todos os lugares</option>
+            {districts.map((d) => (
+              <option key={d} value={d}>{d}</option>
+            ))}
+          </select>
+          <i
+            className="fas fa-chevron-down absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground"
+            aria-hidden="true"
+            style={{ fontSize: '0.65rem' }}
+          />
+        </div>
+
+        {/* Botão de filtros – toggle no mobile */}
         <button
           className={`sm:hidden flex-shrink-0 w-12 flex flex-col items-center justify-center rounded-xl border transition-colors relative ${
             activeCount > 0 || filtersVisible
@@ -104,12 +144,42 @@ export function FilterBar({
           ariaLabel={showAccessibleOnly ? 'Remover filtro: apenas acessíveis' : 'Filtrar apenas parques acessíveis'}
         />
 
+        {/* Distrito (mobile apenas – em desktop está no dropdown acima) */}
+        <div className="relative sm:hidden">
+          <i
+            className="fas fa-map-location-dot absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
+            aria-hidden="true"
+            style={{ fontSize: '0.72rem', color: selectedDistrict ? 'white' : 'var(--muted-foreground)' }}
+          />
+          <select
+            value={selectedDistrict}
+            onChange={(e) => onDistrictChange(e.target.value)}
+            className={`rounded-full pl-7 pr-6 py-1.5 border appearance-none cursor-pointer text-[0.8rem] font-medium transition-all focus:outline-none focus:ring-2 focus:ring-primary/50 ${
+              selectedDistrict
+                ? 'bg-primary border-primary text-white font-semibold shadow-sm shadow-primary/20'
+                : 'bg-card border-border text-muted-foreground hover:border-primary/40 hover:text-primary'
+            }`}
+            aria-label="Filtrar por localidade"
+          >
+            <option value="">Lugar</option>
+            {districts.map((d) => (
+              <option key={d} value={d}>{d}</option>
+            ))}
+          </select>
+          <i
+            className="fas fa-chevron-down absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"
+            aria-hidden="true"
+            style={{ fontSize: '0.6rem', color: selectedDistrict ? 'white' : 'var(--muted-foreground)' }}
+          />
+        </div>
+
         {activeCount > 0 && (
           <button
             onClick={() => {
               onEVFilterChange(false);
               onAccessibleFilterChange(false);
               onAvailableFilterChange(false);
+              onDistrictChange('');
             }}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all bg-transparent border border-dashed border-error/60 text-error font-medium hover:bg-error/5"
             style={{ fontSize: '0.75rem' }}

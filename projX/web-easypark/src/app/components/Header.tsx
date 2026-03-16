@@ -7,12 +7,19 @@ import { useProfile } from '../context/ProfileContext';
 export function Header() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { profile, setProfile } = useProfile();
+  const { profile, setProfile, driverType } = useProfile();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const isDetailPage = location.pathname.startsWith('/parque/');
   const isGestorMode = profile === 'gestor';
+
+  // Mostrar badge do tipo de condutor
+  const driverTypeLabel = driverType === 'ev'
+    ? 'Condutor EV'
+    : driverType === 'mobilidade_reduzida'
+    ? 'Mobilidade Reduzida'
+    : null;
 
   // Fecha o dropdown ao clicar fora
   useEffect(() => {

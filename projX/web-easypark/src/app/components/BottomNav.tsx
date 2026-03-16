@@ -1,25 +1,52 @@
 import { Link, useLocation } from 'react-router';
-import { useProfile } from '../context/ProfileContext';
+import { useProfile, type DriverType } from '../context/ProfileContext';
 
-const condutorTabs = [
-  { path: '/', icon: 'fa-list', label: 'Lista', exact: true },
-  { path: '/mapa', icon: 'fa-map-location-dot', label: 'Mapa', exact: false },
-  { path: '/gastos', icon: 'fa-receipt', label: 'Gastos', exact: false },
-  { path: '/favoritos', icon: 'fa-star', label: 'Favoritos', exact: false },
-  { path: '/perfil', icon: 'fa-user', label: 'Perfil', exact: false },
-];
-
-const gestorTabs = [
-  { path: '/gestor/dashboard', icon: 'fa-chart-line', label: 'Dashboard', exact: true },
-  { path: '/gestor/tarifas-ocorrencias', icon: 'fa-file-invoice-dollar', label: 'Tarifas', exact: false },
-  { path: '/perfil', icon: 'fa-gear', label: 'Definições', exact: false },
-];
+interface NavTab {
+  path: string;
+  icon: string;
+  label: string;
+  exact: boolean;
+  priority: number; // Para ordenar
+}
 
 export function BottomNav() {
   const location = useLocation();
-  const { profile } = useProfile();
+  const { profile, driverType } = useProfile();
 
-  const tabs = profile === 'gestor' ? gestorTabs : condutorTabs;
+  // Tabs para condutores - adapta conforme o tipo
+  const getCondutorTabs = (): NavTab[] => {
+    const baseTabs: NavTab[] = [
+      { path: '/', icon: 'fa-list', label: 'Lista', exact: true, priority: 1 },
+      { path: '/mapa', icon: 'fa-map-location-dot', label: 'Mapa', exact: false, priority: 2 },
+      { path: '/perfil', icon: 'fa-user', label: 'Perfil', exact: false, priority: 10 },
+    ];
+
+    // Adicionar tab específica baseada no driverType
+    if (driverType === 'ev') {
+      baseTabs.push(
+        { path: '/custos', icon: 'fa-wallet', label: 'Custos', exact: false, priority: 4 }
+      );
+    } else if (driverType === 'mobilidade_reduzida') {
+      baseTabs.push(
+        { path: '/custos', icon: 'fa-wallet', label: 'Custos', exact: false, priority: 4 }
+      );
+    } else {
+      // Regular
+      baseTabs.push(
+        { path: '/custos', icon: 'fa-wallet', label: 'Custos', exact: false, priority: 4 }
+      );
+    }
+
+    return baseTabs.sort((a, b) => a.priority - b.priority);
+  };
+
+  const gestorTabs: NavTab[] = [
+    { path: '/gestor/dashboard', icon: 'fa-chart-line', label: 'Dashboard', exact: true, priority: 1 },
+    { path: '/gestor/tarifas-ocorrencias', icon: 'fa-file-invoice-dollar', label: 'Tarifas', exact: false, priority: 2 },
+    { path: '/perfil', icon: 'fa-gear', label: 'Definições', exact: false, priority: 3 },
+  ];
+
+  const tabs = profile === 'gestor' ? gestorTabs : getCondutorTabs();
 
   const isActive = (path: string, exact: boolean) => {
     if (exact) return location.pathname === path;
