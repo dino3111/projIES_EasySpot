@@ -3,5 +3,7 @@
 
 @import 'tw-animate-css';
 
-/* DaisyUI */
-@plugin "daisyui";
+/* DaisyUI - apenas tema light como padrão; dark mode gerido via classe .dark */
+@plugin "daisyui" {
+  themes: ["light --default"];
+}
