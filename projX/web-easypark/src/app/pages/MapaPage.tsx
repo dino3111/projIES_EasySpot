@@ -2,15 +2,28 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link } from 'react-router';
 import { mockParkingLots, simulateRealTimeUpdate, type ParkingLot } from '../data/parkingData';
 import { LeafletMap } from '../components/LeafletMap';
+import { VehiclePicker } from '../components/VehiclePicker';
+import { useProfile } from '../context/ProfileContext';
 
 type FilterType = 'todos' | 'ev' | 'acessivel' | 'disponivel';
 
 export function MapaPage() {
+  const { vehicles } = useProfile();
+  const primaryVehicle = vehicles.find((v) => v.isPrimary) ?? vehicles[0] ?? null;
+
   const [parkingLots, setParkingLots] = useState<ParkingLot[]>(mockParkingLots);
   const [selectedLotId, setSelectedLotId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterType>('todos');
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(primaryVehicle?.id ?? null);
   const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const vehicle = vehicles.find((v) => v.id === selectedVehicleId) ?? null;
+    if (vehicle?.isEV) setActiveFilter('ev');
+    else if (vehicle?.isAccessible) setActiveFilter('acessivel');
+    else if (vehicle) setActiveFilter('todos');
+  }, [selectedVehicleId, vehicles]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -21,9 +34,20 @@ export function MapaPage() {
     return () => clearInterval(interval);
   }, []);
 
+  const selectedVehicle = useMemo(
+    () => vehicles.find((v) => v.id === selectedVehicleId) ?? null,
+    [vehicles, selectedVehicleId],
+  );
+
   const filteredLots = useMemo(() => {
     return parkingLots.filter((lot) => {
-      if (activeFilter === 'ev' && (!lot.hasEVCharger || !lot.evChargers?.length)) return false;
+      if (activeFilter === 'ev') {
+        if (!lot.hasEVCharger || !lot.evChargers?.length) return false;
+        if (selectedVehicle?.isEV && selectedVehicle.chargerTypes?.length) {
+          const hasCompatible = lot.evChargers.some((c) => selectedVehicle.chargerTypes!.includes(c.type));
+          if (!hasCompatible) return false;
+        }
+      }
       if (activeFilter === 'acessivel' && (!lot.hasAccessible || !lot.accessibleSpots?.length)) return false;
       if (activeFilter === 'disponivel' && lot.availableSpots === 0) return false;
       if (searchQuery) {
@@ -32,7 +56,7 @@ export function MapaPage() {
       }
       return true;
     });
-  }, [parkingLots, activeFilter, searchQuery]);
+  }, [parkingLots, activeFilter, searchQuery, selectedVehicle]);
 
   const selectedLot = parkingLots.find((l) => l.id === selectedLotId) ?? null;
 
@@ -69,35 +93,50 @@ export function MapaPage() {
 
       {/* ── Barra de controlo flutuante ──────────────────────────────── */}
       <div className="absolute top-3 left-3 right-3 z-10 pointer-events-none">
-        <div className="flex flex-col gap-2 md:flex-row md:items-center">
+        <div className="flex flex-col gap-2">
 
-          {/* Campo de pesquisa */}
-          <div className="flex items-center gap-2 bg-card/95 backdrop-blur-md rounded-2xl px-4 py-2.5 shadow-xl border border-border pointer-events-auto md:w-72 flex-shrink-0">
-            <i className="fas fa-magnifying-glass text-primary flex-shrink-0 text-sm" aria-hidden="true" />
-            <input
-              ref={searchRef}
-              type="text"
-              placeholder="Pesquisar parque..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="flex-1 bg-transparent border-none outline-none text-foreground font-medium placeholder:text-muted-foreground text-sm min-w-0"
-              aria-label="Pesquisar parque"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
-                aria-label="Limpar pesquisa"
-              >
-                <i className="fas fa-xmark" />
-              </button>
+          {/* Linha 1: pesquisa + seletor de veículo */}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 bg-card/95 backdrop-blur-md rounded-2xl px-4 py-2.5 shadow-xl border border-border pointer-events-auto flex-1 min-w-0">
+              <i className="fas fa-magnifying-glass text-primary flex-shrink-0 text-sm" aria-hidden="true" />
+              <input
+                ref={searchRef}
+                type="text"
+                placeholder="Pesquisar parque..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="flex-1 bg-transparent border-none outline-none text-foreground font-medium placeholder:text-muted-foreground text-sm min-w-0"
+                aria-label="Pesquisar parque"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+                  aria-label="Limpar pesquisa"
+                >
+                  <i className="fas fa-xmark" />
+                </button>
+              )}
+            </div>
+            {vehicles.length > 0 && (
+              <div className="bg-card/95 backdrop-blur-md rounded-2xl px-3 py-2 shadow-xl border border-border pointer-events-auto flex-shrink-0">
+                <VehiclePicker
+                  vehicles={vehicles}
+                  selectedId={selectedVehicleId}
+                  onSelect={setSelectedVehicleId}
+                  label=""
+                  allLabel="Todos"
+                />
+              </div>
             )}
           </div>
 
-          {/* Filtros */}
+          {/* Linha 2: filtros */}
           <div className="flex gap-2 pointer-events-auto overflow-x-auto scrollbar-none overscroll-x-contain">
             {FILTERS.map((f) => (
               <button
+                type="button"
                 key={f.id}
                 onClick={() => setActiveFilter(f.id)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap shadow-lg transition-all duration-200 backdrop-blur-md border flex-shrink-0 ${
@@ -105,7 +144,7 @@ export function MapaPage() {
                     ? 'bg-primary text-primary-foreground border-primary shadow-primary/20'
                     : 'bg-card/95 text-muted-foreground border-border hover:bg-muted/90'
                 }`}
-                aria-pressed={activeFilter === f.id}
+                aria-pressed={activeFilter === f.id ? 'true' : 'false'}
                 aria-label={`Filtrar por ${f.label}`}
               >
                 <i className={`fas ${f.icon}`} aria-hidden="true" />
@@ -233,6 +272,7 @@ function ParkPanel({ lot, onClose, getStatusInfo, desktop = false }: ParkPanelPr
           </div>
           {desktop && (
             <button
+              type="button"
               onClick={onClose}
               className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 transition-colors flex-shrink-0 flex items-center justify-center cursor-pointer"
               aria-label="Fechar detalhes"

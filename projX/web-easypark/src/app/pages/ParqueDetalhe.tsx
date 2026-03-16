@@ -1,8 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
+import { useProfile } from '../context/ProfileContext';
 import {
   mockParkingLots,
   simulateRealTimeUpdate,
+  getSpotDimCategory,
+  getDistanceColor,
   type ParkingLot,
   type ParkingFloor,
   type SpotStatus,
@@ -15,13 +18,25 @@ type Tab = 'geral' | 'mapa' | 'ev' | 'acessibilidade' | 'tarifas';
 export function ParqueDetalhe() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { vehicles } = useProfile();
+  const myVehicle = useMemo(() => vehicles.find((v) => v.isPrimary) ?? vehicles[0] ?? null, [vehicles]);
 
   const [lot, setLot] = useState<ParkingLot | null>(
     () => mockParkingLots.find((l) => l.id === id) ?? null
   );
-  const [activeTab, setActiveTab] = useState<Tab>('geral');
   const [isFavorite, setIsFavorite] = useState(false);
   const [activeFloorIdx, setActiveFloorIdx] = useState(0);
+
+  const initialTab = useMemo<Tab>(() => {
+    if (!lot) return 'geral';
+    const hasEV = (lot.evChargers?.length ?? 0) > 0;
+    const hasAcc = (lot.accessibleSpots?.length ?? 0) > 0;
+    if (myVehicle?.isEV && hasEV) return 'ev';
+    if (myVehicle?.isAccessible && hasAcc) return 'acessibilidade';
+    return 'geral';
+  }, [lot?.id, myVehicle?.id]);
+
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
 
   useEffect(() => {
     if (!lot) return;
@@ -79,14 +94,18 @@ export function ParqueDetalhe() {
           {/* Card Hero */}
           <div className="rounded-2xl overflow-hidden shadow-lg" style={{ background: 'linear-gradient(135deg, #7357ec 0%, #4a3696 100%)' }}>
             <div className="flex items-start justify-between p-4 pb-1">
-              <button 
-                onClick={() => navigate(-1)} 
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
                 className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
+                aria-label="Voltar"
               >
-                <i className="fas fa-arrow-left text-sm" />
+                <i className="fas fa-arrow-left text-sm" aria-hidden="true" />
               </button>
               <button
+                type="button"
                 onClick={() => setIsFavorite((v) => !v)}
+                aria-label={isFavorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
                 className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
                   isFavorite ? 'bg-warning text-white shadow-md shadow-warning/30' : 'bg-white/10 text-white/80 hover:bg-white/20 hover:text-white'
                 }`}
@@ -123,24 +142,31 @@ export function ParqueDetalhe() {
             </div>
             
             <div className="px-4 pb-4 mt-1">
-              <button
-                className={`w-full py-3 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition-transform active:scale-[0.98] ${
-                  isFull ? 'bg-black/20 text-white/50 cursor-not-allowed' : 'bg-white text-primary hover:bg-gray-50 shadow-md'
-                }`}
-                disabled={isFull}
-              >
-                <i className={`fas ${isFull ? 'fa-ban' : 'fa-calendar-check'}`} />
-                {isFull ? 'Lotado' : 'Reservar'}
-              </button>
+              {isFull ? (
+                <button
+                  type="button"
+                  className="w-full py-3 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition-transform active:scale-[0.98] bg-black/20 text-white/50 cursor-not-allowed"
+                  disabled
+                >
+                  <i className="fas fa-ban" />
+                  Lotado
+                </button>
+              ) : (
+                <Link
+                  to={`/reserva?parkId=${lot.id}`}
+                  className="w-full py-3 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition-transform active:scale-[0.98] bg-white text-primary hover:bg-gray-50 shadow-md no-underline"
+                >
+                  <i className="fas fa-calendar-check" />
+                  Reservar
+                </Link>
+              )}
             </div>
           </div>
 
-          {/* Info Grid Rápida */}
+          {/* Info Grid Rápida — apenas Tarifa e Horário */}
           <div className="grid grid-cols-2 gap-3">
-            <InfoBox icon="fa-euro-sign" label="Hora" value={`€${lot.hourlyRate.toFixed(2)}`} color="text-primary" />
-            <InfoBox icon="fa-person-walking" label="Pé" value={lot.walkingTime} color="text-primary" />
-            <InfoBox icon="fa-clock" label="Horário" value={lot.is24h ? '24h' : lot.openingHours} color="text-primary" />
-            <InfoBox icon="fa-route" label="Dist." value={lot.distance} color="text-primary" />
+            <InfoBox icon="fa-euro-sign" label="Por Hora"  value={`€${lot.hourlyRate.toFixed(2)}`} color="text-primary" />
+            <InfoBox icon="fa-clock"     label="Horário"   value={lot.is24h ? '24h' : lot.openingHours} color="text-primary" />
           </div>
 
           {/* Comodidades */}
@@ -189,6 +215,7 @@ export function ParqueDetalhe() {
               <div className="flex w-full">
                 {tabs.map((tab) => (
                   <button
+                    type="button"
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
                     className={`flex-1 py-3 px-1 text-center font-bold text-xs sm:text-sm transition-colors border-b-2 whitespace-nowrap ${
@@ -281,6 +308,7 @@ export function ParqueDetalhe() {
                   <div className="flex flex-wrap gap-1.5 mb-4">
                     {lot.floors?.map((floor, idx) => (
                       <button
+                        type="button"
                         key={floor.id}
                         onClick={() => setActiveFloorIdx(idx)}
                         className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-all border ${
@@ -318,24 +346,48 @@ export function ParqueDetalhe() {
               {/* === EV === */}
               {activeTab === 'ev' && lot.evChargers && (
                 <div className="animate-in fade-in duration-200">
+                  {myVehicle?.isEV && myVehicle.chargerTypes && myVehicle.chargerTypes.length > 0 && (
+                    <div className="mb-3 flex items-start gap-2 px-3 py-2.5 rounded-xl bg-primary/6 border border-primary/20">
+                      <i className="fas fa-plug text-primary mt-0.5 flex-shrink-0" style={{ fontSize: '0.8rem' }} />
+                      <div>
+                        <p className="text-foreground font-semibold" style={{ fontSize: '0.78rem' }}>
+                          Compatibilidade do seu {myVehicle.make ?? 'veículo'}
+                        </p>
+                        <p className="text-muted-foreground" style={{ fontSize: '0.72rem' }}>
+                          {myVehicle.chargerTypes.join(' · ')}
+                        </p>
+                      </div>
+                    </div>
+                  )}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                     {lot.evChargers.map((c, i) => (
-                       <div key={c.id} className="p-3 rounded-xl border border-border bg-card flex gap-3 items-center">
-                         <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary text-sm flex-shrink-0">
-                           <i className={`fas ${c.type === 'Tesla Supercharger' ? 'fa-bolt' : 'fa-plug'}`} />
-                         </div>
-                         <div className="flex-1 min-w-0">
-                           <div className="flex justify-between items-start mb-0.5">
-                             <p className="font-bold text-sm text-foreground truncate">{c.type}</p>
-                             <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${c.available ? 'bg-success/15 text-success' : 'bg-destructive/15 text-destructive'}`}>
-                               {c.available ? 'Livre' : 'Ocupado'}
-                             </span>
+                     {lot.evChargers.map((c) => {
+                       const compatible = myVehicle?.chargerTypes?.includes(c.type) ?? null;
+                       return (
+                         <div
+                           key={c.id}
+                           className={`p-3 rounded-xl border bg-card flex gap-3 items-center ${compatible === true ? 'border-success/40' : compatible === false ? 'border-border opacity-60' : 'border-border'}`}
+                         >
+                           <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary text-sm flex-shrink-0">
+                             <i className={`fas ${c.type === 'Tesla Supercharger' ? 'fa-bolt' : 'fa-plug'}`} />
                            </div>
-                           <p className="text-muted-foreground text-xs font-medium">{c.speedKW} kW • {c.speed}</p>
-                           <p className="text-primary font-bold text-sm mt-1">€{c.price.toFixed(2)}<span className="opacity-60 font-normal">/kWh</span></p>
+                           <div className="flex-1 min-w-0">
+                             <div className="flex justify-between items-start mb-0.5">
+                               <div className="flex items-center gap-1.5 flex-wrap">
+                                 <p className="font-bold text-sm text-foreground truncate">{c.type}</p>
+                                 {compatible === true && (
+                                   <span className="text-success text-[10px] font-bold"><i className="fas fa-check-circle" /> Compatível</span>
+                                 )}
+                               </div>
+                               <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${c.available ? 'bg-success/15 text-success' : 'bg-destructive/15 text-destructive'}`}>
+                                 {c.available ? 'Livre' : 'Ocupado'}
+                               </span>
+                             </div>
+                             <p className="text-muted-foreground text-xs font-medium">{c.speedKW} kW • {c.speed}</p>
+                             <p className="text-primary font-bold text-sm mt-1">€{c.price.toFixed(2)}<span className="opacity-60 font-normal">/kWh</span></p>
+                           </div>
                          </div>
-                       </div>
-                     ))}
+                       );
+                     })}
                   </div>
                 </div>
               )}
@@ -343,26 +395,124 @@ export function ParqueDetalhe() {
               {/* === ACESSIBILIDADE === */}
               {activeTab === 'acessibilidade' && lot.accessibleSpots && (
                 <div className="animate-in fade-in duration-200">
-                   <div className="grid grid-cols-1 gap-2">
-                      {[...lot.accessibleSpots].sort((a,b) => (a.available === b.available ? 0 : a.available ? -1 : 1) || a.distanceToEntrance - b.distanceToEntrance).map(spot => (
-                        <div key={spot.id} className={`p-3 rounded-xl border ${spot.available ? 'border-info/30 bg-info/5' : 'border-border bg-card'} flex gap-3 items-center`}>
-                          <div className={`w-10 h-10 rounded-lg flex flex-col justify-center items-center font-bold flex-shrink-0 ${spot.distanceToEntrance <= 20 ? 'bg-success text-white' : 'bg-warning text-warning-foreground'}`}>
-                            <span className="text-sm leading-none">{spot.distanceToEntrance}m</span>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex justify-between items-start mb-1">
-                              <p className="font-bold text-sm text-foreground">{spot.zone}</p>
-                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${spot.available ? 'bg-success/15 text-success' : 'bg-destructive/15 text-destructive'}`}>
-                                {spot.available ? 'Livre' : 'Ocup.'}
-                              </span>
+                   <div className="grid grid-cols-1 gap-2.5">
+                      {[...lot.accessibleSpots]
+                        .sort((a, b) => (a.available === b.available ? 0 : a.available ? -1 : 1) || a.distanceToEntrance - b.distanceToEntrance)
+                        .map(spot => {
+                          const dist = getDistanceColor(spot.distanceToEntrance);
+                          const dim  = getSpotDimCategory(spot.dimensions);
+                          return (
+                            <div
+                              key={spot.id}
+                              className={`p-3.5 rounded-xl border flex gap-3 ${spot.available ? 'border-primary/25 bg-primary/4' : 'border-border bg-card'}`}
+                            >
+                              {/* Distância — badge colorido com contraste garantido */}
+                              <div
+                                className="w-14 flex-shrink-0 rounded-xl flex flex-col items-center justify-center gap-0.5 py-2"
+                                style={{ background: dist.bg }}
+                              >
+                                <i className="fas fa-door-open text-white" style={{ fontSize: '0.8rem' }} />
+                                <span className="text-white font-extrabold leading-none" style={{ fontSize: '0.95rem' }}>
+                                  {spot.distanceToEntrance}m
+                                </span>
+                                <span className="text-white/80 font-medium" style={{ fontSize: '0.55rem', textAlign: 'center' }}>
+                                  entrada
+                                </span>
+                              </div>
+
+                              {/* Conteúdo */}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex justify-between items-start mb-1.5">
+                                  <p className="font-bold text-foreground truncate pr-2" style={{ fontSize: '0.85rem' }}>
+                                    {spot.zone}
+                                  </p>
+                                  <span
+                                    className={`flex-shrink-0 px-2 py-0.5 rounded-full text-white font-bold`}
+                                    style={{ fontSize: '0.68rem', background: spot.available ? '#22c55e' : '#ef4444' }}
+                                  >
+                                    {spot.available ? 'Livre' : 'Ocupado'}
+                                  </span>
+                                </div>
+
+                                {/* Dimensão */}
+                                <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
+                                  <span
+                                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-bold border ${dim.bgClass} ${dim.textClass}`}
+                                    style={{ fontSize: '0.7rem', borderColor: 'currentColor' }}
+                                  >
+                                    <i className={`fas ${dim.icon}`} style={{ fontSize: '0.6rem' }} />
+                                    {dim.label} — {spot.dimensions}
+                                  </span>
+                                </div>
+
+                                {/* Atributos */}
+                                <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+                                  <span className="flex items-center gap-1" style={{ fontSize: '0.72rem' }}>
+                                    <i className={spot.hasRampSpace ? 'fas fa-check text-success' : 'fas fa-times text-error'} />
+                                    <span className="text-muted-foreground">Espaço rampa</span>
+                                  </span>
+                                  <span className="flex items-center gap-1" style={{ fontSize: '0.72rem' }}>
+                                    <i className={spot.monitored ? 'fas fa-video text-primary' : 'fas fa-video-slash text-muted-foreground'} />
+                                    <span className="text-muted-foreground">{spot.monitored ? 'Vigiado' : 'Sem câmara'}</span>
+                                  </span>
+                                  <span className="flex items-center gap-1" style={{ fontSize: '0.72rem' }}>
+                                    <i className={`fas fa-circle ${spot.sensorStatus === 'online' ? 'text-success' : 'text-warning'}`} style={{ fontSize: '0.5rem' }} />
+                                    <span className="text-muted-foreground">
+                                      Sensor {spot.sensorStatus === 'online' ? 'online' : 'avariado'}
+                                    </span>
+                                  </span>
+                                </div>
+                              </div>
                             </div>
-                            <div className="flex flex-wrap gap-1.5">
-                              <span className="text-xs text-muted-foreground"><i className={spot.hasRampSpace ? "fas fa-check text-success" : "fas fa-times text-destructive"}/> Rampa</span>
-                              <span className="text-xs text-muted-foreground"><i className={spot.monitored ? "fas fa-video text-primary" : "fas fa-video-slash"}/> {spot.monitored ? 'Vigiado' : 'S/ Câmera'}</span>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                          );
+                        })}
+                   </div>
+
+                   {/* Legenda de distâncias */}
+                   <div className="mt-3 p-3 bg-muted/30 border border-border rounded-xl">
+                     <p className="text-muted-foreground font-semibold mb-2" style={{ fontSize: '0.72rem' }}>Legenda</p>
+                     <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+                       <div>
+                         <p className="text-muted-foreground font-semibold mb-1" style={{ fontSize: '0.65rem' }}>DISTÂNCIA À ENTRADA</p>
+                         {[
+                           { color: '#22c55e', label: '≤ 20m — Muito próximo' },
+                           { color: '#f59e0b', label: '21–40m — Intermédio' },
+                           { color: '#ef4444', label: '> 40m — Afastado' },
+                         ].map((item) => (
+                           <div key={item.label} className="flex items-center gap-1.5 mb-0.5">
+                             <span className="w-3 h-3 rounded-sm flex-shrink-0" style={{ background: item.color }} />
+                             <span className="text-foreground" style={{ fontSize: '0.68rem' }}>{item.label}</span>
+                           </div>
+                         ))}
+                       </div>
+                       <div>
+                         <p className="text-muted-foreground font-semibold mb-1" style={{ fontSize: '0.65rem' }}>DIMENSÃO DO LUGAR</p>
+                         {[
+                           { cls: 'text-success', label: 'Amplo — Largura ≥ 4.0m' },
+                           { cls: 'text-info',    label: 'Standard — 3.5m a 3.9m' },
+                           { cls: 'text-warning', label: 'Compacto — < 3.5m' },
+                         ].map((item) => (
+                           <p key={item.label} className={`font-semibold ${item.cls}`} style={{ fontSize: '0.68rem' }}>{item.label}</p>
+                         ))}
+                       </div>
+                     </div>
+                   </div>
+
+                   {/* Botão reportar */}
+                   <div className="mt-4 p-4 bg-warning/5 border border-warning/30 rounded-xl">
+                     <div className="flex items-start gap-3 mb-3">
+                       <i className="fas fa-triangle-exclamation text-warning text-lg mt-0.5" />
+                       <div className="flex-1">
+                         <p className="font-semibold text-foreground text-sm">Detetou uma ocupação irregular?</p>
+                         <p className="text-xs text-muted-foreground mt-1">
+                           Ajude-nos a manter os lugares acessíveis disponíveis para quem realmente precisa.
+                         </p>
+                       </div>
+                     </div>
+                     <Link to={`/reportar?parkId=${lot.id}`} className="btn btn-warning btn-sm rounded-full w-full">
+                       <i className="fas fa-flag mr-2" />
+                       Reportar Estacionamento Não Autorizado
+                     </Link>
                    </div>
                 </div>
               )}

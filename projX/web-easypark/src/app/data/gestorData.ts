@@ -72,7 +72,7 @@ export const mockDailyMetrics: DailyMetric[] = [
   { date: '2026-03-07', day: 'Sáb', entradas: 398, saidas: 385, receita: 2650.20, ocupacao: 84 },
   { date: '2026-03-08', day: 'Dom', entradas: 265, saidas: 270, receita: 1380.90, ocupacao: 58 },
   { date: '2026-03-09', day: 'Seg', entradas: 303, saidas: 289, receita: 1745.60, ocupacao: 69 },
-];
+].map((item, idx) => ({ ...item, key: `daily-${item.date}-${idx}` }));
 
 // ─── Ocupação por hora (hoje) ─────────────────────────────────────────────────
 export const mockHourlyOccupancy: HourlyOccupancy[] = [
@@ -91,7 +91,7 @@ export const mockHourlyOccupancy: HourlyOccupancy[] = [
   { hora: '19h', ocupacao: 54 },
   { hora: '20h', ocupacao: 35 },
   { hora: '21h', ocupacao: 20 },
-];
+].map((item, idx) => ({ ...item, key: `hourly-${item.hora}-${idx}` }));
 
 // ─── Ocupação por zona ────────────────────────────────────────────────────────
 export const mockZoneOccupancy: ZoneOccupancy[] = [

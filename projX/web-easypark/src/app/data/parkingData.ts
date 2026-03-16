@@ -41,6 +41,7 @@ export interface ParkingLot {
   id: string;
   name: string;
   address: string;
+  localidade: string;
   availableSpots: number;
   totalSpots: number;
   hourlyRate: number;
@@ -93,6 +94,29 @@ export interface ParkingZone {
   floor: string;
 }
 
+// ── Helper: dimensão do lugar acessível ───────────────────────────────────────
+export function getSpotDimCategory(dimensions: string): {
+  label: string;
+  bgClass: string;
+  textClass: string;
+  icon: string;
+} {
+  const match = dimensions.match(/^([\d.]+)/);
+  const width = match ? parseFloat(match[1]) : 0;
+  if (width >= 4.0)
+    return { label: 'Amplo', bgClass: 'bg-success/15', textClass: 'text-success', icon: 'fa-expand' };
+  if (width >= 3.5)
+    return { label: 'Standard', bgClass: 'bg-info/15', textClass: 'text-info', icon: 'fa-arrows-left-right' };
+  return { label: 'Compacto', bgClass: 'bg-warning/15', textClass: 'text-warning', icon: 'fa-compress' };
+}
+
+// ── Helper: distância à entrada → cor ─────────────────────────────────────────
+export function getDistanceColor(meters: number): { bg: string; label: string } {
+  if (meters <= 20) return { bg: '#22c55e', label: `${meters}m` };
+  if (meters <= 40) return { bg: '#f59e0b', label: `${meters}m` };
+  return { bg: '#ef4444', label: `${meters}m` };
+}
+
 // ── Helper: generate a floor grid ─────────────────────────────────────────────
 function makeFloor(
   id: string,
@@ -132,6 +156,7 @@ export const mockParkingLots: ParkingLot[] = [
     id: 'coimbra-1',
     name: 'Estádio Cidade de Coimbra',
     address: 'Rua Dom Manuel I, Coimbra',
+    localidade: 'Coimbra',
     availableSpots: 48,
     totalSpots: 120,
     hourlyRate: 1.80,
@@ -151,25 +176,30 @@ export const mockParkingLots: ParkingLot[] = [
     amenities: ['vigilância', 'câmeras', 'elevador', 'wc'],
     techFeatures: { hasOCR: true, hasRFID: true, hasIRSensors: true, hasLEDs: true },
     evChargers: [
-      { id: 'ev-c1-1', type: 'Type 2', speed: 'Rápida (22kW)', speedKW: 22, available: true, price: 0.32 },
+      { id: 'ev-c1-1', type: 'Type 2',  speed: 'Rápida (22kW)',       speedKW: 22,  available: true,  price: 0.32 },
+      { id: 'ev-c1-2', type: 'CCS',     speed: 'Ultra-rápida (50kW)', speedKW: 50,  available: false, price: 0.40 },
     ],
     accessibleSpots: [
-      { id: 'ac-c1-1', zone: 'Piso 0', available: true, monitored: true, distanceToEntrance: 12, hasRampSpace: true, dimensions: '3.8m x 5.0m', sensorStatus: 'online', ledStatus: 'blue' }
+      { id: 'ac-c1-1', zone: 'Piso 0 — Entrada Norte', available: true,  monitored: true,  distanceToEntrance: 12, hasRampSpace: true,  dimensions: '4.0m x 5.5m', sensorStatus: 'online', ledStatus: 'green' },
+      { id: 'ac-c1-2', zone: 'Piso 0 — Entrada Sul',   available: false, monitored: true,  distanceToEntrance: 28, hasRampSpace: true,  dimensions: '3.5m x 5.0m', sensorStatus: 'online', ledStatus: 'red'   },
+      { id: 'ac-c1-3', zone: 'Piso -1 — Elevador',     available: true,  monitored: false, distanceToEntrance: 52, hasRampSpace: false, dimensions: '3.2m x 4.8m', sensorStatus: 'faulty', ledStatus: 'yellow'},
     ],
     zones: [
-      { id: 'z1', name: 'Zona Verde (Normal)', type: 'standard', totalSpots: 40, availableSpots: 12, floor: 'Piso 0' },
-      { id: 'z2', name: 'Zona Azul (Comercial)', type: 'standard', totalSpots: 30, availableSpots: 5, floor: 'Piso 0' },
-      { id: 'z3', name: 'Carregamento EV', type: 'ev', totalSpots: 10, availableSpots: 8, floor: 'Piso 0' },
-      { id: 'z4', name: 'Mobilidade Reduzida', type: 'accessible', totalSpots: 5, availableSpots: 2, floor: 'Piso 0' },
+      { id: 'z1', name: 'Zona Verde (Normal)',    type: 'standard',   totalSpots: 40, availableSpots: 12, floor: 'Piso 0' },
+      { id: 'z2', name: 'Zona Azul (Comercial)',  type: 'standard',   totalSpots: 30, availableSpots: 5,  floor: 'Piso 0' },
+      { id: 'z3', name: 'Carregamento EV',        type: 'ev',         totalSpots: 10, availableSpots: 8,  floor: 'Piso 0' },
+      { id: 'z4', name: 'Mobilidade Reduzida',    type: 'accessible', totalSpots: 5,  availableSpots: 2,  floor: 'Piso 0' },
     ],
     floors: [
-      makeFloor('f-c1-p0', 'Piso 0', 6, 10, [1,3,5,7,9,11], [], [50,51], [0]), makeFloor('f-c1-p-1', 'Piso -1', 6, 10, [2,4,6], [12,13], [], [])
-    ]
+      makeFloor('f-c1-p0', 'Piso 0', 6, 10, [1,3,5,7,9,11], [], [50,51], [0]),
+      makeFloor('f-c1-p-1', 'Piso -1', 6, 10, [2,4,6], [12,13], [], []),
+    ],
   },
   {
     id: 'coimbra-2',
     name: 'CoimbraShopping',
     address: 'Av. Mendes Silva, Coimbra',
+    localidade: 'Coimbra',
     availableSpots: 15,
     totalSpots: 60,
     hourlyRate: 1.50,
@@ -188,15 +218,19 @@ export const mockParkingLots: ParkingLot[] = [
     phone: '+351 23 900 0011',
     amenities: ['câmeras'],
     techFeatures: { hasOCR: true, hasRFID: false, hasIRSensors: false, hasLEDs: false },
+    accessibleSpots: [
+      { id: 'ac-c2-1', zone: 'Piso 0 — Entrada Principal', available: true,  monitored: true,  distanceToEntrance: 15, hasRampSpace: true,  dimensions: '4.5m x 5.5m', sensorStatus: 'online', ledStatus: 'green' },
+      { id: 'ac-c2-2', zone: 'Piso 0 — Lado Oeste',        available: false, monitored: false, distanceToEntrance: 35, hasRampSpace: false, dimensions: '3.2m x 4.8m', sensorStatus: 'online', ledStatus: 'red'   },
+    ],
     zones: [
-      { id: 'z1', name: 'Zona Verde (Normal)', type: 'standard', totalSpots: 40, availableSpots: 12, floor: 'Piso 0' },
-      { id: 'z2', name: 'Zona Azul (Comercial)', type: 'standard', totalSpots: 30, availableSpots: 5, floor: 'Piso 0' },
-      { id: 'z3', name: 'Carregamento EV', type: 'ev', totalSpots: 10, availableSpots: 8, floor: 'Piso 0' },
-      { id: 'z4', name: 'Mobilidade Reduzida', type: 'accessible', totalSpots: 5, availableSpots: 2, floor: 'Piso 0' },
+      { id: 'z1', name: 'Zona Verde (Normal)',    type: 'standard',   totalSpots: 40, availableSpots: 12, floor: 'Piso 0' },
+      { id: 'z2', name: 'Zona Azul (Comercial)',  type: 'standard',   totalSpots: 30, availableSpots: 5,  floor: 'Piso 0' },
+      { id: 'z4', name: 'Mobilidade Reduzida',    type: 'accessible', totalSpots: 5,  availableSpots: 2,  floor: 'Piso 0' },
     ],
     floors: [
-      makeFloor('f-c2-p0', 'Piso 0', 5, 12, [2,5,8,12,15], [], [], [1]), makeFloor('f-c2-p-1', 'Piso -1', 5, 12, [1,3,10], [], [], [])
-    ]
+      makeFloor('f-c2-p0',  'Piso 0',  5, 12, [2,5,8,12,15], [], [], [1]),
+      makeFloor('f-c2-p-1', 'Piso -1', 5, 12, [1,3,10], [], [], []),
+    ],
   },
 
   // ─── Aveiro ───────────────────────────────────────────────────────────────
@@ -204,6 +238,7 @@ export const mockParkingLots: ParkingLot[] = [
     id: 'aveiro-1',
     name: 'Fórum Aveiro',
     address: 'R. do Batalhão de Caçadores 10, Aveiro',
+    localidade: 'Aveiro',
     availableSpots: 22,
     totalSpots: 85,
     hourlyRate: 1.50,
@@ -223,25 +258,30 @@ export const mockParkingLots: ParkingLot[] = [
     amenities: ['câmeras', 'elevador', 'wc'],
     techFeatures: { hasOCR: true, hasRFID: true, hasIRSensors: true, hasLEDs: true },
     evChargers: [
-      { id: 'ev-a1-1', type: 'Type 2', speed: 'Rápida (22kW)', speedKW: 22, available: true, price: 0.38 },
+      { id: 'ev-a1-1', type: 'Type 2', speed: 'Rápida (22kW)',       speedKW: 22, available: true,  price: 0.38 },
+      { id: 'ev-a1-2', type: 'CCS',   speed: 'Ultra-rápida (50kW)', speedKW: 50, available: true,  price: 0.45 },
     ],
     accessibleSpots: [
-      { id: 'ac-a1-1', zone: 'Piso 0', available: true, monitored: true, distanceToEntrance: 8, hasRampSpace: true, dimensions: '4.0m x 5.0m', sensorStatus: 'online', ledStatus: 'blue' }
+      { id: 'ac-a1-1', zone: 'Piso 0 — Entrada Fórum',   available: true,  monitored: true,  distanceToEntrance: 8,  hasRampSpace: true,  dimensions: '4.0m x 5.0m', sensorStatus: 'online', ledStatus: 'green' },
+      { id: 'ac-a1-2', zone: 'Piso 0 — Saída Lateral',   available: true,  monitored: true,  distanceToEntrance: 22, hasRampSpace: true,  dimensions: '3.8m x 5.0m', sensorStatus: 'online', ledStatus: 'green' },
+      { id: 'ac-a1-3', zone: 'Piso -1 — Junto Elevador', available: false, monitored: false, distanceToEntrance: 48, hasRampSpace: false, dimensions: '3.2m x 4.8m', sensorStatus: 'faulty', ledStatus: 'red'   },
     ],
     zones: [
-      { id: 'z1', name: 'Zona Verde (Normal)', type: 'standard', totalSpots: 40, availableSpots: 12, floor: 'Piso 0' },
-      { id: 'z2', name: 'Zona Azul (Comercial)', type: 'standard', totalSpots: 30, availableSpots: 5, floor: 'Piso 0' },
-      { id: 'z3', name: 'Carregamento EV', type: 'ev', totalSpots: 10, availableSpots: 8, floor: 'Piso 0' },
-      { id: 'z4', name: 'Mobilidade Reduzida', type: 'accessible', totalSpots: 5, availableSpots: 2, floor: 'Piso 0' },
+      { id: 'z1', name: 'Zona Verde (Normal)',   type: 'standard',   totalSpots: 40, availableSpots: 12, floor: 'Piso 0' },
+      { id: 'z2', name: 'Zona Azul (Comercial)', type: 'standard',   totalSpots: 30, availableSpots: 5,  floor: 'Piso 0' },
+      { id: 'z3', name: 'Carregamento EV',       type: 'ev',         totalSpots: 10, availableSpots: 8,  floor: 'Piso 0' },
+      { id: 'z4', name: 'Mobilidade Reduzida',   type: 'accessible', totalSpots: 5,  availableSpots: 2,  floor: 'Piso 0' },
     ],
     floors: [
-      makeFloor('f-a1-p0', 'Piso 0', 5, 17, [1,4,7,10,13], [], [80], [0]), makeFloor('f-a1-p-1', 'Piso -1', 5, 17, [2,5,11], [20,21], [], [])
-    ]
+      makeFloor('f-a1-p0', 'Piso 0', 5, 17, [1,4,7,10,13], [], [80], [0]),
+      makeFloor('f-a1-p-1', 'Piso -1', 5, 17, [2,5,11], [20,21], [], []),
+    ],
   },
   {
     id: 'aveiro-2',
     name: 'Glicínias Plaza',
     address: 'R. Eng. Von Haff, Aveiro',
+    localidade: 'Aveiro',
     availableSpots: 50,
     totalSpots: 150,
     hourlyRate: 1.00,
@@ -260,15 +300,26 @@ export const mockParkingLots: ParkingLot[] = [
     phone: '+351 23 400 0022',
     amenities: ['vigilância'],
     techFeatures: { hasOCR: true, hasRFID: false, hasIRSensors: false, hasLEDs: true },
+    evChargers: [
+      { id: 'ev-a2-1', type: 'Type 2', speed: 'Lenta (7kW)',         speedKW: 7,  available: true,  price: 0.28 },
+      { id: 'ev-a2-2', type: 'CCS',   speed: 'Ultra-rápida (50kW)', speedKW: 50, available: false, price: 0.42 },
+    ],
+    accessibleSpots: [
+      { id: 'ac-a2-1', zone: 'Piso 0 — Entrada Principal', available: true,  monitored: true,  distanceToEntrance: 10, hasRampSpace: true,  dimensions: '4.5m x 5.5m', sensorStatus: 'online', ledStatus: 'green' },
+      { id: 'ac-a2-2', zone: 'Piso 0 — Ala Norte',         available: false, monitored: true,  distanceToEntrance: 30, hasRampSpace: true,  dimensions: '4.0m x 5.0m', sensorStatus: 'online', ledStatus: 'red'   },
+      { id: 'ac-a2-3', zone: 'Piso -1 — Zona B',           available: true,  monitored: false, distanceToEntrance: 45, hasRampSpace: false, dimensions: '3.5m x 5.0m', sensorStatus: 'online', ledStatus: 'green' },
+    ],
     zones: [
-      { id: 'z1', name: 'Zona Verde (Normal)', type: 'standard', totalSpots: 40, availableSpots: 12, floor: 'Piso 0' },
-      { id: 'z2', name: 'Zona Azul (Comercial)', type: 'standard', totalSpots: 30, availableSpots: 5, floor: 'Piso 0' },
-      { id: 'z3', name: 'Carregamento EV', type: 'ev', totalSpots: 10, availableSpots: 8, floor: 'Piso 0' },
-      { id: 'z4', name: 'Mobilidade Reduzida', type: 'accessible', totalSpots: 5, availableSpots: 2, floor: 'Piso 0' },
+      { id: 'z1', name: 'Zona Verde (Normal)',   type: 'standard',   totalSpots: 40, availableSpots: 12, floor: 'Piso 0' },
+      { id: 'z2', name: 'Zona Azul (Comercial)', type: 'standard',   totalSpots: 30, availableSpots: 5,  floor: 'Piso 0' },
+      { id: 'z3', name: 'Carregamento EV',       type: 'ev',         totalSpots: 10, availableSpots: 8,  floor: 'Piso 0' },
+      { id: 'z4', name: 'Mobilidade Reduzida',   type: 'accessible', totalSpots: 5,  availableSpots: 2,  floor: 'Piso 0' },
     ],
     floors: [
-      makeFloor('f-a2-p0', 'Piso 0', 10, 15, [10,20,30,40,50], [], [140], [0]), makeFloor('f-a2-p-1', 'Piso -1', 10, 15, [5,15,25], [], [], []), makeFloor('f-a2-p-2', 'Piso -2', 10, 15, [2,8], [], [], [])
-    ]
+      makeFloor('f-a2-p0',  'Piso 0',  10, 15, [10,20,30,40,50], [], [140], [0]),
+      makeFloor('f-a2-p-1', 'Piso -1', 10, 15, [5,15,25], [], [], []),
+      makeFloor('f-a2-p-2', 'Piso -2', 10, 15, [2,8], [], [], []),
+    ],
   },
 
   // ─── Leiria ───────────────────────────────────────────────────────────────
@@ -276,6 +327,7 @@ export const mockParkingLots: ParkingLot[] = [
     id: 'leiria-1',
     name: 'Europa',
     address: 'Avenida Marquês de Pombal, Leiria',
+    localidade: 'Leiria',
     availableSpots: 10,
     totalSpots: 90,
     hourlyRate: 1.60,
@@ -294,20 +346,25 @@ export const mockParkingLots: ParkingLot[] = [
     phone: '+351 24 400 0003',
     amenities: ['câmeras'],
     techFeatures: { hasOCR: true, hasRFID: true, hasIRSensors: false, hasLEDs: false },
+    accessibleSpots: [
+      { id: 'ac-l1-1', zone: 'Piso 0 — Entrada Marquês', available: false, monitored: true,  distanceToEntrance: 18, hasRampSpace: true,  dimensions: '3.8m x 5.0m', sensorStatus: 'online', ledStatus: 'red'   },
+      { id: 'ac-l1-2', zone: 'Piso 1 — Zona C',          available: true,  monitored: false, distanceToEntrance: 42, hasRampSpace: false, dimensions: '3.5m x 5.0m', sensorStatus: 'online', ledStatus: 'green' },
+    ],
     zones: [
-      { id: 'z1', name: 'Zona Verde (Normal)', type: 'standard', totalSpots: 40, availableSpots: 12, floor: 'Piso 0' },
-      { id: 'z2', name: 'Zona Azul (Comercial)', type: 'standard', totalSpots: 30, availableSpots: 5, floor: 'Piso 0' },
-      { id: 'z3', name: 'Carregamento EV', type: 'ev', totalSpots: 10, availableSpots: 8, floor: 'Piso 0' },
-      { id: 'z4', name: 'Mobilidade Reduzida', type: 'accessible', totalSpots: 5, availableSpots: 2, floor: 'Piso 0' },
+      { id: 'z1', name: 'Zona Verde (Normal)',   type: 'standard',   totalSpots: 40, availableSpots: 12, floor: 'Piso 0' },
+      { id: 'z2', name: 'Zona Azul (Comercial)', type: 'standard',   totalSpots: 30, availableSpots: 5,  floor: 'Piso 0' },
+      { id: 'z4', name: 'Mobilidade Reduzida',   type: 'accessible', totalSpots: 5,  availableSpots: 2,  floor: 'Piso 0' },
     ],
     floors: [
-      makeFloor('f-l1-p0', 'Piso 0', 6, 15, [5,10,15,20], [], [], [0]), makeFloor('f-l1-p1', 'Piso 1', 6, 15, [1,6,11], [], [], [])
-    ]
+      makeFloor('f-l1-p0', 'Piso 0', 6, 15, [5,10,15,20], [], [], [0]),
+      makeFloor('f-l1-p1', 'Piso 1', 6, 15, [1,6,11], [], [], []),
+    ],
   },
   {
     id: 'leiria-2',
     name: 'Estádio Municipal Dr. Magalhães Pessoa',
     address: 'Caminho da Ribeira, Leiria',
+    localidade: 'Leiria',
     availableSpots: 120,
     totalSpots: 300,
     hourlyRate: 0.80,
@@ -326,15 +383,27 @@ export const mockParkingLots: ParkingLot[] = [
     phone: '+351 24 400 0033',
     amenities: ['wc'],
     techFeatures: { hasOCR: true, hasRFID: false, hasIRSensors: false, hasLEDs: false },
+    evChargers: [
+      { id: 'ev-l2-1', type: 'Type 2', speed: 'Rápida (22kW)',       speedKW: 22, available: true,  price: 0.30 },
+      { id: 'ev-l2-2', type: 'CCS',   speed: 'Ultra-rápida (50kW)', speedKW: 50, available: true,  price: 0.38 },
+      { id: 'ev-l2-3', type: 'Type 2', speed: 'Lenta (7kW)',         speedKW: 7,  available: false, price: 0.25 },
+    ],
+    accessibleSpots: [
+      { id: 'ac-l2-1', zone: 'Piso 0 — Portão A',     available: true,  monitored: true,  distanceToEntrance: 15, hasRampSpace: true,  dimensions: '4.0m x 5.5m', sensorStatus: 'online', ledStatus: 'green' },
+      { id: 'ac-l2-2', zone: 'Piso 0 — Portão B',     available: true,  monitored: true,  distanceToEntrance: 25, hasRampSpace: true,  dimensions: '4.5m x 5.5m', sensorStatus: 'online', ledStatus: 'green' },
+      { id: 'ac-l2-3', zone: 'Piso 0 — Ala Sul',      available: false, monitored: true,  distanceToEntrance: 38, hasRampSpace: true,  dimensions: '3.5m x 5.0m', sensorStatus: 'online', ledStatus: 'red'   },
+      { id: 'ac-l2-4', zone: 'Piso -1 — Zona Remota', available: true,  monitored: false, distanceToEntrance: 60, hasRampSpace: false, dimensions: '3.2m x 4.8m', sensorStatus: 'faulty', ledStatus: 'yellow'},
+    ],
     zones: [
-      { id: 'z1', name: 'Zona Verde (Normal)', type: 'standard', totalSpots: 40, availableSpots: 12, floor: 'Piso 0' },
-      { id: 'z2', name: 'Zona Azul (Comercial)', type: 'standard', totalSpots: 30, availableSpots: 5, floor: 'Piso 0' },
-      { id: 'z3', name: 'Carregamento EV', type: 'ev', totalSpots: 10, availableSpots: 8, floor: 'Piso 0' },
-      { id: 'z4', name: 'Mobilidade Reduzida', type: 'accessible', totalSpots: 5, availableSpots: 2, floor: 'Piso 0' },
+      { id: 'z1', name: 'Zona Verde (Normal)',   type: 'standard',   totalSpots: 40, availableSpots: 12, floor: 'Piso 0' },
+      { id: 'z2', name: 'Zona Azul (Comercial)', type: 'standard',   totalSpots: 30, availableSpots: 5,  floor: 'Piso 0' },
+      { id: 'z3', name: 'Carregamento EV',       type: 'ev',         totalSpots: 10, availableSpots: 8,  floor: 'Piso 0' },
+      { id: 'z4', name: 'Mobilidade Reduzida',   type: 'accessible', totalSpots: 5,  availableSpots: 2,  floor: 'Piso 0' },
     ],
     floors: [
-      makeFloor('f-l2-p0', 'Piso 0', 15, 20, [1,2,3,4,5], [], [290], [0]), makeFloor('f-l2-p-1', 'Piso -1', 15, 20, [10,20,30], [], [], [])
-    ]
+      makeFloor('f-l2-p0',  'Piso 0',  15, 20, [1,2,3,4,5], [], [290], [0]),
+      makeFloor('f-l2-p-1', 'Piso -1', 15, 20, [10,20,30], [], [], []),
+    ],
   },
 
   // ─── Figueira da Foz ──────────────────────────────────────────────────────
@@ -342,6 +411,7 @@ export const mockParkingLots: ParkingLot[] = [
     id: 'figueira-1',
     name: 'Gaivotas',
     address: 'Av. do Mar, Figueira da Foz',
+    localidade: 'Figueira da Foz',
     availableSpots: 30,
     totalSpots: 70,
     hourlyRate: 1.00,
@@ -360,20 +430,25 @@ export const mockParkingLots: ParkingLot[] = [
     phone: '+351 23 300 0014',
     amenities: ['câmeras'],
     techFeatures: { hasOCR: true, hasRFID: false, hasIRSensors: false, hasLEDs: true },
+    accessibleSpots: [
+      { id: 'ac-f1-1', zone: 'Piso 0 — Frente Mar',   available: true,  monitored: true,  distanceToEntrance: 20, hasRampSpace: true,  dimensions: '3.8m x 5.0m', sensorStatus: 'online', ledStatus: 'green' },
+      { id: 'ac-f1-2', zone: 'Piso 1 — Zona Interior', available: false, monitored: false, distanceToEntrance: 45, hasRampSpace: false, dimensions: '3.2m x 4.8m', sensorStatus: 'online', ledStatus: 'red'   },
+    ],
     zones: [
-      { id: 'z1', name: 'Zona Verde (Normal)', type: 'standard', totalSpots: 40, availableSpots: 12, floor: 'Piso 0' },
-      { id: 'z2', name: 'Zona Azul (Comercial)', type: 'standard', totalSpots: 30, availableSpots: 5, floor: 'Piso 0' },
-      { id: 'z3', name: 'Carregamento EV', type: 'ev', totalSpots: 10, availableSpots: 8, floor: 'Piso 0' },
-      { id: 'z4', name: 'Mobilidade Reduzida', type: 'accessible', totalSpots: 5, availableSpots: 2, floor: 'Piso 0' },
+      { id: 'z1', name: 'Zona Verde (Normal)',   type: 'standard',   totalSpots: 40, availableSpots: 12, floor: 'Piso 0' },
+      { id: 'z2', name: 'Zona Azul (Comercial)', type: 'standard',   totalSpots: 30, availableSpots: 5,  floor: 'Piso 0' },
+      { id: 'z4', name: 'Mobilidade Reduzida',   type: 'accessible', totalSpots: 5,  availableSpots: 2,  floor: 'Piso 0' },
     ],
     floors: [
-      makeFloor('f-f1-p0', 'Piso 0', 7, 10, [1,10,20], [], [], [0]), makeFloor('f-f1-p1', 'Piso 1', 7, 10, [5,15], [30], [], [])
-    ]
+      makeFloor('f-f1-p0', 'Piso 0', 7, 10, [1,10,20], [], [], [0]),
+      makeFloor('f-f1-p1', 'Piso 1', 7, 10, [5,15], [30], [], []),
+    ],
   },
   {
     id: 'figueira-2',
     name: 'Foz Plaza',
     address: 'Rua dos Condados, Buarcos, Figueira da Foz',
+    localidade: 'Figueira da Foz',
     availableSpots: 80,
     totalSpots: 250,
     hourlyRate: 1.20,
@@ -392,15 +467,26 @@ export const mockParkingLots: ParkingLot[] = [
     phone: '+351 23 300 0044',
     amenities: ['wc', 'loja'],
     techFeatures: { hasOCR: true, hasRFID: true, hasIRSensors: true, hasLEDs: true },
+    evChargers: [
+      { id: 'ev-f2-1', type: 'Tesla Supercharger', speed: 'Supercharger (150kW)', speedKW: 150, available: true,  price: 0.48 },
+      { id: 'ev-f2-2', type: 'CCS',                speed: 'Ultra-rápida (50kW)', speedKW: 50,  available: true,  price: 0.42 },
+      { id: 'ev-f2-3', type: 'Type 2',             speed: 'Rápida (22kW)',       speedKW: 22,  available: false, price: 0.35 },
+    ],
+    accessibleSpots: [
+      { id: 'ac-f2-1', zone: 'Piso 0 — Entrada Buarcos',  available: true,  monitored: true,  distanceToEntrance: 12, hasRampSpace: true,  dimensions: '4.0m x 5.5m', sensorStatus: 'online', ledStatus: 'green' },
+      { id: 'ac-f2-2', zone: 'Piso 0 — Entrada Norte',    available: false, monitored: true,  distanceToEntrance: 28, hasRampSpace: true,  dimensions: '3.8m x 5.0m', sensorStatus: 'online', ledStatus: 'red'   },
+      { id: 'ac-f2-3', zone: 'Piso -1 — Zona Comercial',  available: true,  monitored: true,  distanceToEntrance: 50, hasRampSpace: false, dimensions: '3.5m x 5.0m', sensorStatus: 'online', ledStatus: 'green' },
+    ],
     zones: [
-      { id: 'z1', name: 'Zona Verde (Normal)', type: 'standard', totalSpots: 40, availableSpots: 12, floor: 'Piso 0' },
-      { id: 'z2', name: 'Zona Azul (Comercial)', type: 'standard', totalSpots: 30, availableSpots: 5, floor: 'Piso 0' },
-      { id: 'z3', name: 'Carregamento EV', type: 'ev', totalSpots: 10, availableSpots: 8, floor: 'Piso 0' },
-      { id: 'z4', name: 'Mobilidade Reduzida', type: 'accessible', totalSpots: 5, availableSpots: 2, floor: 'Piso 0' },
+      { id: 'z1', name: 'Zona Verde (Normal)',   type: 'standard',   totalSpots: 40, availableSpots: 12, floor: 'Piso 0' },
+      { id: 'z2', name: 'Zona Azul (Comercial)', type: 'standard',   totalSpots: 30, availableSpots: 5,  floor: 'Piso 0' },
+      { id: 'z3', name: 'Carregamento EV',       type: 'ev',         totalSpots: 10, availableSpots: 8,  floor: 'Piso 0' },
+      { id: 'z4', name: 'Mobilidade Reduzida',   type: 'accessible', totalSpots: 5,  availableSpots: 2,  floor: 'Piso 0' },
     ],
     floors: [
-      makeFloor('f-f2-p0', 'Piso 0', 10, 25, [1,2,3,4,5], [], [240], [0]), makeFloor('f-f2-p-1', 'Piso -1', 10, 25, [10,15], [], [], [])
-    ]
+      makeFloor('f-f2-p0',  'Piso 0',  10, 25, [1,2,3,4,5], [], [240], [0]),
+      makeFloor('f-f2-p-1', 'Piso -1', 10, 25, [10,15], [], [], []),
+    ],
   },
 
   // ─── Ovar ─────────────────────────────────────────────────────────────────
@@ -408,6 +494,7 @@ export const mockParkingLots: ParkingLot[] = [
     id: 'ovar-1',
     name: 'Estação Ferroviária de Ovar',
     address: 'Largo da Estação, Ovar',
+    localidade: 'Ovar',
     availableSpots: 10,
     totalSpots: 48,
     hourlyRate: 0.80,
@@ -427,19 +514,19 @@ export const mockParkingLots: ParkingLot[] = [
     amenities: ['câmeras'],
     techFeatures: { hasOCR: false, hasRFID: false, hasIRSensors: false, hasLEDs: false },
     zones: [
-      { id: 'z1', name: 'Zona Verde (Normal)', type: 'standard', totalSpots: 40, availableSpots: 12, floor: 'Piso 0' },
-      { id: 'z2', name: 'Zona Azul (Comercial)', type: 'standard', totalSpots: 30, availableSpots: 5, floor: 'Piso 0' },
-      { id: 'z3', name: 'Carregamento EV', type: 'ev', totalSpots: 10, availableSpots: 8, floor: 'Piso 0' },
-      { id: 'z4', name: 'Mobilidade Reduzida', type: 'accessible', totalSpots: 5, availableSpots: 2, floor: 'Piso 0' },
+      { id: 'z1', name: 'Zona Verde (Normal)',   type: 'standard', totalSpots: 40, availableSpots: 12, floor: 'Piso 0' },
+      { id: 'z2', name: 'Zona Azul (Comercial)', type: 'standard', totalSpots: 30, availableSpots: 5,  floor: 'Piso 0' },
     ],
     floors: [
-      makeFloor('f-o1-p0', 'Piso 0', 6, 8, [1,2,3], [], [], []), makeFloor('f-o1-p-1', 'Piso -1', 6, 8, [4,5], [], [], [])
-    ]
+      makeFloor('f-o1-p0',  'Piso 0',  6, 8, [1,2,3], [], [], []),
+      makeFloor('f-o1-p-1', 'Piso -1', 6, 8, [4,5], [], [], []),
+    ],
   },
   {
     id: 'ovar-2',
     name: 'Praia do Furadouro',
     address: 'Av. Central, Furadouro',
+    localidade: 'Ovar',
     availableSpots: 100,
     totalSpots: 120,
     hourlyRate: 0.40,
@@ -458,15 +545,23 @@ export const mockParkingLots: ParkingLot[] = [
     phone: '+351 25 600 0055',
     amenities: [],
     techFeatures: { hasOCR: true, hasRFID: false, hasIRSensors: false, hasLEDs: false },
+    evChargers: [
+      { id: 'ev-o2-1', type: 'Type 2', speed: 'Rápida (22kW)', speedKW: 22, available: true,  price: 0.30 },
+    ],
+    accessibleSpots: [
+      { id: 'ac-o2-1', zone: 'Piso 0 — Frente à Praia', available: true,  monitored: false, distanceToEntrance: 25, hasRampSpace: true,  dimensions: '3.8m x 5.0m', sensorStatus: 'online', ledStatus: 'green' },
+      { id: 'ac-o2-2', zone: 'Piso 1 — Zona B',         available: false, monitored: false, distanceToEntrance: 55, hasRampSpace: false, dimensions: '3.2m x 4.8m', sensorStatus: 'online', ledStatus: 'red'   },
+    ],
     zones: [
-      { id: 'z1', name: 'Zona Verde (Normal)', type: 'standard', totalSpots: 40, availableSpots: 12, floor: 'Piso 0' },
-      { id: 'z2', name: 'Zona Azul (Comercial)', type: 'standard', totalSpots: 30, availableSpots: 5, floor: 'Piso 0' },
-      { id: 'z3', name: 'Carregamento EV', type: 'ev', totalSpots: 10, availableSpots: 8, floor: 'Piso 0' },
-      { id: 'z4', name: 'Mobilidade Reduzida', type: 'accessible', totalSpots: 5, availableSpots: 2, floor: 'Piso 0' },
+      { id: 'z1', name: 'Zona Verde (Normal)',   type: 'standard',   totalSpots: 40, availableSpots: 12, floor: 'Piso 0' },
+      { id: 'z2', name: 'Zona Azul (Comercial)', type: 'standard',   totalSpots: 30, availableSpots: 5,  floor: 'Piso 0' },
+      { id: 'z3', name: 'Carregamento EV',       type: 'ev',         totalSpots: 10, availableSpots: 8,  floor: 'Piso 0' },
+      { id: 'z4', name: 'Mobilidade Reduzida',   type: 'accessible', totalSpots: 5,  availableSpots: 2,  floor: 'Piso 0' },
     ],
     floors: [
-      makeFloor('f-o2-p0', 'Piso 0', 10, 12, [1,4,7], [], [115], [0]), makeFloor('f-o2-p1', 'Piso 1', 10, 12, [2,5], [20,21], [], [])
-    ]
+      makeFloor('f-o2-p0', 'Piso 0', 10, 12, [1,4,7], [], [115], [0]),
+      makeFloor('f-o2-p1', 'Piso 1', 10, 12, [2,5], [20,21], [], []),
+    ],
   },
 
   // ── Arganil ──────────────────────────────────────────────────────────────
@@ -474,6 +569,7 @@ export const mockParkingLots: ParkingLot[] = [
     id: 'arganil-1',
     name: 'Mercado Municipal de Arganil',
     address: 'Av. José Augusto de Carvalho, Arganil',
+    localidade: 'Arganil',
     availableSpots: 20,
     totalSpots: 60,
     hourlyRate: 0.60,
@@ -492,20 +588,31 @@ export const mockParkingLots: ParkingLot[] = [
     phone: '+351 23 500 0006',
     amenities: ['câmeras', 'elevador'],
     techFeatures: { hasOCR: true, hasRFID: true, hasIRSensors: true, hasLEDs: true },
+    evChargers: [
+      { id: 'ev-ar1-1', type: 'Type 2', speed: 'Rápida (22kW)', speedKW: 22, available: true,  price: 0.32 },
+      { id: 'ev-ar1-2', type: 'CCS',   speed: 'Ultra-rápida (50kW)', speedKW: 50, available: false, price: 0.40 },
+    ],
+    accessibleSpots: [
+      { id: 'ac-ar1-1', zone: 'Piso 0 — Entrada Mercado',  available: true,  monitored: true,  distanceToEntrance: 5,  hasRampSpace: true,  dimensions: '4.5m x 5.5m', sensorStatus: 'online', ledStatus: 'green' },
+      { id: 'ac-ar1-2', zone: 'Piso 0 — Ala Poente',       available: false, monitored: true,  distanceToEntrance: 30, hasRampSpace: true,  dimensions: '3.8m x 5.0m', sensorStatus: 'online', ledStatus: 'red'   },
+      { id: 'ac-ar1-3', zone: 'Piso 1 — Zona Coberta',     available: true,  monitored: false, distanceToEntrance: 42, hasRampSpace: false, dimensions: '3.5m x 5.0m', sensorStatus: 'online', ledStatus: 'green' },
+    ],
     zones: [
-      { id: 'z1', name: 'Zona Verde (Normal)', type: 'standard', totalSpots: 40, availableSpots: 12, floor: 'Piso 0' },
-      { id: 'z2', name: 'Zona Azul (Comercial)', type: 'standard', totalSpots: 30, availableSpots: 5, floor: 'Piso 0' },
-      { id: 'z3', name: 'Carregamento EV', type: 'ev', totalSpots: 10, availableSpots: 8, floor: 'Piso 0' },
-      { id: 'z4', name: 'Mobilidade Reduzida', type: 'accessible', totalSpots: 5, availableSpots: 2, floor: 'Piso 0' },
+      { id: 'z1', name: 'Zona Verde (Normal)',   type: 'standard',   totalSpots: 40, availableSpots: 12, floor: 'Piso 0' },
+      { id: 'z2', name: 'Zona Azul (Comercial)', type: 'standard',   totalSpots: 30, availableSpots: 5,  floor: 'Piso 0' },
+      { id: 'z3', name: 'Carregamento EV',       type: 'ev',         totalSpots: 10, availableSpots: 8,  floor: 'Piso 0' },
+      { id: 'z4', name: 'Mobilidade Reduzida',   type: 'accessible', totalSpots: 5,  availableSpots: 2,  floor: 'Piso 0' },
     ],
     floors: [
-      makeFloor('f-ar1-p0', 'Piso 0', 6, 10, [1,4,7], [], [58], [0]), makeFloor('f-ar1-p1', 'Piso 1', 6, 10, [2,5], [], [], [])
-    ]
+      makeFloor('f-ar1-p0', 'Piso 0', 6, 10, [1,4,7], [], [58], [0]),
+      makeFloor('f-ar1-p1', 'Piso 1', 6, 10, [2,5], [], [], []),
+    ],
   },
   {
     id: 'arganil-2',
     name: 'Montalto',
     address: 'R. do Montalto, Arganil',
+    localidade: 'Arganil',
     availableSpots: 95,
     totalSpots: 100,
     hourlyRate: 0.30,
@@ -524,15 +631,19 @@ export const mockParkingLots: ParkingLot[] = [
     phone: '+351 23 500 0066',
     amenities: [],
     techFeatures: { hasOCR: false, hasRFID: false, hasIRSensors: false, hasLEDs: false },
+    accessibleSpots: [
+      { id: 'ac-ar2-1', zone: 'Piso 0 — Zona Central',  available: true,  monitored: false, distanceToEntrance: 10, hasRampSpace: true,  dimensions: '3.5m x 5.0m', sensorStatus: 'online', ledStatus: 'green' },
+      { id: 'ac-ar2-2', zone: 'Piso -1 — Fundo',        available: true,  monitored: false, distanceToEntrance: 38, hasRampSpace: false, dimensions: '3.2m x 4.8m', sensorStatus: 'online', ledStatus: 'green' },
+    ],
     zones: [
-      { id: 'z1', name: 'Zona Verde (Normal)', type: 'standard', totalSpots: 40, availableSpots: 12, floor: 'Piso 0' },
-      { id: 'z2', name: 'Zona Azul (Comercial)', type: 'standard', totalSpots: 30, availableSpots: 5, floor: 'Piso 0' },
-      { id: 'z3', name: 'Carregamento EV', type: 'ev', totalSpots: 10, availableSpots: 8, floor: 'Piso 0' },
-      { id: 'z4', name: 'Mobilidade Reduzida', type: 'accessible', totalSpots: 5, availableSpots: 2, floor: 'Piso 0' },
+      { id: 'z1', name: 'Zona Verde (Normal)',   type: 'standard',   totalSpots: 40, availableSpots: 12, floor: 'Piso 0' },
+      { id: 'z2', name: 'Zona Azul (Comercial)', type: 'standard',   totalSpots: 30, availableSpots: 5,  floor: 'Piso 0' },
+      { id: 'z4', name: 'Mobilidade Reduzida',   type: 'accessible', totalSpots: 5,  availableSpots: 2,  floor: 'Piso 0' },
     ],
     floors: [
-      makeFloor('f-ar2-p0', 'Piso 0', 10, 10, [1,2,3], [], [], [0]), makeFloor('f-ar2-p-1', 'Piso -1', 10, 10, [4,5], [], [], [])
-    ]
+      makeFloor('f-ar2-p0',  'Piso 0',  10, 10, [1,2,3], [], [], [0]),
+      makeFloor('f-ar2-p-1', 'Piso -1', 10, 10, [4,5], [], [], []),
+    ],
   },
 ];
 
