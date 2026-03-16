@@ -1,19 +1,13 @@
 import { Link, useLocation } from 'react-router';
-import { useProfile } from '../context/ProfileContext';
+import { useProfile, type DriverType } from '../context/ProfileContext';
 
-const condutorTabs = [
-  { path: '/', icon: 'fa-list', label: 'Lista', exact: true },
-  { path: '/mapa', icon: 'fa-map-location-dot', label: 'Mapa', exact: false },
-  { path: '/gastos', icon: 'fa-receipt', label: 'Gastos', exact: false },
-  { path: '/favoritos', icon: 'fa-star', label: 'Favoritos', exact: false },
-  { path: '/perfil', icon: 'fa-user', label: 'Perfil', exact: false },
-];
-
-const gestorTabs = [
-  { path: '/gestor/dashboard', icon: 'fa-chart-line', label: 'Dashboard', exact: true },
-  { path: '/gestor/tarifas-ocorrencias', icon: 'fa-file-invoice-dollar', label: 'Tarifas', exact: false },
-  { path: '/perfil', icon: 'fa-gear', label: 'Definições', exact: false },
-];
+interface NavTab {
+  path: string;
+  icon: string;
+  label: string;
+  exact: boolean;
+  priority: number; // Para ordenar
+}
 
 const tecnicoTabs = [
   { path: '/tecnico/dashboard', icon: 'fa-gauge-high', label: 'Painel', exact: true },
@@ -23,7 +17,31 @@ const tecnicoTabs = [
 
 export function BottomNav() {
   const location = useLocation();
-  const { profile } = useProfile();
+  const { profile, driverType } = useProfile();
+
+  // Tabs para condutores - adapta conforme o tipo
+  const getCondutorTabs = (): NavTab[] => {
+    const baseTabs: NavTab[] = [
+      { path: '/', icon: 'fa-list', label: 'Lista', exact: true, priority: 1 },
+      { path: '/mapa', icon: 'fa-map-location-dot', label: 'Mapa', exact: false, priority: 2 },
+      { path: '/perfil', icon: 'fa-user', label: 'Perfil', exact: false, priority: 10 },
+    ];
+
+    // Adicionar tab específica baseada no driverType
+    if (driverType === 'ev') {
+      baseTabs.push(
+        { path: '/custos', icon: 'fa-wallet', label: 'Custos', exact: false, priority: 4 }
+      );
+    } else if (driverType === 'mobilidade_reduzida') {
+      baseTabs.push(
+        { path: '/custos', icon: 'fa-wallet', label: 'Custos', exact: false, priority: 4 }
+      );
+    } else {
+      // Regular
+      baseTabs.push(
+        { path: '/custos', icon: 'fa-wallet', label: 'Custos', exact: false, priority: 4 }
+      );
+    }
 
   const tabs = profile === 'gestor' ? gestorTabs : profile === 'tecnico' ? tecnicoTabs : condutorTabs;
 

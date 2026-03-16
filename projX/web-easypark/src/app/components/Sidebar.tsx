@@ -1,15 +1,23 @@
 import { Link, useLocation } from 'react-router';
-import { useProfile } from '../context/ProfileContext';
+import { useProfile, type DriverType } from '../context/ProfileContext';
 
-const condutorNav = [
+interface NavItem {
+  path: string;
+  icon: string;
+  label: string;
+  exact: boolean;
+  driverTypes?: DriverType[]; // Lista de tipos de condutor que podem ver este item
+}
+
+const condutorNav: NavItem[] = [
   { path: '/', icon: 'fa-list', label: 'Lista de Parques', exact: true },
   { path: '/mapa', icon: 'fa-map-location-dot', label: 'Mapa', exact: false },
-  { path: '/gastos', icon: 'fa-receipt', label: 'Gastos', exact: false },
+  { path: '/custos', icon: 'fa-wallet', label: 'Custos', exact: false },
   { path: '/favoritos', icon: 'fa-star', label: 'Favoritos', exact: false },
   { path: '/perfil', icon: 'fa-user', label: 'Perfil', exact: false },
 ];
 
-const gestorNav = [
+const gestorNav: NavItem[] = [
   { path: '/gestor/dashboard', icon: 'fa-chart-line', label: 'Painel de Desempenho', exact: true },
   { path: '/gestor/tarifas-ocorrencias', icon: 'fa-file-invoice-dollar', label: 'Tarifas & Ocorrências', exact: false },
   { path: '/perfil', icon: 'fa-gear', label: 'Definições', exact: false },
@@ -24,7 +32,7 @@ const tecnicoNav = [
 
 export function Sidebar() {
   const location = useLocation();
-  const { profile } = useProfile();
+  const { profile, driverType } = useProfile();
 
   const navItems = profile === 'gestor' ? gestorNav : profile === 'tecnico' ? tecnicoNav : condutorNav;
 

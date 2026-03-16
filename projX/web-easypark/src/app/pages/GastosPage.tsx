@@ -5,8 +5,10 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar,
 } from 'recharts';
+import { useProfile } from '../context/ProfileContext';
 
 type Period = '7d' | '30d' | '3m';
+type VehicleFilter = 'all' | string;
 
 // Enriquecer mock com mais entradas para os gráficos
 const allExpenses: (Expense & { vehicle?: string })[] = [
@@ -100,10 +102,26 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
   return null;
 };
 
-export function GastosPage() {
-  const [period, setPeriod] = useState<Period>('30d');
+const uniqueVehicles = [...new Set(allExpenses.map((e) => e.vehicle).filter(Boolean))] as string[];
 
-  const filtered = useMemo(() => filterByPeriod(allExpenses, period), [period]);
+export function GastosPage() {
+  const { vehicles } = useProfile();
+  const [period, setPeriod] = useState<Period>('30d');
+  const [vehicleFilter, setVehicleFilter] = useState<VehicleFilter>('all');
+
+  const selectedVehicleMake = useMemo(() => {
+    if (vehicleFilter === 'all') return undefined;
+    const matched = vehicles.find(
+      (v) => (v.nickname || [v.make, v.model].filter(Boolean).join(' ') || v.plate) === vehicleFilter,
+    );
+    return matched?.make;
+  }, [vehicleFilter, vehicles]);
+
+  const filtered = useMemo(() => {
+    const byPeriod = filterByPeriod(allExpenses, period);
+    if (vehicleFilter === 'all') return byPeriod;
+    return byPeriod.filter((e) => e.vehicle === vehicleFilter);
+  }, [period, vehicleFilter]);
   const totalSpent = useMemo(() => filtered.reduce((a, e) => a + e.amount + (e.evCharging?.chargingAmount ?? 0), 0), [filtered]);
   const totalParking = useMemo(() => filtered.reduce((a, e) => a + e.amount, 0), [filtered]);
   const totalEV = useMemo(() => filtered.reduce((a, e) => a + (e.evCharging?.chargingAmount ?? 0), 0), [filtered]);
@@ -153,6 +171,31 @@ export function GastosPage() {
           ))}
         </div>
       </div>
+
+      {/* Filtro de veículo */}
+      {uniqueVehicles.length > 0 && (
+        <div className="flex items-center gap-2 mb-4">
+          <span className="text-muted-foreground font-semibold flex-shrink-0" style={{ fontSize: '0.78rem' }}>
+            <i className="fas fa-car mr-1 text-primary/70" />
+            Veículo:
+          </span>
+          <div className="relative flex items-center">
+            <select
+              value={vehicleFilter}
+              onChange={(e) => setVehicleFilter(e.target.value)}
+              aria-label="Filtrar por veículo"
+              className="rounded-xl border border-border bg-card text-foreground font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all appearance-none pl-3 pr-7"
+              style={{ fontSize: '0.82rem', paddingTop: '0.4rem', paddingBottom: '0.4rem' }}
+            >
+              <option value="all">Todos os veículos</option>
+              {uniqueVehicles.map((v) => (
+                <option key={v} value={v}>{v}</option>
+              ))}
+            </select>
+            <i className="fas fa-chevron-down text-muted-foreground pointer-events-none absolute right-2.5" style={{ fontSize: '0.6rem' }} />
+          </div>
+        </div>
+      )}
 
       {/* ─── KPI Cards ─────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
@@ -349,6 +392,15 @@ export function GastosPage() {
                         </span>
                         <span className="text-muted-foreground/30">•</span>
                         <span className="text-muted-foreground text-xs">{expense.duration}</span>
+                        {expense.vehicle && vehicleFilter === 'all' && (
+                          <>
+                            <span className="text-muted-foreground/30">•</span>
+                            <span className="text-muted-foreground text-xs">
+                              <i className="fas fa-car mr-1" style={{ fontSize: '0.65rem' }} />
+                              {expense.vehicle}
+                            </span>
+                          </>
+                        )}
                         {hasEV && (
                           <>
                             <span className="text-muted-foreground/30">•</span>

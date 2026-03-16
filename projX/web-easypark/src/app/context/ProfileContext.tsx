@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 
 export type AppProfile = 'condutor' | 'gestor' | 'tecnico';
 
@@ -21,8 +21,24 @@ const ProfileContext = createContext<ProfileContextType>({
 });
 
 export function ProfileProvider({ children }: { children: ReactNode }) {
-  const [profile, setProfileState] = useState<AppProfile>(() => {
-    return (localStorage.getItem('easyspot-profile') as AppProfile) || 'condutor';
+  const [profile, setProfile] = useState<'condutor' | 'gestor'>(() => {
+    const stored = localStorage.getItem('easyspot_profile');
+    return (stored === 'gestor' || stored === 'condutor') ? stored : 'condutor';
+  });
+
+  const [accountType, setAccountType] = useState<AccountType>(() => {
+    const stored = localStorage.getItem('easyspot_account_type');
+    return (stored === 'gestor' || stored === 'condutor' || stored === 'tecnico') ? stored : 'condutor';
+  });
+
+  const [driverType, setDriverType] = useState<DriverType>(() => {
+    const stored = localStorage.getItem('easyspot_driver_type');
+    return (stored === 'regular' || stored === 'ev' || stored === 'accessible') ? stored : null;
+  });
+
+  const [vehicles, setVehicles] = useState<Vehicle[]>(() => {
+    const stored = localStorage.getItem('easyspot_vehicles');
+    return stored ? JSON.parse(stored) : [];
   });
 
   const [managerParks, setManagerParksState] = useState<string[]>(() => {
@@ -65,5 +81,9 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
 }
 
 export function useProfile() {
-  return useContext(ProfileContext);
+  const context = useContext(ProfileContext);
+  if (context === undefined) {
+    throw new Error('useProfile must be used within a ProfileProvider');
+  }
+  return context;
 }
