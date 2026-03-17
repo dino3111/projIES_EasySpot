@@ -150,19 +150,19 @@ export function AcessibilidadePage() {
 
           {/* Stats cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            {[
-              { icon: 'fa-wheelchair', label: 'Lugares Disponíveis', value: spots.filter(s => s.isAvailable).length, color: 'success' },
-              { icon: 'fa-building', label: 'Parques com Acessibilidade', value: new Set(spots.map(s => s.parkingLotName)).size, color: 'info' },
-              { icon: 'fa-video', label: 'Lugares Monitorizados', value: spots.filter(s => s.isMonitored).length, color: 'primary' },
-              { icon: 'fa-ruler-combined', label: 'Largura Média', value: `${(spots.reduce((acc, s) => acc + s.width, 0) / spots.length).toFixed(1)}m`, color: 'warning' },
-            ].map((stat, idx) => (
+            {([
+              { icon: 'fa-wheelchair', label: 'Lugares Disponíveis', value: spots.filter(s => s.isAvailable).length, bg: 'bg-success/10', text: 'text-success' },
+              { icon: 'fa-building', label: 'Parques com Acessibilidade', value: new Set(spots.map(s => s.parkingLotName)).size, bg: 'bg-info/10', text: 'text-info' },
+              { icon: 'fa-video', label: 'Lugares Monitorizados', value: spots.filter(s => s.isMonitored).length, bg: 'bg-primary/10', text: 'text-primary' },
+              { icon: 'fa-ruler-combined', label: 'Largura Média', value: `${(spots.reduce((acc, s) => acc + s.width, 0) / spots.length).toFixed(1)}m`, bg: 'bg-warning/10', text: 'text-warning' },
+            ] as const).map((stat, idx) => (
               <div key={idx} className="card bg-base-200 shadow-md">
                 <div className="card-body p-4">
-                  <div className={`w-10 h-10 rounded-xl bg-${stat.color}/10 flex items-center justify-center mb-2`}>
-                    <i className={`fa-solid ${stat.icon} text-${stat.color} text-lg`} />
+                  <div className={`w-10 h-10 rounded-xl ${stat.bg} flex items-center justify-center mb-2`}>
+                    <i className={`fa-solid ${stat.icon} ${stat.text} text-lg`} />
                   </div>
                   <p className="text-base-content/60 text-xs">{stat.label}</p>
-                  <p className={`text-2xl font-bold text-${stat.color}`}>{stat.value}</p>
+                  <p className={`text-2xl font-bold ${stat.text}`}>{stat.value}</p>
                 </div>
               </div>
             ))}

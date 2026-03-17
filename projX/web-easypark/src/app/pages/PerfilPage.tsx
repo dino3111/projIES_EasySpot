@@ -72,9 +72,7 @@ function CondutorProfile() {
     <>
       <SectionHeader icon="fa-car" title="Os Meus Veículos" />
       <div className="rounded-2xl overflow-hidden mb-5 bg-card border border-border">
-        <Link to="/veiculos" className="contents">
-          <AccountRowWithBadge icon="fa-car-side" label="Gerir Veículos" badge={vehicles.length > 0 ? String(vehicles.length) : undefined} />
-        </Link>
+        <AccountRowWithBadge to="/veiculos" icon="fa-car-side" label="Gerir Veículos" badge={vehicles.length > 0 ? String(vehicles.length) : undefined} />
       </div>
 
       <SectionHeader icon="fa-id-card" title="Tipo de Condutor" />
@@ -84,7 +82,7 @@ function CondutorProfile() {
         aria-label="Selecionar tipo de condutor"
       >
         <p className="text-muted-foreground mb-3" style={{ fontSize: '0.78rem' }}>
-          Selecione o seu perfil para personalizar os filtros e recomendacoes.
+          Selecione o seu perfil para personalizar os filtros e recomendações.
         </p>
         <div className="space-y-2.5">
           <UserTypeOption
@@ -150,7 +148,7 @@ function CondutorProfile() {
         <div className="h-px bg-border mx-4" />
         <AccountRow icon="fa-shield-halved" label="Privacidade e Seguranca" />
         <div className="h-px bg-border mx-4" />
-        <Link to="/reportar" className="contents"><AccountRow icon="fa-flag" label="Reportar Problema" accent /></Link>
+        <AccountRow to="/reportar" icon="fa-flag" label="Reportar Problema" accent />
       </div>
     </>
   );
@@ -175,15 +173,15 @@ function GestorProfile() {
 
       <SectionHeader icon="fa-gear" title="Gestao" />
       <div className="rounded-2xl overflow-hidden mb-5 bg-card border border-border">
-        <Link to="/gestor/dashboard" className="contents"><AccountRow icon="fa-chart-line" label="Dashboard de Operacoes" /></Link>
+        <AccountRow to="/gestor/dashboard" icon="fa-chart-line" label="Dashboard de Operacoes" />
         <div className="h-px bg-border mx-4" />
-        <Link to="/gestor/tarifas-ocorrencias" className="contents"><AccountRow icon="fa-tags" label="Tarifas e Ocorrencias" /></Link>
+        <AccountRow to="/gestor/tarifas-ocorrencias" icon="fa-tags" label="Tarifas e Ocorrencias" />
         <div className="h-px bg-border mx-4" />
         <AccountRow icon="fa-file-export" label="Exportar Relatorios" />
         <div className="h-px bg-border mx-4" />
         <AccountRow icon="fa-shield-halved" label="Privacidade e Seguranca" />
         <div className="h-px bg-border mx-4" />
-        <Link to="/reportar" className="contents"><AccountRow icon="fa-flag" label="Reportar Problema" accent /></Link>
+        <AccountRow to="/reportar" icon="fa-flag" label="Reportar Problema" accent />
       </div>
     </>
   );
@@ -214,7 +212,7 @@ function TecnicoProfile() {
         <div className="h-px bg-border mx-4" />
         <AccountRow icon="fa-shield-halved" label="Privacidade e Seguranca" />
         <div className="h-px bg-border mx-4" />
-        <Link to="/reportar" className="contents"><AccountRow icon="fa-flag" label="Reportar Problema" accent /></Link>
+        <AccountRow to="/reportar" icon="fa-flag" label="Reportar Problema" accent />
       </div>
     </>
   );
@@ -282,7 +280,7 @@ function ToggleRow({ icon, label, desc, value, onChange, id }: Readonly<{
         onClick={() => onChange(!value)}
         className={`flex-shrink-0 rounded-full transition-all duration-200 relative w-11 h-6 cursor-pointer ${value ? 'bg-primary' : 'bg-muted'}`}
       >
-        <span className={`absolute top-0.5 rounded-full bg-white transition-all duration-200 w-5 h-5 shadow-sm ${value ? 'left-5.5' : 'left-0.5'}`} />
+        <span className={`absolute top-0.5 rounded-full bg-white transition-all duration-200 w-5 h-5 shadow-sm ${value ? 'left-[22px]' : 'left-0.5'}`} />
       </button>
     </div>
   );
@@ -298,24 +296,25 @@ function StatCard({ icon, value, label, color }: Readonly<{ icon: string; value:
   );
 }
 
-function AccountRow({ icon, label, accent }: Readonly<{ icon: string; label: string; accent?: boolean }>) {
-  return (
-    <button
-      type="button"
-      className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-left bg-transparent border-none cursor-pointer"
-    >
+const ROW_CLASS = "w-full flex items-center gap-3 px-4 py-3.5 hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-left bg-transparent border-none cursor-pointer";
+
+function AccountRow({ icon, label, accent, to }: Readonly<{ icon: string; label: string; accent?: boolean; to?: string }>) {
+  const inner = (
+    <>
       <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${accent ? 'bg-error/10' : 'bg-primary/10'}`}>
         <i className={`fas ${icon} ${accent ? 'text-error' : 'text-primary'}`} style={{ fontSize: '0.9rem' }} />
       </div>
       <span className={`font-medium flex-1 ${accent ? 'text-error' : 'text-foreground'}`} style={{ fontSize: '0.875rem' }}>{label}</span>
       <i className="fas fa-chevron-right text-muted-foreground/50" style={{ fontSize: '0.75rem' }} />
-    </button>
+    </>
   );
+  if (to) return <Link to={to} className={ROW_CLASS}>{inner}</Link>;
+  return <button type="button" className={ROW_CLASS}>{inner}</button>;
 }
 
-function AccountRowWithBadge({ icon, label, badge }: Readonly<{ icon: string; label: string; badge?: string }>) {
-  return (
-    <button type="button" className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-left bg-transparent border-none cursor-pointer">
+function AccountRowWithBadge({ icon, label, badge, to }: Readonly<{ icon: string; label: string; badge?: string; to?: string }>) {
+  const inner = (
+    <>
       <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-primary/10">
         <i className={`fas ${icon} text-primary`} style={{ fontSize: '0.9rem' }} />
       </div>
@@ -326,6 +325,8 @@ function AccountRowWithBadge({ icon, label, badge }: Readonly<{ icon: string; la
         </span>
       )}
       <i className="fas fa-chevron-right text-muted-foreground/50" style={{ fontSize: '0.75rem' }} />
-    </button>
+    </>
   );
+  if (to) return <Link to={to} className={ROW_CLASS}>{inner}</Link>;
+  return <button type="button" className={ROW_CLASS}>{inner}</button>;
 }
