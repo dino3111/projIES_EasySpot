@@ -23,7 +23,7 @@ const gestorTabs = [
 
 export function BottomNav() {
   const location = useLocation();
-  const { profile, driverType } = useProfile();
+  const { profile } = useProfile();
 
   // Tabs para condutores - adapta conforme o tipo
   const getCondutorTabs = (): NavTab[] => {
@@ -33,30 +33,7 @@ export function BottomNav() {
       { path: '/perfil', icon: 'fa-user', label: 'Perfil', exact: false, priority: 10 },
     ];
 
-    // Adicionar tab específica baseada no driverType
-    if (driverType === 'ev') {
-      baseTabs.push(
-        { path: '/custos', icon: 'fa-wallet', label: 'Custos', exact: false, priority: 4 }
-      );
-    } else if (driverType === 'mobilidade_reduzida') {
-      baseTabs.push(
-        { path: '/custos', icon: 'fa-wallet', label: 'Custos', exact: false, priority: 4 }
-      );
-    } else {
-      // Regular
-      baseTabs.push(
-        { path: '/custos', icon: 'fa-wallet', label: 'Custos', exact: false, priority: 4 }
-      );
-    }
-
-    // Adicionar tab específica baseada no driverType
-    if (driverType === 'ev') {
-      baseTabs.push({ path: '/custos', icon: 'fa-wallet', label: 'Custos', exact: false, priority: 4 });
-    } else if (driverType === 'mobilidade_reduzida') {
-      baseTabs.push({ path: '/custos', icon: 'fa-wallet', label: 'Custos', exact: false, priority: 4 });
-    } else {
-      baseTabs.push({ path: '/custos', icon: 'fa-wallet', label: 'Custos', exact: false, priority: 4 });
-    }
+    baseTabs.push({ path: '/custos', icon: 'fa-wallet', label: 'Custos', exact: false, priority: 4 });
 
     return baseTabs.sort((a, b) => a.priority - b.priority);
   };

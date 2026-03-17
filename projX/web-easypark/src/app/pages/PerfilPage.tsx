@@ -25,7 +25,7 @@ export function PerfilPage() {
           <i className="fas fa-square-parking text-primary text-base" aria-hidden="true" />
           <span className="text-foreground font-bold" style={{ fontSize: '0.875rem' }}>EasySpot</span>
         </div>
-        <p className="text-muted-foreground" style={{ fontSize: '0.72rem' }}>Versao 1.0.0 · © 2026 EasySpot</p>
+        <p className="text-muted-foreground" style={{ fontSize: '0.72rem' }}>Versão 1.0.0 · © 2026 EasySpot</p>
       </div>
     </div>
   );
@@ -35,7 +35,7 @@ function UserCard({ accountType }: Readonly<{ accountType: string }>) {
   const roleLabel: Record<string, string> = {
     condutor: 'Condutor',
     gestor: 'Gestor de Parques',
-    tecnico: 'Tecnico de Manutencao',
+    tecnico: 'Técnico de Manutenção',
   };
 
   const roleIcon: Record<string, string> = {
@@ -64,7 +64,7 @@ function UserCard({ accountType }: Readonly<{ accountType: string }>) {
 }
 
 function CondutorProfile() {
-  const [userType, setUserType] = useState<'condutor' | 'ev' | 'acessivel'>('condutor');
+  const { driverType, setDriverType } = useProfile();
   const [notifications, setNotifications] = useState(true);
   const [realtime, setRealtime] = useState(true);
 
@@ -85,24 +85,24 @@ function CondutorProfile() {
             icon="fa-car"
             label="Condutor Regular"
             desc="Estacionamento convencional, precos e distancia"
-            selected={userType === 'condutor'}
-            onChange={() => setUserType('condutor')}
+            selected={driverType === 'regular' || driverType === null}
+            onChange={() => setDriverType('regular')}
           />
           <UserTypeOption
             id="ev"
             icon="fa-charging-station"
             label="Condutor Veiculo Eletrico"
             desc="Prioridade a lugares com carregadores EV"
-            selected={userType === 'ev'}
-            onChange={() => setUserType('ev')}
+            selected={driverType === 'ev'}
+            onChange={() => setDriverType('ev')}
           />
           <UserTypeOption
             id="acessivel"
             icon="fa-wheelchair"
             label="Mobilidade Reduzida"
             desc="Filtros para lugares acessiveis e monitorizados"
-            selected={userType === 'acessivel'}
-            onChange={() => setUserType('acessivel')}
+            selected={driverType === 'mobilidade_reduzida'}
+            onChange={() => setDriverType('mobilidade_reduzida')}
           />
         </div>
       </div>
@@ -130,7 +130,7 @@ function CondutorProfile() {
 
       <SectionHeader icon="fa-chart-bar" title="As Minhas Estatisticas" />
       <div className="grid grid-cols-3 gap-3 mb-5">
-        <Link to="/gastos" className="contents">
+        <Link to="/custos" className="contents">
           <StatCard icon="fa-receipt" value="€31.55" label="Gastos" color="var(--color-primary)" />
         </Link>
         <StatCard icon="fa-star" value="0" label="Favoritos" color="#f59e0b" />

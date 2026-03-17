@@ -539,7 +539,7 @@ export function CustosPage() {
               <div className="flex items-center gap-2 bg-muted rounded-xl px-3 py-2">
                 <input
                   type="number" min={0} max={23} value={durationHours}
-                  onChange={(e) => setDurationHours(Math.min(23, Math.max(0, Number(e.target.value))))}
+                  onChange={(e) => { const v = Number(e.target.value); setDurationHours(Math.min(23, Math.max(0, Number.isNaN(v) ? 0 : v))); }}
                   className="w-12 bg-transparent text-center text-base font-bold text-foreground focus:outline-none"
                   aria-label="Horas"
                 />
@@ -549,7 +549,7 @@ export function CustosPage() {
               <div className="flex items-center gap-2 bg-muted rounded-xl px-3 py-2">
                 <input
                   type="number" min={0} max={59} step={5} value={durationMinutes}
-                  onChange={(e) => setDurationMinutes(Math.min(59, Math.max(0, Number(e.target.value))))}
+                  onChange={(e) => { const v = Number(e.target.value); setDurationMinutes(Math.min(59, Math.max(0, Number.isNaN(v) ? 0 : v))); }}
                   className="w-12 bg-transparent text-center text-base font-bold text-foreground focus:outline-none"
                   aria-label="Minutos"
                 />
