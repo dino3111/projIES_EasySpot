@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 
 export type AppProfile = 'condutor' | 'gestor' | 'tecnico';
 export type AccountType = AppProfile;
@@ -62,16 +62,24 @@ function readJSON<T>(key: string, fallback: T): T {
 }
 
 export function ProfileProvider({ children }: { children: ReactNode }) {
-  const [accountType, setAccountTypeState] = useState<AccountType>(() => {
-    const stored = localStorage.getItem(STORAGE_KEYS.accountType) ?? localStorage.getItem(STORAGE_KEYS.profile);
-    return stored === 'gestor' || stored === 'tecnico' || stored === 'condutor' ? stored : 'condutor';
+  const [profile, setProfile] = useState<'condutor' | 'gestor'>(() => {
+    const stored = localStorage.getItem('easyspot_profile');
+    return (stored === 'gestor' || stored === 'condutor') ? stored : 'condutor';
   });
 
-  const [profile, setProfileState] = useState<AppProfile>(accountType);
+  const [accountType, setAccountType] = useState<AccountType>(() => {
+    const stored = localStorage.getItem('easyspot_account_type');
+    return (stored === 'gestor' || stored === 'condutor' || stored === 'tecnico') ? stored : 'condutor';
+  });
 
-  const [driverType, setDriverTypeState] = useState<DriverType>(() => {
-    const stored = localStorage.getItem(STORAGE_KEYS.driverType);
-    return stored === 'regular' || stored === 'ev' || stored === 'mobilidade_reduzida' ? stored : null;
+  const [driverType, setDriverType] = useState<DriverType>(() => {
+    const stored = localStorage.getItem('easyspot_driver_type');
+    return (stored === 'regular' || stored === 'ev' || stored === 'accessible') ? stored : null;
+  });
+
+  const [vehicles, setVehicles] = useState<Vehicle[]>(() => {
+    const stored = localStorage.getItem('easyspot_vehicles');
+    return stored ? JSON.parse(stored) : [];
   });
 
   const [vehicles, setVehicles] = useState<Vehicle[]>(() => readJSON<Vehicle[]>(STORAGE_KEYS.vehicles, []));

@@ -305,3 +305,20 @@ function AccountRow({ icon, label, accent }: Readonly<{ icon: string; label: str
     </button>
   );
 }
+
+function AccountRowWithBadge({ icon, label, badge }: Readonly<{ icon: string; label: string; badge?: string }>) {
+  return (
+    <button type="button" className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-left bg-transparent border-none cursor-pointer">
+      <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-primary/10">
+        <i className={`fas ${icon} text-primary`} style={{ fontSize: '0.9rem' }} />
+      </div>
+      <span className="font-medium flex-1 text-foreground" style={{ fontSize: '0.875rem' }}>{label}</span>
+      {badge && (
+        <span className="px-2 py-0.5 rounded-full bg-primary text-white font-bold" style={{ fontSize: '0.7rem' }}>
+          {badge}
+        </span>
+      )}
+      <i className="fas fa-chevron-right text-muted-foreground/50" style={{ fontSize: '0.75rem' }} />
+    </button>
+  );
+}

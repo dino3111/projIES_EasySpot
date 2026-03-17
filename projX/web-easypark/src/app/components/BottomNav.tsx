@@ -35,6 +35,22 @@ export function BottomNav() {
 
     // Adicionar tab específica baseada no driverType
     if (driverType === 'ev') {
+      baseTabs.push(
+        { path: '/custos', icon: 'fa-wallet', label: 'Custos', exact: false, priority: 4 }
+      );
+    } else if (driverType === 'mobilidade_reduzida') {
+      baseTabs.push(
+        { path: '/custos', icon: 'fa-wallet', label: 'Custos', exact: false, priority: 4 }
+      );
+    } else {
+      // Regular
+      baseTabs.push(
+        { path: '/custos', icon: 'fa-wallet', label: 'Custos', exact: false, priority: 4 }
+      );
+    }
+
+    // Adicionar tab específica baseada no driverType
+    if (driverType === 'ev') {
       baseTabs.push({ path: '/custos', icon: 'fa-wallet', label: 'Custos', exact: false, priority: 4 });
     } else if (driverType === 'mobilidade_reduzida') {
       baseTabs.push({ path: '/custos', icon: 'fa-wallet', label: 'Custos', exact: false, priority: 4 });
