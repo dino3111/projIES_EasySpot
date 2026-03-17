@@ -1,7 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { mockExpenses, mockParkingLots, ParkingLot } from '../data/parkingData';
 import type { Expense } from '../data/parkingData';
+import { useProfile } from '../context/ProfileContext';
+import { VehiclePicker } from '../components/VehiclePicker';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar,
@@ -164,6 +166,7 @@ function Chip({ active, icon, label, onClick, ariaLabel }: {
 export function CustosPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { vehicles } = useProfile();
   const tabParam = searchParams.get('tab') as Tab | null;
   const activeTab: Tab = tabParam === 'planeamento' ? 'planeamento' : 'gastos';
 
@@ -173,8 +176,18 @@ export function CustosPage() {
 
   /* ── Estado da aba Gastos ── */
   const [period, setPeriod] = useState<Period>('30d');
+  const [selectedVehicleFilter, setSelectedVehicleFilter] = useState<string | null>(null);
 
-  const filtered      = useMemo(() => filterByPeriod(allExpenses, period), [period]);
+  const vehicleNames = useMemo(
+    () => [...new Set(allExpenses.map((e) => e.vehicle ?? 'Seat Ibiza'))].sort(),
+    [],
+  );
+
+  const filtered = useMemo(() => {
+    const byPeriod = filterByPeriod(allExpenses, period);
+    if (!selectedVehicleFilter) return byPeriod;
+    return byPeriod.filter((e) => (e.vehicle ?? 'Seat Ibiza') === selectedVehicleFilter);
+  }, [period, selectedVehicleFilter]);
   const totalSpent    = useMemo(() => filtered.reduce((a, e) => a + e.amount + (e.evCharging?.chargingAmount ?? 0), 0), [filtered]);
   const totalParking  = useMemo(() => filtered.reduce((a, e) => a + e.amount, 0), [filtered]);
   const totalEV       = useMemo(() => filtered.reduce((a, e) => a + (e.evCharging?.chargingAmount ?? 0), 0), [filtered]);
@@ -195,11 +208,19 @@ export function CustosPage() {
   ];
 
   /* ── Estado da aba Planeamento ── */
+  const primaryVehicle = vehicles.find((v) => v.isPrimary) ?? vehicles[0] ?? null;
+  const [planVehicleId, setPlanVehicleId]       = useState<string | null>(primaryVehicle?.id ?? null);
   const [durationHours, setDurationHours]       = useState(2);
   const [durationMinutes, setDurationMinutes]   = useState(0);
   const [selectedCity, setSelectedCity]         = useState<string | null>(null);
-  const [filterEV, setFilterEV]                 = useState(false);
-  const [filterAccessible, setFilterAccessible] = useState(false);
+  const [filterEV, setFilterEV]                 = useState(primaryVehicle?.isEV ?? false);
+  const [filterAccessible, setFilterAccessible] = useState(primaryVehicle?.isAccessible ?? false);
+
+  useEffect(() => {
+    const v = vehicles.find((v) => v.id === planVehicleId) ?? null;
+    setFilterEV(v?.isEV ?? false);
+    setFilterAccessible(v?.isAccessible ?? false);
+  }, [planVehicleId, vehicles]);
   const [maxDistance, setMaxDistance]           = useState(5);
   const [sortBy, setSortBy]                     = useState<SortBy>('ratio');
 
@@ -279,8 +300,29 @@ export function CustosPage() {
       {activeTab === 'gastos' && (
         <div className="animate-in fade-in duration-200">
 
-          {/* Toggle de período */}
-          <div className="flex justify-end mb-5">
+          {/* Toggle de período + filtro por veículo */}
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground font-semibold flex-shrink-0" style={{ fontSize: '0.78rem' }}>
+                <i className="fas fa-car mr-1 text-primary/70" />
+                Veículo
+              </span>
+              <div className="relative flex items-center">
+                <select
+                  value={selectedVehicleFilter ?? ''}
+                  onChange={(e) => setSelectedVehicleFilter(e.target.value || null)}
+                  aria-label="Filtrar por veículo"
+                  className="rounded-xl border border-border bg-card text-foreground font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all appearance-none pl-3 pr-7"
+                  style={{ fontSize: '0.82rem', paddingTop: '0.4rem', paddingBottom: '0.4rem' }}
+                >
+                  <option value="">Todos</option>
+                  {vehicleNames.map((name) => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
+                <i className="fas fa-chevron-down text-muted-foreground pointer-events-none absolute right-2.5" style={{ fontSize: '0.6rem' }} />
+              </div>
+            </div>
             <div className="flex gap-1 p-1 bg-muted rounded-xl">
               {periods.map((p) => (
                 <button
@@ -448,6 +490,15 @@ export function CustosPage() {
                             </span>
                             <span className="text-muted-foreground/30">•</span>
                             <span className="text-muted-foreground text-xs">{expense.duration}</span>
+                            {expense.vehicle && (
+                              <>
+                                <span className="text-muted-foreground/30">•</span>
+                                <span className="flex items-center gap-1 text-muted-foreground text-xs">
+                                  <i className="fas fa-car" aria-hidden="true" />
+                                  {expense.vehicle}
+                                </span>
+                              </>
+                            )}
                             {hasEV && (
                               <>
                                 <span className="text-muted-foreground/30">•</span>
@@ -507,6 +558,25 @@ export function CustosPage() {
       ════════════════════════════════════════════════════════════ */}
       {activeTab === 'planeamento' && (
         <div className="animate-in fade-in duration-200">
+
+          {/* Seleção de veículo */}
+          {vehicles.length > 0 && (
+            <div className="bg-card rounded-2xl border border-border/40 shadow-sm p-4 mb-4">
+              <VehiclePicker
+                vehicles={vehicles}
+                selectedId={planVehicleId}
+                onSelect={setPlanVehicleId}
+                allLabel="Sem veículo selecionado"
+                className="w-full"
+              />
+              {planVehicleId && (
+                <p className="text-muted-foreground mt-2" style={{ fontSize: '0.72rem' }}>
+                  <i className="fas fa-circle-info mr-1" aria-hidden="true" />
+                  Os filtros EV e Acessível foram ajustados automaticamente.
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Filtro de cidade */}
           <div className="bg-card rounded-2xl border border-border/40 shadow-sm p-4 mb-4">

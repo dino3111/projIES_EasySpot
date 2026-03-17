@@ -64,12 +64,19 @@ function UserCard({ accountType }: Readonly<{ accountType: string }>) {
 }
 
 function CondutorProfile() {
-  const { driverType, setDriverType } = useProfile();
+  const { driverType, setDriverType, vehicles } = useProfile();
   const [notifications, setNotifications] = useState(true);
   const [realtime, setRealtime] = useState(true);
 
   return (
     <>
+      <SectionHeader icon="fa-car" title="Os Meus Veículos" />
+      <div className="rounded-2xl overflow-hidden mb-5 bg-card border border-border">
+        <Link to="/veiculos" className="contents">
+          <AccountRowWithBadge icon="fa-car-side" label="Gerir Veículos" badge={vehicles.length > 0 ? String(vehicles.length) : undefined} />
+        </Link>
+      </div>
+
       <SectionHeader icon="fa-id-card" title="Tipo de Condutor" />
       <div
         className="rounded-2xl p-4 mb-5 bg-card border border-border"
