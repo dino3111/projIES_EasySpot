@@ -230,10 +230,10 @@ function ParkPanel({ lot, onClose, getStatusInfo, desktop = false }: ParkPanelPr
   const totalAcc     = lot.accessibleSpots?.length ?? 0;
 
   return (
-    <div 
+    <div
       className={
-        desktop 
-          ? 'flex flex-col h-full overflow-y-auto overscroll-y-contain' 
+        desktop
+          ? 'flex flex-col h-full overflow-y-auto overscroll-y-contain'
           : 'rounded-t-3xl bg-card shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.3)] border-t border-border flex flex-col max-h-[85vh] overflow-y-auto overscroll-y-contain touch-pan-y'
       }
     >

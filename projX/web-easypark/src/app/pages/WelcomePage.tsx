@@ -131,7 +131,7 @@ export function WelcomePage() {
 
         <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 text-center py-20">
           {/* Badge */}
-          
+
 
           <h1 className="text-white mb-4" style={{ fontSize: 'clamp(2rem, 5vw, 3.5rem)', fontWeight: 900, lineHeight: 1.1 }}>
             Estacione sem stress,<br />
@@ -579,8 +579,8 @@ function OnboardingModal({
     // ── Step 2: Associar veículo (condutor) ou acesso (gestor/técnico) ───
     if (step === 2 && accountType === 'condutor') return (
       <div className="space-y-4">
-        
-        
+
+
 
         {/* Campo matrícula com indicador de estado */}
         <div>
@@ -746,7 +746,7 @@ function OnboardingModal({
           />
         </div>
 
-        
+
       </div>
     );
 
@@ -844,7 +844,7 @@ function OnboardingModal({
             </p>
           </div>
         )}
-        
+
       </div>
     );
 
@@ -922,7 +922,7 @@ function OnboardingModal({
         </div>
 
         {/* Info RGPD */}
-        
+
       </div>
     );
 

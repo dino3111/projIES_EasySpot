@@ -37,7 +37,7 @@ export function DashboardGestorPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          
+
           <button
             className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-card border border-border hover:bg-muted transition-colors text-foreground"
             style={{ fontSize: '0.8rem', fontWeight: 600 }}

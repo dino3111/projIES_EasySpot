@@ -25,10 +25,10 @@ export function TarifasOcorrenciasPage() {
 
   // Filtrar dados apenas para os parques do gestor
   const gestorTariffs = mockTariffs.filter(t => managerParks.includes(t.parqueId));
-  const gestorIssues = mockIssues.filter(i => 
+  const gestorIssues = mockIssues.filter(i =>
     gestorTariffs.some(t => t.parqueNome === i.parque)
   );
-  const gestorBillingRecords = mockBillingRecords.filter(b => 
+  const gestorBillingRecords = mockBillingRecords.filter(b =>
     gestorTariffs.some(t => t.parqueNome === b.parqueNome)
   );
 
@@ -114,7 +114,7 @@ export function TarifasOcorrenciasPage() {
           <h3 className="text-foreground font-bold" style={{ fontSize: '0.95rem' }}>Parques Geridos</h3>
           <span className="ml-auto text-muted-foreground" style={{ fontSize: '0.75rem' }}>({managerParks.length} parques)</span>
         </div>
-        
+
         {/* Barra de pesquisa */}
         <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-lg bg-background border border-border">
           <i className="fas fa-search text-muted-foreground" style={{ fontSize: '0.85rem' }}></i>
@@ -127,7 +127,7 @@ export function TarifasOcorrenciasPage() {
             style={{ fontSize: '0.875rem' }}
           />
         </div>
-        
+
         {/* Lista de parques - máximo 5 visíveis */}
         <div className="flex flex-wrap gap-2">
           {mockParkingLots
@@ -144,7 +144,7 @@ export function TarifasOcorrenciasPage() {
                 <span className="font-medium">{park.name}</span>
               </div>
             ))}
-          {managerParks.filter(id => 
+          {managerParks.filter(id =>
             mockParkingLots.find(p => p.id === id && p.name.toLowerCase().includes(parkSearch.toLowerCase()))
           ).length === 0 && (
             <p className="text-muted-foreground w-full text-center py-2" style={{ fontSize: '0.875rem' }}>
