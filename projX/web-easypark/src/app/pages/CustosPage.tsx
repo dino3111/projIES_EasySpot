@@ -90,8 +90,7 @@ function buildVehicleData(expenses: typeof allExpenses) {
 /* ════════════════════════════════════════════════════════════════════
    ABA PLANEAMENTO — dados e helpers
 ════════════════════════════════════════════════════════════════════ */
-type Duration = '30min' | '1h' | '2h' | '4h' | 'dia';
-type SortBy   = 'price' | 'distance' | 'ratio';
+type SortBy = 'price' | 'distance' | 'ratio';
 
 interface ParkingWithCost extends ParkingLot {
   estimatedCost: number;
@@ -99,17 +98,9 @@ interface ParkingWithCost extends ParkingLot {
   occupancyForecast: Array<{ hour: string; occupancy: number }>;
 }
 
-const durationLabels: Record<Duration, string> = {
-  '30min': '30 min', '1h': '1 hora', '2h': '2 horas', '4h': '4 horas', 'dia': 'Dia inteiro',
-};
-const durationHours: Record<Duration, number> = {
-  '30min': 0.5, '1h': 1, '2h': 2, '4h': 4, 'dia': 8,
-};
-
-function calculateCost(lot: ParkingLot, duration: Duration): number {
-  const baseCost = lot.hourlyRate * durationHours[duration];
-  if (duration === 'dia' || baseCost > lot.dailyMax) return lot.dailyMax;
-  return baseCost;
+function calculateCost(lot: ParkingLot, minutes: number): number {
+  const baseCost = lot.hourlyRate * (minutes / 60);
+  return baseCost > lot.dailyMax ? lot.dailyMax : baseCost;
 }
 
 function generateOccupancyForecast(lot: ParkingLot) {
@@ -204,23 +195,32 @@ export function CustosPage() {
   ];
 
   /* ── Estado da aba Planeamento ── */
-  const [selectedDuration, setSelectedDuration] = useState<Duration>('2h');
+  const [durationHours, setDurationHours]       = useState(2);
+  const [durationMinutes, setDurationMinutes]   = useState(0);
+  const [selectedCity, setSelectedCity]         = useState<string | null>(null);
   const [filterEV, setFilterEV]                 = useState(false);
   const [filterAccessible, setFilterAccessible] = useState(false);
   const [maxDistance, setMaxDistance]           = useState(5);
   const [sortBy, setSortBy]                     = useState<SortBy>('ratio');
+
+  const availableCities = useMemo(
+    () => [...new Set(mockParkingLots.map((lot) => lot.localidade))].sort(),
+    [],
+  );
   const [expandedPark, setExpandedPark]         = useState<string | null>(null);
 
   const processedParks = useMemo<ParkingWithCost[]>(() => {
     const filtered = mockParkingLots.filter((lot) => {
+      if (selectedCity && lot.localidade !== selectedCity) return false;
       if (filterEV && !lot.hasEVCharger) return false;
       if (filterAccessible && !lot.hasAccessible) return false;
       const distKm = parseFloat(lot.distance.replace(' km', '').replace(',', '.'));
       if (distKm > maxDistance) return false;
       return true;
     });
+    const totalMinutes = durationHours * 60 + durationMinutes;
     const withCosts: ParkingWithCost[] = filtered.map((lot) => {
-      const cost = calculateCost(lot, selectedDuration);
+      const cost = calculateCost(lot, totalMinutes);
       const distKm = parseFloat(lot.distance.replace(' km', '').replace(',', '.'));
       return { ...lot, estimatedCost: cost, costPerKm: cost / distKm, occupancyForecast: generateOccupancyForecast(lot) };
     });
@@ -234,7 +234,7 @@ export function CustosPage() {
       return a.costPerKm - b.costPerKm;
     });
     return withCosts;
-  }, [selectedDuration, filterEV, filterAccessible, maxDistance, sortBy]);
+  }, [durationHours, durationMinutes, selectedCity, filterEV, filterAccessible, maxDistance, sortBy]);
 
   const activeFilters = [filterEV, filterAccessible].filter(Boolean).length;
 
@@ -508,6 +508,25 @@ export function CustosPage() {
       {activeTab === 'planeamento' && (
         <div className="animate-in fade-in duration-200">
 
+          {/* Filtro de cidade */}
+          <div className="bg-card rounded-2xl border border-border/40 shadow-sm p-4 mb-4">
+            <p className="text-foreground font-semibold mb-2" style={{ fontSize: '0.8rem' }}>
+              <i className="fas fa-city text-primary mr-1.5" aria-hidden="true" />
+              Cidade
+            </p>
+            <select
+              value={selectedCity ?? ''}
+              onChange={(e) => setSelectedCity(e.target.value || null)}
+              aria-label="Filtrar por cidade"
+              className="w-full rounded-lg border border-border bg-background text-foreground px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+            >
+              <option value="">Todas as cidades</option>
+              {availableCities.map((city) => (
+                <option key={city} value={city}>{city}</option>
+              ))}
+            </select>
+          </div>
+
           {/* Painel de filtros */}
           <div className="bg-card rounded-2xl border border-border/40 shadow-sm p-4 mb-5">
 
@@ -516,20 +535,26 @@ export function CustosPage() {
               <i className="fas fa-clock text-primary mr-1.5" aria-hidden="true" />
               Duração estimada
             </p>
-            <div className="flex gap-1 flex-wrap p-1 bg-muted rounded-xl w-fit mb-4">
-              {(Object.keys(durationLabels) as Duration[]).map((dur) => (
-                <button
-                  key={dur}
-                  onClick={() => setSelectedDuration(dur)}
-                  aria-pressed={selectedDuration === dur}
-                  className={`px-3 py-1.5 rounded-lg transition-all duration-200 font-semibold ${
-                    selectedDuration === dur ? 'bg-primary text-white shadow' : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                  style={{ fontSize: '0.75rem' }}
-                >
-                  {durationLabels[dur]}
-                </button>
-              ))}
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex items-center gap-2 bg-muted rounded-xl px-3 py-2">
+                <input
+                  type="number" min={0} max={23} value={durationHours}
+                  onChange={(e) => { const v = Number(e.target.value); setDurationHours(Math.min(23, Math.max(0, Number.isNaN(v) ? 0 : v))); }}
+                  className="w-12 bg-transparent text-center text-base font-bold text-foreground focus:outline-none"
+                  aria-label="Horas"
+                />
+                <span className="text-xs text-muted-foreground font-semibold">h</span>
+              </div>
+              <span className="text-muted-foreground font-bold">:</span>
+              <div className="flex items-center gap-2 bg-muted rounded-xl px-3 py-2">
+                <input
+                  type="number" min={0} max={59} step={5} value={durationMinutes}
+                  onChange={(e) => { const v = Number(e.target.value); setDurationMinutes(Math.min(59, Math.max(0, Number.isNaN(v) ? 0 : v))); }}
+                  className="w-12 bg-transparent text-center text-base font-bold text-foreground focus:outline-none"
+                  aria-label="Minutos"
+                />
+                <span className="text-xs text-muted-foreground font-semibold">min</span>
+              </div>
             </div>
 
             <div className="border-t border-border/40 mb-4" />
@@ -656,7 +681,7 @@ export function CustosPage() {
                           <div className="text-center">
                             <p className="text-muted-foreground uppercase tracking-wide" style={{ fontSize: '0.6rem' }}>Custo</p>
                             <p className="text-primary font-extrabold" style={{ fontSize: '1.1rem', lineHeight: 1 }}>€{park.estimatedCost.toFixed(2)}</p>
-                            <p className="text-muted-foreground" style={{ fontSize: '0.6rem' }}>{durationLabels[selectedDuration]}</p>
+                            <p className="text-muted-foreground" style={{ fontSize: '0.6rem' }}>{durationHours}h{durationMinutes > 0 ? `${durationMinutes}m` : ''}</p>
                           </div>
                           <div className="text-center">
                             <p className="text-muted-foreground uppercase tracking-wide" style={{ fontSize: '0.6rem' }}>Distância</p>

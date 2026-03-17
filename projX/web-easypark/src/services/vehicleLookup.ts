@@ -1,4 +1,4 @@
-const FIREBASE_API_KEY = 'AIzaSyC0ToM3KDiIgN_cvvRQNmS_0v9a3_oZM9Q';
+const FIREBASE_API_KEY = import.meta.env.VITE_FIREBASE_API_KEY as string;
 const FIREBASE_SIGN_IN_URL = `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${FIREBASE_API_KEY}`;
 
 export interface VehicleData {

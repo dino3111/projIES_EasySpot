@@ -15,9 +15,15 @@ const tecnicoTabs = [
   { path: '/perfil', icon: 'fa-gear', label: 'Definições', exact: false },
 ];
 
+const gestorTabs = [
+  { path: '/gestor/dashboard', icon: 'fa-chart-line', label: 'Painel', exact: true },
+  { path: '/gestor/tarifas-ocorrencias', icon: 'fa-file-invoice-dollar', label: 'Tarifas', exact: false },
+  { path: '/perfil', icon: 'fa-gear', label: 'Definições', exact: false },
+];
+
 export function BottomNav() {
   const location = useLocation();
-  const { profile, driverType } = useProfile();
+  const { profile } = useProfile();
 
   // Tabs para condutores - adapta conforme o tipo
   const getCondutorTabs = (): NavTab[] => {
@@ -27,22 +33,12 @@ export function BottomNav() {
       { path: '/perfil', icon: 'fa-user', label: 'Perfil', exact: false, priority: 10 },
     ];
 
-    // Adicionar tab específica baseada no driverType
-    if (driverType === 'ev') {
-      baseTabs.push(
-        { path: '/custos', icon: 'fa-wallet', label: 'Custos', exact: false, priority: 4 }
-      );
-    } else if (driverType === 'mobilidade_reduzida') {
-      baseTabs.push(
-        { path: '/custos', icon: 'fa-wallet', label: 'Custos', exact: false, priority: 4 }
-      );
-    } else {
-      // Regular
-      baseTabs.push(
-        { path: '/custos', icon: 'fa-wallet', label: 'Custos', exact: false, priority: 4 }
-      );
-    }
+    baseTabs.push({ path: '/custos', icon: 'fa-wallet', label: 'Custos', exact: false, priority: 4 });
 
+    return baseTabs.sort((a, b) => a.priority - b.priority);
+  };
+
+  const condutorTabs = getCondutorTabs();
   const tabs = profile === 'gestor' ? gestorTabs : profile === 'tecnico' ? tecnicoTabs : condutorTabs;
 
   const isActive = (path: string, exact: boolean) => {

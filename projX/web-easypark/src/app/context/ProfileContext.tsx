@@ -1,24 +1,65 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 
 export type AppProfile = 'condutor' | 'gestor' | 'tecnico';
+export type AccountType = AppProfile;
+export type DriverType = 'regular' | 'ev' | 'mobilidade_reduzida' | null;
+
+export interface Vehicle {
+  id: string;
+  plate: string;
+  nickname?: string;
+  make?: string;
+  model?: string;
+  version?: string;
+  year?: string;
+  color?: string;
+  fuelType?: string;
+  vin?: string;
+  powerKW?: number;
+  isEV: boolean;
+  chargerTypes?: string[];
+  isAccessible: boolean;
+  isPrimary: boolean;
+  rfid?: string;
+}
 
 interface ProfileContextType {
   profile: AppProfile;
   setProfile: (p: AppProfile) => void;
+  accountType: AccountType;
+  setAccountType: (a: AccountType) => void;
+  driverType: DriverType;
+  setDriverType: (d: DriverType) => void;
+  vehicles: Vehicle[];
+  addVehicle: (v: Vehicle) => void;
+  updateVehicle: (id: string, updates: Partial<Vehicle>) => void;
+  removeVehicle: (id: string) => void;
+  setPrimaryVehicle: (id: string) => void;
   managerParks: string[];
   setManagerParks: (parks: string[]) => void;
   addManagerPark: (parkId: string) => void;
   removeManagerPark: (parkId: string) => void;
 }
 
-const ProfileContext = createContext<ProfileContextType>({
-  profile: 'condutor',
-  setProfile: () => {},
-  managerParks: [],
-  setManagerParks: () => {},
-  addManagerPark: () => {},
-  removeManagerPark: () => {},
-});
+const STORAGE_KEYS = {
+  profile: 'easyspot_profile',
+  accountType: 'easyspot_account_type',
+  driverType: 'easyspot_driver_type',
+  vehicles: 'easyspot_vehicles',
+  managerParks: 'easyspot_manager_parks',
+} as const;
+
+const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
+
+function readJSON<T>(key: string, fallback: T): T {
+  try {
+    const value = localStorage.getItem(key);
+    if (!value) return fallback;
+    return JSON.parse(value) as T;
+  } catch {
+    return fallback;
+  }
+}
 
 export function ProfileProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<'condutor' | 'gestor'>(() => {
@@ -41,19 +82,67 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     return stored ? JSON.parse(stored) : [];
   });
 
+  const [vehicles, setVehicles] = useState<Vehicle[]>(() => readJSON<Vehicle[]>(STORAGE_KEYS.vehicles, []));
+
   const [managerParks, setManagerParksState] = useState<string[]>(() => {
-    const saved = localStorage.getItem('easyspot-manager-parks');
-    return saved ? JSON.parse(saved) : ['coimbra-1', 'coimbra-2'];
+    const newKey = readJSON<string[]>(STORAGE_KEYS.managerParks, []);
+    if (newKey.length > 0) return newKey;
+    return readJSON<string[]>('easyspot-manager-parks', ['coimbra-1', 'coimbra-2']);
   });
 
   const setProfile = (p: AppProfile) => {
-    localStorage.setItem('easyspot-profile', p);
     setProfileState(p);
+    setAccountTypeState(p);
+    localStorage.setItem(STORAGE_KEYS.profile, p);
+    localStorage.setItem(STORAGE_KEYS.accountType, p);
+  };
+
+  const setAccountType = (a: AccountType) => {
+    setAccountTypeState(a);
+    setProfileState(a);
+    localStorage.setItem(STORAGE_KEYS.accountType, a);
+    localStorage.setItem(STORAGE_KEYS.profile, a);
+  };
+
+  const setDriverType = (d: DriverType) => {
+    setDriverTypeState(d);
+    if (d) {
+      localStorage.setItem(STORAGE_KEYS.driverType, d);
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.driverType);
+    }
+  };
+
+  const persistVehicles = (next: Vehicle[]) => {
+    setVehicles(next);
+    localStorage.setItem(STORAGE_KEYS.vehicles, JSON.stringify(next));
+  };
+
+  const addVehicle = (vehicle: Vehicle) => {
+    const nextVehicle = vehicles.length === 0 ? { ...vehicle, isPrimary: true } : vehicle;
+    persistVehicles([...vehicles, nextVehicle]);
+  };
+
+  const updateVehicle = (id: string, updates: Partial<Vehicle>) => {
+    persistVehicles(vehicles.map((v) => (v.id === id ? { ...v, ...updates } : v)));
+  };
+
+  const removeVehicle = (id: string) => {
+    const remaining = vehicles.filter((v) => v.id !== id);
+    if (remaining.length > 0 && !remaining.some((v) => v.isPrimary)) {
+      remaining[0] = { ...remaining[0], isPrimary: true };
+    }
+    persistVehicles(remaining);
+  };
+
+  const setPrimaryVehicle = (id: string) => {
+    persistVehicles(vehicles.map((v) => ({ ...v, isPrimary: v.id === id })));
   };
 
   const setManagerParks = (parks: string[]) => {
-    localStorage.setItem('easyspot-manager-parks', JSON.stringify(parks));
     setManagerParksState(parks);
+    localStorage.setItem(STORAGE_KEYS.managerParks, JSON.stringify(parks));
+    localStorage.setItem('easyspot-manager-parks', JSON.stringify(parks));
   };
 
   const addManagerPark = (parkId: string) => {
@@ -62,19 +151,29 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   };
 
   const removeManagerPark = (parkId: string) => {
-    const updated = managerParks.filter(p => p !== parkId);
-    setManagerParks(updated);
+    setManagerParks(managerParks.filter((p) => p !== parkId));
   };
 
   return (
-    <ProfileContext.Provider value={{ 
-      profile, 
-      setProfile, 
-      managerParks, 
-      setManagerParks, 
-      addManagerPark, 
-      removeManagerPark 
-    }}>
+    <ProfileContext.Provider
+      value={{
+        profile,
+        setProfile,
+        accountType,
+        setAccountType,
+        driverType,
+        setDriverType,
+        vehicles,
+        addVehicle,
+        updateVehicle,
+        removeVehicle,
+        setPrimaryVehicle,
+        managerParks,
+        setManagerParks,
+        addManagerPark,
+        removeManagerPark,
+      }}
+    >
       {children}
     </ProfileContext.Provider>
   );
@@ -82,7 +181,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
 
 export function useProfile() {
   const context = useContext(ProfileContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useProfile must be used within a ProfileProvider');
   }
   return context;
