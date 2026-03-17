@@ -62,24 +62,19 @@ function readJSON<T>(key: string, fallback: T): T {
 }
 
 export function ProfileProvider({ children }: { children: ReactNode }) {
-  const [profile, setProfile] = useState<'condutor' | 'gestor'>(() => {
-    const stored = localStorage.getItem('easyspot_profile');
-    return (stored === 'gestor' || stored === 'condutor') ? stored : 'condutor';
-  });
-
-  const [accountType, setAccountType] = useState<AccountType>(() => {
-    const stored = localStorage.getItem('easyspot_account_type');
+  const [profile, setProfileState] = useState<AppProfile>(() => {
+    const stored = localStorage.getItem(STORAGE_KEYS.profile);
     return (stored === 'gestor' || stored === 'condutor' || stored === 'tecnico') ? stored : 'condutor';
   });
 
-  const [driverType, setDriverType] = useState<DriverType>(() => {
-    const stored = localStorage.getItem('easyspot_driver_type');
-    return (stored === 'regular' || stored === 'ev' || stored === 'accessible') ? stored : null;
+  const [accountType, setAccountTypeState] = useState<AccountType>(() => {
+    const stored = localStorage.getItem(STORAGE_KEYS.accountType);
+    return (stored === 'gestor' || stored === 'condutor' || stored === 'tecnico') ? stored : 'condutor';
   });
 
-  const [vehicles, setVehicles] = useState<Vehicle[]>(() => {
-    const stored = localStorage.getItem('easyspot_vehicles');
-    return stored ? JSON.parse(stored) : [];
+  const [driverType, setDriverTypeState] = useState<DriverType>(() => {
+    const stored = localStorage.getItem(STORAGE_KEYS.driverType);
+    return (stored === 'regular' || stored === 'ev' || stored === 'mobilidade_reduzida') ? stored : null;
   });
 
   const [vehicles, setVehicles] = useState<Vehicle[]>(() => readJSON<Vehicle[]>(STORAGE_KEYS.vehicles, []));
