@@ -1,0 +1,9 @@
+@import 'tailwindcss' source(none);
+@source '../**/*.{js,ts,jsx,tsx}';
+
+@import 'tw-animate-css';
+
+/* DaisyUI - apenas tema light como padrão; dark mode gerido via classe .dark */
+@plugin "daisyui" {
+  themes: ["light --default"];
+}

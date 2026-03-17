@@ -104,9 +104,9 @@ out/
 *.war
 *.ear
 
-# Spring Boot devtools 
+# Spring Boot devtools
 spring-boot-devtools.properties
-restart/ 
+restart/
 
 # Python
 # Byte-compiled / optimized / DLL files
@@ -157,7 +157,7 @@ db.sqlite3-journal
 *.sqlite3
 *.h2.db
 
-# SQL dump/backups 
+# SQL dump/backups
 *.sql.gz
 *.sql.bz2
 *.dump
@@ -178,7 +178,6 @@ docker-compose.dev.yml
 # Container data/volumes
 volumes/
 tmp_volume/
-data/
 
 # Secrets, keys, certificates
 # Private keys
@@ -248,3 +247,5 @@ crash.log
 # Editorconfig and gitattributes local edits
 .gitattributes.local
 
+
+package-lock.json
