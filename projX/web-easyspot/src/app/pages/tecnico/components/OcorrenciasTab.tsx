@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { mockSensors, type SensorDevice } from '../../../data/technicianData';
+import { type SensorDevice } from '../../../data/technicianData';
 import { type IssueReport } from '../../../data/gestorData';
-import { STATUS_COLOR, parkManagers, techIssues, parkCityMapFromSensors, type ParkManager } from './manutencaoTypes';
+import { parkManagers, techIssues, parkCityMapFromSensors, type ParkManager } from './manutencaoTypes';
 import { QuickStat, EmptyState } from './shared';
 
 export function OcorrenciasTab({

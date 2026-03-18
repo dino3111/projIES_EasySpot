@@ -286,47 +286,6 @@ export function DashboardTecnicoPage() {
   );
 }
 
-// ─── SensorRow ────────────────────────────────────────────────────────────────
-function SensorRow({ sensor, isLast, onClick }: { sensor: SensorDevice; isLast: boolean; onClick: () => void }) {
-  const color = STATUS_COLOR[sensor.status];
-  const ts = new Date(sensor.ultimaLeitura).toLocaleString('pt-PT', {
-    day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
-  });
-  return (
-    <button
-      onClick={onClick}
-      className={`w-full text-left flex items-center gap-3 px-4 py-2.5 hover:bg-muted/20 transition-colors ${!isLast ? 'border-b border-border/50' : ''}`}
-      aria-label={`Sensor ${sensor.id}: ${STATUS_LABEL[sensor.status]}`}
-    >
-      <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${color}15` }} aria-hidden="true">
-        <i className={`fas ${TIPO_ICON[sensor.tipo]}`} style={{ color, fontSize: '0.8rem' }}></i>
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-foreground" style={{ fontFamily: 'monospace', fontSize: '0.8rem', fontWeight: 700 }}>{sensor.id}</span>
-          <span className="text-muted-foreground" style={{ fontSize: '0.7rem' }}>· {sensor.zona}{sensor.lugar ? ` · ${sensor.lugar}` : ''}</span>
-        </div>
-        <p className="text-muted-foreground" style={{ fontSize: '0.68rem' }}>
-          Firmware {sensor.firmware} · Última leitura: {ts}
-        </p>
-      </div>
-      <div className="flex items-center gap-2 flex-shrink-0">
-        {sensor.status !== 'operacional' && (
-          <span style={{ fontSize: '0.68rem', fontWeight: 700, color, background: `${color}20` }} className="px-1.5 py-0.5 rounded-full hidden sm:inline">
-            {STATUS_LABEL[sensor.status]}
-          </span>
-        )}
-        <i
-          className={`fas ${STATUS_ICON[sensor.status]}`}
-          style={{ color, fontSize: '0.85rem' }}
-          aria-hidden="true"
-        ></i>
-        <i className="fas fa-chevron-right text-muted-foreground/30" style={{ fontSize: '0.7rem' }} aria-hidden="true"></i>
-      </div>
-    </button>
-  );
-}
-
 // ─── SensorDetailModal ────────────────────────────────────────────────────────
 function SensorDetailModal({
   sensor,

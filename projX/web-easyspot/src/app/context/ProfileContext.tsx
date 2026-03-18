@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, type ReactNode } from 'react';
 
 export type AppProfile = 'condutor' | 'gestor' | 'tecnico';
 export type AccountType = AppProfile;

@@ -5,7 +5,6 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar,
 } from 'recharts';
-import { useProfile } from '../../context/ProfileContext';
 
 type Period = '7d' | '30d' | '3m';
 type VehicleFilter = 'all' | string;
@@ -105,17 +104,8 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
 const uniqueVehicles = [...new Set(allExpenses.map((e) => e.vehicle).filter(Boolean))] as string[];
 
 export function GastosPage() {
-  const { vehicles } = useProfile();
   const [period, setPeriod] = useState<Period>('30d');
   const [vehicleFilter, setVehicleFilter] = useState<VehicleFilter>('all');
-
-  const selectedVehicleMake = useMemo(() => {
-    if (vehicleFilter === 'all') return undefined;
-    const matched = vehicles.find(
-      (v) => (v.nickname || [v.make, v.model].filter(Boolean).join(' ') || v.plate) === vehicleFilter,
-    );
-    return matched?.make;
-  }, [vehicleFilter, vehicles]);
 
   const filtered = useMemo(() => {
     const byPeriod = filterByPeriod(allExpenses, period);
