@@ -1,0 +1,776 @@
+// ── Dados mock para o painel do Técnico de Manutenção (Laura Farias) ─────────
+
+export type SensorTipo = 'IR' | 'RFID' | 'OCR' | 'EV' | 'Gateway';
+export type SensorStatus = 'operacional' | 'falha' | 'offline' | 'manutencao';
+
+export interface ErrorLog {
+  id: string;
+  timestamp: string;
+  codigo: string;
+  descricao: string;
+  resolvido: boolean;
+}
+
+export interface SensorDevice {
+  id: string;
+  tipo: SensorTipo;
+  parqueId: string;
+  parqueNome: string;
+  cidade: string;
+  zona: string;
+  lugar?: string;
+  status: SensorStatus;
+  ultimaLeitura: string;
+  uptimePercent: number;
+  taxaFalsosPositivos: number;
+  firmware: string;
+  instaladoEm: string;
+  ultimaManutencao: string;
+  historicoErros: ErrorLog[];
+}
+
+export interface MaintenanceOrder {
+  id: string;
+  sensorId: string;
+  parque: string;
+  zona: string;
+  titulo: string;
+  descricao: string;
+  prioridade: 'critica' | 'alta' | 'media' | 'baixa';
+  estado: 'pendente' | 'em-progresso' | 'concluida';
+  criadaEm: string;
+  prazo?: string;
+  notas?: string;
+  tecnico: string;
+}
+
+export interface TechKPI {
+  totalSensores: number;
+  operacionais: number;
+  emFalha: number;
+  offline: number;
+  emManutencao: number;
+  uptimeMedio: number;
+  taxaFalsosPositivos: number;
+  mttrHoras: number;
+  ordensAbertas: number;
+  ordensConcluidas7dias: number;
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function log(id: string, ts: string, code: string, desc: string, resolved: boolean): ErrorLog {
+  return { id, timestamp: ts, codigo: code, descricao: desc, resolvido: resolved };
+}
+
+// ─── Sensor inventory ────────────────────────────────────────────────────────
+export const mockSensors: SensorDevice[] = [
+
+  // ── Fórum Aveiro ────────────────────────────────────────────────────────────
+  {
+    id: 'IR-AV1-B07',
+    tipo: 'IR',
+    parqueId: 'aveiro-1',
+    parqueNome: 'Fórum Aveiro',
+    cidade: 'Aveiro',
+    zona: 'Piso 0 – Zona B',
+    lugar: 'B7',
+    status: 'falha',
+    ultimaLeitura: '2026-03-09T08:12:00',
+    uptimePercent: 78.4,
+    taxaFalsosPositivos: 22.1,
+    firmware: 'v2.3.1',
+    instaladoEm: '2024-06-15',
+    ultimaManutencao: '2025-11-20',
+    historicoErros: [
+      log('e1', '2026-03-09T08:12:00', 'ERR_NO_READING',   'Sensor IR sem leituras há >2h. LED do lugar B7 permanece verde com lugar ocupado.', false),
+      log('e2', '2026-03-08T14:30:00', 'ERR_SIGNAL_WEAK',  'Sinal IR abaixo do limiar mínimo (18 % vs 40 % esperado).', true),
+      log('e3', '2026-03-07T22:05:00', 'WARN_DRIFT',       'Desvio de calibração detetado. Recalibração automática bem-sucedida.', true),
+      log('e4', '2026-03-05T09:15:00', 'ERR_COMM_TIMEOUT', 'Timeout de comunicação com gateway GW-AV1-01 (3 tentativas).', true),
+    ],
+  },
+  {
+    id: 'IR-AV1-B08',
+    tipo: 'IR',
+    parqueId: 'aveiro-1',
+    parqueNome: 'Fórum Aveiro',
+    cidade: 'Aveiro',
+    zona: 'Piso 0 – Zona B',
+    lugar: 'B8',
+    status: 'operacional',
+    ultimaLeitura: '2026-03-09T10:45:00',
+    uptimePercent: 99.1,
+    taxaFalsosPositivos: 0.8,
+    firmware: 'v2.3.1',
+    instaladoEm: '2024-06-15',
+    ultimaManutencao: '2025-11-20',
+    historicoErros: [],
+  },
+  {
+    id: 'IR-AV1-A01',
+    tipo: 'IR',
+    parqueId: 'aveiro-1',
+    parqueNome: 'Fórum Aveiro',
+    cidade: 'Aveiro',
+    zona: 'Piso 0 – Zona A',
+    lugar: 'A1',
+    status: 'operacional',
+    ultimaLeitura: '2026-03-09T10:46:00',
+    uptimePercent: 99.7,
+    taxaFalsosPositivos: 0.5,
+    firmware: 'v2.3.1',
+    instaladoEm: '2024-06-10',
+    ultimaManutencao: '2025-11-20',
+    historicoErros: [],
+  },
+  {
+    id: 'IR-AV1-EV01',
+    tipo: 'EV',
+    parqueId: 'aveiro-1',
+    parqueNome: 'Fórum Aveiro',
+    cidade: 'Aveiro',
+    zona: 'Piso 0 – Carregamento EV',
+    lugar: 'EV-01',
+    status: 'operacional',
+    ultimaLeitura: '2026-03-09T10:40:00',
+    uptimePercent: 98.3,
+    taxaFalsosPositivos: 1.1,
+    firmware: 'v1.2.4',
+    instaladoEm: '2024-07-01',
+    ultimaManutencao: '2025-11-20',
+    historicoErros: [],
+  },
+  {
+    id: 'RFID-AV1-ENT1',
+    tipo: 'RFID',
+    parqueId: 'aveiro-1',
+    parqueNome: 'Fórum Aveiro',
+    cidade: 'Aveiro',
+    zona: 'Entrada Principal',
+    status: 'operacional',
+    ultimaLeitura: '2026-03-09T10:44:00',
+    uptimePercent: 99.9,
+    taxaFalsosPositivos: 0.2,
+    firmware: 'v3.1.0',
+    instaladoEm: '2024-06-01',
+    ultimaManutencao: '2025-10-05',
+    historicoErros: [],
+  },
+  {
+    id: 'OCR-AV1-SAI1',
+    tipo: 'OCR',
+    parqueId: 'aveiro-1',
+    parqueNome: 'Fórum Aveiro',
+    cidade: 'Aveiro',
+    zona: 'Saída Principal',
+    status: 'operacional',
+    ultimaLeitura: '2026-03-09T10:43:00',
+    uptimePercent: 98.2,
+    taxaFalsosPositivos: 1.4,
+    firmware: 'v1.8.5',
+    instaladoEm: '2024-06-01',
+    ultimaManutencao: '2025-10-05',
+    historicoErros: [],
+  },
+  {
+    id: 'GW-AV1-01',
+    tipo: 'Gateway',
+    parqueId: 'aveiro-1',
+    parqueNome: 'Fórum Aveiro',
+    cidade: 'Aveiro',
+    zona: 'Sala Técnica',
+    status: 'operacional',
+    ultimaLeitura: '2026-03-09T10:47:00',
+    uptimePercent: 99.95,
+    taxaFalsosPositivos: 0,
+    firmware: 'v5.0.2',
+    instaladoEm: '2024-05-28',
+    ultimaManutencao: '2025-12-01',
+    historicoErros: [],
+  },
+
+  // ── Glicínias Plaza ──────────────────────────────────────────────────────────
+  {
+    id: 'IR-AV2-P1-01',
+    tipo: 'IR',
+    parqueId: 'aveiro-2',
+    parqueNome: 'Glicínias Plaza',
+    cidade: 'Aveiro',
+    zona: 'Piso -1',
+    lugar: 'P1-01',
+    status: 'operacional',
+    ultimaLeitura: '2026-03-09T10:45:00',
+    uptimePercent: 99.3,
+    taxaFalsosPositivos: 0.6,
+    firmware: 'v2.3.0',
+    instaladoEm: '2024-07-20',
+    ultimaManutencao: '2025-12-10',
+    historicoErros: [],
+  },
+  {
+    id: 'IR-AV2-EV01',
+    tipo: 'EV',
+    parqueId: 'aveiro-2',
+    parqueNome: 'Glicínias Plaza',
+    cidade: 'Aveiro',
+    zona: 'Piso -1 – Carregamento EV',
+    lugar: 'EV-01',
+    status: 'operacional',
+    ultimaLeitura: '2026-03-09T10:40:00',
+    uptimePercent: 97.5,
+    taxaFalsosPositivos: 1.2,
+    firmware: 'v1.2.3',
+    instaladoEm: '2024-08-01',
+    ultimaManutencao: '2025-09-15',
+    historicoErros: [],
+  },
+  {
+    id: 'RFID-AV2-ENT1',
+    tipo: 'RFID',
+    parqueId: 'aveiro-2',
+    parqueNome: 'Glicínias Plaza',
+    cidade: 'Aveiro',
+    zona: 'Entrada Principal',
+    status: 'operacional',
+    ultimaLeitura: '2026-03-09T10:44:00',
+    uptimePercent: 99.8,
+    taxaFalsosPositivos: 0.3,
+    firmware: 'v3.1.0',
+    instaladoEm: '2024-07-15',
+    ultimaManutencao: '2025-12-10',
+    historicoErros: [],
+  },
+  {
+    id: 'GW-AV2-01',
+    tipo: 'Gateway',
+    parqueId: 'aveiro-2',
+    parqueNome: 'Glicínias Plaza',
+    cidade: 'Aveiro',
+    zona: 'Sala Técnica',
+    status: 'operacional',
+    ultimaLeitura: '2026-03-09T10:47:00',
+    uptimePercent: 99.9,
+    taxaFalsosPositivos: 0,
+    firmware: 'v5.0.2',
+    instaladoEm: '2024-07-10',
+    ultimaManutencao: '2025-12-10',
+    historicoErros: [],
+  },
+
+  // ── Estádio Cidade de Coimbra ────────────────────────────────────────────────
+  {
+    id: 'IR-CO1-MR02',
+    tipo: 'IR',
+    parqueId: 'coimbra-1',
+    parqueNome: 'Estádio Cidade de Coimbra',
+    cidade: 'Coimbra',
+    zona: 'Piso -1 – Mobilidade Reduzida',
+    lugar: 'MR-02',
+    status: 'falha',
+    ultimaLeitura: '2026-03-09T09:58:00',
+    uptimePercent: 81.2,
+    taxaFalsosPositivos: 18.7,
+    firmware: 'v2.2.9',
+    instaladoEm: '2024-04-10',
+    ultimaManutencao: '2025-08-22',
+    historicoErros: [
+      log('f1', '2026-03-09T10:05:00', 'ERR_SENSOR_FAILURE',  'Falha total do sensor MR-02. Lugar sem monitorização ativa.', false),
+      log('f2', '2026-03-08T20:10:00', 'WARN_OCCUPANCY_ANOM', 'Lugar detetado como livre após 3 h de ocupação contínua (falso-negativo).', true),
+      log('f3', '2026-03-07T15:30:00', 'ERR_SIGNAL_WEAK',     'Potência IR reduzida a 25 % da nominal.', true),
+    ],
+  },
+  {
+    id: 'IR-CO1-MR01',
+    tipo: 'IR',
+    parqueId: 'coimbra-1',
+    parqueNome: 'Estádio Cidade de Coimbra',
+    cidade: 'Coimbra',
+    zona: 'Piso -1 – Mobilidade Reduzida',
+    lugar: 'MR-01',
+    status: 'operacional',
+    ultimaLeitura: '2026-03-09T10:46:00',
+    uptimePercent: 99.0,
+    taxaFalsosPositivos: 0.9,
+    firmware: 'v2.3.1',
+    instaladoEm: '2024-04-10',
+    ultimaManutencao: '2025-08-22',
+    historicoErros: [],
+  },
+  {
+    id: 'IR-CO1-A01',
+    tipo: 'IR',
+    parqueId: 'coimbra-1',
+    parqueNome: 'Estádio Cidade de Coimbra',
+    cidade: 'Coimbra',
+    zona: 'Piso 0 – Zona A',
+    lugar: 'A1',
+    status: 'operacional',
+    ultimaLeitura: '2026-03-09T10:45:00',
+    uptimePercent: 98.7,
+    taxaFalsosPositivos: 1.1,
+    firmware: 'v2.3.1',
+    instaladoEm: '2024-04-12',
+    ultimaManutencao: '2025-08-22',
+    historicoErros: [],
+  },
+  {
+    id: 'RFID-CO1-ENT1',
+    tipo: 'RFID',
+    parqueId: 'coimbra-1',
+    parqueNome: 'Estádio Cidade de Coimbra',
+    cidade: 'Coimbra',
+    zona: 'Entrada Principal',
+    status: 'operacional',
+    ultimaLeitura: '2026-03-09T10:44:00',
+    uptimePercent: 99.6,
+    taxaFalsosPositivos: 0.4,
+    firmware: 'v3.0.8',
+    instaladoEm: '2024-04-01',
+    ultimaManutencao: '2025-10-18',
+    historicoErros: [],
+  },
+  {
+    id: 'GW-CO1-01',
+    tipo: 'Gateway',
+    parqueId: 'coimbra-1',
+    parqueNome: 'Estádio Cidade de Coimbra',
+    cidade: 'Coimbra',
+    zona: 'Sala Técnica',
+    status: 'operacional',
+    ultimaLeitura: '2026-03-09T10:47:00',
+    uptimePercent: 99.98,
+    taxaFalsosPositivos: 0,
+    firmware: 'v5.0.2',
+    instaladoEm: '2024-03-28',
+    ultimaManutencao: '2025-11-15',
+    historicoErros: [],
+  },
+
+  // ── CoimbraShopping ──────────────────────────────────────────────────────────
+  {
+    id: 'OCR-CO2-SAI1',
+    tipo: 'OCR',
+    parqueId: 'coimbra-2',
+    parqueNome: 'CoimbraShopping',
+    cidade: 'Coimbra',
+    zona: 'Saída Principal',
+    status: 'falha',
+    ultimaLeitura: '2026-03-08T19:28:00',
+    uptimePercent: 86.3,
+    taxaFalsosPositivos: 5.2,
+    firmware: 'v1.7.2',
+    instaladoEm: '2024-05-20',
+    ultimaManutencao: '2025-07-10',
+    historicoErros: [
+      log('g1', '2026-03-08T19:35:00', 'ERR_CAM_NO_SIGNAL', 'Câmera OCR sem sinal de vídeo. Matrículas não registadas na saída.', false),
+      log('g2', '2026-03-08T17:20:00', 'WARN_FOCUS_DRIFT',  'Desvio de foco detetado. Taxa de leitura OCR caiu para 71 %.', true),
+      log('g3', '2026-03-06T10:05:00', 'ERR_COMM_TIMEOUT',  'Timeout de upload de imagens para servidor central.', true),
+    ],
+  },
+  {
+    id: 'IR-CO2-A01',
+    tipo: 'IR',
+    parqueId: 'coimbra-2',
+    parqueNome: 'CoimbraShopping',
+    cidade: 'Coimbra',
+    zona: 'Piso -1 – Zona A',
+    lugar: 'A1',
+    status: 'operacional',
+    ultimaLeitura: '2026-03-09T10:45:00',
+    uptimePercent: 99.4,
+    taxaFalsosPositivos: 0.7,
+    firmware: 'v2.3.1',
+    instaladoEm: '2024-05-22',
+    ultimaManutencao: '2025-11-05',
+    historicoErros: [],
+  },
+  {
+    id: 'RFID-CO2-ENT1',
+    tipo: 'RFID',
+    parqueId: 'coimbra-2',
+    parqueNome: 'CoimbraShopping',
+    cidade: 'Coimbra',
+    zona: 'Entrada Principal',
+    status: 'operacional',
+    ultimaLeitura: '2026-03-09T10:44:00',
+    uptimePercent: 99.7,
+    taxaFalsosPositivos: 0.3,
+    firmware: 'v3.1.0',
+    instaladoEm: '2024-05-18',
+    ultimaManutencao: '2025-11-05',
+    historicoErros: [],
+  },
+  {
+    id: 'GW-CO2-01',
+    tipo: 'Gateway',
+    parqueId: 'coimbra-2',
+    parqueNome: 'CoimbraShopping',
+    cidade: 'Coimbra',
+    zona: 'Sala Técnica',
+    status: 'operacional',
+    ultimaLeitura: '2026-03-09T10:47:00',
+    uptimePercent: 99.95,
+    taxaFalsosPositivos: 0,
+    firmware: 'v5.0.2',
+    instaladoEm: '2024-05-15',
+    ultimaManutencao: '2025-11-05',
+    historicoErros: [],
+  },
+
+  // ── Europa – Leiria ──────────────────────────────────────────────────────────
+  {
+    id: 'RFID-LE1-ENT1',
+    tipo: 'RFID',
+    parqueId: 'leiria-1',
+    parqueNome: 'Europa – Leiria',
+    cidade: 'Leiria',
+    zona: 'Entrada Principal',
+    status: 'offline',
+    ultimaLeitura: '2026-03-09T06:44:00',
+    uptimePercent: 91.0,
+    taxaFalsosPositivos: 0.6,
+    firmware: 'v3.0.5',
+    instaladoEm: '2024-03-10',
+    ultimaManutencao: '2025-09-28',
+    historicoErros: [
+      log('h1', '2026-03-09T06:45:00', 'ERR_COMM_LOST',     'Perda total de comunicação com servidor. Veículos sem registo automático.', false),
+      log('h2', '2026-03-09T06:44:00', 'ERR_NETWORK_DOWN',  'Interface de rede primária: timeout. Fallback para rede secundária falhou.', false),
+      log('h3', '2026-03-08T03:15:00', 'WARN_CONN_UNSTABLE','Instabilidade de ligação (latência >500 ms). 14 pacotes perdidos.', true),
+      log('h4', '2026-03-05T11:20:00', 'WARN_RESTART',      'Reinício automático por watchdog. Serviço restaurado após 45 s.', true),
+    ],
+  },
+  {
+    id: 'IR-LE1-A01',
+    tipo: 'IR',
+    parqueId: 'leiria-1',
+    parqueNome: 'Europa – Leiria',
+    cidade: 'Leiria',
+    zona: 'Piso 0 – Zona A',
+    lugar: 'A1',
+    status: 'operacional',
+    ultimaLeitura: '2026-03-09T10:45:00',
+    uptimePercent: 98.9,
+    taxaFalsosPositivos: 1.0,
+    firmware: 'v2.3.1',
+    instaladoEm: '2024-03-12',
+    ultimaManutencao: '2025-09-28',
+    historicoErros: [],
+  },
+  {
+    id: 'OCR-LE1-SAI1',
+    tipo: 'OCR',
+    parqueId: 'leiria-1',
+    parqueNome: 'Europa – Leiria',
+    cidade: 'Leiria',
+    zona: 'Saída Principal',
+    status: 'operacional',
+    ultimaLeitura: '2026-03-09T10:43:00',
+    uptimePercent: 97.8,
+    taxaFalsosPositivos: 1.5,
+    firmware: 'v1.8.5',
+    instaladoEm: '2024-03-12',
+    ultimaManutencao: '2025-09-28',
+    historicoErros: [],
+  },
+  {
+    id: 'GW-LE1-01',
+    tipo: 'Gateway',
+    parqueId: 'leiria-1',
+    parqueNome: 'Europa – Leiria',
+    cidade: 'Leiria',
+    zona: 'Sala Técnica',
+    status: 'operacional',
+    ultimaLeitura: '2026-03-09T10:47:00',
+    uptimePercent: 99.8,
+    taxaFalsosPositivos: 0,
+    firmware: 'v5.0.2',
+    instaladoEm: '2024-03-08',
+    ultimaManutencao: '2025-09-28',
+    historicoErros: [],
+  },
+
+  // ── Estádio Mag. Pessoa – Leiria ─────────────────────────────────────────────
+  {
+    id: 'IR-LE2-A01',
+    tipo: 'IR',
+    parqueId: 'leiria-2',
+    parqueNome: 'Est. Mag. Pessoa',
+    cidade: 'Leiria',
+    zona: 'Piso 0 – Zona A',
+    lugar: 'A1',
+    status: 'operacional',
+    ultimaLeitura: '2026-03-09T10:45:00',
+    uptimePercent: 99.1,
+    taxaFalsosPositivos: 0.7,
+    firmware: 'v2.3.1',
+    instaladoEm: '2024-09-01',
+    ultimaManutencao: '2025-10-20',
+    historicoErros: [],
+  },
+  {
+    id: 'RFID-LE2-ENT1',
+    tipo: 'RFID',
+    parqueId: 'leiria-2',
+    parqueNome: 'Est. Mag. Pessoa',
+    cidade: 'Leiria',
+    zona: 'Entrada Principal',
+    status: 'operacional',
+    ultimaLeitura: '2026-03-09T10:44:00',
+    uptimePercent: 99.9,
+    taxaFalsosPositivos: 0.2,
+    firmware: 'v3.1.0',
+    instaladoEm: '2024-09-01',
+    ultimaManutencao: '2025-10-20',
+    historicoErros: [],
+  },
+  {
+    id: 'GW-LE2-01',
+    tipo: 'Gateway',
+    parqueId: 'leiria-2',
+    parqueNome: 'Est. Mag. Pessoa',
+    cidade: 'Leiria',
+    zona: 'Sala Técnica',
+    status: 'operacional',
+    ultimaLeitura: '2026-03-09T10:47:00',
+    uptimePercent: 99.95,
+    taxaFalsosPositivos: 0,
+    firmware: 'v5.0.2',
+    instaladoEm: '2024-08-28',
+    ultimaManutencao: '2025-10-20',
+    historicoErros: [],
+  },
+
+  // ── Mercado Municipal de Arganil ─────────────────────────────────────────────
+  {
+    id: 'IR-AR1-A12',
+    tipo: 'IR',
+    parqueId: 'arganil-1',
+    parqueNome: 'Mercado Mun. Arganil',
+    cidade: 'Arganil',
+    zona: 'Piso 0 – Zona A',
+    lugar: 'A12',
+    status: 'falha',
+    ultimaLeitura: '2026-03-09T10:22:00',
+    uptimePercent: 72.6,
+    taxaFalsosPositivos: 34.0,
+    firmware: 'v2.1.7',
+    instaladoEm: '2024-02-14',
+    ultimaManutencao: '2025-06-30',
+    historicoErros: [
+      log('i1', '2026-03-09T07:30:00', 'WARN_INTERMITTENT', 'Falha intermitente. Taxa falsos-positivos: 34 % nas últimas 4 h.', false),
+      log('i2', '2026-03-08T22:15:00', 'WARN_DRIFT',        'Desvio de leitura +12 % acima do limiar. Calibração recomendada.', false),
+      log('i3', '2026-03-07T16:40:00', 'ERR_SIGNAL_WEAK',   'Sinal IR degradado. Possível obstrução ou desgaste do emitter.', false),
+      log('i4', '2026-03-04T10:00:00', 'WARN_RESTART',      'Reinício automático por watchdog. Prestação degradada.', true),
+    ],
+  },
+  {
+    id: 'IR-AR1-A05',
+    tipo: 'IR',
+    parqueId: 'arganil-1',
+    parqueNome: 'Mercado Mun. Arganil',
+    cidade: 'Arganil',
+    zona: 'Piso 0 – Zona A',
+    lugar: 'A5',
+    status: 'operacional',
+    ultimaLeitura: '2026-03-09T10:45:00',
+    uptimePercent: 98.2,
+    taxaFalsosPositivos: 1.2,
+    firmware: 'v2.3.0',
+    instaladoEm: '2024-02-14',
+    ultimaManutencao: '2025-06-30',
+    historicoErros: [],
+  },
+  {
+    id: 'GW-AR1-01',
+    tipo: 'Gateway',
+    parqueId: 'arganil-1',
+    parqueNome: 'Mercado Mun. Arganil',
+    cidade: 'Arganil',
+    zona: 'Sala Técnica',
+    status: 'operacional',
+    ultimaLeitura: '2026-03-09T10:47:00',
+    uptimePercent: 99.7,
+    taxaFalsosPositivos: 0,
+    firmware: 'v5.0.1',
+    instaladoEm: '2024-02-10',
+    ultimaManutencao: '2025-06-30',
+    historicoErros: [],
+  },
+
+  // ── Foz Plaza ────────────────────────────────────────────────────────────────
+  {
+    id: 'IR-FI2-EV01',
+    tipo: 'EV',
+    parqueId: 'figueira-2',
+    parqueNome: 'Foz Plaza',
+    cidade: 'Figueira da Foz',
+    zona: 'Piso 0 – Carregamento EV',
+    lugar: 'EV-01',
+    status: 'operacional',
+    ultimaLeitura: '2026-03-09T10:44:00',
+    uptimePercent: 97.8,
+    taxaFalsosPositivos: 1.5,
+    firmware: 'v1.2.3',
+    instaladoEm: '2024-10-05',
+    ultimaManutencao: '2025-12-15',
+    historicoErros: [],
+  },
+  {
+    id: 'IR-FI2-A01',
+    tipo: 'IR',
+    parqueId: 'figueira-2',
+    parqueNome: 'Foz Plaza',
+    cidade: 'Figueira da Foz',
+    zona: 'Piso 0 – Zona A',
+    lugar: 'A1',
+    status: 'operacional',
+    ultimaLeitura: '2026-03-09T10:45:00',
+    uptimePercent: 99.2,
+    taxaFalsosPositivos: 0.8,
+    firmware: 'v2.3.1',
+    instaladoEm: '2024-10-05',
+    ultimaManutencao: '2025-12-15',
+    historicoErros: [],
+  },
+  {
+    id: 'GW-FI2-01',
+    tipo: 'Gateway',
+    parqueId: 'figueira-2',
+    parqueNome: 'Foz Plaza',
+    cidade: 'Figueira da Foz',
+    zona: 'Sala Técnica',
+    status: 'manutencao',
+    ultimaLeitura: '2026-03-09T08:00:00',
+    uptimePercent: 94.1,
+    taxaFalsosPositivos: 0,
+    firmware: 'v5.0.2',
+    instaladoEm: '2024-10-01',
+    ultimaManutencao: '2026-03-09',
+    historicoErros: [
+      log('j1', '2026-03-09T08:00:00', 'INFO_MAINT_MODE', 'Modo de manutenção ativado para atualização de firmware (v5.0.1→v5.0.2).', false),
+    ],
+  },
+];
+
+// ─── Ordens de manutenção ────────────────────────────────────────────────────
+export const mockMaintenanceOrders: MaintenanceOrder[] = [
+  {
+    id: 'ORD-001',
+    sensorId: 'IR-AV1-B07',
+    parque: 'Fórum Aveiro',
+    zona: 'Piso 0 – Zona B',
+    titulo: 'Substituição emitter IR – Lugar B7',
+    descricao: 'Sensor IR-AV1-B07 sem leituras há >2 h. Emitter possivelmente queimado. Verificar e substituir componente.',
+    prioridade: 'critica',
+    estado: 'em-progresso',
+    criadaEm: '2026-03-09T08:20:00',
+    prazo: '2026-03-09T12:00:00',
+    notas: 'Peças de substituição disponíveis em stock. Técnico a caminho.',
+    tecnico: 'Laura Farias',
+  },
+  {
+    id: 'ORD-002',
+    sensorId: 'RFID-LE1-ENT1',
+    parque: 'Europa – Leiria',
+    zona: 'Entrada Principal',
+    titulo: 'Restauro de comunicação – RFID Entrada',
+    descricao: 'Leitor RFID offline desde 06h45. Sem comunicação com servidor. Verificar cabo de rede e switch.',
+    prioridade: 'critica',
+    estado: 'em-progresso',
+    criadaEm: '2026-03-09T06:55:00',
+    prazo: '2026-03-09T11:00:00',
+    notas: 'Técnico local contactado. Estimativa de resolução: 11h00.',
+    tecnico: 'Laura Farias',
+  },
+  {
+    id: 'ORD-003',
+    sensorId: 'IR-CO1-MR02',
+    parque: 'Estádio Cidade de Coimbra',
+    zona: 'Piso -1 – Mobilidade Reduzida',
+    titulo: 'Falha sensorial – Lugar MR-02',
+    descricao: 'Sensor MR-02 em falha total. Verificar fixação física e substituir módulo IR se necessário.',
+    prioridade: 'alta',
+    estado: 'pendente',
+    criadaEm: '2026-03-09T10:10:00',
+    prazo: '2026-03-10T09:00:00',
+    tecnico: 'Laura Farias',
+  },
+  {
+    id: 'ORD-004',
+    sensorId: 'OCR-CO2-SAI1',
+    parque: 'CoimbraShopping',
+    zona: 'Saída Principal',
+    titulo: 'Câmera OCR sem sinal – Saída CoimbraShopping',
+    descricao: 'Câmera de saída sem sinal de vídeo desde as 19h30. Verificar alimentação e cabo de vídeo.',
+    prioridade: 'alta',
+    estado: 'pendente',
+    criadaEm: '2026-03-08T19:40:00',
+    prazo: '2026-03-09T14:00:00',
+    tecnico: 'Laura Farias',
+  },
+  {
+    id: 'ORD-005',
+    sensorId: 'IR-AR1-A12',
+    parque: 'Mercado Mun. Arganil',
+    zona: 'Piso 0 – Zona A',
+    titulo: 'Calibração e inspeção – Sensor A12',
+    descricao: 'Sensor IR com falha intermitente e 34 % de falsos-positivos. Recalibrar ou substituir emitter.',
+    prioridade: 'media',
+    estado: 'pendente',
+    criadaEm: '2026-03-09T08:00:00',
+    prazo: '2026-03-11T10:00:00',
+    tecnico: 'Laura Farias',
+  },
+  {
+    id: 'ORD-006',
+    sensorId: 'GW-FI2-01',
+    parque: 'Foz Plaza',
+    zona: 'Sala Técnica',
+    titulo: 'Atualização firmware – Gateway Foz Plaza',
+    descricao: 'Gateway GW-FI2-01 em modo de manutenção para atualização de firmware v5.0.1→v5.0.2.',
+    prioridade: 'baixa',
+    estado: 'em-progresso',
+    criadaEm: '2026-03-09T07:00:00',
+    prazo: '2026-03-09T09:00:00',
+    notas: 'Atualização em curso.',
+    tecnico: 'Laura Farias',
+  },
+];
+
+// ─── Uptime histórico (últimos 7 dias) ───────────────────────────────────────
+export const mockUptimeTrend = [
+  { day: 'Ter', uptime: 97.1, falhas: 2 },
+  { day: 'Qua', uptime: 97.8, falhas: 1 },
+  { day: 'Qui', uptime: 96.5, falhas: 3 },
+  { day: 'Sex', uptime: 98.2, falhas: 1 },
+  { day: 'Sáb', uptime: 96.8, falhas: 2 },
+  { day: 'Dom', uptime: 95.4, falhas: 4 },
+  { day: 'Seg', uptime: 96.2, falhas: 5 },
+];
+
+// ─── KPIs calculados ─────────────────────────────────────────────────────────
+export function computeTechKPIs(sensors: SensorDevice[]): TechKPI {
+  const total = sensors.length;
+  const operacionais = sensors.filter(s => s.status === 'operacional').length;
+  const emFalha = sensors.filter(s => s.status === 'falha').length;
+  const offline = sensors.filter(s => s.status === 'offline').length;
+  const emManutencao = sensors.filter(s => s.status === 'manutencao').length;
+  const uptimeMedio = sensors.reduce((acc, s) => acc + s.uptimePercent, 0) / total;
+  const sensoresComFP = sensors.filter(s => s.taxaFalsosPositivos > 0);
+  const taxaFP = sensoresComFP.length > 0
+    ? sensoresComFP.reduce((acc, s) => acc + s.taxaFalsosPositivos, 0) / sensoresComFP.length
+    : 0;
+  return {
+    totalSensores: total,
+    operacionais,
+    emFalha,
+    offline,
+    emManutencao,
+    uptimeMedio: Math.round(uptimeMedio * 10) / 10,
+    taxaFalsosPositivos: Math.round(taxaFP * 10) / 10,
+    mttrHoras: 4.2,
+    ordensAbertas: mockMaintenanceOrders.filter(o => o.estado !== 'concluida').length,
+    ordensConcluidas7dias: 3,
+  };
+}
+
+export const mockTechKPIs: TechKPI = computeTechKPIs(mockSensors);
