@@ -4,6 +4,15 @@ name: SonarQube Analysis
 on:
   pull_request:
     branches: [master, develop]
+    paths:
+      - 'sonar-project.properties'
+      - '.github/workflows/sonarqube.yml'
+      - 'projX/api-easyspot/**'
+      - 'projX/web-easyspot/src/**'
+
+concurrency:
+  group: sonarqube-pr-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -11,6 +20,7 @@ permissions:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  SONAR_USER_HOME: ~/.sonar
 
 jobs:
   sonarqube:
@@ -30,9 +40,17 @@ jobs:
           distribution: temurin
           cache: maven
 
+      - name: Cache SonarQube packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar-${{ hashFiles('sonar-project.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-sonar-
+
       - name: Build backend
         if: hashFiles('projX/api-easyspot/pom.xml') != ''
-        run: cd projX/api-easyspot && ./mvnw compile -q
+        run: cd projX/api-easyspot && ./mvnw -q -DskipTests compile
 
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v5
