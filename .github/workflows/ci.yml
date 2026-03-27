@@ -16,7 +16,7 @@ env:
 jobs:
   lint-configs:
     name: Lint configs (YAML / JSON / Markdown / Dockerfile)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ies]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -35,7 +35,7 @@ jobs:
 
   repo-scan:
     name: Repository scan (detect stacks — no installs)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ies]
     outputs:
       has_frontend: ${{ steps.check.outputs.frontend }}
       has_java: ${{ steps.check.outputs.java }}
