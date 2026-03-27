@@ -1,5 +1,4 @@
-name: Deploy on Self-Hosted Runner
-
+name: Deploy
 on:
   push:
     branches:
@@ -7,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       branch:
-        description: Branch para deploy manual
+        description: Branch to deploy
         required: true
         default: develop
 

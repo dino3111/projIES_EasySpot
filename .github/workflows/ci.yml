@@ -53,7 +53,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-        continue-on-error: true  # Self-hosted may not have all Python versions
+        continue-on-error: true 
 
       - name: Cache pre-commit environments (aggressive for Pi)
         uses: actions/cache@v4

@@ -41,7 +41,7 @@ jobs:
           cache: maven
         timeout-minutes: 10
 
-      - name: Cache Maven packages (Pi optimization)
+      - name: Cache Maven packages 
         uses: actions/cache@v4
         with:
           path: |

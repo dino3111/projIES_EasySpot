@@ -37,7 +37,7 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Cache pre-commit environments (aggressive for Pi)
+      - name: Cache pre-commit environments 
         uses: actions/cache@v4
         with:
           path: |
