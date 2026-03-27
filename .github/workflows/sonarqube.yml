@@ -43,10 +43,29 @@ jobs:
       - name: Cache SonarQube packages
         uses: actions/cache@v4
         with:
-          path: ~/.sonar/cache
+          path: |
+            ~/.sonar/cache
+            ~/.sonar/native-sonar-scanner
           key: ${{ runner.os }}-sonar-${{ hashFiles('sonar-project.properties') }}
           restore-keys: |
             ${{ runner.os }}-sonar-
+
+      - name: Ensure unzip is available
+        run: |
+          set -euo pipefail
+          if command -v unzip >/dev/null 2>&1; then
+            echo "unzip already installed"
+            exit 0
+          fi
+
+          if command -v apt-get >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y --no-install-recommends unzip
+            exit 0
+          fi
+
+          echo "unzip is required by SonarSource/sonarqube-scan-action and no supported package manager was found" >&2
+          exit 1
 
       - name: Build backend
         if: hashFiles('projX/api-easyspot/pom.xml') != ''
