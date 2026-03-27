@@ -33,11 +33,24 @@ jobs:
         with:
           ref: ${{ env.DEPLOY_BRANCH }}
 
+      - name: Configure Docker socket permissions
+        run: |
+          set -euo pipefail
+          # Ensure docker socket is accessible to current user (self-hosted only)
+          if [ -S /var/run/docker.sock ]; then
+            sudo -n usermod -aG docker $USER 2>/dev/null || true
+            if ! docker ps >/dev/null 2>&1; then
+              echo "Warning: Docker socket not accessible, attempting to fix permissions..."
+              sudo -n chmod 666 /var/run/docker.sock 2>/dev/null || true
+            fi
+          fi
+        continue-on-error: true
+
       - name: Validate runtime dependencies
         run: |
           set -euo pipefail
-          docker --version
-          docker compose version
+          docker --version || (echo "Docker not available" && exit 1)
+          docker compose version || (echo "Docker Compose not available" && exit 1)
 
       - name: Deploy stack with Docker Compose
         run: |

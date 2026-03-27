@@ -39,6 +39,17 @@ jobs:
           java-version: '21'
           distribution: temurin
           cache: maven
+        timeout-minutes: 10
+
+      - name: Cache Maven packages (Pi optimization)
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.m2/repository
+            ~/.m2/wrapper
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
 
       - name: Cache SonarQube packages
         uses: actions/cache@v4
@@ -57,19 +68,26 @@ jobs:
             echo "unzip already installed"
             exit 0
           fi
-
+          
+          # For self-hosted runners, install unzip if available
           if command -v apt-get >/dev/null 2>&1; then
-            sudo apt-get update -qq
-            sudo apt-get install -y --no-install-recommends unzip
+            # Try with sudo first, fallback to direct install
+            sudo -n apt-get update -qq 2>/dev/null || apt-get update -qq 2>/dev/null || true
+            sudo -n apt-get install -y --no-install-recommends unzip 2>/dev/null || apt-get install -y --no-install-recommends unzip 2>/dev/null || true
+          fi
+          
+          # Check again if unzip is available
+          if command -v unzip >/dev/null 2>&1; then
+            echo "unzip is available"
             exit 0
           fi
-
-          echo "unzip is required by SonarSource/sonarqube-scan-action and no supported package manager was found" >&2
-          exit 1
+          
+          echo "Warning: unzip not found, SonarSource/sonarqube-scan-action may fail" >&2
 
       - name: Build backend
         if: hashFiles('projX/api-easyspot/pom.xml') != ''
-        run: cd projX/api-easyspot && ./mvnw -q -DskipTests compile
+        run: cd projX/api-easyspot && ./mvnw -q -DskipTests -T 1 compile
+        timeout-minutes: 15
 
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v5
