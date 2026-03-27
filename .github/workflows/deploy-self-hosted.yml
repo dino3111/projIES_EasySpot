@@ -1,0 +1,54 @@
+name: Deploy on Self-Hosted Runner
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Branch para deploy manual
+        required: true
+        default: develop
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  deploy:
+    name: Deploy to VM
+    runs-on:
+      - self-hosted
+      - linux
+    concurrency:
+      group: easyspot-vm-deploy
+      cancel-in-progress: true
+    environment: production
+    env:
+      DEPLOY_BRANCH: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.ref_name }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DEPLOY_BRANCH }}
+
+      - name: Validate runtime dependencies
+        run: |
+          set -euo pipefail
+          docker --version
+          docker compose version
+
+      - name: Deploy stack with Docker Compose
+        run: |
+          set -euo pipefail
+          cd projX
+          docker compose pull --ignore-pull-failures
+          docker compose up -d --build --remove-orphans
+
+      - name: Cleanup unused Docker images
+        run: |
+          set -euo pipefail
+          docker image prune -f
