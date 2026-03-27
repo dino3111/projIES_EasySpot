@@ -14,7 +14,7 @@ env:
 
 jobs:
   pre-commit:
-    runs-on: [self-hosted, ies]
+    runs-on: [self-hosted]
     steps:
       - name: Checkout
         uses: actions/checkout@v4

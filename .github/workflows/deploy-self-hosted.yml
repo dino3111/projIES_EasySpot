@@ -20,7 +20,7 @@ env:
 jobs:
   deploy:
     name: Deploy to VM
-    runs-on: [self-hosted, ies]
+    runs-on: [self-hosted]
     concurrency:
       group: easyspot-vm-deploy
       cancel-in-progress: true

@@ -16,7 +16,7 @@ env:
 jobs:
   lint-configs:
     name: Lint configs (YAML / JSON / Markdown / Dockerfile)
-    runs-on: [self-hosted, ies]
+    runs-on: [self-hosted]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
