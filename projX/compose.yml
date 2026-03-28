@@ -39,8 +39,5 @@ services:
       POSTGRES_PASSWORD: ${SONAR_DB_PASSWORD}
       POSTGRES_DB: sonar
     volumes:
-      - sonarqube_db_internal:/var/lib/postgresql/data
+      - ./sonarqube_db:/var/lib/postgresql/data
     restart: unless-stopped
-
-volumes:
-  sonarqube_db_internal:
