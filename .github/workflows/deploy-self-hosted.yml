@@ -27,6 +27,12 @@ jobs:
     env:
       DEPLOY_BRANCH: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.ref_name }}
     steps:
+      - name: Fix workspace permissions
+        run: |
+          sudo chown -R "$USER:$USER" "$GITHUB_WORKSPACE" 2>/dev/null || \
+          docker run --rm -v "$GITHUB_WORKSPACE:/workspace" alpine \
+            sh -c "chown -R $(id -u):$(id -g) /workspace"
+
       - name: Checkout code
         uses: actions/checkout@v4
         with:

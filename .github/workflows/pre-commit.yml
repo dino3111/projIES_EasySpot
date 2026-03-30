@@ -20,6 +20,12 @@ jobs:
   pre-commit:
     runs-on: [self-hosted]
     steps:
+      - name: Fix workspace permissions
+        run: |
+          sudo chown -R "$USER:$USER" "$GITHUB_WORKSPACE" 2>/dev/null || \
+          docker run --rm -v "$GITHUB_WORKSPACE:/workspace" alpine \
+            sh -c "chown -R $(id -u):$(id -g) /workspace"
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
