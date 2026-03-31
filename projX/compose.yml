@@ -85,11 +85,6 @@ services:
       authentik-redis:
         condition: service_healthy
 
-volumes:
-  authentik-db-data:
-  authentik-redis-data:
-  authentik-media:
-  authentik-certs:
   nginx-init:
     image: alpine:3.19
     command: >
@@ -173,3 +168,9 @@ volumes:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+
+volumes:
+  authentik-db-data:
+  authentik-redis-data:
+  authentik-media:
+  authentik-certs:
