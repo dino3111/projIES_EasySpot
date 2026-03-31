@@ -57,16 +57,27 @@ jobs:
           docker --version || (echo "Docker not available" && exit 1)
           docker compose version || (echo "Docker Compose not available" && exit 1)
 
+      - name: Create .env file from GitHub secrets
+        run: |
+          set -euo pipefail
+          cd projX
+          {
+            echo "SONAR_DB_PASSWORD=${{ secrets.SONAR_DB_PASSWORD }}"
+            echo "SONAR_GITHUB_CLIENT_ID=${{ secrets.SONAR_GITHUB_CLIENT_ID }}"
+            echo "SONAR_GITHUB_CLIENT_SECRET=${{ secrets.SONAR_GITHUB_CLIENT_SECRET }}"
+          } > .env
+          chmod 600 .env
+          echo "✓ .env file created successfully"
+
       - name: Deploy stack with Docker Compose
         run: |
           set -euo pipefail
           cd projX
+          echo "Pulling latest images..."
           docker compose pull --ignore-pull-failures
+          echo "Starting services..."
           docker compose up -d --build --remove-orphans
-        env:
-          SONAR_DB_PASSWORD: ${{ secrets.SONAR_DB_PASSWORD }}
-          SONAR_GITHUB_CLIENT_ID: ${{ secrets.SONAR_GITHUB_CLIENT_ID }}
-          SONAR_GITHUB_CLIENT_SECRET: ${{ secrets.SONAR_GITHUB_CLIENT_SECRET }}
+          echo "✓ Services deployed successfully"
 
       - name: Cleanup unused Docker images
         run: |
