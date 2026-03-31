@@ -13,13 +13,13 @@ services:
     restart: unless-stopped
 
   nginx-init:
-    image: alpine:latest
+    image: alpine:3.19
     command: >
       sh -c "
       apk add --no-cache openssl &&
       mkdir -p /etc/nginx/certs &&
-      if [ ! -f /etc/nginx/certs/server.crt ]; then
-        openssl req -x509 -newkey rsa:2048 -keyout /etc/nginx/certs/server.key -out /etc/nginx/certs/server.crt -days 365 -nodes -subj '/CN=sonarqube'
+      if [ ! -f /etc/nginx/certs/cert.pem ]; then
+        openssl req -x509 -newkey rsa:2048 -keyout /etc/nginx/certs/key.pem -out /etc/nginx/certs/cert.pem -days 365 -nodes -subj '/CN=sonarqube'
         echo 'SSL certificate generated'
       else
         echo 'SSL certificate already exists'
@@ -29,7 +29,7 @@ services:
       - ./nginx_certs:/etc/nginx/certs
 
   nginx:
-    image: nginx:alpine
+    image: nginx:1.27-alpine
     ports:
       - "9001:443"
     volumes:
