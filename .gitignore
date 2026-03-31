@@ -188,6 +188,7 @@ tmp_volume/
 keystore.*
 *.crt
 *.cert
+nginx_certs/
 
 # Credentials / secret stores
 credentials.yml
