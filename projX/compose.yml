@@ -11,20 +11,36 @@ services:
     environment:
       - CHOKIDAR_USEPOLLING=true
     restart: unless-stopped
+  sonarqube-init:
+    image: busybox
+    command: >
+      sh -c "chown -R 1000:1000 /opt/sonarqube/data /opt/sonarqube/extensions /opt/sonarqube/logs && 
+             chown -R 999:999 /var/lib/postgresql/data"
+    volumes:
+      - ./sonarqube_data:/opt/sonarqube/data
+      - ./sonarqube_extensions:/opt/sonarqube/extensions
+      - ./sonarqube_logs:/opt/sonarqube/logs
+      - ./sonarqube_db:/var/lib/postgresql/data
 
   sonarqube:
     image: sonarqube:community
     depends_on:
+      sonarqube-init:
+        condition: service_completed_successfully
       sonarqube-db:
-        condition: service_healthy
+        condition: service_started
     environment:
       SONAR_JDBC_URL: jdbc:postgresql://sonarqube-db:5432/sonar
       SONAR_JDBC_USERNAME: sonar
       SONAR_JDBC_PASSWORD: ${SONAR_DB_PASSWORD}
+      SONAR_AUTH_GITHUB_ENABLED: "true"
+      SONAR_AUTH_GITHUB_CLIENTID: ${SONAR_GITHUB_CLIENT_ID}
+      SONAR_AUTH_GITHUB_CLIENTSECRET: ${SONAR_GITHUB_CLIENT_SECRET}
+      SONAR_AUTH_GITHUB_ALLOWUSERSTOSIGNUP: "true"
     volumes:
-      - sonarqube_data:/opt/sonarqube/data
-      - sonarqube_extensions:/opt/sonarqube/extensions
-      - sonarqube_logs:/opt/sonarqube/logs
+      - ./sonarqube_data:/opt/sonarqube/data
+      - ./sonarqube_extensions:/opt/sonarqube/extensions
+      - ./sonarqube_logs:/opt/sonarqube/logs
     ports:
       - "9001:9000"
     ulimits:
@@ -40,23 +56,10 @@ services:
       POSTGRES_PASSWORD: ${SONAR_DB_PASSWORD}
       POSTGRES_DB: sonar
     volumes:
-      - sonarqube_db:/var/lib/postgresql/data
+      - ./sonarqube_db:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U sonar -d sonar"]
-      interval: 10s
+      test: ["CMD-SHELL", "pg_isready -U sonar"]
+      interval: 5s
       timeout: 5s
       retries: 5
     restart: unless-stopped
-
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    command: tunnel --no-autoupdate run
-    environment:
-      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
-    restart: unless-stopped
-
-volumes:
-  sonarqube_data:
-  sonarqube_extensions:
-  sonarqube_logs:
-  sonarqube_db:

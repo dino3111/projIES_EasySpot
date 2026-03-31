@@ -6,19 +6,29 @@ on:
     branches:
       - master
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   release:
     name: Release
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted]
     permissions:
       contents: write   # required to create releases/tags
       packages: write   # required to publish packages (if needed)
       issues: write
       pull-requests: write
     steps:
+      - name: Fix workspace permissions
+        run: |
+          sudo chown -R "$USER:$USER" "$GITHUB_WORKSPACE" 2>/dev/null || \
+          docker run --rm -v "$GITHUB_WORKSPACE:/workspace" alpine \
+            sh -c "chown -R $(id -u):$(id -g) /workspace"
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -28,19 +38,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18'
+          cache: npm
+          cache-dependency-path: .github/semantic-release/package-lock.json
 
       - name: Install semantic-release plugins
         run: |
-          npm install --no-save \
-            semantic-release@23.0.0 \
-            @semantic-release/commit-analyzer@13.0.0 \
-            @semantic-release/release-notes-generator@14.0.0 \
-            @semantic-release/changelog@6.0.0 \
-            @semantic-release/npm@11.0.0 \
-            @semantic-release/git@10.0.0 \
-            @semantic-release/github@10.0.0
+          cd .github/semantic-release
+          npm ci --no-audit --no-fund
 
       - name: Run semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx semantic-release
+        run: cd .github/semantic-release && npx semantic-release
