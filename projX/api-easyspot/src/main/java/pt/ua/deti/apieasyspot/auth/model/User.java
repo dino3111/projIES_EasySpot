@@ -5,8 +5,12 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+import pt.ua.deti.apieasyspot.vehicle.model.Vehicle;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Data
@@ -19,6 +23,7 @@ public class User {
     private UUID id;
 
     @Column(unique = true, nullable = false)
+    @NotBlank
     private String authentikUserId;
 
     @Column(unique = true, nullable = false, length = 255)
@@ -26,18 +31,23 @@ public class User {
     private String email;
 
     @Column(nullable = false, length = 255)
+    @NotBlank
     private String name;
 
-    @Column()
-    private String photoUrl; //integrate with cloudflare r2
+    @Column
+    private String photoUrl;
 
     @Column(nullable = false, length = 20)
+    @NotBlank
     private String role;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Vehicle> vehicles = new ArrayList<>();
 
     @CreationTimestamp @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    @CreationTimestamp @Column(nullable = false)
+    @UpdateTimestamp @Column(nullable = false)
     private LocalDateTime updatedAt;
 
 }
