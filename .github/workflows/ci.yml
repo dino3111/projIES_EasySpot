@@ -16,6 +16,8 @@ on:
       - '**/*.md'
       - '**/Dockerfile'
       - '**/*.dockerfile'
+      - 'projX/api-easyspot/**'
+      - 'projX/pom.xml'
   pull_request:
     branches: ["master", "develop"]
     paths:
@@ -30,6 +32,8 @@ on:
       - '**/*.md'
       - '**/Dockerfile'
       - '**/*.dockerfile'
+      - 'projX/api-easyspot/**'
+      - 'projX/pom.xml'
 
 concurrency:
   group: ci-config-${{ github.ref }}
@@ -82,3 +86,40 @@ jobs:
       - name: Run config hooks
         run: |
           pre-commit run --all-files
+
+  test-backend:
+    name: Backend tests (unit + integration)
+    runs-on: [self-hosted]
+    steps:
+      - name: Fix workspace permissions
+        run: |
+          sudo chown -R "$USER:$USER" "$GITHUB_WORKSPACE" 2>/dev/null || \
+          docker run --rm -v "$GITHUB_WORKSPACE:/workspace" alpine \
+            sh -c "chown -R $(id -u):$(id -g) /workspace"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java (Temurin 21)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Run unit and integration tests
+        run: |
+          cd projX/api-easyspot
+          ./mvnw -B clean verify
+        timeout-minutes: 20
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-reports
+          path: |
+            projX/api-easyspot/target/surefire-reports/
+            projX/api-easyspot/target/failsafe-reports/
+            projX/api-easyspot/target/site/jacoco/
+          retention-days: 30
