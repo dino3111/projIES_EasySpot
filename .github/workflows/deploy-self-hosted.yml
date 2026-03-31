@@ -62,12 +62,26 @@ jobs:
           set -euo pipefail
           cd projX
           {
+            echo "# Authentik Configuration"
+            echo "AUTHENTIK_SECRET_KEY=${{ secrets.AUTHENTIK_SECRET_KEY }}"
+            echo "AUTHENTIK_TAG=2024.12.3"
+            echo ""
+            echo "# Authentik PostgreSQL credentials"
+            echo "PG_USER=authentik"
+            echo "PG_DB=authentik"
+            echo "PG_PASS=${{ secrets.PG_PASS }}"
+            echo ""
+            echo "# SonarQube Configuration"
             echo "SONAR_DB_PASSWORD=${{ secrets.SONAR_DB_PASSWORD }}"
             echo "SONAR_GITHUB_CLIENT_ID=${{ secrets.SONAR_GITHUB_CLIENT_ID }}"
             echo "SONAR_GITHUB_CLIENT_SECRET=${{ secrets.SONAR_GITHUB_CLIENT_SECRET }}"
+            echo ""
+            echo "# Docker Configuration"
+            echo "UID=1000"
+            echo "GID=1000"
           } > .env
           chmod 600 .env
-          echo "✓ .env file created successfully"
+          echo "✓ .env file created successfully with all required variables"
 
       - name: Deploy stack with Docker Compose
         run: |
