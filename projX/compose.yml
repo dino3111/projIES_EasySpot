@@ -16,17 +16,17 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
-      start_period: 20s
-      interval: 30s
-      retries: 5
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      start_period: 30s
+      interval: 10s
+      retries: 10
       timeout: 5s
     volumes:
       - authentik-db-data:/var/lib/postgresql/data
     environment:
-      POSTGRES_PASSWORD: $${PG_PASS:postgres}
-      POSTGRES_USER: $${PG_USER:postgres}
-      POSTGRES_DB: $${PG_DB:easyspot}
+      POSTGRES_PASSWORD: $${PG_PASS}
+      POSTGRES_USER: $${PG_USER}
+      POSTGRES_DB: $${PG_DB}
 
   authentik-redis:
     image: redis:7.2-alpine

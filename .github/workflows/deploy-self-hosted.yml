@@ -81,7 +81,11 @@ jobs:
             echo "GID=1000"
           } > .env
           chmod 600 .env
-          echo "✓ .env file created successfully with all required variables"
+          echo "✓ .env file created successfully"
+          echo ""
+          echo "Validating .env file..."
+          grep -E "^[A-Z_]+=" .env | wc -l | xargs echo "Total variables:"
+          [ -s .env ] && echo "✓ .env is not empty" || (echo "✗ .env is empty!" && exit 1)
 
       - name: Deploy stack with Docker Compose
         run: |
