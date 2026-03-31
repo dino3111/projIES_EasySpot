@@ -4,8 +4,36 @@ name: CI - repository validation
 on:
   push:
     branches: ["master", "develop"]
+    paths:
+      - '.github/workflows/ci.yml'
+      - '.github/workflows/pre-commit.yml'
+      - '.github/workflows/sonarqube.yml'
+      - '.github/workflows/release.yml'
+      - '.github/workflows/deploy-self-hosted.yml'
+      - '**/*.yml'
+      - '**/*.yaml'
+      - '**/*.json'
+      - '**/*.md'
+      - '**/Dockerfile'
+      - '**/*.dockerfile'
   pull_request:
     branches: ["master", "develop"]
+    paths:
+      - '.github/workflows/ci.yml'
+      - '.github/workflows/pre-commit.yml'
+      - '.github/workflows/sonarqube.yml'
+      - '.github/workflows/release.yml'
+      - '.github/workflows/deploy-self-hosted.yml'
+      - '**/*.yml'
+      - '**/*.yaml'
+      - '**/*.json'
+      - '**/*.md'
+      - '**/Dockerfile'
+      - '**/*.dockerfile'
+
+concurrency:
+  group: ci-config-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -15,64 +43,42 @@ env:
 
 jobs:
   lint-configs:
-    name: Lint configs (YAML / JSON / Markdown / Dockerfile)
-    runs-on: ubuntu-latest
+    name: Lint configs (YAML / JSON / Dockerfile)
+    runs-on: [self-hosted]
     steps:
+      - name: Fix workspace permissions
+        run: |
+          sudo chown -R "$USER:$USER" "$GITHUB_WORKSPACE" 2>/dev/null || \
+          docker run --rm -v "$GITHUB_WORKSPACE:/workspace" alpine \
+            sh -c "chown -R $(id -u):$(id -g) /workspace"
+
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Run Super-Linter (light, config files)
-        uses: github/super-linter@v5
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VALIDATE_ALL_CODEBASE: false
-          VALIDATE_YAML: true
-          VALIDATE_JSON: true
-          VALIDATE_MARKDOWN: true
-          VALIDATE_DOCKERFILE: true
-          DEFAULT_BRANCH: master
-          YAML_CONFIG_FILETYPES: .yaml,.yml
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+        continue-on-error: true 
 
-  repo-scan:
-    name: Repository scan (detect stacks — no installs)
-    runs-on: ubuntu-latest
-    outputs:
-      has_frontend: ${{ steps.check.outputs.frontend }}
-      has_java: ${{ steps.check.outputs.java }}
-      has_python: ${{ steps.check.outputs.python }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Cache pre-commit environments (aggressive for Pi)
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pre-commit
+            ~/.cache/pip
+            ~/.pre-commit-cache
+          key: ${{ runner.os }}-ci-precommit-${{ hashFiles('.pre-commit-config.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-ci-precommit-
+            ${{ runner.os }}-ci-
 
-      - name: Detect common stack files
-        id: check
+      - name: Install pre-commit
         run: |
-          frontend=false
-          java=false
-          python=false
-          if [ -f package.json ] || \
-            find . -name package.json -print -quit | grep -q .; then
-            frontend=true
-          fi
-          if [ -f pom.xml ] || [ -f build.gradle ] || \
-            find . -name pom.xml -print -quit | grep -q . || \
-            find . -name 'build.gradle*' -type f -print -quit | \
-            grep -q .; then
-            java=true
-          fi
-          if [ -f requirements.txt ] || \
-            find . -name requirements.txt -print -quit | grep -q . || \
-            find . -name pyproject.toml -print -quit | grep -q .; then
-            python=true
-          fi
-          echo "frontend=$frontend" >> $GITHUB_OUTPUT
-          echo "java=$java" >> $GITHUB_OUTPUT
-          echo "python=$python" >> $GITHUB_OUTPUT
+          python -m pip install --upgrade pip --quiet
+          pip install pre-commit --quiet
+        timeout-minutes: 10
 
-      - name: Summary / guidance
+      - name: Run config hooks
         run: |
-          echo "Repository scan summary:"
-          echo " - Frontend (package.json): ${{ steps.check.outputs.frontend }}"
-          echo " - Java (pom/gradle): ${{ steps.check.outputs.java }}"
-          echo " - Python (requirements/pyproject): ${{ steps.check.outputs.python }}"
-          echo ""
+          pre-commit run --all-files

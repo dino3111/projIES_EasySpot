@@ -1,0 +1,114 @@
+---
+name: SonarQube Analysis
+
+on:
+  pull_request:
+    branches: [master, develop]
+    paths:
+      - 'sonar-project.properties'
+      - '.github/workflows/sonarqube.yml'
+      - 'projX/api-easyspot/**'
+      - 'projX/web-easyspot/src/**'
+
+concurrency:
+  group: sonarqube-pr-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  SONAR_USER_HOME: ~/.sonar
+
+jobs:
+  sonarqube:
+    name: SonarQube scan
+    runs-on: [self-hosted]
+    steps:
+      - name: Fix workspace permissions
+        run: |
+          sudo chown -R "$USER:$USER" "$GITHUB_WORKSPACE" 2>/dev/null || \
+          docker run --rm -v "$GITHUB_WORKSPACE:/workspace" alpine \
+            sh -c "chown -R $(id -u):$(id -g) /workspace"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java 21
+        if: hashFiles('projX/api-easyspot/pom.xml') != ''
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: temurin
+          cache: maven
+        timeout-minutes: 10
+
+      - name: Cache Maven packages 
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.m2/repository
+            ~/.m2/wrapper
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - name: Cache SonarQube packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.sonar/cache
+            ~/.sonar/native-sonar-scanner
+          key: ${{ runner.os }}-sonar-${{ hashFiles('sonar-project.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-sonar-
+
+      - name: Ensure unzip is available
+        run: |
+          set -euo pipefail
+          if command -v unzip >/dev/null 2>&1; then
+            echo "unzip already installed"
+            exit 0
+          fi
+          
+          # For self-hosted runners, install unzip if available
+          if command -v apt-get >/dev/null 2>&1; then
+            # Try with sudo first, fallback to direct install
+            sudo -n apt-get update -qq 2>/dev/null || apt-get update -qq 2>/dev/null || true
+            sudo -n apt-get install -y --no-install-recommends unzip 2>/dev/null || apt-get install -y --no-install-recommends unzip 2>/dev/null || true
+          fi
+          
+          # Check again if unzip is available
+          if command -v unzip >/dev/null 2>&1; then
+            echo "unzip is available"
+            exit 0
+          fi
+          
+          echo "Warning: unzip not found, SonarSource/sonarqube-scan-action may fail" >&2
+
+      - name: Build backend
+        if: hashFiles('projX/api-easyspot/pom.xml') != ''
+        run: cd projX/api-easyspot && ./mvnw -q -DskipTests -T 1 compile
+        timeout-minutes: 15
+
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v6
+        with:
+          args: >
+            -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
+            -Dsonar.pullrequest.branch=${{ github.head_ref }}
+            -Dsonar.pullrequest.base=${{ github.base_ref }}
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+      - name: Quality Gate check
+        uses: SonarSource/sonarqube-quality-gate-action@v1
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
