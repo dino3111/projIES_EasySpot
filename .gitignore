@@ -247,7 +247,6 @@ crash.log
 
 # Editorconfig and gitattributes local edits
 .gitattributes.local
-
-
+/.claude
 package-lock.json
 CLAUDE.md
