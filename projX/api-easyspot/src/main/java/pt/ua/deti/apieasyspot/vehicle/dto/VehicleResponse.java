@@ -1,0 +1,19 @@
+package pt.ua.deti.apieasyspot.vehicle.dto;
+
+import org.hibernate.validator.constraints.UUID;
+
+public record VehicleResponse(
+    UUID id,
+    String plate,
+    String make,
+    String model,
+    String version,
+    String color,
+    int year,
+    String fuelType,
+    Double powerKW,
+    String nickname,
+    boolean isEv,
+    boolean isAccessible,
+    boolean isPrimary
+) {}
