@@ -76,6 +76,14 @@ jobs:
             echo "SONAR_GITHUB_CLIENT_ID=${{ secrets.SONAR_GITHUB_CLIENT_ID }}"
             echo "SONAR_GITHUB_CLIENT_SECRET=${{ secrets.SONAR_GITHUB_CLIENT_SECRET }}"
             echo ""
+            echo "# Backend Application Database"
+            echo "APP_DB_USER=easyspot"
+            echo "APP_DB_PASS=${{ secrets.APP_DB_PASS }}"
+            echo "APP_DB=easyspot"
+            echo ""
+            echo "# Backend Time-Series Database"
+            echo "TS_DB=easyspot_ts"
+            echo ""
             echo "# Docker Configuration"
             echo "UID=1000"
             echo "GID=1000"
@@ -87,19 +95,12 @@ jobs:
           grep -E "^[A-Z_]+=" .env | wc -l | xargs echo "Total variables:"
           [ -s .env ] && echo "✓ .env is not empty" || (echo "✗ .env is empty!" && exit 1)
 
-      - name: Clean corrupted volumes and previous deployments
+      - name: Stop previous deployment
         run: |
           set -euo pipefail
           cd projX
-          echo "Stopping existing services..."
-          docker compose down -v 2>/dev/null || true
-          
-          echo "Removing potentially corrupted named volumes..."
-          docker volume rm projx-authentik-db-data 2>/dev/null || true
-          
-          echo "Pruning unused system resources..."
-          docker system prune -f --volumes 2>/dev/null || true
-          
+          echo "Stopping existing services (preserving volumes and images)..."
+          docker compose down 2>/dev/null || true
           echo "✓ Cleanup completed"
 
       - name: Validate Docker Compose configuration
