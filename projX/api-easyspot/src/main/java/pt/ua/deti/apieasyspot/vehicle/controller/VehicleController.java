@@ -1,5 +1,9 @@
 package pt.ua.deti.apieasyspot.vehicle.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -13,12 +17,20 @@ import pt.ua.deti.apieasyspot.vehicle.service.VehicleService;
 
 import java.util.UUID;
 
+@Tag(name = "Vehicles", description = "Driver vehicle management")
 @RestController
 @RequestMapping("/api/vehicles")
 @RequiredArgsConstructor
 public class VehicleController {
     private final VehicleService vehicleService;
 
+    @Operation(summary = "Update a vehicle", description = "Updates a vehicle belonging to the authenticated driver. If the plate changes, data is re-fetched from IMT")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Vehicle updated successfully"),
+        @ApiResponse(responseCode = "404", description = "Vehicle not found"),
+        @ApiResponse(responseCode = "403", description = "Vehicle doesn't belong to this driver"),
+        @ApiResponse(responseCode = "503", description = "IMT API service unavailable")
+    })
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('DRIVER')")
     public ResponseEntity<VehicleResponse> updateVehicle(
@@ -30,6 +42,11 @@ public class VehicleController {
         return ResponseEntity.ok(vehicleService.updateVehicle(authentikUserId, id, request));
     }
 
+    @Operation(summary = "Delete a Vehicle", description = "Removes a vehicle belonging to the authenticated driver.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "204", description = "Vehicle deleted"),
+        @ApiResponse(responseCode = "404", description = "Vehicle not found")
+    })
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('DRIVER')")
     public ResponseEntity<Void> deleteVehicle(
