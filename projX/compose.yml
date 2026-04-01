@@ -27,9 +27,6 @@ services:
       POSTGRES_PASSWORD: $${PG_PASS}
       POSTGRES_USER: $${PG_USER}
       POSTGRES_DB: $${PG_DB}
-      LANG: C.UTF-8
-      LC_ALL: C.UTF-8
-      PGDATA: /var/lib/postgresql/data
 
   authentik-redis:
     image: redis:7.2-alpine
@@ -153,8 +150,6 @@ services:
       POSTGRES_USER: sonar
       POSTGRES_PASSWORD: ${SONAR_DB_PASSWORD}
       POSTGRES_DB: sonar
-      LANG: C.UTF-8
-      LC_ALL: C.UTF-8
     volumes:
       - sonarqube-db-data:/var/lib/postgresql/data
     healthcheck:
