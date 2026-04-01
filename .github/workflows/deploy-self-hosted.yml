@@ -87,6 +87,32 @@ jobs:
           grep -E "^[A-Z_]+=" .env | wc -l | xargs echo "Total variables:"
           [ -s .env ] && echo "✓ .env is not empty" || (echo "✗ .env is empty!" && exit 1)
 
+      - name: Clean corrupted volumes and previous deployments
+        run: |
+          set -euo pipefail
+          cd projX
+          echo "Stopping existing services..."
+          docker compose down -v 2>/dev/null || true
+          
+          echo "Removing potentially corrupted named volumes..."
+          docker volume rm projx-authentik-db-data 2>/dev/null || true
+          
+          echo "Pruning unused system resources..."
+          docker system prune -f --volumes 2>/dev/null || true
+          
+          echo "✓ Cleanup completed"
+
+      - name: Validate Docker Compose configuration
+        run: |
+          set -euo pipefail
+          cd projX
+          echo "Validating compose configuration..."
+          docker compose config > /dev/null && echo "✓ Configuration is valid" || exit 1
+          
+          echo ""
+          echo "Checking environment variables..."
+          docker compose config | grep -E "POSTGRES_USER|POSTGRES_PASSWORD|POSTGRES_DB" | head -5
+
       - name: Deploy stack with Docker Compose
         run: |
           set -euo pipefail
@@ -96,6 +122,47 @@ jobs:
           echo "Starting services..."
           docker compose up -d --build --remove-orphans
           echo "✓ Services deployed successfully"
+
+      - name: Wait for services to be healthy
+        run: |
+          set -euo pipefail
+          cd projX
+          echo "Waiting for services to become healthy..."
+          
+          max_attempts=60
+          attempt=0
+          
+          while [ $attempt -lt $max_attempts ]; do
+            attempt=$((attempt + 1))
+            echo "Attempt $attempt/$max_attempts..."
+            
+            # Check if authentik-db is healthy
+            if docker compose ps authentik-db 2>/dev/null | grep -q "healthy"; then
+              echo "✓ authentik-db is healthy"
+              break
+            fi
+            
+            # Check if container exited with error
+            if docker compose ps authentik-db 2>/dev/null | grep -q "Exit"; then
+              echo "✗ authentik-db failed to start"
+              echo ""
+              echo "Logs from authentik-db:"
+              docker compose logs authentik-db | tail -50
+              exit 1
+            fi
+            
+            sleep 5
+          done
+          
+          if [ $attempt -eq $max_attempts ]; then
+            echo "✗ Timeout waiting for services"
+            docker compose ps
+            docker compose logs authentik-db | tail -50
+            exit 1
+          fi
+          
+          echo "✓ All critical services are healthy"
+          docker compose ps
 
       - name: Cleanup unused Docker images
         run: |
