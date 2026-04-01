@@ -27,6 +27,9 @@ services:
       POSTGRES_PASSWORD: $${PG_PASS}
       POSTGRES_USER: $${PG_USER}
       POSTGRES_DB: $${PG_DB}
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
+      PGDATA: /var/lib/postgresql/data
 
   authentik-redis:
     image: redis:7.2-alpine
@@ -115,24 +118,11 @@ services:
       - SONARQUBE_PORT=9000
     restart: unless-stopped
 
-  sonarqube-init:
-    image: busybox
-    command: >
-      sh -c "chown -R 1000:1000 /opt/sonarqube/data /opt/sonarqube/extensions /opt/sonarqube/logs && 
-             chown -R 999:999 /var/lib/postgresql/data"
-    volumes:
-      - ./sonarqube_data:/opt/sonarqube/data
-      - ./sonarqube_extensions:/opt/sonarqube/extensions
-      - ./sonarqube_logs:/opt/sonarqube/logs
-      - ./sonarqube_db:/var/lib/postgresql/data
-
   sonarqube:
     image: sonarqube:community
     depends_on:
-      sonarqube-init:
-        condition: service_completed_successfully
       sonarqube-db:
-        condition: service_started
+        condition: service_healthy
     environment:
       SONAR_JDBC_URL: jdbc:postgresql://sonarqube-db:5432/sonar
       SONAR_JDBC_USERNAME: sonar
@@ -143,9 +133,9 @@ services:
       SONAR_AUTH_GITHUB_ALLOWUSERSTOSIGNUP: "true"
       SONAR_WEB_CONTEXT: /sonar
     volumes:
-      - ./sonarqube_data:/opt/sonarqube/data
-      - ./sonarqube_extensions:/opt/sonarqube/extensions
-      - ./sonarqube_logs:/opt/sonarqube/logs
+      - sonarqube-data:/opt/sonarqube/data
+      - sonarqube-extensions:/opt/sonarqube/extensions
+      - sonarqube-logs:/opt/sonarqube/logs
     ulimits:
       nofile:
         soft: 65536
@@ -163,8 +153,10 @@ services:
       POSTGRES_USER: sonar
       POSTGRES_PASSWORD: ${SONAR_DB_PASSWORD}
       POSTGRES_DB: sonar
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
     volumes:
-      - ./sonarqube_db:/var/lib/postgresql/data
+      - sonarqube-db-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U sonar"]
       interval: 5s
@@ -177,3 +169,7 @@ volumes:
   authentik-redis-data:
   authentik-media:
   authentik-certs:
+  sonarqube-db-data:
+  sonarqube-data:
+  sonarqube-extensions:
+  sonarqube-logs:
