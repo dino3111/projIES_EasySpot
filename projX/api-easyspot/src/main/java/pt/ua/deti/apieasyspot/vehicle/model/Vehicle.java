@@ -3,12 +3,12 @@ package pt.ua.deti.apieasyspot.vehicle.model;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.Data;
+import java.util.UUID;
 import pt.ua.deti.apieasyspot.auth.model.User;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 @Data
 @Entity
