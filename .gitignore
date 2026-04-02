@@ -202,6 +202,9 @@ secrets.*.json
 .gcloud/
 .azure/
 
+# Postman / Newman
+projX/postman/newman-report.html
+
 # CI / build artifacts / coverage
 coverage/
 *.lcov
