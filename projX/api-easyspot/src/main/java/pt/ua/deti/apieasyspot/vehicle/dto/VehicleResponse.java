@@ -1,6 +1,6 @@
 package pt.ua.deti.apieasyspot.vehicle.dto;
 
-import org.hibernate.validator.constraints.UUID;
+import java.util.UUID;
 
 public record VehicleResponse(
     UUID id,
