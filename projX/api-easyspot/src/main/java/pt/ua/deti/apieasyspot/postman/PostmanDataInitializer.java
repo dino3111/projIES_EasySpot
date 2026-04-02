@@ -30,7 +30,7 @@ class PostmanDataInitializer implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args) {
         User user = new User();
-        user.setAuthentikUserId("auth-sub-postman");
+        user.setAuthentikUserId("auth-sub-postman-driver");
         user.setEmail("postman@easyspot.test");
         user.setName("Postman Driver");
         user.setRole("DRIVER");

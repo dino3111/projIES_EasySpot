@@ -49,7 +49,7 @@ public class VehicleLookupClient {
                 .retrieve()
                 .body(VehicleData.class);
         } catch (Exception ex) {
-            throw new ExternalServiceException("Could not fetch vehicle data for plate: " + plate);
+            throw new ExternalServiceException("Could not fetch vehicle data for plate: " + plate, ex);
         }
     }
 
@@ -57,7 +57,7 @@ public class VehicleLookupClient {
      * Returns a valid Firebase token, using the cached one if still valid.
      * Firebase tokens expire after ~1 hour; we refresh 60 seconds early to avoid edge cases.
      */
-    private String getToken() {
+    private synchronized String getToken() {
         if (cachedToken != null && System.currentTimeMillis() < tokenExpiresAt) {
             return cachedToken;
         }
