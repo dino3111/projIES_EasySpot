@@ -188,6 +188,7 @@ tmp_volume/
 keystore.*
 *.crt
 *.cert
+nginx_certs/
 
 # Credentials / secret stores
 credentials.yml
@@ -200,6 +201,9 @@ secrets.*.json
 *.aws/credentials
 .gcloud/
 .azure/
+
+# Postman / Newman
+projX/postman/newman-report.html
 
 # CI / build artifacts / coverage
 coverage/
