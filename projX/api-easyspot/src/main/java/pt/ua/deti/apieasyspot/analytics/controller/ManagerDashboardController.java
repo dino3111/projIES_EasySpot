@@ -16,7 +16,7 @@ import pt.ua.deti.apieasyspot.analytics.service.AnalyticsService;
 
 @Tag(name = "Manager", description = "Manager analytics dashboard")
 @RestController
-@RequestMapping("/api/manager/")
+@RequestMapping("/api/manager")
 @RequiredArgsConstructor
 public class ManagerDashboardController{
     private final AnalyticsService analyticsService;

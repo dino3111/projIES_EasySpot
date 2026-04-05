@@ -14,7 +14,6 @@ import pt.ua.deti.apieasyspot.notification.model.Alert;
 import pt.ua.deti.apieasyspot.notification.model.StateAlert;
 import pt.ua.deti.apieasyspot.notification.model.SeverityAlert;
 import pt.ua.deti.apieasyspot.notification.model.AlertType;
-import pt.ua.deti.apieasyspot.notification.model.AlertType;
 import pt.ua.deti.apieasyspot.notification.repository.AlertRepository;
 import pt.ua.deti.apieasyspot.occupancy.model.OccupancySnapshot;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;

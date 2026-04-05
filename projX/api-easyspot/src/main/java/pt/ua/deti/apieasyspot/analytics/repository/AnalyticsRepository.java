@@ -40,12 +40,12 @@ public class AnalyticsRepository {
         return result != null ? result : BigDecimal.ZERO;
     }
 
-    public double avgSessionDurationMinutes(){
+    public Double avgSessionDurationMinutes(){
         return jdbc.queryForObject("select avg(extract(epoch from (exit_time - entry_time))/60) from parking_sessions where cast(exit_time as date) = current_date and exit_time is not null", Double.class);
     }
 
     public long countOpenAlerts(){
-        Long result = jdbc.queryForObject("select count(*) from alerts where estado = 'OPEN'", Long.class);
+        Long result = jdbc.queryForObject("select count(*) from alerts where state = 'OPEN'", Long.class);
         return result != null ? result : 0L;
 
     }
@@ -59,7 +59,7 @@ public class AnalyticsRepository {
         Integer[] result = jdbc.queryForObject(
             """
             select sum(occupied_count), sum(total_count)
-            select (
+            from (
                 select distinct on (parking_lot_id, zone_type)
                     parking_lot_id, zone_type, occupied_count, total_count
                 from occupancy_snapshots
@@ -100,14 +100,14 @@ public class AnalyticsRepository {
     public List<ZoneOccupancyDto> zoneOccupancy() {
         return jdbc.query(
             """
-            SELECT zone_type, SUM(occupied_count) AS occupied, SUM(total_count) AS total
-            FROM (
-                SELECT DISTINCT ON (parking_lot_id, zone_type)
+            select zone_type, sum(occupied_count) as occupied, sum(total_count) as total
+            from (
+                select distinct on (parking_lot_id, zone_type)
                     parking_lot_id, zone_type, occupied_count, total_count
-                FROM occupancy_snapshots
-                ORDER BY parking_lot_id, zone_type, recorded_at DESC
+                from occupancy_snapshots
+                order by parking_lot_id, zone_type, recorded_at desc
             ) latest
-            GROUP BY zone_type
+            group by zone_type
             """,
             (rs, rowNum) -> {
                 String type = rs.getString("zone_type");
@@ -139,26 +139,26 @@ public class AnalyticsRepository {
     public List<AlertSummary> last5Alerts() {
         return jdbc.query(
             """
-            select a.id, a.tipo, pl.name AS parque, a.zona, a.sensor_id, a.matricula,
-                   a.descricao, a.severidade, a.estado, a.criado_em, a.atribuido_a, a.notas
+            select a.id, a.type, pl.name AS park, a.zone, a.sensor_id, a.plate,
+                   a.description, a.severity, a.state, a.created_at, a.attributed_to, a.notes
             from alerts a
             join parking_lots pl on pl.id = a.parking_lot_id
-            order by a.criado_em desc
+            order by a.created_at desc
             limit 5
             """,
             (rs, rowNum) -> new AlertSummary(
                 UUID.fromString(rs.getString("id")),
-                rs.getString("tipo").toLowerCase(),
-                rs.getString("parque"),
-                rs.getString("zona"),
+                rs.getString("type").toLowerCase(),
+                rs.getString("park"),
+                rs.getString("zone"),
                 rs.getString("sensor_id"),
-                rs.getString("matricula"),
-                rs.getString("descricao"),
-                rs.getString("severidade").toLowerCase(),
-                rs.getString("estado").toLowerCase().replace("_", "-"),
-                rs.getTimestamp("criado_em").toLocalDateTime(),
-                rs.getString("atribuido_a"),
-                rs.getString("notas")));
+                rs.getString("plate"),
+                rs.getString("description"),
+                rs.getString("severity").toLowerCase(),
+                rs.getString("state").toLowerCase().replace("_", "-"),
+                rs.getTimestamp("created_at").toLocalDateTime(),
+                rs.getString("attributed_to"),
+                rs.getString("notes")));
     }
 
     public List<ParkSummary> parkPerformance() {

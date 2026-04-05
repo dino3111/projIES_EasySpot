@@ -18,8 +18,8 @@ public class TimescaleHypertableInitializer implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args){
         try{
-            jdbc.execute("select create_hypertable('occupancy_snapshots', 'recorded_at', if_not_exists => true)"
-            );
+            jdbc.execute("create extension if not exists timescaledb cascade");
+            jdbc.execute("select create_hypertable('occupancy_snapshots', 'recorded_at', if_not_exists => TRUE)");
             log.info("TimescaleDB hypertable 'occupancy_snapshots' ready.");
         } catch (Exception e){
             log.warn("Hypertable creation skipped (no TimescaleDB): {}", e.getMessage());
