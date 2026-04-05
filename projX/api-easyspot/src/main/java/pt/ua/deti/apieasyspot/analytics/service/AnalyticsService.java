@@ -49,6 +49,7 @@ public class AnalyticsService {
     double percentChange(BigDecimal previous, BigDecimal current){
         if(previous.compareTo(BigDecimal.ZERO) == 0) return 0.0;
         return current.subtract(previous)
+            .multiply(BigDecimal.valueOf(100))
             .divide(previous, 1, RoundingMode.HALF_UP)
             .doubleValue();
     }

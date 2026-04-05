@@ -3,7 +3,7 @@ package pt.ua.deti.apieasyspot.analytics.dto;
 import java.math.BigDecimal;
 
 public record KpiSummary (
-    long TodayEntrances,
+    long todayEntrances,
     double entranceVariance,
     int averageOccupancy,
     int totalLots,
