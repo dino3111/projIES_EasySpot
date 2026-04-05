@@ -29,6 +29,7 @@ public class VehicleServiceTest {
     @Mock private VehicleRepository vehicleRepository;
     @Mock private UserRepository userRepository;
     @Mock private VehicleLookupClient vehicleLookupClient;
+    @Mock private com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     @InjectMocks
     private VehicleService vehicleService;
