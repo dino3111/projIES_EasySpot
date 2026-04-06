@@ -1,4 +1,4 @@
-package pt.ua.deti.apieasyspot.technician.dto;
+package pt.ua.deti.apieasyspot.analytics.dto;
 
 import java.util.List;
 

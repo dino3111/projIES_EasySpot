@@ -1,11 +1,11 @@
-package pt.ua.deti.apieasyspot.technician.repository;
+package pt.ua.deti.apieasyspot.analytics.repository;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
-import pt.ua.deti.apieasyspot.technician.dto.DailyUptimeDto;
-import pt.ua.deti.apieasyspot.technician.dto.SensorStatusDto;
-import pt.ua.deti.apieasyspot.technician.dto.WorkOrderSummary;
+import pt.ua.deti.apieasyspot.analytics.dto.DailyUptimeDto;
+import pt.ua.deti.apieasyspot.analytics.dto.SensorStatusDto;
+import pt.ua.deti.apieasyspot.analytics.dto.WorkOrderSummary;
 
 import java.time.LocalDate;
 import java.time.format.TextStyle;
