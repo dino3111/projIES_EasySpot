@@ -51,6 +51,9 @@ public class Alert {
     @Column(length = 500)
     private String notes;
 
+    @Column
+    private LocalDateTime resolvedAt;
+
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
