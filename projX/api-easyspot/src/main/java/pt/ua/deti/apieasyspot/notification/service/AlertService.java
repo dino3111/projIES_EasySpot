@@ -9,6 +9,7 @@ import pt.ua.deti.apieasyspot.notification.model.StateAlert;
 import pt.ua.deti.apieasyspot.notification.repository.AlertRepository;
 
 import java.time.LocalDateTime;
+import java.util.Locale;
 import java.util.UUID;
 
 @Service
@@ -22,23 +23,27 @@ public class AlertService {
             .orElseThrow(()-> new ResourceNotFoundException("Alert not found: " + id));
 
         StateAlert newState = parseState(rawState);
-
-        boolean becomingResolver = newState == StateAlert.RESOLVED && alert.getState() != StateAlert.RESOLVED;
+        boolean becomingResolved = newState == StateAlert.RESOLVED && alert.getState() != StateAlert.RESOLVED;
+        boolean leavingResolved = newState != StateAlert.RESOLVED && alert.getState() == StateAlert.RESOLVED;
 
         alert.setState(newState);
-
-        if(becomingResolver){
+        if (becomingResolved) {
             alert.setResolvedAt(LocalDateTime.now());
+        } else if (leavingResolved) {
+            alert.setResolvedAt(null);
         }
 
         alertRepository.save(alert);
 
     }
 
-    private StateAlert parseState(String rawState){
-        try{
-            return StateAlert.valueOf(rawState.toUpperCase());
-        } catch (IllegalArgumentException e){
+    private StateAlert parseState(String rawState) {
+        if (rawState == null || rawState.isBlank()) {
+            throw new IllegalArgumentException("State must not be blank");
+        }
+        try {
+            return StateAlert.valueOf(rawState.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Invalid state: " + rawState);
         }
     }

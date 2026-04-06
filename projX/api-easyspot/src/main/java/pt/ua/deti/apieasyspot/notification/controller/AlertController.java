@@ -12,9 +12,9 @@ import pt.ua.deti.apieasyspot.notification.service.AlertService;
 
 import java.util.UUID;
 
-@Tag(name = "Alert", description = "Alert state management")
+@Tag(name = "Alerts", description = "Alert state management")
 @RestController
-@RequestMapping("/api/alert")
+@RequestMapping("/api/alerts")
 @RequiredArgsConstructor
 public class AlertController {
 
@@ -22,7 +22,7 @@ public class AlertController {
 
     @Operation(summary = "Update alert state")
     @PatchMapping("/{id}/state")
-    @PreAuthorize("hasAnyRole('TECHNICIAN', 'MANAGER')")
+    @PreAuthorize("hasAnyRole('TECHNICAL', 'MANAGER')")
     public ResponseEntity<Void> updateState(@PathVariable UUID id, @RequestBody AlertStateUpdate body){
         alertService.updateState(id, body.state());
         return ResponseEntity.noContent().build();

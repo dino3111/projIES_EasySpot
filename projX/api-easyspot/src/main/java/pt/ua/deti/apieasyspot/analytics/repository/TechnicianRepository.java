@@ -98,7 +98,7 @@ public class TechnicianRepository {
             )
             select d.day,
                    case
-                       when t.cnt = 0 then 100.0
+                       when t.cnt = 0 then 0.0
                        else round(greatest(t.cnt - coalesce(f.failed, 0), 0) * 100.0 / t.cnt, 1)
                    end as uptime_pct
             from days d
@@ -123,7 +123,7 @@ public class TechnicianRepository {
                 int count = rs.getInt("cnt");
                 String status = rs.getString("status");
                 double pct = total > 0 ? Math.round(count * 1000.0 / total) / 10.0 : 0.0;
-                return new SensorStatusDto(status.toLowerCase(), statusLabel(status), count, pct);
+                return new SensorStatusDto(status.toLowerCase(Locale.ROOT), statusLabel(status), count, pct);
             });
     }
 
@@ -142,13 +142,13 @@ public class TechnicianRepository {
             """,
             (rs, rowNum) -> new WorkOrderSummary(
                 UUID.fromString(rs.getString("id")),
-                rs.getString("type").toLowerCase(),
+                rs.getString("type").toLowerCase(Locale.ROOT),
                 rs.getString("park"),
                 rs.getString("zone"),
                 rs.getString("sensor_id"),
                 rs.getString("description"),
-                rs.getString("severity").toLowerCase(),
-                rs.getString("state").toLowerCase().replace("_", "-"),
+                rs.getString("severity").toLowerCase(Locale.ROOT),
+                rs.getString("state").toLowerCase(Locale.ROOT).replace("_", "-"),
                 rs.getTimestamp("created_at").toLocalDateTime(),
                 rs.getString("attributed_to")));
     }
