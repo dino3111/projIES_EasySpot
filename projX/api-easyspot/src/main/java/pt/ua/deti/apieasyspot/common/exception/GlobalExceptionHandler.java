@@ -22,4 +22,9 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleExternalService(ExternalServiceException ex){
         return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage());
     }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ProblemDetail handleBadRequest(IllegalArgumentException ex){
+        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
 }
