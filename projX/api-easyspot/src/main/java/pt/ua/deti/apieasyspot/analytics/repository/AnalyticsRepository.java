@@ -7,6 +7,7 @@ import pt.ua.deti.apieasyspot.analytics.dto.*;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Locale;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.TextStyle;
@@ -111,7 +112,7 @@ public class AnalyticsRepository {
             """,
             (rs, rowNum) -> {
                 String type = rs.getString("zone_type");
-                return new ZoneOccupancyDto(zoneLabel(type), type.toLowerCase(),
+                return new ZoneOccupancyDto(zoneLabel(type), type.toLowerCase(Locale.ROOT),
                     rs.getInt("total"), rs.getInt("occupied"));
             });
     }
@@ -148,14 +149,14 @@ public class AnalyticsRepository {
             """,
             (rs, rowNum) -> new AlertSummary(
                 UUID.fromString(rs.getString("id")),
-                rs.getString("type").toLowerCase(),
+                rs.getString("type").toLowerCase(Locale.ROOT),
                 rs.getString("park"),
                 rs.getString("zone"),
                 rs.getString("sensor_id"),
                 rs.getString("plate"),
                 rs.getString("description"),
-                rs.getString("severity").toLowerCase(),
-                rs.getString("state").toLowerCase().replace("_", "-"),
+                rs.getString("severity").toLowerCase(Locale.ROOT),
+                rs.getString("state").toLowerCase(Locale.ROOT).replace("_", "-"),
                 rs.getTimestamp("created_at").toLocalDateTime(),
                 rs.getString("attributed_to"),
                 rs.getString("notes")));
