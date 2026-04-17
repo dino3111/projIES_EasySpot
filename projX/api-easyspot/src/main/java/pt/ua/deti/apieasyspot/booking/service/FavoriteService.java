@@ -1,6 +1,6 @@
 package pt.ua.deti.apieasyspot.booking.service;
 
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import pt.ua.deti.apieasyspot.auth.model.User;
@@ -44,7 +44,7 @@ public class FavoriteService {
     }
 
     private User findUser(String authentikUserId) {
-        return userRepository.findByAuthentikUserId(authentikUserId).orElseThrow(()-> new ResourceNotFoundException("User not found: " + authentikUserId));
+        return userRepository.findByAuthentikUserId(authentikUserId).orElseThrow(() -> new ResourceNotFoundException("Authenticated user not found"));
     }
 
     private ParkingLot findPark(UUID parkId) {

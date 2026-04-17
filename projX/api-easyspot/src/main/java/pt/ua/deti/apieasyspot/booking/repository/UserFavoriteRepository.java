@@ -2,7 +2,6 @@ package pt.ua.deti.apieasyspot.booking.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import pt.ua.deti.apieasyspot.booking.model.UserFavorite;
-import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
 
 import java.util.Optional;
 import java.util.UUID;

@@ -1,7 +1,8 @@
 package pt.ua.deti.apieasyspot.booking.model;
 
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import pt.ua.deti.apieasyspot.auth.model.User;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
@@ -9,13 +10,14 @@ import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-@Data
+@Getter
+@Setter
 @Entity
 @Table(
     name = "user_favorites",
-    uniqueConstraints =  @UniqueConstraint(columnNames = {"user_id", "parking_lot_id"})
+    uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "parking_lot_id"})
 )
-public class UserFavorite{
+public class UserFavorite {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -33,4 +35,15 @@ public class UserFavorite{
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof UserFavorite that)) return false;
+        return id != null && id.equals(that.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
+    }
 }
