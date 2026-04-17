@@ -95,20 +95,43 @@ jobs:
         run: cd projX/api-easyspot && ./mvnw -q -DskipTests -T 1 compile
         timeout-minutes: 15
 
-      - name: SonarQube Scan
-        uses: SonarSource/sonarqube-scan-action@v6
-        with:
-          args: >
-            -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
-            -Dsonar.pullrequest.branch=${{ github.head_ref }}
-            -Dsonar.pullrequest.base=${{ github.base_ref }}
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+      - name: Install SonarScanner CLI
+        shell: bash
+        run: |
+          set -euo pipefail
 
-      - name: Quality Gate check
-        uses: SonarSource/sonarqube-quality-gate-action@v1
-        timeout-minutes: 5
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          SCANNER_VERSION="7.0.2.4839"
+          ARCH="$(uname -m)"
+
+          case "$ARCH" in
+            x86_64|amd64)
+              DIST="linux-x64"
+              ;;
+            aarch64|arm64)
+              DIST="linux-aarch64"
+              ;;
+            *)
+              echo "Unsupported architecture: $ARCH" >&2
+              exit 1
+              ;;
+          esac
+
+          SCANNER_ZIP="sonar-scanner-cli-${SCANNER_VERSION}-${DIST}.zip"
+          SCANNER_URL="https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/${SCANNER_ZIP}"
+
+          curl -fsSL "$SCANNER_URL" -o "${RUNNER_TEMP}/${SCANNER_ZIP}"
+          unzip -q -o "${RUNNER_TEMP}/${SCANNER_ZIP}" -d "$RUNNER_TEMP"
+
+          echo "${RUNNER_TEMP}/sonar-scanner-${SCANNER_VERSION}-${DIST}/bin" >> "$GITHUB_PATH"
+
+      - name: SonarQube Scan + Quality Gate
+        run: |
+          sonar-scanner \
+            -Dproject.settings=sonar-project.properties \
+            -Dsonar.host.url="${{ secrets.SONAR_HOST_URL }}" \
+            -Dsonar.token="${{ secrets.SONAR_TOKEN }}" \
+            -Dsonar.pullrequest.key="${{ github.event.pull_request.number }}" \
+            -Dsonar.pullrequest.branch="${{ github.head_ref }}" \
+            -Dsonar.pullrequest.base="${{ github.base_ref }}" \
+            -Dsonar.qualitygate.wait=true
+        timeout-minutes: 20
