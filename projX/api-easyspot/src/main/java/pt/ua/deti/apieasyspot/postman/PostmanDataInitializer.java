@@ -45,6 +45,9 @@ class PostmanDataInitializer implements ApplicationRunner {
     @Getter
     private UUID vehicleId;
 
+    @Getter
+    private UUID parkId;
+
     PostmanDataInitializer(
         UserRepository userRepository,
         VehicleRepository vehicleRepository,
@@ -89,11 +92,13 @@ class PostmanDataInitializer implements ApplicationRunner {
     }
 
     private List<ParkingLot> seedLots() {
-        return parkingLotRepository.saveAll(List.of(
+        List<ParkingLot> lots = parkingLotRepository.saveAll(List.of(
             lot("Fórum Aveiro", "Aveiro"),
             lot("Glicínias Plaza", "Aveiro"),
             lot("Europa", "Leiria")
         ));
+        parkId = lots.get(0).getId();
+        return lots;
     }
 
     private void seedSessions(List<ParkingLot> lots) {
