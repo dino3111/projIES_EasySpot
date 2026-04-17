@@ -39,7 +39,7 @@ public class FavoriteController {
     })
     @PostMapping("/{id}/favorite")
     @PreAuthorize("hasRole('DRIVER')")
-    public ResponseEntity<FavoriteToggleResponse> toogleFavorite(
+    public ResponseEntity<FavoriteToggleResponse> toggleFavorite(
         @PathVariable UUID id,
         @AuthenticationPrincipal Jwt jwt
     ) {

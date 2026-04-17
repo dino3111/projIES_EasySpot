@@ -28,7 +28,7 @@ public class FavoriteService {
         User user = findUser(authentikUserId);
         ParkingLot parkingLot = findPark(parkId);
 
-        Optional<UserFavorite> existing = userFavoriteRepository.findByUserAndParkingLot(user.getId(), parkingLot.getId());
+        Optional<UserFavorite> existing = userFavoriteRepository.findByUserIdAndParkingLotId(user.getId(), parkingLot.getId());
 
         if(existing.isPresent()){
             userFavoriteRepository.delete(existing.get());

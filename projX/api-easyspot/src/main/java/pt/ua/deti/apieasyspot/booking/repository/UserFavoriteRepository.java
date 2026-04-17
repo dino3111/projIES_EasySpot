@@ -9,6 +9,6 @@ import java.util.UUID;
 
 public interface UserFavoriteRepository extends JpaRepository<UserFavorite, UUID> {
 
-    Optional<UserFavorite> findByUserAndParkingLot(UUID userId, UUID parkingLotId);
-    boolean existsByUserAndParkingLot(UUID userId, UUID parkingLotId);
+    Optional<UserFavorite> findByUserIdAndParkingLotId(UUID userId, UUID parkingLotId);
+    boolean existsByUserIdAndParkingLotId(UUID userId, UUID parkingLotId);
 }
