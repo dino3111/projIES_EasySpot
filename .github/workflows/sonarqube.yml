@@ -45,66 +45,23 @@ jobs:
           java-version: '21'
           distribution: temurin
           cache: maven
-        timeout-minutes: 10
-
-      - name: Cache Maven packages 
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.m2/repository
-            ~/.m2/wrapper
-          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-maven-
-
-      - name: Cache SonarQube packages
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.sonar/cache
-            ~/.sonar/native-sonar-scanner
-          key: ${{ runner.os }}-sonar-${{ hashFiles('sonar-project.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-sonar-
-
-      - name: Ensure unzip is available
-        run: |
-          set -euo pipefail
-          if command -v unzip >/dev/null 2>&1; then
-            echo "unzip already installed"
-            exit 0
-          fi
-          
-          # For self-hosted runners, install unzip if available
-          if command -v apt-get >/dev/null 2>&1; then
-            # Try with sudo first, fallback to direct install
-            sudo -n apt-get update -qq 2>/dev/null || apt-get update -qq 2>/dev/null || true
-            sudo -n apt-get install -y --no-install-recommends unzip 2>/dev/null || apt-get install -y --no-install-recommends unzip 2>/dev/null || true
-          fi
-          
-          # Check again if unzip is available
-          if command -v unzip >/dev/null 2>&1; then
-            echo "unzip is available"
-            exit 0
-          fi
-          
-          echo "Warning: unzip not found, SonarSource/sonarqube-scan-action may fail" >&2
 
       - name: Build backend
         if: hashFiles('projX/api-easyspot/pom.xml') != ''
-        run: cd projX/api-easyspot && ./mvnw -q -DskipTests -T 1 compile
-        timeout-minutes: 15
+        run: cd projX/api-easyspot && ./mvnw compile -q
 
       - name: SonarQube Scan
-        uses: SonarSource/sonarqube-scan-action@v6
-        with:
-          args: >
-            -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
-            -Dsonar.pullrequest.branch=${{ github.head_ref }}
-            -Dsonar.pullrequest.base=${{ github.base_ref }}
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        run: |
+          curl -sSLo sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-7.0.2.4839.zip
+          unzip -qo sonar-scanner.zip
+          export PATH="$PWD/sonar-scanner-7.0.2.4839/bin:$PATH"
+          sonar-scanner \
+            -Dsonar.pullrequest.key=${{ github.event.pull_request.number }} \
+            -Dsonar.pullrequest.branch=${{ github.head_ref }} \
+            -Dsonar.pullrequest.base=${{ github.base_ref }}
 
       - name: Quality Gate check
         uses: SonarSource/sonarqube-quality-gate-action@v1
