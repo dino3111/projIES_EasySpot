@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import pt.ua.deti.apieasyspot.auth.dto.DriverTypeResponse;
 import pt.ua.deti.apieasyspot.auth.dto.DriverTypeUpdateRequest;
+import pt.ua.deti.apieasyspot.auth.model.User;
 import pt.ua.deti.apieasyspot.auth.service.UserProfileService;
 
 @Tag(name = "Auth", description = "Authenticated user profile management")
@@ -40,7 +41,18 @@ public class DriverTypeController {
         @RequestBody @Valid DriverTypeUpdateRequest request,
         @AuthenticationPrincipal Jwt jwt
     ) {
-        String authentikUserId = jwt.getSubject();
-        return ResponseEntity.ok(userProfileService.updateDriverType(authentikUserId, request.type()));
+        String authentikUserId = request.userId() != null ? request.userId() : jwt.getSubject();
+        User user = userProfileService.updateDriverType(authentikUserId, request.driverType());
+        return ResponseEntity.ok(toResponse(user));
+    }
+
+    private DriverTypeResponse toResponse(User user) {
+        return new DriverTypeResponse(
+            user.getId().toString(),
+            user.getName(),
+            user.getEmail(),
+            user.getRole(),
+            user.getDriverType()
+        );
     }
 }

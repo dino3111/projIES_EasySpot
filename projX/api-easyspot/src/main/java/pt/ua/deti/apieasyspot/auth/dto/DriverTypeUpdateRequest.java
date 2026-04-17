@@ -4,5 +4,6 @@ import jakarta.validation.constraints.NotNull;
 import pt.ua.deti.apieasyspot.auth.model.DriverType;
 
 public record DriverTypeUpdateRequest(
-    @NotNull DriverType type
+    @NotNull DriverType driverType,
+    String userId
 ) {}
