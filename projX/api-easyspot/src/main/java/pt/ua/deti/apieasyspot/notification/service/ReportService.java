@@ -29,9 +29,9 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ReportService {
 
-    private static final long MAX_PHOTO_BYTES = 5 * 1024 * 1024L;
+    private static final long MAX_PHOTO_BYTES = 10 * 1024 * 1024L;
     private static final Set<String> VALID_VIOLATION_TYPES = Set.of(
-        "acessible", "reserved", "ev", "double-parked", "blocking", "other"
+        "accessible", "reserved", "ev", "double-parked", "blocking", "other"
     );
 
     private final AlertRepository alertRepository;
@@ -91,7 +91,7 @@ public class ReportService {
         alert.setSeverity(toSeverity(request.violationType()));
         alert.setState(StateAlert.OPEN);
         alert.setZone(request.zone());
-        alert.setSpotNumber(request.sportNumber());
+        alert.setSpotNumber(request.spotNumber());
         alert.setPlate(request.vehiclePlate());
         alert.setDescription(request.description());
         alert.setPhotoUrl(photoUrl);
@@ -122,12 +122,14 @@ public class ReportService {
             alert.getId(),
             alert.getType().name(),
             alert.getParkingLot().getId(),
+            alert.getParkingLot().getName(),
             alert.getZone(),
             alert.getSpotNumber(),
             alert.getPlate(),
             alert.getDescription(),
             alert.getPhotoUrl(),
             alert.getSeverity().name(),
+            alert.getState().name(),
             alert.getCreatedAt()
         );
     }

@@ -14,6 +14,6 @@ public record ReportResponse(
     String description,
     String photoUrl,
     String severity,
-    String sate,
+    String state,
     LocalDateTime createdAt
 ) {}
