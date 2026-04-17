@@ -6,7 +6,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -15,6 +14,8 @@ import pt.ua.deti.apieasyspot.auth.dto.DriverTypeResponse;
 import pt.ua.deti.apieasyspot.auth.model.DriverType;
 import pt.ua.deti.apieasyspot.auth.service.UserProfileService;
 import pt.ua.deti.apieasyspot.common.exception.ResourceNotFoundException;
+
+import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -26,7 +27,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(DriverTypeController.class)
 @Import(SecurityConfig.class)
-class DriverTypeControllerIT {
+class DriverTypeControllerTest {
 
     private static final String EXISTING_AUTHENTIK_ID = "driver-subject-123";
 
@@ -52,8 +53,7 @@ class DriverTypeControllerIT {
     @DisplayName("POST /api/driver/type - wrong role - returns 403")
     void updateDriverTypeWrongRole() throws Exception {
         mockMvc.perform(post("/api/driver/type")
-                .with(jwt().jwt(j -> j.subject("some-subject"))
-                    .authorities(new SimpleGrantedAuthority("ROLE_MANAGER")))
+                .with(jwt().jwt(j -> j.subject("some-subject").claim("groups", List.of("MANAGER"))))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"type\":\"regular\"}"))
             .andExpect(status().isForbidden());
@@ -63,8 +63,7 @@ class DriverTypeControllerIT {
     @DisplayName("POST /api/driver/type - invalid payload - returns 400")
     void updateDriverTypeInvalidPayload() throws Exception {
         mockMvc.perform(post("/api/driver/type")
-                .with(jwt().jwt(j -> j.subject(EXISTING_AUTHENTIK_ID))
-                    .authorities(new SimpleGrantedAuthority("ROLE_DRIVER")))
+                .with(jwt().jwt(j -> j.subject(EXISTING_AUTHENTIK_ID).claim("groups", List.of("DRIVER"))))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
             .andExpect(status().isBadRequest());
@@ -77,8 +76,7 @@ class DriverTypeControllerIT {
             .thenThrow(new ResourceNotFoundException("User not found: missing-subject"));
 
         mockMvc.perform(post("/api/driver/type")
-                .with(jwt().jwt(j -> j.subject("missing-subject"))
-                    .authorities(new SimpleGrantedAuthority("ROLE_DRIVER")))
+                .with(jwt().jwt(j -> j.subject("missing-subject").claim("groups", List.of("DRIVER"))))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"type\":\"regular\"}"))
             .andExpect(status().isNotFound());
@@ -91,8 +89,7 @@ class DriverTypeControllerIT {
             .thenReturn(new DriverTypeResponse(DriverType.REDUCED_MOBILITY));
 
         mockMvc.perform(post("/api/driver/type")
-                .with(jwt().jwt(j -> j.subject(EXISTING_AUTHENTIK_ID))
-                    .authorities(new SimpleGrantedAuthority("ROLE_DRIVER")))
+                .with(jwt().jwt(j -> j.subject(EXISTING_AUTHENTIK_ID).claim("groups", List.of("DRIVER"))))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"type\":\"reduced_mobility\"}"))
             .andExpect(status().isOk())
