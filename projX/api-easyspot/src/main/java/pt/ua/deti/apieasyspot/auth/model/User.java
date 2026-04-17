@@ -41,6 +41,10 @@ public class User {
     @NotBlank
     private String role;
 
+    @Enumerated(EnumType.STRING)
+    @Column(length = 30)
+    private DriverType driverType;
+
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Vehicle> vehicles = new ArrayList<>();
 
