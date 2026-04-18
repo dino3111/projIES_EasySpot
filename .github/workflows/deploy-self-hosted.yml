@@ -61,6 +61,44 @@ jobs:
         run: |
           set -euo pipefail
           cd projX
+
+          required_secrets=(
+            "${{ secrets.AUTHENTIK_SECRET_KEY }}"
+            "${{ secrets.PG_PASS }}"
+            "${{ secrets.SONAR_DB_PASSWORD }}"
+            "${{ secrets.SONAR_GITHUB_CLIENT_ID }}"
+            "${{ secrets.SONAR_GITHUB_CLIENT_SECRET }}"
+            "${{ secrets.APP_DB_PASS }}"
+          )
+          for secret_value in "${required_secrets[@]}"; do
+            if [ -z "$secret_value" ]; then
+              echo "Missing one or more required deployment secrets. Check production environment secrets configuration."
+              exit 1
+            fi
+          done
+
+          if [ -z "${{ vars.KAFKA_ADVERTISED_HOST }}" ]; then
+            echo "Missing KAFKA_ADVERTISED_HOST repository or environment variable. Set it in the production environment."
+            exit 1
+          fi
+
+          stripe_enabled=false
+          if [ -n "${{ secrets.STRIPE_API_KEY }}" ] && [ -n "${{ secrets.STRIPE_WEBHOOK_FORWARD_TO }}" ]; then
+            stripe_enabled=true
+            echo "ENABLE_STRIPE_PROFILE=true" >> "$GITHUB_ENV"
+            echo "COMPOSE_PROFILE_FLAG=--profile stripe" >> "$GITHUB_ENV"
+          else
+            echo "ENABLE_STRIPE_PROFILE=false" >> "$GITHUB_ENV"
+            echo "COMPOSE_PROFILE_FLAG=" >> "$GITHUB_ENV"
+            echo "Stripe CLI secrets not configured; deploying without the stripe profile."
+          fi
+
+          if [ -n "${{ secrets.STRIPE_WEBHOOK_PUBLIC_URL }}" ]; then
+            echo "HAS_STRIPE_WEBHOOK_PUBLIC_URL=true" >> "$GITHUB_ENV"
+          else
+            echo "HAS_STRIPE_WEBHOOK_PUBLIC_URL=false" >> "$GITHUB_ENV"
+          fi
+
           {
             echo "# Authentik Configuration"
             echo "AUTHENTIK_SECRET_KEY=${{ secrets.AUTHENTIK_SECRET_KEY }}"
@@ -83,7 +121,15 @@ jobs:
             echo ""
             echo "# Backend Time-Series Database"
             echo "TS_DB=easyspot_ts"
+            echo "KAFKA_ADVERTISED_HOST=${{ vars.KAFKA_ADVERTISED_HOST }}"
             echo ""
+            if [ "$stripe_enabled" = true ]; then
+              echo "# Stripe CLI webhook forwarding"
+              echo "STRIPE_WEBHOOK_FORWARD_TO=${{ secrets.STRIPE_WEBHOOK_FORWARD_TO }}"
+              echo ""
+              printf '%s' "${{ secrets.STRIPE_API_KEY }}" > .stripe_api_key
+              chmod 600 .stripe_api_key
+            fi
             echo "# Docker Configuration"
             echo "UID=1000"
             echo "GID=1000"
@@ -108,20 +154,32 @@ jobs:
           set -euo pipefail
           cd projX
           echo "Validating compose configuration..."
-          docker compose config > /dev/null && echo "✓ Configuration is valid" || exit 1
-          
-          echo ""
-          echo "Checking environment variables..."
-          docker compose config | grep -E "POSTGRES_USER|POSTGRES_PASSWORD|POSTGRES_DB" | head -5
+          docker compose ${COMPOSE_PROFILE_FLAG:-} config > /dev/null && echo "✓ Configuration is valid" || exit 1
+
+      - name: Bootstrap Stripe dashboard configuration
+        if: env.ENABLE_STRIPE_PROFILE == 'true' && env.HAS_STRIPE_WEBHOOK_PUBLIC_URL == 'true'
+        env:
+          STRIPE_API_KEY: ${{ secrets.STRIPE_API_KEY }}
+          STRIPE_WEBHOOK_PUBLIC_URL: ${{ secrets.STRIPE_WEBHOOK_PUBLIC_URL }}
+          STRIPE_WEBHOOK_ENDPOINT_ID: ${{ secrets.STRIPE_WEBHOOK_ENDPOINT_ID }}
+          STRIPE_WEBHOOK_EVENTS: ${{ vars.STRIPE_WEBHOOK_EVENTS }}
+          STRIPE_WEBHOOK_DESCRIPTION: ${{ vars.STRIPE_WEBHOOK_DESCRIPTION }}
+          STRIPE_REQUIRED_PAYMENT_METHODS: ${{ vars.STRIPE_REQUIRED_PAYMENT_METHODS }}
+          STRIPE_PAYMENT_METHOD_CHECK_STRICT: ${{ vars.STRIPE_PAYMENT_METHOD_CHECK_STRICT }}
+        run: |
+          set -euo pipefail
+          cd projX
+          chmod +x ./stripe-dashboard-bootstrap.sh
+          ./stripe-dashboard-bootstrap.sh
 
       - name: Deploy stack with Docker Compose
         run: |
           set -euo pipefail
           cd projX
           echo "Pulling latest images..."
-          docker compose pull --ignore-pull-failures
+          docker compose ${COMPOSE_PROFILE_FLAG:-} pull --ignore-pull-failures
           echo "Starting services..."
-          docker compose up -d --build --remove-orphans
+          docker compose ${COMPOSE_PROFILE_FLAG:-} up -d --build --remove-orphans
           echo "✓ Services deployed successfully"
 
       - name: Wait for services to be healthy
@@ -129,41 +187,65 @@ jobs:
           set -euo pipefail
           cd projX
           echo "Waiting for services to become healthy..."
-          
-          max_attempts=60
-          attempt=0
-          
-          while [ $attempt -lt $max_attempts ]; do
-            attempt=$((attempt + 1))
-            echo "Attempt $attempt/$max_attempts..."
-            
-            # Check if authentik-db is healthy
-            if docker compose ps authentik-db 2>/dev/null | grep -q "healthy"; then
-              echo "✓ authentik-db is healthy"
-              break
-            fi
-            
-            # Check if container exited with error
-            if docker compose ps authentik-db 2>/dev/null | grep -q "Exit"; then
-              echo "✗ authentik-db failed to start"
-              echo ""
-              echo "Logs from authentik-db:"
-              docker compose logs authentik-db | tail -50
-              exit 1
-            fi
-            
-            sleep 5
-          done
-          
-          if [ $attempt -eq $max_attempts ]; then
-            echo "✗ Timeout waiting for services"
-            docker compose ps
-            docker compose logs authentik-db | tail -50
-            exit 1
+
+          services_to_check=(postgres timescaledb kafka authentik-server sonarqube nginx)
+          if [ "${ENABLE_STRIPE_PROFILE:-false}" = "true" ]; then
+            services_to_check+=(stripe-cli)
           fi
-          
+
+          wait_for_service() {
+            service="$1"
+            max_wait_seconds="${2:-300}"
+            poll_interval_seconds=5
+            elapsed=0
+
+            echo "Checking $service (timeout: ${max_wait_seconds}s)..."
+            while [ "$elapsed" -lt "$max_wait_seconds" ]; do
+              container_id="$(docker compose ps -q "$service" 2>/dev/null || true)"
+
+              if [ -n "$container_id" ]; then
+                state_status="$(docker inspect -f '{{.State.Status}}' "$container_id" 2>/dev/null || true)"
+                health_status="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$container_id" 2>/dev/null || true)"
+
+                if [ "$state_status" = "running" ]; then
+                  if [ -z "$health_status" ] || [ "$health_status" = "healthy" ]; then
+                    echo "✓ $service is ready (state=$state_status, health=${health_status:-n/a})"
+                    return 0
+                  fi
+                fi
+              fi
+
+              elapsed=$((elapsed + poll_interval_seconds))
+              sleep "$poll_interval_seconds"
+            done
+
+            echo "✗ $service did not become ready within ${max_wait_seconds}s"
+            docker compose ps "$service" || true
+            echo ""
+            docker compose logs "$service" | tail -100 || true
+            return 1
+          }
+
+          for service in "${services_to_check[@]}"; do
+            wait_for_service "$service" 300
+          done
+
           echo "✓ All critical services are healthy"
           docker compose ps
+
+      - name: Cleanup generated deployment file
+        if: always()
+        run: |
+          set -euo pipefail
+          cd projX
+          if [ -f .env ]; then
+            rm -f .env
+            echo "✓ .env file removed"
+          fi
+          if [ -f .stripe_api_key ]; then
+            rm -f .stripe_api_key
+            echo "✓ .stripe_api_key removed"
+          fi
 
       - name: Cleanup unused Docker images
         run: |
