@@ -9,11 +9,11 @@ export function Layout() {
   const location = useLocation();
   const path = location.pathname;
 
-  if (path.startsWith('/gestor') && profile !== 'gestor') {
+  if (path.startsWith('/gestor') && profile !== 'MANAGER') {
     return <Navigate to="/" replace />;
   }
 
-  if (path.startsWith('/tecnico') && profile !== 'tecnico') {
+  if (path.startsWith('/tecnico') && profile !== 'TECHNICIAN') {
     return <Navigate to="/" replace />;
   }
 

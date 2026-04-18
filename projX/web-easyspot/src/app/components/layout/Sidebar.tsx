@@ -34,7 +34,7 @@ export function Sidebar() {
   const location = useLocation();
   const { profile, driverType } = useProfile();
 
-  const navItems = profile === 'gestor' ? gestorNav : profile === 'tecnico' ? tecnicoNav : condutorNav;
+  const navItems = profile === 'MANAGER' ? gestorNav : profile === 'TECHNICIAN' ? tecnicoNav : condutorNav;
 
   const isActive = (path: string, exact: boolean) => {
     if (exact) return location.pathname === path;
@@ -48,10 +48,10 @@ export function Sidebar() {
       aria-label="Menu lateral"
     >
       <nav className="flex flex-col gap-1 p-3 pt-4">
-        {(profile === 'gestor' || profile === 'tecnico') && (
+        {(profile === 'MANAGER' || profile === 'TECHNICIAN') && (
           <div className="px-3 pb-1 mb-1">
             <p className="text-muted-foreground uppercase" style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.08em' }}>
-              {profile === 'gestor' ? 'Painel do Gestor' : 'Painel Técnico'}
+              {profile === 'MANAGER' ? 'Painel do Gestor' : 'Painel Técnico'}
             </p>
           </div>
         )}
@@ -82,21 +82,21 @@ export function Sidebar() {
         })}
       </nav>
 
-      {(profile === 'gestor' || profile === 'tecnico') && (
+      {(profile === 'MANAGER' || profile === 'TECHNICIAN') && (
         <div className="mt-auto p-3">
           <div className="flex items-center gap-2 rounded-xl p-2.5 bg-primary/10 border border-primary/20">
             <div className="w-7 h-7 rounded-lg bg-primary/20 flex items-center justify-center flex-shrink-0" aria-hidden="true">
               <i
-                className={`fas ${profile === 'gestor' ? 'fa-building' : 'fa-screwdriver-wrench'} text-primary`}
+                className={`fas ${profile === 'MANAGER' ? 'fa-building' : 'fa-screwdriver-wrench'} text-primary`}
                 style={{ fontSize: '0.75rem' }}
               ></i>
             </div>
             <div className="min-w-0">
               <p className="text-primary" style={{ fontSize: '0.72rem', fontWeight: 700 }}>
-                {profile === 'gestor' ? 'Modo Gestor' : 'Modo Técnico'}
+                {profile === 'MANAGER' ? 'Modo Gestor' : 'Modo Técnico'}
               </p>
               <p className="text-muted-foreground" style={{ fontSize: '0.62rem' }}>
-                {profile === 'gestor' ? 'António Videira' : 'Laura Farias'}
+                {profile === 'MANAGER' ? 'António Videira' : 'Laura Farias'}
               </p>
             </div>
           </div>

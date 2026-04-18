@@ -16,9 +16,9 @@ export function PerfilPage() {
 
       <UserCard accountType={profile} />
 
-      {profile === 'condutor' && <CondutorProfile />}
-      {profile === 'gestor' && <GestorProfile />}
-      {profile === 'tecnico' && <TecnicoProfile />}
+      {profile === 'DRIVER' && <CondutorProfile />}
+      {profile === 'MANAGER' && <GestorProfile />}
+      {profile === 'TECHNICIAN' && <TecnicoProfile />}
 
       <div className="text-center pb-4 mt-2">
         <div className="flex items-center justify-center gap-2 mb-1">
@@ -33,15 +33,15 @@ export function PerfilPage() {
 
 function UserCard({ accountType }: Readonly<{ accountType: string }>) {
   const roleLabel: Record<string, string> = {
-    condutor: 'Condutor',
-    gestor: 'Gestor de Parques',
-    tecnico: 'Técnico de Manutenção',
+    DRIVER: 'Condutor',
+    MANAGER: 'Gestor de Parques',
+    TECHNICIAN: 'Técnico de Manutenção',
   };
 
   const roleIcon: Record<string, string> = {
-    condutor: 'fa-car',
-    gestor: 'fa-chart-pie',
-    tecnico: 'fa-wrench',
+    DRIVER: 'fa-car',
+    MANAGER: 'fa-chart-pie',
+    TECHNICIAN: 'fa-wrench',
   };
 
   return (

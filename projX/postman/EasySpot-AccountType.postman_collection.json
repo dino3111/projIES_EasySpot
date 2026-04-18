@@ -1,0 +1,324 @@
+{
+  "info": {
+    "name": "EasySpot - Account Type API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "userId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Setup - Set own role and capture userId",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Setup returns 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "var body = pm.response.json();",
+              "pm.test('userId is present', function () {",
+              "  pm.expect(body.id).to.be.a('string');",
+              "});",
+              "pm.collectionVariables.set('userId', body.id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"role\":\"DRIVER\"}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/account/type" }
+      }
+    },
+    {
+      "name": "POST /api/account/type - 401 no token",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 401 when no token', function () {",
+              "  pm.response.to.have.status(401);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"role\":\"DRIVER\"}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/account/type" }
+      }
+    },
+    {
+      "name": "POST /api/account/type - 400 missing role",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 400 when role is missing', function () {",
+              "  pm.response.to.have.status(400);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/account/type" }
+      }
+    },
+    {
+      "name": "POST /api/account/type - 400 invalid role",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 400 for invalid role value', function () {",
+              "  pm.response.to.have.status(400);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"role\":\"SUPERADMIN\"}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/account/type" }
+      }
+    },
+    {
+      "name": "POST /api/account/type - 200 set DRIVER role",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 200 with DRIVER role', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Response contains expected fields', function () {",
+              "  var body = pm.response.json();",
+              "  pm.expect(body.role).to.eql('DRIVER');",
+              "  pm.expect(body.id).to.be.a('string');",
+              "  pm.expect(body.email).to.be.a('string');",
+              "  pm.expect(body.updatedAt).to.be.a('string');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"role\":\"DRIVER\"}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/account/type" }
+      }
+    },
+    {
+      "name": "POST /api/account/type - 200 change to MANAGER role",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 200 with MANAGER role', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Role is updated to MANAGER', function () {",
+              "  var body = pm.response.json();",
+              "  pm.expect(body.role).to.eql('MANAGER');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"role\":\"MANAGER\"}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/account/type" }
+      }
+    },
+    {
+      "name": "POST /api/account/type - 200 change to TECHNICIAN role",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 200 with TECHNICIAN role', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Role is updated to TECHNICIAN', function () {",
+              "  var body = pm.response.json();",
+              "  pm.expect(body.role).to.eql('TECHNICIAN');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"role\":\"TECHNICIAN\"}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/account/type" }
+      }
+    },
+    {
+      "name": "POST /api/account/type - 200 lowercase role accepted",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 200 for lowercase role value', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Role is normalised to uppercase', function () {",
+              "  var body = pm.response.json();",
+              "  pm.expect(body.role).to.eql('DRIVER');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"role\":\"driver\"}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/account/type" }
+      }
+    },
+    {
+      "name": "POST /api/account/type - 200 explicit userId in body",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 200 when explicit userId is provided', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Response contains correct role', function () {",
+              "  var body = pm.response.json();",
+              "  pm.expect(body.role).to.be.a('string');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{managerToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"role\":\"DRIVER\",\"userId\":\"{{driverAuthentikId}}\"}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/account/type" }
+      }
+    },
+    {
+      "name": "Access control - DRIVER role cannot reach manager dashboard",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('DRIVER token blocked from manager dashboard (403)', function () {",
+              "  pm.response.to.have.status(403);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "url": { "raw": "{{baseUrl}}/api/manager/dashboard" }
+      }
+    },
+    {
+      "name": "Access control - MANAGER token can reach manager dashboard",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('MANAGER token can access manager dashboard (200)', function () {",
+              "  pm.response.to.have.status(200);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{managerToken}}" }
+        ],
+        "url": { "raw": "{{baseUrl}}/api/manager/dashboard" }
+      }
+    }
+  ]
+}
