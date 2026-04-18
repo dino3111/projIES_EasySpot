@@ -1,0 +1,115 @@
+{
+  "info": {
+    "name": "EasySpot - Manager Dashboard API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" }
+  ],
+  "item": [
+    {
+      "name": "GET manager/dashboard - 401 unauthenticated",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 401 when no token', function () {",
+              "  pm.response.to.have.status(401);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/api/manager/dashboard" }
+      }
+    },
+    {
+      "name": "GET manager/dashboard - 403 wrong role (DRIVER)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 403 for DRIVER role', function () {",
+              "  pm.response.to.have.status(403);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "url": { "raw": "{{baseUrl}}/api/manager/dashboard" }
+      }
+    },
+    {
+      "name": "GET manager/dashboard - 403 wrong role (TECHNICIAN)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 403 for TECHNICIAN role', function () {",
+              "  pm.response.to.have.status(403);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{technicianToken}}" }
+        ],
+        "url": { "raw": "{{baseUrl}}/api/manager/dashboard" }
+      }
+    },
+    {
+      "name": "GET manager/dashboard - 200 success",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Response has required KPI structure', function () {",
+              "  var body = pm.response.json();",
+              "  pm.expect(body).to.have.property('kpis');",
+              "  pm.expect(body.kpis).to.be.an('object');",
+              "});",
+              "pm.test('Response has expected dashboard fields', function () {",
+              "  var body = pm.response.json();",
+              "  pm.expect(body).to.have.property('seriesLast7Days');",
+              "  pm.expect(body).to.have.property('occupancyPerZone');",
+              "  pm.expect(body).to.have.property('occupancyPerHour');",
+              "  pm.expect(body).to.have.property('lastAlerts');",
+              "  pm.expect(body).to.have.property('performancePerPark');",
+              "});",
+              "pm.test('Dashboard data is array or null', function () {",
+              "  var body = pm.response.json();",
+              "  pm.expect(body.seriesLast7Days).to.satisfy(function(v) { return Array.isArray(v) || v === null; });",
+              "  pm.expect(body.occupancyPerZone).to.satisfy(function(v) { return Array.isArray(v) || v === null; });",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{managerToken}}" }
+        ],
+        "url": { "raw": "{{baseUrl}}/api/manager/dashboard" }
+      }
+    }
+  ]
+}
