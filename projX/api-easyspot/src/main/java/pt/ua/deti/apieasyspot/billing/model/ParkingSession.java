@@ -2,6 +2,7 @@ package pt.ua.deti.apieasyspot.billing.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import pt.ua.deti.apieasyspot.auth.model.User;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
 import pt.ua.deti.apieasyspot.occupancy.model.ZoneType;
 
@@ -18,6 +19,10 @@ public class ParkingSession {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parking_lot_id", nullable = false)
