@@ -50,10 +50,37 @@ jobs:
         if: hashFiles('projX/api-easyspot/pom.xml') != ''
         run: cd projX/api-easyspot && ./mvnw compile -q
 
+      - name: Resolve reachable SonarQube URL
+        env:
+          SONAR_HOST_URL_SECRET: ${{ secrets.SONAR_HOST_URL }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${SONAR_HOST_URL_SECRET:-}" ]; then
+            echo "SONAR_HOST_URL secret is empty."
+            exit 1
+          fi
+
+          base_url="${SONAR_HOST_URL_SECRET%/}"
+          localhost_url="$(printf '%s' "$base_url" | sed -E 's#^(https?://)[^/:]+#\1localhost#')"
+          loopback_url="$(printf '%s' "$base_url" | sed -E 's#^(https?://)[^/:]+#\1127.0.0.1#')"
+
+          for candidate in "$base_url" "$localhost_url" "$loopback_url"; do
+            status_endpoint="${candidate}/api/system/status"
+            if curl -fsSL --max-time 10 "$status_endpoint" >/dev/null; then
+              echo "Using SonarQube URL: $candidate"
+              echo "SONAR_HOST_URL_EFFECTIVE=$candidate" >> "$GITHUB_ENV"
+              exit 0
+            fi
+          done
+
+          echo "SonarQube endpoint is unreachable from this runner: $base_url"
+          exit 1
+
       - name: SonarQube Scan
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          SONAR_HOST_URL: ${{ env.SONAR_HOST_URL_EFFECTIVE }}
         run: |
           curl -sSLo sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-7.0.2.4839.zip
           unzip -qo sonar-scanner.zip
@@ -68,4 +95,4 @@ jobs:
         timeout-minutes: 5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          SONAR_HOST_URL: ${{ env.SONAR_HOST_URL_EFFECTIVE }}
