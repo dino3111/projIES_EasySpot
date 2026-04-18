@@ -22,6 +22,8 @@ public class ProfileRepository {
                    count(*) as sessions
             from parking_sessions
             where user_id = ?
+              and exit_time is not null
+              and revenue_euros is not null
             """,
             (rs, row) -> {
                 BigDecimal total = rs.getBigDecimal("total");

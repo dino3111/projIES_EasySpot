@@ -178,6 +178,27 @@ class ProfileControllerIT {
     }
 
     @Test
+    @DisplayName("GET /api/profile - missing groups claim - returns 400")
+    void getProfile_missingGroupsClaim_returns400() throws Exception {
+        mockMvc.perform(get("/api/profile")
+                .with(jwt().jwt(j -> j.subject(DRIVER_SUBJECT))))
+            .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("PUT /api/profile - missing groups claim - returns 400 and does not persist")
+    void updateProfile_missingGroupsClaim_returns400AndDoesNotPersist() throws Exception {
+        mockMvc.perform(put("/api/profile")
+                .with(jwt().jwt(j -> j.subject(DRIVER_SUBJECT)))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"notificationsEnabled\":false}"))
+            .andExpect(status().isBadRequest());
+
+        User unchanged = userRepository.findByAuthentikUserId(DRIVER_SUBJECT).orElseThrow();
+        assertThat(unchanged.isNotificationsEnabled()).isTrue();
+    }
+
+    @Test
     @DisplayName("PUT /api/profile - extra JSON fields are silently ignored (EC-4)")
     void updateProfile_unknownFields_silentlyIgnored() throws Exception {
         mockMvc.perform(put("/api/profile")

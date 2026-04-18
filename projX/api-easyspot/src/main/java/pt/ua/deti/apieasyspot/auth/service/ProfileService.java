@@ -12,9 +12,13 @@ import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
 import pt.ua.deti.apieasyspot.booking.repository.UserFavoriteRepository;
 import pt.ua.deti.apieasyspot.common.exception.ResourceNotFoundException;
 
+import java.util.Set;
+
 @Service
 @RequiredArgsConstructor
 public class ProfileService {
+
+    private static final Set<String> VALID_ROLES = Set.of("DRIVER", "MANAGER", "TECHNICAL");
 
     private final UserRepository userRepository;
     private final ProfileRepository profileRepository;
@@ -23,6 +27,7 @@ public class ProfileService {
     private final UserFavoriteRepository userFavoriteRepository;
 
     public Object getProfile(String authentikUserId, String jwtRole) {
+        requireValidRole(jwtRole);
         User user = findUser(authentikUserId);
         return switch (jwtRole) {
             case "DRIVER" -> buildDriverProfile(user);
@@ -34,11 +39,18 @@ public class ProfileService {
 
     @Transactional
     public Object updateProfile(String authentikUserId, ProfileUpdateRequest request, String jwtRole) {
+        requireValidRole(jwtRole);
         validateRoleFields(request, jwtRole);
         User user = findUser(authentikUserId);
         applyUpdates(user, request, jwtRole);
         userRepository.save(user);
         return getProfile(authentikUserId, jwtRole);
+    }
+
+    private void requireValidRole(String jwtRole) {
+        if (!VALID_ROLES.contains(jwtRole)) {
+            throw new IllegalArgumentException("Unknown role: " + jwtRole);
+        }
     }
 
     private void validateRoleFields(ProfileUpdateRequest request, String jwtRole) {

@@ -98,12 +98,21 @@ class ProfileServiceTest {
     @Test
     @DisplayName("getProfile - unknown role - throws IllegalArgumentException")
     void getProfile_unknownRole_throwsIllegalArgument() {
-        User user = buildUser("ADMIN");
-        when(userRepository.findByAuthentikUserId("sub")).thenReturn(Optional.of(user));
-
         assertThatThrownBy(() -> profileService.getProfile("sub", "ADMIN"))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("Unknown role");
+        verify(userRepository, never()).findByAuthentikUserId(any());
+    }
+
+    @Test
+    @DisplayName("updateProfile - unknown role - throws before persisting (EC-role-guard)")
+    void updateProfile_unknownRole_doesNotPersist() {
+        ProfileUpdateRequest request = new ProfileUpdateRequest(null, false, null);
+
+        assertThatThrownBy(() -> profileService.updateProfile("sub", request, "UNKNOWN"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Unknown role");
+        verify(userRepository, never()).save(any());
     }
 
     @Test
