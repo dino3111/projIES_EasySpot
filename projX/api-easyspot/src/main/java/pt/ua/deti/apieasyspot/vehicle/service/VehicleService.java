@@ -1,13 +1,11 @@
 package pt.ua.deti.apieasyspot.vehicle.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import pt.ua.deti.apieasyspot.auth.model.User;
 import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
-import pt.ua.deti.apieasyspot.common.exception.ExternalServiceException;
 import pt.ua.deti.apieasyspot.common.exception.ResourceNotFoundException;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleData;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleResponse;
@@ -64,11 +62,7 @@ public class VehicleService {
         vehicle.setVin(data.vin());
         vehicle.setEv("Elétrico".equalsIgnoreCase(data.fuelType()));
         vehicle.setLastSyncedAt(LocalDateTime.now());
-        try {
-            vehicle.setSyncedDataJson(objectMapper.writeValueAsString(data));
-        } catch (JsonProcessingException e) {
-            throw new ExternalServiceException("Failed to serialize vehicle lookup data", e);
-        }
+        vehicle.setSyncedDataJson(objectMapper.writeValueAsString(data));
     }
 
     private VehicleResponse toResponse(Vehicle vehicle){

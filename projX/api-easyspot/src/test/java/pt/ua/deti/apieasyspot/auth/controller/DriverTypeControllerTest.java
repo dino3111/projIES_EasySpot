@@ -22,7 +22,7 @@ import java.util.UUID;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static pt.ua.deti.apieasyspot.support.TestJwtRequests.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -55,9 +55,7 @@ class DriverTypeControllerTest {
     @DisplayName("POST /api/driver/type - wrong role - returns 403")
     void updateDriverTypeWrongRole() throws Exception {
         mockMvc.perform(post("/api/driver/type")
-                .with(jwt()
-                    .authorities(new SimpleGrantedAuthority("ROLE_MANAGER"))
-                    .jwt(j -> j.subject("some-subject").claim("groups", List.of("MANAGER"))))
+                .with(jwt().jwt(j -> j.subject("some-subject").claim("groups", List.of("MANAGER"))))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"driverType\":\"regular\"}"))
             .andExpect(status().isForbidden());
@@ -67,9 +65,7 @@ class DriverTypeControllerTest {
     @DisplayName("POST /api/driver/type - missing driverType - returns 400")
     void updateDriverTypeInvalidPayload() throws Exception {
         mockMvc.perform(post("/api/driver/type")
-                .with(jwt()
-                    .authorities(new SimpleGrantedAuthority("ROLE_DRIVER"))
-                    .jwt(j -> j.subject(EXISTING_AUTHENTIK_ID).claim("groups", List.of("DRIVER"))))
+                .with(jwt().jwt(j -> j.subject(EXISTING_AUTHENTIK_ID).claim("groups", List.of("DRIVER"))))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
             .andExpect(status().isBadRequest());
@@ -79,9 +75,7 @@ class DriverTypeControllerTest {
     @DisplayName("POST /api/driver/type - invalid enum value - returns 400")
     void updateDriverTypeInvalidEnumValue() throws Exception {
         mockMvc.perform(post("/api/driver/type")
-                .with(jwt()
-                    .authorities(new SimpleGrantedAuthority("ROLE_DRIVER"))
-                    .jwt(j -> j.subject(EXISTING_AUTHENTIK_ID).claim("groups", List.of("DRIVER"))))
+                .with(jwt().jwt(j -> j.subject(EXISTING_AUTHENTIK_ID).claim("groups", List.of("DRIVER"))))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"driverType\":\"invalid_type\"}"))
             .andExpect(status().isBadRequest());
@@ -94,9 +88,7 @@ class DriverTypeControllerTest {
             .thenThrow(new ResourceNotFoundException("User not found: missing-subject"));
 
         mockMvc.perform(post("/api/driver/type")
-                .with(jwt()
-                    .authorities(new SimpleGrantedAuthority("ROLE_DRIVER"))
-                    .jwt(j -> j.subject("missing-subject").claim("groups", List.of("DRIVER"))))
+                .with(jwt().jwt(j -> j.subject("missing-subject").claim("groups", List.of("DRIVER"))))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"driverType\":\"regular\"}"))
             .andExpect(status().isNotFound());
@@ -109,9 +101,7 @@ class DriverTypeControllerTest {
             .thenReturn(buildUser(DriverType.REDUCED_MOBILITY));
 
         mockMvc.perform(post("/api/driver/type")
-                .with(jwt()
-                    .authorities(new SimpleGrantedAuthority("ROLE_DRIVER"))
-                    .jwt(j -> j.subject(EXISTING_AUTHENTIK_ID).claim("groups", List.of("DRIVER"))))
+                .with(jwt().jwt(j -> j.subject(EXISTING_AUTHENTIK_ID).claim("groups", List.of("DRIVER"))))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"driverType\":\"reduced_mobility\"}"))
             .andExpect(status().isOk())
@@ -129,9 +119,7 @@ class DriverTypeControllerTest {
             .thenReturn(buildUser(DriverType.EV));
 
         mockMvc.perform(post("/api/driver/type")
-                .with(jwt()
-                    .authorities(new SimpleGrantedAuthority("ROLE_DRIVER"))
-                    .jwt(j -> j.subject(EXISTING_AUTHENTIK_ID).claim("groups", List.of("DRIVER"))))
+                .with(jwt().jwt(j -> j.subject(EXISTING_AUTHENTIK_ID).claim("groups", List.of("DRIVER"))))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"driverType\":\"ev\",\"userId\":\"" + explicitUserId + "\"}"))
             .andExpect(status().isOk())

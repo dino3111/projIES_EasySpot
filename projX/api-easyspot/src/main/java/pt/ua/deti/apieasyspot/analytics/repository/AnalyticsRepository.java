@@ -7,7 +7,6 @@ import pt.ua.deti.apieasyspot.analytics.dto.*;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.Locale;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.TextStyle;
@@ -59,13 +58,16 @@ public class AnalyticsRepository {
     public int[] currentOccupancy() {
         Integer[] result = jdbc.queryForObject(
             """
-            select sum(occupied_count), sum(total_count)
+            select coalesce(sum(occupied_count), 0), coalesce(sum(total_count), 0)
             from (
-                select distinct on (parking_lot_id, zone_type)
-                    parking_lot_id, zone_type, occupied_count, total_count
+                select occupied_count, total_count,
+                       row_number() over (
+                           partition by parking_lot_id, zone_type
+                           order by recorded_at desc
+                       ) as rn
                 from occupancy_snapshots
-                order by parking_lot_id, zone_type, recorded_at desc
             ) latest
+            where rn = 1
             """,
             (rs, rowNum) -> new Integer[]{
                 rs.getObject(1, Integer.class),
@@ -103,11 +105,14 @@ public class AnalyticsRepository {
             """
             select zone_type, sum(occupied_count) as occupied, sum(total_count) as total
             from (
-                select distinct on (parking_lot_id, zone_type)
-                    parking_lot_id, zone_type, occupied_count, total_count
+                select zone_type, occupied_count, total_count,
+                       row_number() over (
+                           partition by parking_lot_id, zone_type
+                           order by recorded_at desc
+                       ) as rn
                 from occupancy_snapshots
-                order by parking_lot_id, zone_type, recorded_at desc
             ) latest
+            where rn = 1
             group by zone_type
             """,
             (rs, rowNum) -> {
@@ -120,13 +125,13 @@ public class AnalyticsRepository {
     public List<HourlyOccupancyDto> hourlyOccupancy() {
         return jdbc.query(
             """
-            select time_bucket('1 hour', recorded_at) as hour_start,
-                   avg(occupied_count * 100.0 / nullif(total_count, 0)) as occupancy_pct
+             select cast(recorded_at as timestamp) as hour_start,
+                 avg(occupied_count * 100.0 / nullif(total_count, 0)) as occupancy_pct
             from occupancy_snapshots
             where recorded_at >= CURRENT_DATE
               and recorded_at < CURRENT_DATE + interval '1 day'
-            group by 1
-            order by 1
+             group by cast(recorded_at as timestamp)
+             order by hour_start
             """,
             (rs, rowNum) -> {
                 Instant hourStart = rs.getTimestamp("hour_start").toInstant();
@@ -173,10 +178,16 @@ public class AnalyticsRepository {
             left join parking_sessions ps
                 on ps.parking_lot_id = pl.id and cast(ps.entry_time as date) = CURRENT_DATE
             left join(
-                select distinct on (parking_lot_id, zone_type)
-                    parking_lot_id, occupied_count, total_count
-                from occupancy_snapshots
-                order by parking_lot_id, zone_type, recorded_at desc
+                select parking_lot_id, occupied_count, total_count
+                from (
+                    select parking_lot_id, zone_type, occupied_count, total_count,
+                           row_number() over (
+                               partition by parking_lot_id, zone_type
+                               order by recorded_at desc
+                           ) as rn
+                    from occupancy_snapshots
+                ) latest
+                where rn = 1
             ) snap on snap.parking_lot_id = pl.id
             group by pl.id, pl.name, pl.city
             order by revenue desc

@@ -5,23 +5,20 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
-import pt.ua.deti.apieasyspot.TestcontainersConfiguration;
 
 import java.util.List;
 
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static pt.ua.deti.apieasyspot.support.TestJwtRequests.jwtWithRole;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
-@Import(TestcontainersConfiguration.class)
 class TechnicianDashboardControllerIT {
 
     @Autowired
@@ -48,7 +45,7 @@ class TechnicianDashboardControllerIT {
     @DisplayName("GET /api/technician/dashboard - DRIVER role - returns 403")
     void dashboard_driverRole_returns403() throws Exception {
         mockMvc.perform(get("/api/technician/dashboard")
-                .with(jwt().jwt(j -> j.subject("sub-driver").claim("groups", List.of("DRIVER")))))
+                .with(jwtWithRole("sub-driver", "DRIVER")))
             .andExpect(status().isForbidden());
     }
 
@@ -56,7 +53,7 @@ class TechnicianDashboardControllerIT {
     @DisplayName("GET /api/technician/dashboard - MANAGER role - returns 403")
     void dashboard_managerRole_returns403() throws Exception {
         mockMvc.perform(get("/api/technician/dashboard")
-                .with(jwt().jwt(j -> j.subject("sub-manager").claim("groups", List.of("MANAGER")))))
+                .with(jwtWithRole("sub-manager", "MANAGER")))
             .andExpect(status().isForbidden());
     }
 
@@ -64,7 +61,7 @@ class TechnicianDashboardControllerIT {
     @DisplayName("GET /api/technician/dashboard - TECHNICAL role - returns 200 with all sections")
     void dashboard_technicalRole_returns200WithAllSections() throws Exception {
         mockMvc.perform(get("/api/technician/dashboard")
-                .with(jwt().jwt(j -> j.subject("sub-tech").claim("groups", List.of("TECHNICAL")))))
+                .with(jwtWithRole("sub-tech", "TECHNICAL")))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.kpis").exists())
             .andExpect(jsonPath("$.kpis.totalSensors").isNumber())

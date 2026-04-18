@@ -79,14 +79,52 @@ jobs:
 
           echo "${RUNNER_TEMP}/sonar-scanner-${SCANNER_VERSION}-${DIST}/bin" >> "$GITHUB_PATH"
 
+      - name: Validate SonarQube reachability
+        shell: bash
+        env:
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${SONAR_HOST_URL:-}" ]; then
+            echo "SONAR_HOST_URL secret is empty" >&2
+            exit 1
+          fi
+
+          for attempt in 1 2 3; do
+            if curl -fsS --connect-timeout 20 --max-time 40 "${SONAR_HOST_URL%/}/api/server/version" >/dev/null; then
+              echo "SonarQube is reachable"
+              exit 0
+            fi
+            echo "SonarQube not reachable (attempt ${attempt}/3). Retrying..."
+          done
+
+          echo "SonarQube endpoint is unreachable from this runner: ${SONAR_HOST_URL}" >&2
+          exit 1
+
       - name: SonarQube Scan + Quality Gate
         run: |
-          sonar-scanner \
-            -Dproject.settings=sonar-project.properties \
-            -Dsonar.host.url="${{ secrets.SONAR_HOST_URL }}" \
-            -Dsonar.token="${{ secrets.SONAR_TOKEN }}" \
-            -Dsonar.pullrequest.key="${{ github.event.pull_request.number }}" \
-            -Dsonar.pullrequest.branch="${{ github.head_ref }}" \
-            -Dsonar.pullrequest.base="${{ github.base_ref }}" \
-            -Dsonar.qualitygate.wait=true
+          set -euo pipefail
+
+          for attempt in 1 2; do
+            if sonar-scanner \
+              -Dproject.settings=sonar-project.properties \
+              -Dsonar.host.url="${{ secrets.SONAR_HOST_URL }}" \
+              -Dsonar.token="${{ secrets.SONAR_TOKEN }}" \
+              -Dsonar.pullrequest.key="${{ github.event.pull_request.number }}" \
+              -Dsonar.pullrequest.branch="${{ github.head_ref }}" \
+              -Dsonar.pullrequest.base="${{ github.base_ref }}" \
+              -Dsonar.qualitygate.wait=true \
+              -Dsonar.scanner.connectTimeout=60 \
+              -Dsonar.scanner.socketTimeout=300; then
+              exit 0
+            fi
+
+            if [ "$attempt" -lt 2 ]; then
+              echo "Sonar scanner failed on attempt ${attempt}. Retrying once..."
+            fi
+          done
+
+          echo "Sonar scanner failed after retries" >&2
+          exit 1
         timeout-minutes: 20

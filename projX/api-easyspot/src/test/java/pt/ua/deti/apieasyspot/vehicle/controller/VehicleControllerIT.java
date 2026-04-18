@@ -1,19 +1,17 @@
 package pt.ua.deti.apieasyspot.vehicle.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
-import pt.ua.deti.apieasyspot.TestcontainersConfiguration;
+import tools.jackson.databind.ObjectMapper;
 import pt.ua.deti.apieasyspot.auth.model.User;
 import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleData;
@@ -27,13 +25,12 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static pt.ua.deti.apieasyspot.support.TestJwtRequests.jwtWithRole;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
-@Import(TestcontainersConfiguration.class)
 class VehicleControllerIT {
 
     @Autowired WebApplicationContext wac;
@@ -87,7 +84,7 @@ class VehicleControllerIT {
         VehicleUpdateRequest request = new VehicleUpdateRequest("AA-00-AA", null, false);
 
         mockMvc.perform(put("/api/vehicles/{id}", vehicle.getId())
-                .with(jwt().jwt(j -> j.subject("auth-sub-123").claim("groups", List.of("MANAGER"))))
+                .with(jwtWithRole("auth-sub-123", "MANAGER"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isForbidden());
@@ -99,7 +96,7 @@ class VehicleControllerIT {
         VehicleUpdateRequest request = new VehicleUpdateRequest("AA-00-AA", "my car", true);
 
         mockMvc.perform(put("/api/vehicles/{id}", vehicle.getId())
-                .with(jwt().jwt(j -> j.subject("auth-sub-123").claim("groups", List.of("DRIVER"))))
+                .with(jwtWithRole("auth-sub-123", "DRIVER"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isOk())
@@ -123,7 +120,7 @@ class VehicleControllerIT {
         when(vehicleLookupClient.lookup("BB-00-BB")).thenReturn(data);
 
         mockMvc.perform(put("/api/vehicles/{id}", vehicle.getId())
-                .with(jwt().jwt(j -> j.subject("auth-sub-123").claim("groups", List.of("DRIVER"))))
+                .with(jwtWithRole("auth-sub-123", "DRIVER"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isOk())
@@ -140,7 +137,7 @@ class VehicleControllerIT {
         VehicleUpdateRequest request = new VehicleUpdateRequest("AA-00-AA", null, false);
 
         mockMvc.perform(put("/api/vehicles/{id}", UUID.randomUUID())
-                .with(jwt().jwt(j -> j.subject("auth-sub-123").claim("groups", List.of("DRIVER"))))
+                .with(jwtWithRole("auth-sub-123", "DRIVER"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isNotFound());
@@ -157,7 +154,7 @@ class VehicleControllerIT {
     @DisplayName("DELETE /api/vehicles/{id} - success - returns 204 and removes vehicle")
     void deleteVehicle_success_returns204() throws Exception {
         mockMvc.perform(delete("/api/vehicles/{id}", vehicle.getId())
-                .with(jwt().jwt(j -> j.subject("auth-sub-123").claim("groups", List.of("DRIVER")))))
+                .with(jwtWithRole("auth-sub-123", "DRIVER")))
             .andExpect(status().isNoContent());
 
         assertThat(vehicleRepository.findById(vehicle.getId())).isEmpty();
@@ -167,7 +164,7 @@ class VehicleControllerIT {
     @DisplayName("DELETE /api/vehicles/{id} - vehicle not found - returns 404")
     void deleteVehicle_vehicleNotFound_returns404() throws Exception {
         mockMvc.perform(delete("/api/vehicles/{id}", UUID.randomUUID())
-                .with(jwt().jwt(j -> j.subject("auth-sub-123").claim("groups", List.of("DRIVER")))))
+                .with(jwtWithRole("auth-sub-123", "DRIVER")))
             .andExpect(status().isNotFound());
     }
 }

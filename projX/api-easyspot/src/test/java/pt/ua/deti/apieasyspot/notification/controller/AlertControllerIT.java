@@ -5,14 +5,12 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
-import pt.ua.deti.apieasyspot.TestcontainersConfiguration;
 import pt.ua.deti.apieasyspot.notification.model.Alert;
 import pt.ua.deti.apieasyspot.notification.model.AlertType;
 import pt.ua.deti.apieasyspot.notification.model.SeverityAlert;
@@ -26,13 +24,12 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static pt.ua.deti.apieasyspot.support.TestJwtRequests.jwtWithRole;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
-@Import(TestcontainersConfiguration.class)
 class AlertControllerIT {
 
     @Autowired
@@ -69,7 +66,7 @@ class AlertControllerIT {
         mockMvc.perform(patch("/api/alerts/" + UUID.randomUUID() + "/state")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"state\":\"RESOLVED\"}")
-                .with(jwt().jwt(j -> j.subject("sub-driver").claim("groups", List.of("DRIVER")))))
+                .with(jwtWithRole("sub-driver", "DRIVER")))
             .andExpect(status().isForbidden());
     }
 
@@ -79,7 +76,7 @@ class AlertControllerIT {
         mockMvc.perform(patch("/api/alerts/" + UUID.randomUUID() + "/state")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"state\":\"RESOLVED\"}")
-                .with(jwt().jwt(j -> j.subject("sub-tech").claim("groups", List.of("TECHNICAL")))))
+                .with(jwtWithRole("sub-tech", "TECHNICAL")))
             .andExpect(status().isNotFound());
     }
 
@@ -91,7 +88,7 @@ class AlertControllerIT {
         mockMvc.perform(patch("/api/alerts/" + alert.getId() + "/state")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"state\":\"INVALID_STATE\"}")
-                .with(jwt().jwt(j -> j.subject("sub-tech").claim("groups", List.of("TECHNICAL")))))
+                .with(jwtWithRole("sub-tech", "TECHNICAL")))
             .andExpect(status().isBadRequest());
     }
 
@@ -103,7 +100,7 @@ class AlertControllerIT {
         mockMvc.perform(patch("/api/alerts/" + alert.getId() + "/state")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"state\":\"RESOLVED\"}")
-                .with(jwt().jwt(j -> j.subject("sub-tech").claim("groups", List.of("TECHNICAL")))))
+                .with(jwtWithRole("sub-tech", "TECHNICAL")))
             .andExpect(status().isNoContent());
 
         Alert updated = alertRepository.findById(alert.getId()).orElseThrow();
@@ -119,7 +116,7 @@ class AlertControllerIT {
         mockMvc.perform(patch("/api/alerts/" + alert.getId() + "/state")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"state\":\"IN_PROGRESS\"}")
-                .with(jwt().jwt(j -> j.subject("sub-manager").claim("groups", List.of("MANAGER")))))
+                .with(jwtWithRole("sub-manager", "MANAGER")))
             .andExpect(status().isNoContent());
 
         Alert updated = alertRepository.findById(alert.getId()).orElseThrow();
