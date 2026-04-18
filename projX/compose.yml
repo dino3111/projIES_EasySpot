@@ -32,6 +32,8 @@ services:
       APP_DB_USER: ${APP_DB_USER}
       APP_DB_PASS: ${APP_DB_PASS}
       APP_DB: ${APP_DB}
+    ports:
+      - "5432:5432"
 
   authentik-redis:
     image: redis:7.2-alpine
@@ -166,12 +168,15 @@ services:
       POSTGRES_PASSWORD: ${APP_DB_PASS}
       POSTGRES_USER: ${APP_DB_USER}
       POSTGRES_DB: ${TS_DB}
+    ports:
+      - "5433:5432"
 
   kafka:
     image: apache/kafka:3.8.0
     restart: unless-stopped
     ports:
       - "9092:9092"
+      - "9093:9093"
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
