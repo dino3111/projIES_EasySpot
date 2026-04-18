@@ -1,0 +1,218 @@
+{
+  "info": {
+    "name": "EasySpot - Driver Type API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" }
+  ],
+  "item": [
+    {
+      "name": "POST driver/type - 401 unauthenticated",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 401 when no token', function () {",
+              "  pm.response.to.have.status(401);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"driverType\":\"ev\"}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/driver/type" }
+      }
+    },
+    {
+      "name": "POST driver/type - 403 wrong role",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 403 for non-DRIVER role', function () {",
+              "  pm.response.to.have.status(403);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{managerToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"driverType\":\"ev\"}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/driver/type" }
+      }
+    },
+    {
+      "name": "POST driver/type - 400 missing driverType",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 400 for missing driverType', function () {",
+              "  pm.response.to.have.status(400);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/driver/type" }
+      }
+    },
+    {
+      "name": "POST driver/type - 400 invalid driverType",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 400 for invalid driverType', function () {",
+              "  pm.response.to.have.status(400);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"driverType\":\"invalid_type\"}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/driver/type" }
+      }
+    },
+    {
+      "name": "POST driver/type - 200 update to EV",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Driver type is updated to EV', function () {",
+              "  var body = pm.response.json();",
+              "  pm.expect(body.driverType).to.eql('ev');",
+              "});",
+              "pm.test('Response has expected fields', function () {",
+              "  var body = pm.response.json();",
+              "  pm.expect(body).to.have.property('id');",
+              "  pm.expect(body).to.have.property('name');",
+              "  pm.expect(body).to.have.property('email');",
+              "  pm.expect(body).to.have.property('role');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"driverType\":\"ev\"}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/driver/type" }
+      }
+    },
+    {
+      "name": "POST driver/type - 200 update to REGULAR",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Driver type is updated to REGULAR', function () {",
+              "  var body = pm.response.json();",
+              "  pm.expect(body.driverType).to.eql('regular');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"driverType\":\"regular\"}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/driver/type" }
+      }
+    },
+    {
+      "name": "POST driver/type - 200 update to REDUCED_MOBILITY",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Driver type is updated to REDUCED_MOBILITY', function () {",
+              "  var body = pm.response.json();",
+              "  pm.expect(body.driverType).to.eql('reduced_mobility');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"driverType\":\"reduced_mobility\"}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/driver/type" }
+      }
+    }
+  ]
+}
