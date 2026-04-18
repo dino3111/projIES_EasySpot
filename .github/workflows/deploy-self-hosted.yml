@@ -93,6 +93,12 @@ jobs:
             echo "Stripe CLI secrets not configured; deploying without the stripe profile."
           fi
 
+          if [ -n "${{ secrets.STRIPE_WEBHOOK_PUBLIC_URL }}" ]; then
+            echo "HAS_STRIPE_WEBHOOK_PUBLIC_URL=true" >> "$GITHUB_ENV"
+          else
+            echo "HAS_STRIPE_WEBHOOK_PUBLIC_URL=false" >> "$GITHUB_ENV"
+          fi
+
           {
             echo "# Authentik Configuration"
             echo "AUTHENTIK_SECRET_KEY=${{ secrets.AUTHENTIK_SECRET_KEY }}"
@@ -151,7 +157,7 @@ jobs:
           docker compose ${COMPOSE_PROFILE_FLAG:-} config > /dev/null && echo "✓ Configuration is valid" || exit 1
 
       - name: Bootstrap Stripe dashboard configuration
-        if: env.ENABLE_STRIPE_PROFILE == 'true' && secrets.STRIPE_WEBHOOK_PUBLIC_URL != ''
+        if: env.ENABLE_STRIPE_PROFILE == 'true' && env.HAS_STRIPE_WEBHOOK_PUBLIC_URL == 'true'
         env:
           STRIPE_API_KEY: ${{ secrets.STRIPE_API_KEY }}
           STRIPE_WEBHOOK_PUBLIC_URL: ${{ secrets.STRIPE_WEBHOOK_PUBLIC_URL }}
