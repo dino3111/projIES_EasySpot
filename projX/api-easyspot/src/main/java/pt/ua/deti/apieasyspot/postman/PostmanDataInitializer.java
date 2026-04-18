@@ -66,14 +66,14 @@ class PostmanDataInitializer implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        seedUser();
+        User driver = seedUser();
         List<ParkingLot> lots = seedLots();
-        seedSessions(lots);
+        seedSessions(lots, driver);
         seedAlerts(lots);
         seedHourlySnapshots(lots);
     }
 
-    private void seedUser() {
+    private User seedUser() {
         User user = new User();
         user.setAuthentikUserId("auth-sub-postman-driver");
         user.setEmail("postman@easyspot.test");
@@ -89,6 +89,7 @@ class PostmanDataInitializer implements ApplicationRunner {
         vehicle.setFuelType("Gasolina");
         vehicle.setYear(2021);
         vehicleId = vehicleRepository.save(vehicle).getId();
+        return user;
     }
 
     private List<ParkingLot> seedLots() {
@@ -101,7 +102,7 @@ class PostmanDataInitializer implements ApplicationRunner {
         return lots;
     }
 
-    private void seedSessions(List<ParkingLot> lots) {
+    private void seedSessions(List<ParkingLot> lots, User driver) {
         LocalDateTime now = LocalDateTime.now();
         for (int daysAgo = 6; daysAgo >= 0; daysAgo--) {
             int count = 50 + (int) (Math.random() * 100);
@@ -109,7 +110,7 @@ class PostmanDataInitializer implements ApplicationRunner {
                 ParkingLot lot = lots.get(i % lots.size());
                 LocalDateTime entry = now.minusDays(daysAgo).withHour(7 + (i % 14)).withMinute(i % 60);
                 double durationH = 0.5 + (Math.random() * 3.5);
-                parkingSessionRepository.save(session(lot, entry, durationH));
+                parkingSessionRepository.save(session(lot, entry, durationH, driver));
             }
         }
     }
@@ -162,8 +163,9 @@ class PostmanDataInitializer implements ApplicationRunner {
         return l;
     }
 
-    private ParkingSession session(ParkingLot lot, LocalDateTime entry, double durationHours) {
+    private ParkingSession session(ParkingLot lot, LocalDateTime entry, double durationHours, User driver) {
         ParkingSession s = new ParkingSession();
+        s.setUser(driver);
         s.setParkingLot(lot);
         s.setZoneType(ZoneType.STANDARD);
         s.setEntryTime(entry);

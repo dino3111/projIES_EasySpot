@@ -10,4 +10,5 @@ public interface UserFavoriteRepository extends JpaRepository<UserFavorite, UUID
 
     Optional<UserFavorite> findByUserIdAndParkingLotId(UUID userId, UUID parkingLotId);
     boolean existsByUserIdAndParkingLotId(UUID userId, UUID parkingLotId);
+    long countByUserId(UUID userId);
 }

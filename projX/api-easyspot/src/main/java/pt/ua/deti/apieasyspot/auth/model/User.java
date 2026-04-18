@@ -45,6 +45,9 @@ public class User {
     @Column(length = 30)
     private DriverType driverType;
 
+    @Column(nullable = false, columnDefinition = "boolean default true")
+    private boolean notificationsEnabled = true;
+
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Vehicle> vehicles = new ArrayList<>();
 
