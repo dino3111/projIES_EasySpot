@@ -34,6 +34,7 @@ public class SecurityConfig {
             .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/actuator/health").permitAll()
+                .requestMatchers("/api/test/token").permitAll()
                 .requestMatchers("/api/test/**").authenticated()
                 .anyRequest().authenticated());
 

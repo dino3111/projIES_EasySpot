@@ -36,6 +36,9 @@ public class Alert {
     @Column(length = 100)
     private String zone;
 
+    @Column(length = 20)
+    private String spotNumber;
+
     @Column(length = 30)
     private String sensorId;
 
@@ -44,6 +47,9 @@ public class Alert {
 
     @Column(nullable = false, length = 500)
     private String description;
+
+    @Column(length = 500)
+    private String photoUrl;
 
     @Column(length = 100)
     private String attributedTo;
