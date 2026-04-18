@@ -181,7 +181,7 @@ services:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://10.243.106.1:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://${KAFKA_ADVERTISED_HOST:-kafka}:9092
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
@@ -197,6 +197,22 @@ services:
       interval: 10s
       retries: 10
       timeout: 5s
+
+  stripe-cli:
+    image: stripe/stripe-cli:v1.40.6
+    restart: on-failure:3
+    profiles:
+      - stripe
+    entrypoint:
+      - /bin/sh
+      - /stripe-cli-entrypoint.sh
+    environment:
+      STRIPE_WEBHOOK_FORWARD_TO: ${STRIPE_WEBHOOK_FORWARD_TO:-}
+    volumes:
+      - ./stripe-cli-entrypoint.sh:/stripe-cli-entrypoint.sh:ro
+      - ./.stripe_api_key:/run/secrets/stripe_api_key:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
 volumes:
   postgres-data:
