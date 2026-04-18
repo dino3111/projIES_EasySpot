@@ -4,42 +4,9 @@
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "baseUrl", "value": "http://localhost:8080" },
-    { "key": "userId", "value": "" }
+    { "key": "baseUrl", "value": "http://localhost:8080" }
   ],
   "item": [
-    {
-      "name": "Setup - Set own role and capture userId",
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test('Setup returns 200', function () {",
-              "  pm.response.to.have.status(200);",
-              "});",
-              "var body = pm.response.json();",
-              "pm.test('userId is present', function () {",
-              "  pm.expect(body.id).to.be.a('string');",
-              "});",
-              "pm.collectionVariables.set('userId', body.id);"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "method": "POST",
-        "header": [
-          { "key": "Content-Type", "value": "application/json" },
-          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\"role\":\"DRIVER\"}"
-        },
-        "url": { "raw": "{{baseUrl}}/api/account/type" }
-      }
-    },
     {
       "name": "POST /api/account/type - 401 no token",
       "event": [
@@ -184,18 +151,18 @@
       }
     },
     {
-      "name": "POST /api/account/type - 200 change to TECHNICIAN role",
+      "name": "POST /api/account/type - 200 change to TECHNICAL role",
       "event": [
         {
           "listen": "test",
           "script": {
             "exec": [
-              "pm.test('Returns 200 with TECHNICIAN role', function () {",
+              "pm.test('Returns 200 with TECHNICAL role', function () {",
               "  pm.response.to.have.status(200);",
               "});",
-              "pm.test('Role is updated to TECHNICIAN', function () {",
+              "pm.test('Role is updated to TECHNICAL', function () {",
               "  var body = pm.response.json();",
-              "  pm.expect(body.role).to.eql('TECHNICIAN');",
+              "  pm.expect(body.role).to.eql('TECHNICAL');",
               "});"
             ]
           }
@@ -209,7 +176,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\"role\":\"TECHNICIAN\"}"
+          "raw": "{\"role\":\"TECHNICAL\"}"
         },
         "url": { "raw": "{{baseUrl}}/api/account/type" }
       }
@@ -241,37 +208,6 @@
         "body": {
           "mode": "raw",
           "raw": "{\"role\":\"driver\"}"
-        },
-        "url": { "raw": "{{baseUrl}}/api/account/type" }
-      }
-    },
-    {
-      "name": "POST /api/account/type - 200 explicit userId in body",
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test('Returns 200 when explicit userId is provided', function () {",
-              "  pm.response.to.have.status(200);",
-              "});",
-              "pm.test('Response contains correct role', function () {",
-              "  var body = pm.response.json();",
-              "  pm.expect(body.role).to.be.a('string');",
-              "});"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "method": "POST",
-        "header": [
-          { "key": "Content-Type", "value": "application/json" },
-          { "key": "Authorization", "value": "Bearer {{managerToken}}" }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\"role\":\"DRIVER\",\"userId\":\"{{driverAuthentikId}}\"}"
         },
         "url": { "raw": "{{baseUrl}}/api/account/type" }
       }

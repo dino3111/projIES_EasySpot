@@ -6,7 +6,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import java.util.Arrays;
 
 public enum UserRole {
-    DRIVER, MANAGER, TECHNICIAN;
+    DRIVER, MANAGER, TECHNICAL;
 
     @JsonValue
     public String value() {
@@ -22,6 +22,6 @@ public enum UserRole {
             .filter(r -> r.name().equalsIgnoreCase(raw))
             .findFirst()
             .orElseThrow(() -> new IllegalArgumentException(
-                "invalid role: " + raw + ". Must be one of: DRIVER, MANAGER, TECHNICIAN"));
+                "invalid role: " + raw + ". Must be one of: DRIVER, MANAGER, TECHNICAL"));
     }
 }

@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
 
-export type AppProfile = 'DRIVER' | 'MANAGER' | 'TECHNICIAN';
+export type AppProfile = 'DRIVER' | 'MANAGER' | 'TECHNICAL';
 export type AccountType = AppProfile;
 export type DriverType = 'regular' | 'ev' | 'mobilidade_reduzida' | null;
 
@@ -64,12 +64,12 @@ function readJSON<T>(key: string, fallback: T): T {
 export function ProfileProvider({ children }: { children: ReactNode }) {
   const [profile, setProfileState] = useState<AppProfile>(() => {
     const stored = localStorage.getItem(STORAGE_KEYS.profile);
-    return (stored === 'MANAGER' || stored === 'DRIVER' || stored === 'TECHNICIAN') ? stored : 'DRIVER';
+    return (stored === 'MANAGER' || stored === 'DRIVER' || stored === 'TECHNICAL') ? stored : 'DRIVER';
   });
 
   const [accountType, setAccountTypeState] = useState<AccountType>(() => {
     const stored = localStorage.getItem(STORAGE_KEYS.accountType);
-    return (stored === 'MANAGER' || stored === 'DRIVER' || stored === 'TECHNICIAN') ? stored : 'DRIVER';
+    return (stored === 'MANAGER' || stored === 'DRIVER' || stored === 'TECHNICAL') ? stored : 'DRIVER';
   });
 
   const [driverType, setDriverTypeState] = useState<DriverType>(() => {

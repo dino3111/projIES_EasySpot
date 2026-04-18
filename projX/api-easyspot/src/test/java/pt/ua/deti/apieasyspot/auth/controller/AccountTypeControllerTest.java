@@ -121,19 +121,18 @@ class AccountTypeControllerTest {
     }
 
     @Test
-    @DisplayName("POST /api/account/type - explicit userId in body - uses it over JWT subject")
-    void updateAccountType_explicitUserId_usesBodyOverJwt() throws Exception {
-        String explicitId = "other-user-sub";
-        when(userProfileService.updateRole(eq(explicitId), eq(UserRole.TECHNICIAN)))
-            .thenReturn(buildUser("TECHNICIAN"));
+    @DisplayName("POST /api/account/type - success TECHNICAL - returns 200 with updated role")
+    void updateAccountType_successTechnical_returns200() throws Exception {
+        when(userProfileService.updateRole(eq(EXISTING_SUBJECT), eq(UserRole.TECHNICAL)))
+            .thenReturn(buildUser("TECHNICAL"));
 
         mockMvc.perform(post("/api/account/type")
                 .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_DRIVER"))
                     .jwt(j -> j.subject(EXISTING_SUBJECT)))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"role\":\"TECHNICIAN\",\"userId\":\"" + explicitId + "\"}"))
+                .content("{\"role\":\"TECHNICAL\"}"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.role").value("TECHNICIAN"));
+            .andExpect(jsonPath("$.role").value("TECHNICAL"));
     }
 
     @Test

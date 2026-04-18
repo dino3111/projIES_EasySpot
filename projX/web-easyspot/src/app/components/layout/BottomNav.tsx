@@ -38,7 +38,7 @@ export function BottomNav() {
   };
 
   const condutorTabs = getCondutorTabs();
-  const tabs = profile === 'MANAGER' ? gestorTabs : profile === 'TECHNICIAN' ? tecnicoTabs : condutorTabs;
+  const tabs = profile === 'MANAGER' ? gestorTabs : profile === 'TECHNICAL' ? tecnicoTabs : condutorTabs;
 
   const isActive = (path: string, exact: boolean) => {
     if (exact) return location.pathname === path;

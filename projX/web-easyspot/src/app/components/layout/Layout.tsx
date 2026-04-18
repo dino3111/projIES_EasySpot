@@ -13,7 +13,7 @@ export function Layout() {
     return <Navigate to="/" replace />;
   }
 
-  if (path.startsWith('/tecnico') && profile !== 'TECHNICIAN') {
+  if (path.startsWith('/tecnico') && profile !== 'TECHNICAL') {
     return <Navigate to="/" replace />;
   }
 

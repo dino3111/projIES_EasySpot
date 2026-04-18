@@ -18,7 +18,7 @@ export function PerfilPage() {
 
       {profile === 'DRIVER' && <CondutorProfile />}
       {profile === 'MANAGER' && <GestorProfile />}
-      {profile === 'TECHNICIAN' && <TecnicoProfile />}
+      {profile === 'TECHNICAL' && <TecnicoProfile />}
 
       <div className="text-center pb-4 mt-2">
         <div className="flex items-center justify-center gap-2 mb-1">
@@ -35,13 +35,13 @@ function UserCard({ accountType }: Readonly<{ accountType: string }>) {
   const roleLabel: Record<string, string> = {
     DRIVER: 'Condutor',
     MANAGER: 'Gestor de Parques',
-    TECHNICIAN: 'Técnico de Manutenção',
+    TECHNICAL: 'Técnico de Manutenção',
   };
 
   const roleIcon: Record<string, string> = {
     DRIVER: 'fa-car',
     MANAGER: 'fa-chart-pie',
-    TECHNICIAN: 'fa-wrench',
+    TECHNICAL: 'fa-wrench',
   };
 
   return (

@@ -15,7 +15,7 @@ const PROFILE_OPTIONS: {
 }[] = [
   { id: 'DRIVER',     icon: 'fa-car',               label: 'Condutor',              desc: 'Encontrar e reservar lugares',          color: '#22c55e', home: '/' },
   { id: 'MANAGER',    icon: 'fa-building',           label: 'Gestor de Parques',     desc: 'Dashboard, tarifas e ocorrências',      color: '#f59e0b', home: '/gestor/dashboard' },
-  { id: 'TECHNICIAN', icon: 'fa-screwdriver-wrench', label: 'Técnico de Manutenção', desc: 'Diagnóstico, sensores e tarefas',       color: '#3b82f6', home: '/tecnico/dashboard' },
+  { id: 'TECHNICAL',  icon: 'fa-screwdriver-wrench', label: 'Técnico de Manutenção', desc: 'Diagnóstico, sensores e tarefas',       color: '#3b82f6', home: '/tecnico/dashboard' },
 ];
 
 export function Header() {

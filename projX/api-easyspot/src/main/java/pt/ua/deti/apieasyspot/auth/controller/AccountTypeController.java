@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import pt.ua.deti.apieasyspot.auth.dto.AccountTypeResponse;
 import pt.ua.deti.apieasyspot.auth.dto.AccountTypeUpdateRequest;
 import pt.ua.deti.apieasyspot.auth.model.User;
+import pt.ua.deti.apieasyspot.auth.model.UserRole;
 import pt.ua.deti.apieasyspot.auth.service.UserProfileService;
 
 @Tag(name = "Auth", description = "Authenticated user profile management")
@@ -38,8 +39,7 @@ public class AccountTypeController {
         @RequestBody @Valid AccountTypeUpdateRequest request,
         @AuthenticationPrincipal Jwt jwt
     ) {
-        String authentikUserId = request.userId() != null ? request.userId() : jwt.getSubject();
-        User user = userProfileService.updateRole(authentikUserId, request.role());
+        User user = userProfileService.updateRole(jwt.getSubject(), request.role());
         return ResponseEntity.ok(toResponse(user));
     }
 
@@ -47,7 +47,7 @@ public class AccountTypeController {
         return new AccountTypeResponse(
             user.getId().toString(),
             user.getEmail(),
-            user.getRole(),
+            UserRole.fromValue(user.getRole()),
             user.getUpdatedAt()
         );
     }

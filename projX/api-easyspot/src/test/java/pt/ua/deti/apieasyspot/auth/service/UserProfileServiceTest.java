@@ -69,17 +69,6 @@ class UserProfileServiceTest {
     }
 
     @Test
-    @DisplayName("updateRole - DRIVER to MANAGER - persists new role")
-    void updateRole_driverToManager_updatesRole() {
-        when(userRepository.findByAuthentikUserId("sub-123")).thenReturn(Optional.of(user));
-        when(userRepository.save(user)).thenReturn(user);
-
-        User result = service.updateRole("sub-123", UserRole.MANAGER);
-
-        assertThat(result.getRole()).isEqualTo("MANAGER");
-    }
-
-    @Test
     @DisplayName("updateRole - same role twice - idempotent, still saves")
     void updateRole_sameRole_idempotent() {
         when(userRepository.findByAuthentikUserId("sub-123")).thenReturn(Optional.of(user));

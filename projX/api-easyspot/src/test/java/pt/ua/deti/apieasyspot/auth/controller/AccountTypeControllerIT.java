@@ -126,17 +126,17 @@ class AccountTypeControllerIT {
     }
 
     @Test
-    @DisplayName("POST /api/account/type - DRIVER to TECHNICIAN - persists new role")
-    void updateAccountType_driverToTechnician_persistsNewRole() throws Exception {
+    @DisplayName("POST /api/account/type - DRIVER to TECHNICAL - persists new role")
+    void updateAccountType_driverToTechnical_persistsNewRole() throws Exception {
         mockMvc.perform(post("/api/account/type")
                 .with(jwt().jwt(j -> j.subject(USER_SUBJECT).claim("groups", List.of("DRIVER"))))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"role\":\"TECHNICIAN\"}"))
+                .content("{\"role\":\"TECHNICAL\"}"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.role").value("TECHNICIAN"));
+            .andExpect(jsonPath("$.role").value("TECHNICAL"));
 
         User updated = userRepository.findByAuthentikUserId(USER_SUBJECT).orElseThrow();
-        assertThat(updated.getRole()).isEqualTo("TECHNICIAN");
+        assertThat(updated.getRole()).isEqualTo("TECHNICAL");
     }
 
     @Test
@@ -157,31 +157,8 @@ class AccountTypeControllerIT {
     }
 
     @Test
-    @DisplayName("POST /api/account/type - explicit userId in body - updates that user")
-    void updateAccountType_explicitUserId_updatesTargetUser() throws Exception {
-        User other = new User();
-        other.setAuthentikUserId("other-subject");
-        other.setEmail("other@test.com");
-        other.setName("Other User");
-        other.setRole("DRIVER");
-        userRepository.save(other);
-
-        mockMvc.perform(post("/api/account/type")
-                .with(jwt().jwt(j -> j.subject(USER_SUBJECT).claim("groups", List.of("DRIVER"))))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"role\":\"TECHNICIAN\",\"userId\":\"other-subject\"}"))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.role").value("TECHNICIAN"))
-            .andExpect(jsonPath("$.email").value("other@test.com"));
-
-        User updated = userRepository.findByAuthentikUserId("other-subject").orElseThrow();
-        assertThat(updated.getRole()).isEqualTo("TECHNICIAN");
-    }
-
-    @Test
     @DisplayName("POST /api/account/type - active session with old role - DB updated, response reflects new role")
     void updateAccountType_activeSessionOldRole_dbUpdated() throws Exception {
-        // JWT still carries old DRIVER group (simulating active session), but DB is updated
         mockMvc.perform(post("/api/account/type")
                 .with(jwt().jwt(j -> j.subject(USER_SUBJECT).claim("groups", List.of("DRIVER"))))
                 .contentType(MediaType.APPLICATION_JSON)
