@@ -95,6 +95,40 @@
       }
     },
     {
+      "name": "POST vehicle - 200 manual entry (foreign plate)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "var body = pm.response.json();",
+              "pm.test('Vehicle created with manual data', function () {",
+              "  pm.expect(body.plate).to.eql('FR-123-AB');",
+              "  pm.expect(body.make).to.eql('Renault');",
+              "  pm.expect(body.model).to.eql('Megane');",
+              "  pm.expect(body.fuelType).to.eql('Gasolina');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"licensePlate\":\"FR-123-AB\",\"make\":\"Renault\",\"model\":\"Megane\",\"fuelType\":\"Gasolina\",\"year\":2019}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/vehicles" }
+      }
+    },
+    {
       "name": "Setup - Fetch seeded vehicle ID",
       "event": [
         {

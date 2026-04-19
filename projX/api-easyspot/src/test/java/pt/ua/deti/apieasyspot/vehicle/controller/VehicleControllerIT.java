@@ -1,11 +1,11 @@
 package pt.ua.deti.apieasyspot.vehicle.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
@@ -13,6 +13,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import pt.ua.deti.apieasyspot.auth.model.User;
 import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
+import pt.ua.deti.apieasyspot.common.exception.ExternalServiceException;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleCreateRequest;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleData;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleUpdateRequest;
@@ -20,7 +21,6 @@ import pt.ua.deti.apieasyspot.vehicle.model.Vehicle;
 import pt.ua.deti.apieasyspot.vehicle.repository.VehicleRepository;
 import pt.ua.deti.apieasyspot.vehicle.service.VehicleLookupClient;
 
-import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -68,9 +68,9 @@ class VehicleControllerIT {
     }
 
     @Test
-    @DisplayName("POST /api/vehicles - success")
+    @DisplayName("POST /api/vehicles - success with IMT lookup")
     void createVehicle_success() throws Exception {
-        VehicleCreateRequest request = new VehicleCreateRequest("BB-00-BB", "RFID-1");
+        VehicleCreateRequest request = new VehicleCreateRequest("BB-00-BB", "RFID-1", null, null, null, null);
         VehicleData data = new VehicleData(
             "BB-00-BB", "VIN123", "Tesla", "Model 3",
             null, null, null, "Elétrico",
@@ -90,6 +90,39 @@ class VehicleControllerIT {
             .andExpect(jsonPath("$.isEv").value(true));
 
         assertThat(vehicleRepository.findByPlate("BB-00-BB")).isPresent();
+    }
+
+    @Test
+    @DisplayName("POST /api/vehicles - IMT not found, no manual data - returns 422")
+    void createVehicle_imtNotFound_noManualData_returns422() throws Exception {
+        VehicleCreateRequest request = new VehicleCreateRequest("CC-00-CC", null, null, null, null, null);
+
+        when(vehicleLookupClient.lookup("CC-00-CC")).thenThrow(new ExternalServiceException("Not found"));
+
+        mockMvc.perform(post("/api/vehicles")
+                .with(jwtWithRole("auth-sub-123", "DRIVER"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isUnprocessableEntity())
+            .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("Please provide")));
+    }
+
+    @Test
+    @DisplayName("POST /api/vehicles - manual data provided - saves without lookup")
+    void createVehicle_manualData_savesWithoutLookup() throws Exception {
+        VehicleCreateRequest request = new VehicleCreateRequest("FR-123-AB", null, "Renault", "Megane", "Gasolina", 2019);
+
+        mockMvc.perform(post("/api/vehicles")
+                .with(jwtWithRole("auth-sub-123", "DRIVER"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.plate").value("FR-123-AB"))
+            .andExpect(jsonPath("$.make").value("Renault"))
+            .andExpect(jsonPath("$.model").value("Megane"));
+
+        verifyNoInteractions(vehicleLookupClient);
+        assertThat(vehicleRepository.findByPlate("FR-123-AB")).isPresent();
     }
 
     @Test
