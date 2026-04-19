@@ -1,0 +1,114 @@
+{
+	"info": {
+		"_postman_id": "a1b2c3d4-e5f6-4a5b-bc6d-7e8f9a0b1c2d",
+		"name": "EasySpot-ParkDetails",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Get Park Details",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Response structure is correct\", function () {",
+							"    const jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('id');",
+							"    pm.expect(jsonData).to.have.property('name');",
+							"    pm.expect(jsonData).to.have.property('address');",
+							"    pm.expect(jsonData).to.have.property('coordinates');",
+							"    pm.expect(jsonData.coordinates).to.have.property('lat');",
+							"    pm.expect(jsonData.coordinates).to.have.property('lng');",
+							"    pm.expect(jsonData).to.have.property('openingHours');",
+							"    pm.expect(jsonData).to.have.property('totalSpaces');",
+							"    pm.expect(jsonData).to.have.property('freeSpaces');",
+							"    pm.expect(jsonData).to.have.property('zones');",
+							"    pm.expect(jsonData.zones).to.be.an('array');",
+							"    pm.expect(jsonData).to.have.property('spotMap');",
+							"    pm.expect(jsonData).to.have.property('evChargers');",
+							"    pm.expect(jsonData).to.have.property('accessibility');",
+							"    pm.expect(jsonData).to.have.property('tariffs');",
+							"    pm.expect(jsonData).to.have.property('amenities');",
+							"});",
+							"",
+							"pm.test(\"Freshness check - occupancy data exists\", function () {",
+							"    const jsonData = pm.response.json();",
+							"    if (jsonData.zones.length > 0) {",
+							"        pm.expect(jsonData.zones[0]).to.have.property('occupancyPercent');",
+							"    }",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/parks/{{parkId}}/details",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"parks",
+						"{{parkId}}",
+						"details"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Park Details - Not Found",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 404\", function () {",
+							"    pm.response.to.have.status(404);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/parks/00000000-0000-0000-0000-000000000000/details",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"parks",
+						"00000000-0000-0000-0000-000000000000",
+						"details"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

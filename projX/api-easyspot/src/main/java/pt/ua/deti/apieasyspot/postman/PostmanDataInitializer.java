@@ -15,11 +15,8 @@ import pt.ua.deti.apieasyspot.notification.model.StateAlert;
 import pt.ua.deti.apieasyspot.notification.model.SeverityAlert;
 import pt.ua.deti.apieasyspot.notification.model.AlertType;
 import pt.ua.deti.apieasyspot.notification.repository.AlertRepository;
-import pt.ua.deti.apieasyspot.occupancy.model.OccupancySnapshot;
-import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
-import pt.ua.deti.apieasyspot.occupancy.model.ZoneType;
-import pt.ua.deti.apieasyspot.occupancy.repository.OccupancySnapshotRepository;
-import pt.ua.deti.apieasyspot.occupancy.repository.ParkingLotRepository;
+import pt.ua.deti.apieasyspot.occupancy.model.*;
+import pt.ua.deti.apieasyspot.occupancy.repository.*;
 import pt.ua.deti.apieasyspot.vehicle.model.Vehicle;
 import pt.ua.deti.apieasyspot.vehicle.repository.VehicleRepository;
 
@@ -27,6 +24,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -41,6 +39,10 @@ class PostmanDataInitializer implements ApplicationRunner {
     private final ParkingSessionRepository parkingSessionRepository;
     private final AlertRepository alertRepository;
     private final OccupancySnapshotRepository occupancySnapshotRepository;
+    private final TariffRepository tariffRepository;
+    private final EVChargerRepository evChargerRepository;
+    private final AccessibleSpotRepository accessibleSpotRepository;
+    private final ParkingSpotRepository parkingSpotRepository;
 
     @Getter
     private UUID vehicleId;
@@ -54,7 +56,11 @@ class PostmanDataInitializer implements ApplicationRunner {
         ParkingLotRepository parkingLotRepository,
         ParkingSessionRepository parkingSessionRepository,
         AlertRepository alertRepository,
-        OccupancySnapshotRepository occupancySnapshotRepository
+        OccupancySnapshotRepository occupancySnapshotRepository,
+        TariffRepository tariffRepository,
+        EVChargerRepository evChargerRepository,
+        AccessibleSpotRepository accessibleSpotRepository,
+        ParkingSpotRepository parkingSpotRepository
     ) {
         this.userRepository = userRepository;
         this.vehicleRepository = vehicleRepository;
@@ -62,12 +68,17 @@ class PostmanDataInitializer implements ApplicationRunner {
         this.parkingSessionRepository = parkingSessionRepository;
         this.alertRepository = alertRepository;
         this.occupancySnapshotRepository = occupancySnapshotRepository;
+        this.tariffRepository = tariffRepository;
+        this.evChargerRepository = evChargerRepository;
+        this.accessibleSpotRepository = accessibleSpotRepository;
+        this.parkingSpotRepository = parkingSpotRepository;
     }
 
     @Override
     public void run(ApplicationArguments args) {
         User driver = seedUser();
         List<ParkingLot> lots = seedLots();
+        seedDetails(lots);
         seedSessions(lots, driver);
         seedAlerts(lots);
         seedHourlySnapshots(lots);
@@ -94,12 +105,58 @@ class PostmanDataInitializer implements ApplicationRunner {
 
     private List<ParkingLot> seedLots() {
         List<ParkingLot> lots = parkingLotRepository.saveAll(List.of(
-            lot("Fórum Aveiro", "Aveiro"),
-            lot("Glicínias Plaza", "Aveiro"),
-            lot("Europa", "Leiria")
+            lot("Fórum Aveiro", "Aveiro", "R. do Batalhão de Caçadores 10, 3810-064 Aveiro", 40.6405, -8.6531, "08h00-00h00", 500, List.of("CCTV", "WC", "Elevador", "Acessível")),
+            lot("Glicínias Plaza", "Aveiro", "R. D. Manuel Barbuda e Vasconcelos, 3810-498 Aveiro", 40.6275, -8.6441, "09h00-23h00", 2000, List.of("CCTV", "WC", "Restaurantes", "Lojas")),
+            lot("Europa", "Leiria", "Av. Marquês de Pombal, 2410-152 Leiria", 39.7431, -8.8061, "24h", 300, List.of("Segurança 24h", "Coberto"))
         ));
         parkId = lots.get(0).getId();
         return lots;
+    }
+
+    private void seedDetails(List<ParkingLot> lots) {
+        for (ParkingLot lot : lots) {
+            // Tariffs
+            Tariff standard = new Tariff();
+            standard.setParkingLot(lot);
+            standard.setName("Standard");
+            standard.setDescription("Tarifa normal de estacionamento");
+            standard.setPricePerHour(BigDecimal.valueOf(1.20));
+            standard.setMaxDaily(BigDecimal.valueOf(12.00));
+            standard.setMonthly(BigDecimal.valueOf(80.00));
+            tariffRepository.save(standard);
+
+            if (lot.getName().contains("Fórum")) {
+                EVCharger charger = new EVCharger();
+                charger.setParkingLot(lot);
+                charger.setType("Type 2");
+                charger.setSpeed("Rápida (22kW)");
+                charger.setPricePerKwh(BigDecimal.valueOf(0.35));
+                charger.setAvailable(true);
+                evChargerRepository.save(charger);
+
+                AccessibleSpot spot = new AccessibleSpot();
+                spot.setParkingLot(lot);
+                spot.setLocation("Piso 0, junto à entrada");
+                spot.setAvailable(true);
+                spot.setDistanceToEntranceMeters(15);
+                spot.setBaySize("3.5m x 5.0m");
+                accessibleSpotRepository.save(spot);
+            }
+
+            // Some spots for the map
+            for (int r = 1; r <= 3; r++) {
+                for (int c = 1; c <= 5; c++) {
+                    ParkingSpot s = new ParkingSpot();
+                    s.setParkingLot(lot);
+                    s.setSpotNumber(lot.getName().charAt(0) + "" + r + c);
+                    s.setZone(ZoneType.STANDARD);
+                    s.setSpotRow(r);
+                    s.setSpotCol(c);
+                    s.setStatus(Math.random() > 0.3 ? "free" : "occupied");
+                    parkingSpotRepository.save(s);
+                }
+            }
+        }
     }
 
     private void seedSessions(List<ParkingLot> lots, User driver) {
@@ -156,10 +213,16 @@ class PostmanDataInitializer implements ApplicationRunner {
         }
     }
 
-    private ParkingLot lot(String name, String city) {
+    private ParkingLot lot(String name, String city, String address, Double lat, Double lng, String hours, Integer total, List<String> amenities) {
         ParkingLot l = new ParkingLot();
         l.setName(name);
         l.setCity(city);
+        l.setAddress(address);
+        l.setLatitude(lat);
+        l.setLongitude(lng);
+        l.setOpeningHours(hours);
+        l.setTotalSpaces(total);
+        l.setAmenities(amenities);
         return l;
     }
 
