@@ -20,22 +20,6 @@ on:
       - 'projX/web-easyspot/**'
       - 'projX/pom.xml'
   pull_request:
-    branches: ["master", "develop"]
-    paths:
-      - '.github/workflows/ci.yml'
-      - '.github/workflows/pre-commit.yml'
-      - '.github/workflows/sonarqube.yml'
-      - '.github/workflows/release.yml'
-      - '.github/workflows/deploy-self-hosted.yml'
-      - '**/*.yml'
-      - '**/*.yaml'
-      - '**/*.json'
-      - '**/*.md'
-      - '**/Dockerfile'
-      - '**/*.dockerfile'
-      - 'projX/api-easyspot/**'
-      - 'projX/web-easyspot/**'
-      - 'projX/pom.xml'
 
 concurrency:
   group: ci-config-${{ github.ref }}
@@ -59,7 +43,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-        continue-on-error: true 
 
       - name: Cache pre-commit environments (aggressive for Pi)
         uses: actions/cache@v4
@@ -114,9 +97,104 @@ jobs:
             projX/api-easyspot/target/site/jacoco/
           retention-days: 30
 
+  test-newman:
+    name: Backend Newman validation
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: easyspot
+          POSTGRES_PASSWORD: easyspot
+          POSTGRES_DB: easyspot_postman
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd="pg_isready -U easyspot -d easyspot_postman"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Newman
+        run: npm install --global newman
+
+      - name: Prepare multipart fixtures
+        run: |
+          cd projX/api-easyspot
+          ./postman/scripts/prepare-fixtures.sh
+
+      - name: Build project
+        run: |
+          cd projX/api-easyspot
+          ./mvnw -B -DskipTests package
+
+      - name: Start API with postman profile
+        env:
+          SPRING_PROFILES_ACTIVE: postman
+          POSTMAN_DB_URL: jdbc:postgresql://localhost:5433/easyspot_postman
+          POSTMAN_DB_USER: easyspot
+          POSTMAN_DB_PASS: easyspot
+          POSTMAN_KAFKA_SERVERS: localhost:9093
+          POSTMAN_JWT_SECRET: easyspot-postman-secret-key-change-me-2026
+        run: |
+          cd projX/api-easyspot
+          ./mvnw -B spring-boot:run > app.log 2>&1 &
+          echo $! > app.pid
+
+      - name: Wait for health endpoint
+        run: |
+          for i in {1..60}; do
+            if curl -fsS http://localhost:8080/actuator/health >/dev/null; then
+              echo "API is up"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "API did not become healthy in time"
+          tail -n 200 projX/api-easyspot/app.log || true
+          exit 1
+
+      - name: Run reports collection
+        run: |
+          cd projX/api-easyspot
+          ./postman/scripts/run-reports-newman.sh
+
+      - name: Stop API
+        if: always()
+        run: |
+          if [ -f projX/api-easyspot/app.pid ]; then
+            kill "$(cat projX/api-easyspot/app.pid)" || true
+          fi
+
+      - name: Upload Newman artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: postman-reports-artifacts
+          path: |
+            projX/api-easyspot/newman/
+            projX/api-easyspot/app.log
+          if-no-files-found: warn
+
   test-frontend-build:
     name: Frontend build validation
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -126,12 +204,12 @@ jobs:
         with:
           node-version: '20'
           cache: npm
-          cache-dependency-path: projX/web-easyspot/package-lock.json
+          cache-dependency-path: projX/web-easyspot/package.json
 
       - name: Install dependencies
         run: |
           cd projX/web-easyspot
-          npm ci
+          npm install --no-audit --no-fund --package-lock=false
 
       - name: Build frontend
         run: |
