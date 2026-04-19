@@ -12,8 +12,8 @@
     { "key": "park_id", "value": "" },
     { "key": "valid_image_path", "value": "postman/files/valid-image.svg" },
     { "key": "invalid_file_path", "value": "postman/files/not-image.txt" },
-    { "key": "max_size_file_path", "value": "postman/files/max-size-10mb.bin" },
-    { "key": "oversized_file_path", "value": "postman/files/oversized.bin" }
+    { "key": "max_size_file_path", "value": "postman/files/max-size-10mb.jpg" },
+    { "key": "oversized_file_path", "value": "postman/files/oversized.jpg" }
   ],
   "item": [
     {
