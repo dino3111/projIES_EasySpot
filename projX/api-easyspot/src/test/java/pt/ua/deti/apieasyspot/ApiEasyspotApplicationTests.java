@@ -8,7 +8,7 @@ import org.springframework.context.annotation.Import;
 import tools.jackson.databind.ObjectMapper;
 
 @SpringBootTest
-@Import(ApiEasyspotApplicationTests.TestConfig.class)
+@Import({TestcontainersConfiguration.class, ApiEasyspotApplicationTests.TestConfig.class})
 class ApiEasyspotApplicationTests {
 
     @Test
