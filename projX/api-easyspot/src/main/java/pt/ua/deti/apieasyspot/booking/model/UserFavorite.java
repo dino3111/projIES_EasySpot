@@ -15,7 +15,11 @@ import java.util.UUID;
 @Entity
 @Table(
     name = "user_favorites",
-    uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "parking_lot_id"})
+    uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "parking_lot_id"}),
+    indexes = {
+        @Index(name = "idx_uf_user_id", columnList = "user_id"),
+        @Index(name = "idx_uf_parking_lot_id", columnList = "parking_lot_id")
+    }
 )
 public class UserFavorite {
 
