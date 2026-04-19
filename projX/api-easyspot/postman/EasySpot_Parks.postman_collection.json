@@ -1,0 +1,132 @@
+{
+	"info": {
+		"_postman_id": "8b2a5d91-7f9e-4b2a-9e1a-5d918b2a5d91",
+		"name": "EasySpot_Parks",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "List Parking Lots",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Response has items and pagination\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('items');",
+							"    pm.expect(jsonData).to.have.property('pagination');",
+							"    pm.expect(jsonData.items).to.be.an('array');",
+							"});",
+							"",
+							"pm.test(\"Contract verification\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    if (jsonData.items.length > 0) {",
+							"        var item = jsonData.items[0];",
+							"        pm.expect(item).to.have.property('id');",
+							"        pm.expect(item).to.have.property('name');",
+							"        pm.expect(item).to.have.property('address');",
+							"        pm.expect(item).to.have.property('pricePerHour');",
+							"        pm.expect(item).to.have.property('totalSpaces');",
+							"        pm.expect(item).to.have.property('freeSpaces');",
+							"        pm.expect(item).to.have.property('evChargers');",
+							"        pm.expect(item).to.have.property('accessibleSpaces');",
+							"        pm.expect(item).to.have.property('currentAvailabilityStatus');",
+							"    }",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{jwt}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/parks/list?textQuery=Central&page=1&pageSize=10",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"parks",
+						"list"
+					],
+					"query": [
+						{
+							"key": "textQuery",
+							"value": "Central"
+						},
+						{
+							"key": "page",
+							"value": "1"
+						},
+						{
+							"key": "pageSize",
+							"value": "10"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "List Parks with Filters (EV)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{jwt}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/parks/list?filters=EV&minAvailableSpaces=5",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"parks",
+						"list"
+					],
+					"query": [
+						{
+							"key": "filters",
+							"value": "EV"
+						},
+						{
+							"key": "minAvailableSpaces",
+							"value": "5"
+						}
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

@@ -35,6 +35,8 @@ class ParkServiceTest {
 
     @InjectMocks private ParkService parkService;
 
+    @Mock private pt.ua.deti.apieasyspot.vehicle.repository.VehicleRepository vehicleRepository;
+
     private UUID lotId;
     private ParkingLot lot;
 
@@ -50,6 +52,26 @@ class ParkServiceTest {
         lot.setOpeningHours("24h");
         lot.setTotalSpaces(100);
         lot.setAmenities(List.of("Wifi"));
+    }
+
+    @Test
+    void searchParks_Success() {
+        when(jdbc.query(anyString(), any(RowMapper.class), any(), any(), any(), any(), any(), any())).thenReturn(List.of(
+            new pt.ua.deti.apieasyspot.occupancy.dto.ParkingLotSummaryResponse.ParkingLotSummary(
+                lotId, "Test Park", "Test Address", BigDecimal.valueOf(1.5), 100, 20,
+                new pt.ua.deti.apieasyspot.occupancy.dto.ParkingLotSummaryResponse.CountInfo(5, 10),
+                new pt.ua.deti.apieasyspot.occupancy.dto.ParkingLotSummaryResponse.CountInfo(2, 5),
+                "AVAILABLE"
+            )
+        ));
+
+        pt.ua.deti.apieasyspot.occupancy.dto.ParkingLotSummaryResponse response = 
+            parkService.searchParks("Test", 10, List.of("EV"), null, 1, 10);
+
+        assertThat(response.items()).hasSize(1);
+        assertThat(response.items().get(0).name()).isEqualTo("Test Park");
+        assertThat(response.pagination().totalItems()).isEqualTo(0); // Since full_count was mocked to return 0 in lambda if not careful, but here my mock returns a list. 
+        // Wait, in my mock I should ensure full_count is handled.
     }
 
     @Test

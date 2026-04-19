@@ -43,6 +43,29 @@ class ParkControllerIT {
     }
 
     @Test
+    void listParks_Success() throws Exception {
+        mockMvc.perform(get("/api/parks/list")
+                .param("textQuery", "Central")
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(jwtWithRole("sub", "DRIVER")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items").isArray())
+                .andExpect(jsonPath("$.items[0].name").value("Parque Central"))
+                .andExpect(jsonPath("$.pagination.totalItems").value(1));
+    }
+
+    @Test
+    void listParks_Filtered_NoResults() throws Exception {
+        mockMvc.perform(get("/api/parks/list")
+                .param("textQuery", "NonExistent")
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(jwtWithRole("sub", "DRIVER")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items").isEmpty())
+                .andExpect(jsonPath("$.pagination.totalItems").value(0));
+    }
+
+    @Test
     void getDetails_Success() throws Exception {
         mockMvc.perform(get("/api/parks/{id}/details", lot.getId())
                 .contentType(MediaType.APPLICATION_JSON)
