@@ -22,14 +22,8 @@ env:
 
 jobs:
   pre-commit:
-    runs-on: [self-hosted]
+    runs-on: ubuntu-latest
     steps:
-      - name: Fix workspace permissions
-        run: |
-          sudo chown -R "$USER:$USER" "$GITHUB_WORKSPACE" 2>/dev/null || \
-          docker run --rm -v "$GITHUB_WORKSPACE:/workspace" alpine \
-            sh -c "chown -R $(id -u):$(id -g) /workspace"
-
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -39,7 +33,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-        continue-on-error: true  # Self-hosted may not have all Python versions
 
       - name: Set up Java (Temurin 21)
         uses: actions/setup-java@v4

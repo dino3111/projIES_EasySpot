@@ -20,6 +20,9 @@ class PostmanTestDataController {
 
     @GetMapping("/seed")
     Map<String, String> getSeedData() {
-        return Map.of("vehicleId", initializer.getVehicleId().toString());
+        return Map.of(
+            "vehicleId", initializer.getVehicleId().toString(),
+            "parkId", initializer.getParkId().toString()
+        );
     }
 }

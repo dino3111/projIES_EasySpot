@@ -16,19 +16,13 @@ env:
 jobs:
   release:
     name: Release
-    runs-on: [self-hosted]
+    runs-on: ubuntu-latest
     permissions:
       contents: write   # required to create releases/tags
       packages: write   # required to publish packages (if needed)
       issues: write
       pull-requests: write
     steps:
-      - name: Fix workspace permissions
-        run: |
-          sudo chown -R "$USER:$USER" "$GITHUB_WORKSPACE" 2>/dev/null || \
-          docker run --rm -v "$GITHUB_WORKSPACE:/workspace" alpine \
-            sh -c "chown -R $(id -u):$(id -g) /workspace"
-
       - name: Checkout
         uses: actions/checkout@v4
         with:

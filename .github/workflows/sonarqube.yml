@@ -45,70 +45,79 @@ jobs:
           java-version: '21'
           distribution: temurin
           cache: maven
-        timeout-minutes: 10
-
-      - name: Cache Maven packages 
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.m2/repository
-            ~/.m2/wrapper
-          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-maven-
-
-      - name: Cache SonarQube packages
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.sonar/cache
-            ~/.sonar/native-sonar-scanner
-          key: ${{ runner.os }}-sonar-${{ hashFiles('sonar-project.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-sonar-
-
-      - name: Ensure unzip is available
-        run: |
-          set -euo pipefail
-          if command -v unzip >/dev/null 2>&1; then
-            echo "unzip already installed"
-            exit 0
-          fi
-          
-          # For self-hosted runners, install unzip if available
-          if command -v apt-get >/dev/null 2>&1; then
-            # Try with sudo first, fallback to direct install
-            sudo -n apt-get update -qq 2>/dev/null || apt-get update -qq 2>/dev/null || true
-            sudo -n apt-get install -y --no-install-recommends unzip 2>/dev/null || apt-get install -y --no-install-recommends unzip 2>/dev/null || true
-          fi
-          
-          # Check again if unzip is available
-          if command -v unzip >/dev/null 2>&1; then
-            echo "unzip is available"
-            exit 0
-          fi
-          
-          echo "Warning: unzip not found, SonarSource/sonarqube-scan-action may fail" >&2
 
       - name: Build backend
         if: hashFiles('projX/api-easyspot/pom.xml') != ''
-        run: cd projX/api-easyspot && ./mvnw -q -DskipTests -T 1 compile
-        timeout-minutes: 15
+        run: cd projX/api-easyspot && ./mvnw compile -q
+
+      - name: Resolve reachable SonarQube URL
+        env:
+          SONAR_HOST_URL_SECRET: ${{ secrets.SONAR_HOST_URL }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${SONAR_HOST_URL_SECRET:-}" ]; then
+            echo "SONAR_HOST_URL secret is empty."
+            exit 1
+          fi
+
+          base_url="${SONAR_HOST_URL_SECRET%/}"
+          # Preserve explicit context path if provided in SONAR_HOST_URL.
+          # Only default to /sonar when URL has no path component.
+          case "$base_url" in
+            */sonar)
+              base_with_context="$base_url"
+              ;;
+            http://*/*|https://*/*)
+              base_with_context="$base_url"
+              ;;
+            *)
+              base_with_context="$base_url/sonar"
+              ;;
+          esac
+
+          localhost_url="$(printf '%s' "$base_with_context" | sed -E 's#^(https?://)[^/:]+#\1localhost#')"
+          loopback_url="$(printf '%s' "$base_with_context" | sed -E 's#^(https?://)[^/:]+#\1127.0.0.1#')"
+
+          # Prefer local resolution first on self-hosted runners to avoid host firewall/NAT issues.
+          candidates=("$localhost_url" "$loopback_url" "$base_with_context")
+
+          for candidate in "${candidates[@]}"; do
+            status_endpoint="${candidate}/api/system/status"
+            http_code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "$status_endpoint" || true)"
+
+            # Consider endpoint reachable even if SonarQube is still warming up or waiting for DB migration.
+            case "$http_code" in
+              200|204|301|302|303|307|308|401|403|503)
+                echo "Using SonarQube URL: $candidate (status=$http_code)"
+                echo "SONAR_HOST_URL_EFFECTIVE=$candidate" >> "$GITHUB_ENV"
+                exit 0
+                ;;
+            esac
+
+            echo "SonarQube not reachable via $status_endpoint (status=$http_code)"
+          done
+
+          echo "SonarQube endpoint is unreachable from this runner: $base_url"
+          exit 1
 
       - name: SonarQube Scan
-        uses: SonarSource/sonarqube-scan-action@v6
-        with:
-          args: >
-            -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
-            -Dsonar.pullrequest.branch=${{ github.head_ref }}
-            -Dsonar.pullrequest.base=${{ github.base_ref }}
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          SONAR_HOST_URL: ${{ env.SONAR_HOST_URL_EFFECTIVE }}
+        run: |
+          curl -sSLo sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-7.0.2.4839.zip
+          unzip -qo sonar-scanner.zip
+          export PATH="$PWD/sonar-scanner-7.0.2.4839/bin:$PATH"
+          
+          # Community Edition does not support pull request analysis
+          # Use branch analysis instead with automatic target branch detection
+          sonar-scanner \
+            -Dsonar.branch.name=${{ github.head_ref || github.ref_name }}
 
       - name: Quality Gate check
         uses: SonarSource/sonarqube-quality-gate-action@v1
         timeout-minutes: 5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          SONAR_HOST_URL: ${{ env.SONAR_HOST_URL_EFFECTIVE }}

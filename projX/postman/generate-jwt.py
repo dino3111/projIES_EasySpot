@@ -11,7 +11,9 @@ Outputs the JWT to stdout.
 """
 import sys
 import time
+
 import jwt
+
 
 def generate(private_key_path: str, role: str) -> str:
     with open(private_key_path) as f:
@@ -25,6 +27,7 @@ def generate(private_key_path: str, role: str) -> str:
         "exp": int(time.time()) + 3600,
     }
     return jwt.encode(payload, private_key, algorithm="RS256")
+
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
