@@ -17,6 +17,7 @@ on:
       - '**/Dockerfile'
       - '**/*.dockerfile'
       - 'projX/api-easyspot/**'
+      - 'projX/web-easyspot/**'
       - 'projX/pom.xml'
   pull_request:
     branches: ["master", "develop"]
@@ -33,6 +34,7 @@ on:
       - '**/Dockerfile'
       - '**/*.dockerfile'
       - 'projX/api-easyspot/**'
+      - 'projX/web-easyspot/**'
       - 'projX/pom.xml'
 
 concurrency:
@@ -48,14 +50,8 @@ env:
 jobs:
   lint-configs:
     name: Lint configs (YAML / JSON / Dockerfile)
-    runs-on: [self-hosted]
+    runs-on: ubuntu-latest
     steps:
-      - name: Fix workspace permissions
-        run: |
-          sudo chown -R "$USER:$USER" "$GITHUB_WORKSPACE" 2>/dev/null || \
-          docker run --rm -v "$GITHUB_WORKSPACE:/workspace" alpine \
-            sh -c "chown -R $(id -u):$(id -g) /workspace"
-
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -89,14 +85,8 @@ jobs:
 
   test-backend:
     name: Backend tests (unit + integration)
-    runs-on: [self-hosted]
+    runs-on: ubuntu-latest
     steps:
-      - name: Fix workspace permissions
-        run: |
-          sudo chown -R "$USER:$USER" "$GITHUB_WORKSPACE" 2>/dev/null || \
-          docker run --rm -v "$GITHUB_WORKSPACE:/workspace" alpine \
-            sh -c "chown -R $(id -u):$(id -g) /workspace"
-
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -123,3 +113,27 @@ jobs:
             projX/api-easyspot/target/failsafe-reports/
             projX/api-easyspot/target/site/jacoco/
           retention-days: 30
+
+  test-frontend-build:
+    name: Frontend build validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: projX/web-easyspot/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          cd projX/web-easyspot
+          npm ci
+
+      - name: Build frontend
+        run: |
+          cd projX/web-easyspot
+          npm run build
