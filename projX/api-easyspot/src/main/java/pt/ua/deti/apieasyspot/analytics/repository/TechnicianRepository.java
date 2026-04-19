@@ -35,7 +35,8 @@ public class TechnicianRepository {
             """
             select count(*) from alerts
             where type in ('SENSOR', 'SYSTEM')
-              and cast(created_at as date) = current_date
+              and created_at >= current_date
+              and created_at < current_date + interval '1 day'
               and state != 'RESOLVED'
             """, Long.class);
         return result != null ? result : 0L;
@@ -46,7 +47,8 @@ public class TechnicianRepository {
             """
             select count(*) from alerts
             where type in ('SENSOR', 'SYSTEM')
-              and cast(created_at as date) = current_date - 1
+              and created_at >= current_date - interval '1 day'
+              and created_at < current_date
               and state != 'RESOLVED'
             """, Long.class);
         return result != null ? result : 0L;
@@ -93,7 +95,7 @@ public class TechnicianRepository {
                 from alerts
                 where type = 'SENSOR'
                   and sensor_id is not null
-                  and cast(created_at as date) >= current_date - 6
+                  and created_at >= current_date - 6
                 group by cast(created_at as date)
             )
             select d.day,
