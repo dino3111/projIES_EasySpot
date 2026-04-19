@@ -20,12 +20,15 @@ public class TimescaleHypertableInitializer implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         try {
             jdbc.execute("create extension if not exists timescaledb cascade");
+            jdbc.execute("create extension if not exists pg_stat_statements");
             createHypertables();
             createUdfs();
             createTriggers();
             createViews();
             createContinuousAggregates();
             addPolicies();
+            applyStorageSettings();
+            createPartialIndexes();
             log.info("TimescaleDB initialization complete.");
         } catch (Exception e) {
             log.warn("TimescaleDB initialization skipped: {}", e.getMessage());
@@ -136,6 +139,26 @@ public class TimescaleHypertableInitializer implements ApplicationRunner {
             jdbc.execute("select add_retention_policy('occupancy_snapshots', drop_after => interval '365 days', if_not_exists => true)");
         } catch (Exception e) {
             log.debug("Retention policy skipped: {}", e.getMessage());
+        }
+    }
+
+    private void applyStorageSettings() {
+        try {
+            jdbc.execute("alter table alerts set (fillfactor = 75)");
+        } catch (Exception e) {
+            log.debug("fillfactor already set: {}", e.getMessage());
+        }
+    }
+
+    private void createPartialIndexes() {
+        try {
+            jdbc.execute("""
+                create index if not exists idx_alerts_active
+                on alerts (created_at desc, parking_lot_id)
+                where state in ('OPEN', 'IN_PROGRESS')
+                """);
+        } catch (Exception e) {
+            log.debug("idx_alerts_active skipped: {}", e.getMessage());
         }
     }
 

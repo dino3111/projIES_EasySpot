@@ -8,6 +8,8 @@ import pt.ua.deti.apieasyspot.analytics.dto.SensorStatusDto;
 import pt.ua.deti.apieasyspot.analytics.dto.WorkOrderSummary;
 
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.time.format.TextStyle;
 import java.util.List;
 import java.util.Locale;
@@ -151,7 +153,7 @@ public class TechnicianRepository {
                 rs.getString("description"),
                 rs.getString("severity").toLowerCase(Locale.ROOT),
                 rs.getString("state").toLowerCase(Locale.ROOT).replace("_", "-"),
-                rs.getTimestamp("created_at").toLocalDateTime(),
+                rs.getTimestamp("created_at").toInstant().atOffset(ZoneOffset.UTC),
                 rs.getString("attributed_to")));
     }
 

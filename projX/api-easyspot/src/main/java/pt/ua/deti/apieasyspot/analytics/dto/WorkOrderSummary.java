@@ -1,6 +1,6 @@
 package pt.ua.deti.apieasyspot.analytics.dto;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 public record WorkOrderSummary(
@@ -12,6 +12,6 @@ public record WorkOrderSummary(
     String description,
     String severity,
     String state,
-    LocalDateTime createdAt,
+    OffsetDateTime createdAt,
     String attributedTo
 ) {}

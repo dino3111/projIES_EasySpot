@@ -1,6 +1,6 @@
 package pt.ua.deti.apieasyspot.analytics.dto;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 public record AlertSummary(
@@ -13,7 +13,7 @@ public record AlertSummary(
     String description,
     String severity,
     String state,
-    LocalDateTime createdAt,
+    OffsetDateTime createdAt,
     String attributedTo,
     String notes
 ) {}

@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import lombok.Data;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 
@@ -68,9 +68,9 @@ public class Alert {
     private String notes;
 
     @Column
-    private LocalDateTime resolvedAt;
+    private OffsetDateTime resolvedAt;
 
     @Column(nullable = false)
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
 
 }

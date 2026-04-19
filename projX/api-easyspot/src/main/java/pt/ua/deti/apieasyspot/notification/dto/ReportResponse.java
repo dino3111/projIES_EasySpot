@@ -1,6 +1,6 @@
 package pt.ua.deti.apieasyspot.notification.dto;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 public record ReportResponse(
@@ -15,5 +15,5 @@ public record ReportResponse(
     String photoUrl,
     String severity,
     String state,
-    LocalDateTime createdAt
+    OffsetDateTime createdAt
 ) {}

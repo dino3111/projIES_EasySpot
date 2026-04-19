@@ -8,7 +8,9 @@ import pt.ua.deti.apieasyspot.analytics.dto.*;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.TextStyle;
 import java.util.List;
 import java.util.Locale;
@@ -145,7 +147,7 @@ public class AnalyticsRepository {
                 rs.getString("description"),
                 rs.getString("severity").toLowerCase(Locale.ROOT),
                 rs.getString("state").toLowerCase(Locale.ROOT).replace("_", "-"),
-                rs.getTimestamp("created_at").toLocalDateTime(),
+                rs.getTimestamp("created_at").toInstant().atOffset(ZoneOffset.UTC),
                 rs.getString("attributed_to"),
                 rs.getString("notes")));
     }

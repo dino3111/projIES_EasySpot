@@ -8,7 +8,8 @@ import pt.ua.deti.apieasyspot.notification.model.Alert;
 import pt.ua.deti.apieasyspot.notification.model.StateAlert;
 import pt.ua.deti.apieasyspot.notification.repository.AlertRepository;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -28,7 +29,7 @@ public class AlertService {
 
         alert.setState(newState);
         if (becomingResolved) {
-            alert.setResolvedAt(LocalDateTime.now());
+            alert.setResolvedAt(OffsetDateTime.now(ZoneOffset.UTC));
         } else if (leavingResolved) {
             alert.setResolvedAt(null);
         }

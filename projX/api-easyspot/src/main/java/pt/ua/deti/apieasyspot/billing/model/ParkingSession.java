@@ -7,7 +7,7 @@ import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
 import pt.ua.deti.apieasyspot.occupancy.model.ZoneType;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 
@@ -41,10 +41,10 @@ public class ParkingSession {
     private ZoneType zoneType;
 
     @Column(nullable = false)
-    private LocalDateTime entryTime;
+    private OffsetDateTime entryTime;
 
     @Column(nullable = false)
-    private LocalDateTime exitTime;
+    private OffsetDateTime exitTime;
 
     @Column(precision = 8, scale = 2)
     private BigDecimal revenueEuros;
