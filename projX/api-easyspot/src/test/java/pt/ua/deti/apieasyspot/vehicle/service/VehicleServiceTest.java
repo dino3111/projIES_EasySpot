@@ -1,15 +1,20 @@
 package pt.ua.deti.apieasyspot.vehicle.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import pt.ua.deti.apieasyspot.auth.model.User;
 import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
+import pt.ua.deti.apieasyspot.common.exception.ConflictException;
+import pt.ua.deti.apieasyspot.common.exception.ExternalServiceException;
 import pt.ua.deti.apieasyspot.common.exception.ResourceNotFoundException;
+import pt.ua.deti.apieasyspot.vehicle.dto.VehicleCreateRequest;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleData;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleResponse;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleUpdateRequest;
@@ -29,7 +34,7 @@ public class VehicleServiceTest {
     @Mock private VehicleRepository vehicleRepository;
     @Mock private UserRepository userRepository;
     @Mock private VehicleLookupClient vehicleLookupClient;
-    @Mock private tools.jackson.databind.ObjectMapper objectMapper;
+    @Spy private ObjectMapper objectMapper = new ObjectMapper();
 
     @InjectMocks
     private VehicleService vehicleService;
@@ -54,6 +59,58 @@ public class VehicleServiceTest {
         vehicle.setModel("Corsa");
         vehicle.setFuelType("Gasolina");
         vehicle.setYear(2021);
+    }
+
+    @Test
+    @DisplayName("createVehicle - success - calls lookup")
+    void createVehicle_success_callsLookup() {
+        VehicleCreateRequest request = new VehicleCreateRequest("CC-00-CC", "rfid-123");
+        VehicleData data = new VehicleData("CC-00-CC", "VIN123", "Tesla", "Model 3", null, null, null, "Elétrico", null, null, null, null, null, null, null, null, null, null, null, null);
+
+        when(userRepository.findByAuthentikUserId("auth-sub-123")).thenReturn(Optional.of(user));
+        when(vehicleRepository.findByPlate("CC-00-CC")).thenReturn(Optional.empty());
+        when(vehicleLookupClient.lookup("CC-00-CC")).thenReturn(data);
+        when(vehicleRepository.save(any())).thenReturn(vehicle);
+
+        vehicleService.createVehicle("auth-sub-123", request);
+
+        verify(vehicleLookupClient).lookup("CC-00-CC");
+        verify(vehicleRepository).save(argThat(v -> 
+            v.getPlate().equals("CC-00-CC") && 
+            v.getMake().equals("Tesla") &&
+            v.getRfid().equals("rfid-123")
+        ));
+    }
+
+    @Test
+    @DisplayName("createVehicle - existing plate - throws ConflictException")
+    void createVehicle_existingPlate_throwsConflict() {
+        VehicleCreateRequest request = new VehicleCreateRequest("AA-00-AA", null);
+
+        when(userRepository.findByAuthentikUserId("auth-sub-123")).thenReturn(Optional.of(user));
+        when(vehicleRepository.findByPlate("AA-00-AA")).thenReturn(Optional.of(vehicle));
+
+        assertThatThrownBy(() -> vehicleService.createVehicle("auth-sub-123", request))
+            .isInstanceOf(ConflictException.class)
+            .hasMessageContaining("already exists");
+    }
+
+    @Test
+    @DisplayName("createVehicle - lookup failure - still saves vehicle")
+    void createVehicle_lookupFailure_stillSaves() {
+        VehicleCreateRequest request = new VehicleCreateRequest("DD-00-DD", null);
+
+        when(userRepository.findByAuthentikUserId("auth-sub-123")).thenReturn(Optional.of(user));
+        when(vehicleRepository.findByPlate("DD-00-DD")).thenReturn(Optional.empty());
+        when(vehicleLookupClient.lookup("DD-00-DD")).thenThrow(new ExternalServiceException("Service down"));
+        when(vehicleRepository.save(any())).thenReturn(vehicle);
+
+        vehicleService.createVehicle("auth-sub-123", request);
+
+        verify(vehicleRepository).save(argThat(v -> 
+            v.getPlate().equals("DD-00-DD") && 
+            v.getMake().equals("Unknown")
+        ));
     }
 
     @Test

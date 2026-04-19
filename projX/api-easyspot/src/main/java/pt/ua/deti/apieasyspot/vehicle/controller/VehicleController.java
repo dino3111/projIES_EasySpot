@@ -11,6 +11,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
+import pt.ua.deti.apieasyspot.vehicle.dto.VehicleCreateRequest;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleResponse;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleUpdateRequest;
 import pt.ua.deti.apieasyspot.vehicle.service.VehicleService;
@@ -23,6 +24,22 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class VehicleController {
     private final VehicleService vehicleService;
+
+    @Operation(summary = "Add a vehicle", description = "Adds a vehicle to the authenticated driver's profile.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Vehicle added successfully"),
+        @ApiResponse(responseCode = "400", description = "Invalid request or plate format"),
+        @ApiResponse(responseCode = "409", description = "Vehicle with this plate already exists")
+    })
+    @PostMapping
+    @PreAuthorize("hasRole('DRIVER')")
+    public ResponseEntity<VehicleResponse> createVehicle(
+        @RequestBody @Valid VehicleCreateRequest request,
+        @AuthenticationPrincipal Jwt jwt
+    ){
+        String authentikUserId = jwt.getSubject();
+        return ResponseEntity.ok(vehicleService.createVehicle(authentikUserId, request));
+    }
 
     @Operation(summary = "Update a vehicle", description = "Updates a vehicle belonging to the authenticated driver. If the plate changes, data is re-fetched from IMT")
     @ApiResponses({

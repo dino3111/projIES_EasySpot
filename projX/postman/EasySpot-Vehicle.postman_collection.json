@@ -9,6 +9,92 @@
   ],
   "item": [
     {
+      "name": "POST vehicle - 200 success",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "var body = pm.response.json();",
+              "pm.test('Vehicle created with correct plate', function () {",
+              "  pm.expect(body.plate).to.eql('CC-00-CC');",
+              "});",
+              "pm.collectionVariables.set('newVehicleId', body.id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"licensePlate\":\"CC-00-CC\",\"externalIdentifier\":\"RFID-POSTMAN\"}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/vehicles" }
+      }
+    },
+    {
+      "name": "POST vehicle - 400 invalid plate",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 400', function () {",
+              "  pm.response.to.have.status(400);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"licensePlate\":\"INVALID-PLATE\"}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/vehicles" }
+      }
+    },
+    {
+      "name": "POST vehicle - 409 duplicate plate",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 409', function () {",
+              "  pm.response.to.have.status(409);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"licensePlate\":\"CC-00-CC\"}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/vehicles" }
+      }
+    },
+    {
       "name": "Setup - Fetch seeded vehicle ID",
       "event": [
         {

@@ -33,12 +33,12 @@ jobs:
         with:
           node-version: '18'
           cache: npm
-          cache-dependency-path: .github/semantic-release/package-lock.json
+          cache-dependency-path: .github/semantic-release/package.json
 
       - name: Install semantic-release plugins
         run: |
           cd .github/semantic-release
-          npm ci --no-audit --no-fund
+          npm install --no-audit --no-fund --package-lock=false
 
       - name: Run semantic-release
         env:

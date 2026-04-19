@@ -1,12 +1,16 @@
 package pt.ua.deti.apieasyspot.vehicle.service;
 
-import tools.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import pt.ua.deti.apieasyspot.auth.model.User;
 import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
+import pt.ua.deti.apieasyspot.common.exception.ConflictException;
+import pt.ua.deti.apieasyspot.common.exception.ExternalServiceException;
 import pt.ua.deti.apieasyspot.common.exception.ResourceNotFoundException;
+import pt.ua.deti.apieasyspot.vehicle.dto.VehicleCreateRequest;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleData;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleResponse;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleUpdateRequest;
@@ -22,6 +26,36 @@ public class VehicleService {
     private final UserRepository userRepository;
     private final VehicleLookupClient vehicleLookupClient;
     private final ObjectMapper objectMapper;
+
+    public VehicleResponse createVehicle(String authentikUserId, VehicleCreateRequest request) {
+        User user = findUser(authentikUserId);
+
+        if (vehicleRepository.findByPlate(request.licensePlate().toUpperCase()).isPresent()) {
+            throw new ConflictException("Vehicle with plate " + request.licensePlate() + " already exists");
+        }
+
+        Vehicle vehicle = new Vehicle();
+        vehicle.setUser(user);
+        vehicle.setPlate(request.licensePlate().toUpperCase());
+        vehicle.setRfid(request.externalIdentifier());
+        
+        // Default values that are @NotBlank in the entity
+        vehicle.setMake("Unknown");
+        vehicle.setModel("Unknown");
+        vehicle.setFuelType("Unknown");
+        vehicle.setYear(LocalDateTime.now().getYear());
+
+        try {
+            VehicleData data = vehicleLookupClient.lookup(vehicle.getPlate());
+            if (data != null) {
+                applyLookupData(vehicle, data);
+            }
+        } catch (ExternalServiceException e) {
+            // Graceful handling: we still create the vehicle even if lookup fails
+        }
+
+        return toResponse(vehicleRepository.save(vehicle));
+    }
 
     public VehicleResponse updateVehicle(String authentikUserId, UUID vehicleId, VehicleUpdateRequest request){
         User user = findUser(authentikUserId);
@@ -62,7 +96,11 @@ public class VehicleService {
         vehicle.setVin(data.vin());
         vehicle.setEv("Elétrico".equalsIgnoreCase(data.fuelType()));
         vehicle.setLastSyncedAt(LocalDateTime.now());
-        vehicle.setSyncedDataJson(objectMapper.writeValueAsString(data));
+        try {
+            vehicle.setSyncedDataJson(objectMapper.writeValueAsString(data));
+        } catch (JsonProcessingException e) {
+            throw new ExternalServiceException("Failed to serialize vehicle lookup data", e);
+        }
     }
 
     private VehicleResponse toResponse(Vehicle vehicle){

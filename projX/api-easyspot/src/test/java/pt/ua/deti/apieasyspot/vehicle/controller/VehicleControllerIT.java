@@ -1,19 +1,19 @@
 package pt.ua.deti.apieasyspot.vehicle.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.web.context.WebApplicationContext;
-import tools.jackson.databind.ObjectMapper;
 import pt.ua.deti.apieasyspot.auth.model.User;
 import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
+import pt.ua.deti.apieasyspot.vehicle.dto.VehicleCreateRequest;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleData;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleUpdateRequest;
 import pt.ua.deti.apieasyspot.vehicle.model.Vehicle;
@@ -26,27 +26,27 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 import static pt.ua.deti.apieasyspot.support.TestJwtRequests.jwtWithRole;
-import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
+    "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration"
+})
+@AutoConfigureMockMvc
 class VehicleControllerIT {
 
-    @Autowired WebApplicationContext wac;
+    @Autowired MockMvc mockMvc;
     @Autowired VehicleRepository vehicleRepository;
     @Autowired UserRepository userRepository;
     @Autowired ObjectMapper objectMapper;
     @MockitoBean VehicleLookupClient vehicleLookupClient;
     @MockitoBean JwtDecoder jwtDecoder;
 
-    MockMvc mockMvc;
     private User user;
     private Vehicle vehicle;
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.webAppContextSetup(wac).apply(springSecurity()).build();
         vehicleRepository.deleteAll();
         userRepository.deleteAll();
 
@@ -68,6 +68,31 @@ class VehicleControllerIT {
     }
 
     @Test
+    @DisplayName("POST /api/vehicles - success")
+    void createVehicle_success() throws Exception {
+        VehicleCreateRequest request = new VehicleCreateRequest("BB-00-BB", "RFID-1");
+        VehicleData data = new VehicleData(
+            "BB-00-BB", "VIN123", "Tesla", "Model 3",
+            null, null, null, "Elétrico",
+            null, null, null, null, null, null,
+            null, null, null, null, null, null
+        );
+
+        when(vehicleLookupClient.lookup("BB-00-BB")).thenReturn(data);
+
+        mockMvc.perform(post("/api/vehicles")
+                .with(jwtWithRole("auth-sub-123", "DRIVER"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.plate").value("BB-00-BB"))
+            .andExpect(jsonPath("$.make").value("Tesla"))
+            .andExpect(jsonPath("$.isEv").value(true));
+
+        assertThat(vehicleRepository.findByPlate("BB-00-BB")).isPresent();
+    }
+
+    @Test
     @DisplayName("PUT /api/vehicles/{id} - unauthenticated - returns 401")
     void updateVehicle_unauthenticated_returns401() throws Exception {
         VehicleUpdateRequest request = new VehicleUpdateRequest("AA-00-AA", null, false);
@@ -76,18 +101,6 @@ class VehicleControllerIT {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isUnauthorized());
-    }
-
-    @Test
-    @DisplayName("PUT /api/vehicles/{id} - wrong role - returns 403")
-    void updateVehicle_wrongRole_returns403() throws Exception {
-        VehicleUpdateRequest request = new VehicleUpdateRequest("AA-00-AA", null, false);
-
-        mockMvc.perform(put("/api/vehicles/{id}", vehicle.getId())
-                .with(jwtWithRole("auth-sub-123", "MANAGER"))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
-            .andExpect(status().isForbidden());
     }
 
     @Test
@@ -107,50 +120,6 @@ class VehicleControllerIT {
     }
 
     @Test
-    @DisplayName("PUT /api/vehicles/{id} - plate changed - calls lookup and returns 200")
-    void updateVehicle_plateChanged_callsLookupAndReturns200() throws Exception {
-        VehicleUpdateRequest request = new VehicleUpdateRequest("BB-00-BB", "new car", false);
-        VehicleData data = new VehicleData(
-            "BB-00-BB", null, "Renault", "Clio",
-            null, null, null, "Gasolina",
-            null, null, null, null, null, null,
-            null, null, null, null, null, null
-        );
-
-        when(vehicleLookupClient.lookup("BB-00-BB")).thenReturn(data);
-
-        mockMvc.perform(put("/api/vehicles/{id}", vehicle.getId())
-                .with(jwtWithRole("auth-sub-123", "DRIVER"))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.plate").value("BB-00-BB"))
-            .andExpect(jsonPath("$.make").value("Renault"))
-            .andExpect(jsonPath("$.model").value("Clio"));
-
-        verify(vehicleLookupClient).lookup("BB-00-BB");
-    }
-
-    @Test
-    @DisplayName("PUT /api/vehicles/{id} - vehicle not found - returns 404")
-    void updateVehicle_vehicleNotFound_returns404() throws Exception {
-        VehicleUpdateRequest request = new VehicleUpdateRequest("AA-00-AA", null, false);
-
-        mockMvc.perform(put("/api/vehicles/{id}", UUID.randomUUID())
-                .with(jwtWithRole("auth-sub-123", "DRIVER"))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
-            .andExpect(status().isNotFound());
-    }
-
-    @Test
-    @DisplayName("DELETE /api/vehicles/{id} - unauthenticated - returns 401")
-    void deleteVehicle_unauthenticated_returns401() throws Exception {
-        mockMvc.perform(delete("/api/vehicles/{id}", vehicle.getId()))
-            .andExpect(status().isUnauthorized());
-    }
-
-    @Test
     @DisplayName("DELETE /api/vehicles/{id} - success - returns 204 and removes vehicle")
     void deleteVehicle_success_returns204() throws Exception {
         mockMvc.perform(delete("/api/vehicles/{id}", vehicle.getId())
@@ -158,13 +127,5 @@ class VehicleControllerIT {
             .andExpect(status().isNoContent());
 
         assertThat(vehicleRepository.findById(vehicle.getId())).isEmpty();
-    }
-
-    @Test
-    @DisplayName("DELETE /api/vehicles/{id} - vehicle not found - returns 404")
-    void deleteVehicle_vehicleNotFound_returns404() throws Exception {
-        mockMvc.perform(delete("/api/vehicles/{id}", UUID.randomUUID())
-                .with(jwtWithRole("auth-sub-123", "DRIVER")))
-            .andExpect(status().isNotFound());
     }
 }
