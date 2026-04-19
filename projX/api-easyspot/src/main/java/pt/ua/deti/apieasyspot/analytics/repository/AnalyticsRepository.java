@@ -20,34 +20,43 @@ public class AnalyticsRepository {
 
     private final JdbcTemplate jdbc;
 
-    public long countEntriesToday(){
-        Long result = jdbc.queryForObject("select count(*) from parking_sessions where cast(entry_time as date) = current_date", Long.class);
+    public long countEntriesToday() {
+        Long result = jdbc.queryForObject(
+            "select COUNT(*) from parking_sessions where entry_time >= current_date and entry_time < current_date + interval '1 day'",
+            Long.class);
         return result != null ? result : 0L;
     }
 
-    public Long countEntriesYesterday(){
-        Long result = jdbc.queryForObject("select count(*) from parking_sessions where cast(entry_time as date) = current_date - 1", Long.class);
+    public Long countEntriesYesterday() {
+        Long result = jdbc.queryForObject(
+            "select count(*) from parking_sessions where entry_time >= current_date - interval '1 day' and entry_time < current_date",
+            Long.class);
         return result != null ? result : 0L;
     }
 
-    public BigDecimal revenueToday(){
-        BigDecimal result = jdbc.queryForObject("select coalesce(sum(revenue_euros), 0) from parking_sessions where cast(exit_time as date) = current_date", BigDecimal.class);
+    public BigDecimal revenueToday() {
+        BigDecimal result = jdbc.queryForObject(
+            "select coalesce(sum(revenue_euros), 0) from parking_sessions where exit_time >= current_date AND exit_time < current_date + interval '1 day'",
+            BigDecimal.class);
         return result != null ? result : BigDecimal.ZERO;
     }
 
-    public BigDecimal revenueYesterday(){
-        BigDecimal result = jdbc.queryForObject("select coalesce(sum(revenue_euros), 0) from parking_sessions where cast(exit_time as date) = current_date - 1", BigDecimal.class);
+    public BigDecimal revenueYesterday() {
+        BigDecimal result = jdbc.queryForObject(
+            "select coalesce(sum(revenue_euros), 0) from parking_sessions where exit_time >= current_date - interval '1 day' and exit_time < current_date",
+            BigDecimal.class);
         return result != null ? result : BigDecimal.ZERO;
     }
 
-    public Double avgSessionDurationMinutes(){
-        return jdbc.queryForObject("select avg(extract(epoch from (exit_time - entry_time))/60) from parking_sessions where cast(exit_time as date) = current_date and exit_time is not null", Double.class);
+    public Double avgSessionDurationMinutes() {
+        return jdbc.queryForObject(
+            "select avg(extract(epoch from (exit_time - entry_time)) / 60) from parking_sessions where exit_time >= current_date and exit_time < current_date + interval '1 day' and exit_time is not null",
+            Double.class);
     }
 
-    public long countOpenAlerts(){
+    public long countOpenAlerts() {
         Long result = jdbc.queryForObject("select count(*) from alerts where state = 'OPEN'", Long.class);
         return result != null ? result : 0L;
-
     }
 
     public int countActiveLots() {
@@ -57,62 +66,38 @@ public class AnalyticsRepository {
 
     public int[] currentOccupancy() {
         Integer[] result = jdbc.queryForObject(
-            """
-            select coalesce(sum(occupied_count), 0), coalesce(sum(total_count), 0)
-            from (
-                select occupied_count, total_count,
-                       row_number() over (
-                           partition by parking_lot_id, zone_type
-                           order by recorded_at desc
-                       ) as rn
-                from occupancy_snapshots
-            ) latest
-            where rn = 1
-            """,
-            (rs, rowNum) -> new Integer[]{
-                rs.getObject(1, Integer.class),
-                rs.getObject(2, Integer.class)
-            });
+            "select coalesce(sum(occupied_count), 0), coalesce(sum(total_count), 0) from v_latest_occupancy",
+            (rs, rowNum) -> new Integer[]{rs.getObject(1, Integer.class), rs.getObject(2, Integer.class)});
         if (result == null || result[0] == null) return new int[]{0, 0};
         return new int[]{result[0], result[1]};
     }
 
-    public List<DailyMetric> last7DaysMetrics(){
+    public List<DailyMetric> last7DaysMetrics() {
         return jdbc.query(
             """
-                select cast(entry_time as date) as day,
-                    count(*) as entries,
-                    coalesce(sum(revenue_euros), 0) as revenue
-                from parking_sessions
-                where cast(entry_time as date) >= current_date - 6
-                group by cast(entry_time as date)
-                order by day
-                """,
+            select date(entry_time) as day,
+                   count(*) as entries,
+                   coalesce(sum(revenue_euros), 0) as revenue
+            from parking_sessions
+            where entry_time >= current_date - interval '6 days'
+            group by date(entry_time)
+            order by day
+            """,
             (rs, rowNum) -> {
                 LocalDate date = rs.getDate("day").toLocalDate();
                 return new DailyMetric(
                     date.toString(),
                     date.getDayOfWeek().getDisplayName(TextStyle.SHORT, Locale.forLanguageTag("pt-PT")),
                     rs.getLong("entries"),
-                    rs.getBigDecimal("revenue").doubleValue()
-                );
-            }
-        );
+                    rs.getBigDecimal("revenue").doubleValue());
+            });
     }
 
     public List<ZoneOccupancyDto> zoneOccupancy() {
         return jdbc.query(
             """
             select zone_type, sum(occupied_count) as occupied, sum(total_count) as total
-            from (
-                select zone_type, occupied_count, total_count,
-                       row_number() over (
-                           partition by parking_lot_id, zone_type
-                           order by recorded_at desc
-                       ) as rn
-                from occupancy_snapshots
-            ) latest
-            where rn = 1
+            from v_latest_occupancy
             group by zone_type
             """,
             (rs, rowNum) -> {
@@ -125,27 +110,25 @@ public class AnalyticsRepository {
     public List<HourlyOccupancyDto> hourlyOccupancy() {
         return jdbc.query(
             """
-             select cast(recorded_at as timestamp) as hour_start,
-                 avg(occupied_count * 100.0 / nullif(total_count, 0)) as occupancy_pct
+            select date_trunc('hour', recorded_at) as hour_bucket,
+                   avg(occupied_count * 100.0 / nullif(total_count, 0)) as occupancy_pct
             from occupancy_snapshots
-            where recorded_at >= CURRENT_DATE
-              and recorded_at < CURRENT_DATE + interval '1 day'
-             group by cast(recorded_at as timestamp)
-             order by hour_start
+            where recorded_at >= current_date
+              and recorded_at < current_date + interval '1 day'
+            group by date_trunc('hour', recorded_at)
+            order by hour_bucket
             """,
             (rs, rowNum) -> {
-                Instant hourStart = rs.getTimestamp("hour_start").toInstant();
+                Instant hourStart = rs.getTimestamp("hour_bucket").toInstant();
                 int hour = hourStart.atZone(ZoneId.of("Europe/Lisbon")).getHour();
-                return new HourlyOccupancyDto(
-                    String.format("%02dh", hour),
-                    (int) Math.round(rs.getDouble("occupancy_pct")));
+                return new HourlyOccupancyDto(String.format("%02dh", hour), (int) Math.round(rs.getDouble("occupancy_pct")));
             });
     }
 
     public List<AlertSummary> last5Alerts() {
         return jdbc.query(
             """
-            select a.id, a.type, pl.name AS park, a.zone, a.sensor_id, a.plate,
+            select a.id, a.type, pl.name as park, a.zone, a.sensor_id, a.plate,
                    a.description, a.severity, a.state, a.created_at, a.attributed_to, a.notes
             from alerts a
             join parking_lots pl on pl.id = a.parking_lot_id
@@ -173,21 +156,18 @@ public class AnalyticsRepository {
             select pl.name, pl.city,
                    count(ps.id) as entries,
                    coalesce(sum(ps.revenue_euros), 0) as revenue,
-                   coalesce(round(avg(snap.occupied_count * 100.0 / nullif(snap.total_count, 0))), 0) as occ_pct
+                   coalesce(round(avg(snap.occupied * 100.0 / nullif(snap.total_spots, 0))), 0) as occ_pct
             from parking_lots pl
             left join parking_sessions ps
-                on ps.parking_lot_id = pl.id and cast(ps.entry_time as date) = CURRENT_DATE
-            left join(
-                select parking_lot_id, occupied_count, total_count
-                from (
-                    select parking_lot_id, zone_type, occupied_count, total_count,
-                           row_number() over (
-                               partition by parking_lot_id, zone_type
-                               order by recorded_at desc
-                           ) as rn
-                    from occupancy_snapshots
-                ) latest
-                where rn = 1
+                on ps.parking_lot_id = pl.id
+                and ps.entry_time >= current_date
+                and ps.entry_time < current_date + interval '1 day'
+            left join (
+                select parking_lot_id,
+                       sum(occupied_count) as occupied,
+                       sum(total_count) as total_spots
+                from v_latest_occupancy
+                group by parking_lot_id
             ) snap on snap.parking_lot_id = pl.id
             group by pl.id, pl.name, pl.city
             order by revenue desc
