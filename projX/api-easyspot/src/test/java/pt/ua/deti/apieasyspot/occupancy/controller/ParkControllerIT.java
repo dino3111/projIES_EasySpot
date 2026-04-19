@@ -15,6 +15,7 @@ import pt.ua.deti.apieasyspot.occupancy.repository.ParkingLotRepository;
 import java.util.List;
 import java.util.UUID;
 
+import static pt.ua.deti.apieasyspot.support.TestJwtRequests.jwtWithRole;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -43,10 +44,10 @@ class ParkControllerIT {
     }
 
     @Test
-    @WithMockUser
     void getDetails_Success() throws Exception {
         mockMvc.perform(get("/api/parks/{id}/details", lot.getId())
-                .contentType(MediaType.APPLICATION_JSON))
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(jwtWithRole("sub", "DRIVER")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(lot.getId().toString()))
                 .andExpect(jsonPath("$.name").value("Parque Central"))
@@ -56,10 +57,10 @@ class ParkControllerIT {
     }
 
     @Test
-    @WithMockUser
     void getDetails_NotFound() throws Exception {
         mockMvc.perform(get("/api/parks/{id}/details", UUID.randomUUID())
-                .contentType(MediaType.APPLICATION_JSON))
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(jwtWithRole("sub", "DRIVER")))
                 .andExpect(status().isNotFound());
     }
 

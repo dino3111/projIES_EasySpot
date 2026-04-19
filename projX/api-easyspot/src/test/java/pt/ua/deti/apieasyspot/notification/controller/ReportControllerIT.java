@@ -64,6 +64,10 @@ class ReportControllerIT {
         parkingLot = new ParkingLot();
         parkingLot.setName("Parque Central");
         parkingLot.setCity("Aveiro");
+        parkingLot.setAddress("Rua Principal");
+        parkingLot.setLatitude(40.6405);
+        parkingLot.setLongitude(-8.6531);
+        parkingLot.setTotalSpaces(100);
         parkingLot = parkingLotRepository.save(parkingLot);
 
         when(r2StorageService.upload(any(), any(), any()))
