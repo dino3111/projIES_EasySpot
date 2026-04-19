@@ -1,6 +1,6 @@
 package pt.ua.deti.apieasyspot.vehicle.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -14,6 +14,7 @@ import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
 import pt.ua.deti.apieasyspot.common.exception.ConflictException;
 import pt.ua.deti.apieasyspot.common.exception.ExternalServiceException;
 import pt.ua.deti.apieasyspot.common.exception.ResourceNotFoundException;
+import pt.ua.deti.apieasyspot.common.exception.UnprocessableEntityException;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleCreateRequest;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleData;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleResponse;
@@ -62,9 +63,9 @@ public class VehicleServiceTest {
     }
 
     @Test
-    @DisplayName("createVehicle - success - calls lookup")
+    @DisplayName("createVehicle - success - calls lookup and saves")
     void createVehicle_success_callsLookup() {
-        VehicleCreateRequest request = new VehicleCreateRequest("CC-00-CC", "rfid-123");
+        VehicleCreateRequest request = new VehicleCreateRequest("CC-00-CC", "rfid-123", null, null, null, null);
         VehicleData data = new VehicleData("CC-00-CC", "VIN123", "Tesla", "Model 3", null, null, null, "Elétrico", null, null, null, null, null, null, null, null, null, null, null, null);
 
         when(userRepository.findByAuthentikUserId("auth-sub-123")).thenReturn(Optional.of(user));
@@ -75,8 +76,8 @@ public class VehicleServiceTest {
         vehicleService.createVehicle("auth-sub-123", request);
 
         verify(vehicleLookupClient).lookup("CC-00-CC");
-        verify(vehicleRepository).save(argThat(v -> 
-            v.getPlate().equals("CC-00-CC") && 
+        verify(vehicleRepository).save(argThat(v ->
+            v.getPlate().equals("CC-00-CC") &&
             v.getMake().equals("Tesla") &&
             v.getRfid().equals("rfid-123")
         ));
@@ -85,7 +86,7 @@ public class VehicleServiceTest {
     @Test
     @DisplayName("createVehicle - existing plate - throws ConflictException")
     void createVehicle_existingPlate_throwsConflict() {
-        VehicleCreateRequest request = new VehicleCreateRequest("AA-00-AA", null);
+        VehicleCreateRequest request = new VehicleCreateRequest("AA-00-AA", null, null, null, null, null);
 
         when(userRepository.findByAuthentikUserId("auth-sub-123")).thenReturn(Optional.of(user));
         when(vehicleRepository.findByPlate("AA-00-AA")).thenReturn(Optional.of(vehicle));
@@ -96,20 +97,36 @@ public class VehicleServiceTest {
     }
 
     @Test
-    @DisplayName("createVehicle - lookup failure - still saves vehicle")
-    void createVehicle_lookupFailure_stillSaves() {
-        VehicleCreateRequest request = new VehicleCreateRequest("DD-00-DD", null);
+    @DisplayName("createVehicle - lookup failure, no manual data - throws UnprocessableEntityException")
+    void createVehicle_lookupFailure_noManualData_throws() {
+        VehicleCreateRequest request = new VehicleCreateRequest("DD-00-DD", null, null, null, null, null);
 
         when(userRepository.findByAuthentikUserId("auth-sub-123")).thenReturn(Optional.of(user));
         when(vehicleRepository.findByPlate("DD-00-DD")).thenReturn(Optional.empty());
         when(vehicleLookupClient.lookup("DD-00-DD")).thenThrow(new ExternalServiceException("Service down"));
+
+        assertThatThrownBy(() -> vehicleService.createVehicle("auth-sub-123", request))
+            .isInstanceOf(UnprocessableEntityException.class)
+            .hasMessageContaining("Please provide");
+    }
+
+    @Test
+    @DisplayName("createVehicle - manual data provided - saves without calling lookup")
+    void createVehicle_manualData_savesWithoutLookup() {
+        VehicleCreateRequest request = new VehicleCreateRequest("FR-123-AB", null, "Renault", "Megane", "Gasolina", 2019);
+
+        when(userRepository.findByAuthentikUserId("auth-sub-123")).thenReturn(Optional.of(user));
+        when(vehicleRepository.findByPlate("FR-123-AB")).thenReturn(Optional.empty());
         when(vehicleRepository.save(any())).thenReturn(vehicle);
 
         vehicleService.createVehicle("auth-sub-123", request);
 
-        verify(vehicleRepository).save(argThat(v -> 
-            v.getPlate().equals("DD-00-DD") && 
-            v.getMake().equals("Unknown")
+        verify(vehicleLookupClient, never()).lookup(any());
+        verify(vehicleRepository).save(argThat(v ->
+            v.getMake().equals("Renault") &&
+            v.getModel().equals("Megane") &&
+            v.getFuelType().equals("Gasolina") &&
+            v.getYear() == 2019
         ));
     }
 

@@ -1,7 +1,6 @@
 package pt.ua.deti.apieasyspot.vehicle.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -10,6 +9,7 @@ import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
 import pt.ua.deti.apieasyspot.common.exception.ConflictException;
 import pt.ua.deti.apieasyspot.common.exception.ExternalServiceException;
 import pt.ua.deti.apieasyspot.common.exception.ResourceNotFoundException;
+import pt.ua.deti.apieasyspot.common.exception.UnprocessableEntityException;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleCreateRequest;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleData;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleResponse;
@@ -17,6 +17,7 @@ import pt.ua.deti.apieasyspot.vehicle.dto.VehicleUpdateRequest;
 import pt.ua.deti.apieasyspot.vehicle.model.Vehicle;
 import pt.ua.deti.apieasyspot.vehicle.repository.VehicleRepository;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Service
@@ -29,29 +30,26 @@ public class VehicleService {
 
     public VehicleResponse createVehicle(String authentikUserId, VehicleCreateRequest request) {
         User user = findUser(authentikUserId);
+        String plate = request.licensePlate().toUpperCase();
 
-        if (vehicleRepository.findByPlate(request.licensePlate().toUpperCase()).isPresent()) {
-            throw new ConflictException("Vehicle with plate " + request.licensePlate() + " already exists");
-        }
+        if (vehicleRepository.findByPlate(plate).isPresent())
+            throw new ConflictException("Vehicle with plate " + plate + " already exists");
 
         Vehicle vehicle = new Vehicle();
         vehicle.setUser(user);
-        vehicle.setPlate(request.licensePlate().toUpperCase());
+        vehicle.setPlate(plate);
         vehicle.setRfid(request.externalIdentifier());
-        
-        // Default values that are @NotBlank in the entity
-        vehicle.setMake("Unknown");
-        vehicle.setModel("Unknown");
-        vehicle.setFuelType("Unknown");
-        vehicle.setYear(LocalDateTime.now().getYear());
 
-        try {
-            VehicleData data = vehicleLookupClient.lookup(vehicle.getPlate());
-            if (data != null) {
-                applyLookupData(vehicle, data);
+        if (request.hasManualData()) {
+            applyManualData(vehicle, request);
+        } else {
+            try {
+                applyLookupData(vehicle, vehicleLookupClient.lookup(plate));
+            } catch (ExternalServiceException ex) {
+                throw new UnprocessableEntityException(
+                    "Plate not found in the registry. Please provide: make, model, fuelType, year."
+                );
             }
-        } catch (ExternalServiceException e) {
-            // Graceful handling: we still create the vehicle even if lookup fails
         }
 
         return toResponse(vehicleRepository.save(vehicle));
@@ -87,7 +85,7 @@ public class VehicleService {
         return vehicleRepository.findByIdAndUserId(vehicleId, userId).orElseThrow(() -> new ResourceNotFoundException("Vehicle not found: " + vehicleId));
     }
 
-    private void applyLookupData(Vehicle vehicle, VehicleData data){
+    private void applyLookupData(Vehicle vehicle, VehicleData data) {
         vehicle.setMake(data.make());
         vehicle.setModel(data.model());
         vehicle.setVersion(data.version());
@@ -95,15 +93,33 @@ public class VehicleService {
         vehicle.setFuelType(data.fuelType());
         vehicle.setVin(data.vin());
         vehicle.setEv("Elétrico".equalsIgnoreCase(data.fuelType()));
+        vehicle.setYear(parseYear(data.plateDate()));
         vehicle.setLastSyncedAt(LocalDateTime.now());
-        try {
-            vehicle.setSyncedDataJson(objectMapper.writeValueAsString(data));
-        } catch (JsonProcessingException e) {
-            throw new ExternalServiceException("Failed to serialize vehicle lookup data", e);
-        }
+        vehicle.setSyncedDataJson(objectMapper.writeValueAsString(data));
     }
 
-    private VehicleResponse toResponse(Vehicle vehicle){
+    private void applyManualData(Vehicle vehicle, VehicleCreateRequest request) {
+        vehicle.setMake(request.make());
+        vehicle.setModel(request.model());
+        vehicle.setFuelType(request.fuelType());
+        vehicle.setYear(request.year());
+        vehicle.setEv("Elétrico".equalsIgnoreCase(request.fuelType()));
+    }
+
+    private int parseYear(String plateDate) {
+        if (plateDate == null || plateDate.isBlank()) return LocalDate.now().getYear();
+        try {
+            int year = Integer.parseInt(plateDate.substring(0, 4));
+            if (year >= 1900 && year <= 2100) return year;
+        } catch (NumberFormatException ignored) {}
+        try {
+            int year = Integer.parseInt(plateDate.substring(plateDate.length() - 4));
+            if (year >= 1900 && year <= 2100) return year;
+        } catch (NumberFormatException ignored) {}
+        return LocalDate.now().getYear();
+    }
+
+    private VehicleResponse toResponse(Vehicle vehicle) {
         return new VehicleResponse(
             vehicle.getId(),
             vehicle.getPlate(),

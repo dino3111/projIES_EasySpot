@@ -42,12 +42,17 @@ public class VehicleLookupClient {
     public VehicleData lookup(String plate) {
         String token = getToken();
         try {
-            return restClient.get()
+            VehicleData result = restClient.get()
                 .uri("/informacao/fetch?plate={plate}", plate)
                 .header("Authorization", "Bearer " + token)
                 .header("Accept", "application/json")
                 .retrieve()
                 .body(VehicleData.class);
+            if (result == null || result.make() == null)
+                throw new ExternalServiceException("Plate not found in IMT registry: " + plate);
+            return result;
+        } catch (ExternalServiceException ex) {
+            throw ex;
         } catch (Exception ex) {
             throw new ExternalServiceException("Could not fetch vehicle data for plate: " + plate, ex);
         }
