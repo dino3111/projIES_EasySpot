@@ -111,7 +111,7 @@ public class AnalyticsRepository {
         return jdbc.query(
             """
             select date_trunc('hour', recorded_at) as hour_bucket,
-                   avg(occupied_count * 100.0 / nullif(total_count, 0)) as occupancy_pct
+                   avg(fn_occupancy_pct(occupied_count, total_count)) as occupancy_pct
             from occupancy_snapshots
             where recorded_at >= current_date
               and recorded_at < current_date + interval '1 day'
@@ -156,7 +156,7 @@ public class AnalyticsRepository {
             select pl.name, pl.city,
                    count(ps.id) as entries,
                    coalesce(sum(ps.revenue_euros), 0) as revenue,
-                   coalesce(round(avg(snap.occupied * 100.0 / nullif(snap.total_spots, 0))), 0) as occ_pct
+                   coalesce(round(avg(fn_occupancy_pct(snap.occupied::int, snap.total_spots::int))), 0) as occ_pct
             from parking_lots pl
             left join parking_sessions ps
                 on ps.parking_lot_id = pl.id

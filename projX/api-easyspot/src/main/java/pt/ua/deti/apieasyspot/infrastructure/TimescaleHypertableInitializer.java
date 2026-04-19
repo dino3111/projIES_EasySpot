@@ -21,6 +21,8 @@ public class TimescaleHypertableInitializer implements ApplicationRunner {
         try {
             jdbc.execute("create extension if not exists timescaledb cascade");
             createHypertables();
+            createUdfs();
+            createTriggers();
             createViews();
             createContinuousAggregates();
             addPolicies();
@@ -37,10 +39,42 @@ public class TimescaleHypertableInitializer implements ApplicationRunner {
         log.info("TimescaleDB hypertables ready.");
     }
 
+    private void createUdfs() {
+        jdbc.execute("""
+            create or replace function fn_occupancy_pct(occupied int, total int)
+            returns numeric as $$
+                select round(occupied * 100.0 / nullif(total, 0), 1)
+            $$ language sql immutable;
+            """);
+        log.info("UDFs ready.");
+    }
+
+    private void createTriggers() {
+        jdbc.execute("""
+            create or replace function trg_alerts_resolved_at()
+            returns trigger as $$
+            begin
+                if new.state = 'RESOLVED' and old.state != 'RESOLVED' then
+                    new.resolved_at = now();
+                elsif new.state != 'RESOLVED' then
+                    new.resolved_at = null;
+                end if;
+                return new;
+            end;
+            $$ language plpgsql;
+            """);
+        jdbc.execute("""
+            create or replace trigger alerts_auto_resolved_at
+            before update on alerts
+            for each row execute function trg_alerts_resolved_at();
+            """);
+        log.info("Triggers ready.");
+    }
+
     private void createViews() {
         jdbc.execute("""
-            crate or replace view v_latest_occupancy as
-            select distinct on(parking_lot_id, zone_type)
+            create or replace view v_latest_occupancy as
+            select distinct on (parking_lot_id, zone_type)
                 parking_lot_id, zone_type, occupied_count, total_count, recorded_at
             from occupancy_snapshots
             order by parking_lot_id, zone_type, recorded_at desc
@@ -58,7 +92,7 @@ public class TimescaleHypertableInitializer implements ApplicationRunner {
                     time_bucket('1 hour', recorded_at) as hour_bucket,
                     parking_lot_id,
                     zone_type,
-                    avg(occupied_count * 100.0 / nullif(total_count, 0)) as occupancy_pct
+                    avg(fn_occupancy_pct(occupied_count, total_count)) as occupancy_pct
                 from occupancy_snapshots
                 group by hour_bucket, parking_lot_id, zone_type
                 """);
@@ -81,7 +115,7 @@ public class TimescaleHypertableInitializer implements ApplicationRunner {
                 alter table occupancy_snapshots set (
                     timescaledb.compress,
                     timescaledb.compress_segmentby = 'parking_lot_id,zone_type',
-                    timescaledb.compress_orderby = 'recorded_at DESC'
+                    timescaledb.compress_orderby = 'recorded_at desc'
                 )
                 """);
         } catch (Exception e) {
