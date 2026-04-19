@@ -65,7 +65,7 @@ public class ReportService {
 
     private void validatePhoto(MultipartFile photo){
         if(photo.getSize() > MAX_PHOTO_BYTES){
-            throw new IllegalArgumentException("Photo size exceeds the limit of 10MB");
+            throw new IllegalArgumentException("Photo size exceeds the limit of 10 MB");
         }
         String contentType = photo.getContentType();
 

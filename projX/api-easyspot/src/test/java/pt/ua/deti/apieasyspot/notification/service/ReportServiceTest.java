@@ -32,7 +32,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.argThat;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 @ExtendWith(MockitoExtension.class)
 class ReportServiceTest {
@@ -60,9 +63,9 @@ class ReportServiceTest {
         parkingLot.setName("Parque Central");
         parkingLot.setCity("Aveiro");
 
-        when(userRepository.findByAuthentikUserId("driver-sub-001")).thenReturn(Optional.of(driver));
-        when(parkingLotRepository.findById(parkingLot.getId())).thenReturn(Optional.of(parkingLot));
-        when(alertRepository.save(any())).thenAnswer(inv -> {
+        lenient().when(userRepository.findByAuthentikUserId("driver-sub-001")).thenReturn(Optional.of(driver));
+        lenient().when(parkingLotRepository.findById(parkingLot.getId())).thenReturn(Optional.of(parkingLot));
+        lenient().when(alertRepository.save(any())).thenAnswer(inv -> {
             Alert a = inv.getArgument(0);
             a.setId(UUID.randomUUID());
             return a;
