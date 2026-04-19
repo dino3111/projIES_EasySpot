@@ -1,12 +1,17 @@
 package pt.ua.deti.apieasyspot.vehicle.dto;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 
 public record VehicleCreateRequest(
-    @NotBlank
-    @Pattern(regexp = "^[A-Z0-9]{2}-[A-Z0-9]{2}-[A-Z0-9]{2}$", message = "Invalid license plate format. Expected format like AA-00-00, 00-AA-00, 00-00-AA or AA-00-AA")
-    String licensePlate,
-
-    String externalIdentifier
-) {}
+    @NotBlank @Size(max = 10) String licensePlate,
+    String externalIdentifier,
+    String make,
+    String model,
+    String fuelType,
+    Integer year
+) {
+    public boolean hasManualData() {
+        return make != null && model != null && fuelType != null && year != null;
+    }
+}
