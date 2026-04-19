@@ -8,7 +8,13 @@ import java.time.LocalDateTime;
 
 @Data
 @Entity
-@Table(name = "sensor_registry")
+@Table(
+    name = "sensor_registry",
+    indexes = {
+        @Index(name = "idx_sr_parking_lot_id", columnList = "parking_lot_id"),
+        @Index(name = "idx_sr_status", columnList = "status")
+    }
+)
 public class SensorRegistry {
 
     @Id

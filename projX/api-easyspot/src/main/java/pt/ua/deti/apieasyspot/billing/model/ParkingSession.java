@@ -13,7 +13,15 @@ import java.util.UUID;
 
 @Data
 @Entity
-@Table(name = "parking_sessions")
+@Table(
+    name = "parking_sessions",
+    indexes = {
+        @Index(name = "idx_ps_user_id", columnList = "user_id"),
+        @Index(name = "idx_ps_parking_lot_id", columnList = "parking_lot_id"),
+        @Index(name = "idx_ps_entry_time", columnList = "entry_time"),
+        @Index(name = "idx_ps_exit_time", columnList = "exit_time")
+    }
+)
 public class ParkingSession {
 
     @Id
