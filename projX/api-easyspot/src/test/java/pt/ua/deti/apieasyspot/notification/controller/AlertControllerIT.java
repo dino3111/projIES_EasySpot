@@ -12,10 +12,14 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 import pt.ua.deti.apieasyspot.notification.model.Alert;
+import pt.ua.deti.apieasyspot.notification.model.AlertSubscription;
 import pt.ua.deti.apieasyspot.notification.model.AlertType;
 import pt.ua.deti.apieasyspot.notification.model.SeverityAlert;
 import pt.ua.deti.apieasyspot.notification.model.StateAlert;
 import pt.ua.deti.apieasyspot.notification.repository.AlertRepository;
+import pt.ua.deti.apieasyspot.notification.repository.AlertSubscriptionRepository;
+import pt.ua.deti.apieasyspot.auth.model.User;
+import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingLotRepository;
 
@@ -39,6 +43,12 @@ class AlertControllerIT {
     AlertRepository alertRepository;
 
     @Autowired
+    AlertSubscriptionRepository alertSubscriptionRepository;
+
+    @Autowired
+    UserRepository userRepository;
+
+    @Autowired
     ParkingLotRepository parkingLotRepository;
 
     @MockitoBean
@@ -49,6 +59,19 @@ class AlertControllerIT {
     @BeforeEach
     void setUp() {
         mockMvc = MockMvcBuilders.webAppContextSetup(wac).apply(springSecurity()).build();
+    }
+
+    @BeforeEach
+    void cleanSubscriptions() {
+        alertSubscriptionRepository.deleteAll();
+        userRepository.findByAuthentikUserId("auth-sub-postman-driver").orElseGet(() -> {
+            User user = new User();
+            user.setAuthentikUserId("auth-sub-postman-driver");
+            user.setEmail("driver@test.pt");
+            user.setName("Driver Test");
+            user.setRole("DRIVER");
+            return userRepository.save(user);
+        });
     }
 
     @Test
@@ -124,11 +147,94 @@ class AlertControllerIT {
         assertThat(updated.getResolvedAt()).isNull();
     }
 
+    @Test
+    @DisplayName("POST /api/alerts - DRIVER role - creates subscription")
+    void createSubscription_driverRole_creates() throws Exception {
+        ParkingLot lot = parkingLotRepository.save(lot("Sub lot"));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/alerts")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "alertType":"SPACE_AVAILABLE",
+                      "parkIds":["%s"],
+                      "vehicleId":"AA-00-BB"
+                    }
+                    """.formatted(lot.getId()))
+                .with(jwtWithRole("auth-sub-postman-driver", "DRIVER")))
+            .andExpect(status().isOk());
+
+        List<AlertSubscription> subs = alertSubscriptionRepository.findAll();
+        assertThat(subs).hasSize(1);
+        assertThat(subs.get(0).getAlertType().name()).isEqualTo("SPACE_AVAILABLE");
+    }
+
+    @Test
+    @DisplayName("POST /api/alerts - invalid email - returns 400")
+    void createSubscription_invalidEmail_returns400() throws Exception {
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/alerts")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "alertType":"LOT_FULL",
+                      "email":"not-an-email"
+                    }
+                    """)
+                .with(jwtWithRole("auth-sub-postman-driver", "DRIVER")))
+            .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("POST /api/alerts - duplicate subscription - returns 409")
+    void createSubscription_duplicate_returns409() throws Exception {
+        ParkingLot lot = parkingLotRepository.save(lot("Dedup lot"));
+        String payload = """
+            {
+              "alertType":"LOT_FULL",
+              "parkIds":["%s"]
+            }
+            """.formatted(lot.getId());
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/alerts")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(payload)
+                .with(jwtWithRole("auth-sub-postman-driver", "DRIVER")))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/alerts")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(payload)
+                .with(jwtWithRole("auth-sub-postman-driver", "DRIVER")))
+            .andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("POST /api/alerts - DAILY_SUMMARY with invalid schedule timezone - returns 400")
+    void createSubscription_invalidScheduleTimezone_returns400() throws Exception {
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/alerts")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "alertType":"DAILY_SUMMARY",
+                      "schedule":{"frequency":"DAILY","time":"10:30","timezone":"Invalid/Timezone"}
+                    }
+                    """)
+                .with(jwtWithRole("auth-sub-postman-driver", "DRIVER")))
+            .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("POST /api/alerts - TECHNICAL role - returns 403")
+    void createSubscription_nonDriver_returns403() throws Exception {
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/alerts")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"alertType\":\"LOT_FULL\"}")
+                .with(jwtWithRole("sub-tech", "TECHNICAL")))
+            .andExpect(status().isForbidden());
+    }
+
     private Alert savedAlert(StateAlert state) {
-        ParkingLot lot = new ParkingLot();
-        lot.setName("Test Lot");
-        lot.setCity("Aveiro");
-        lot = parkingLotRepository.save(lot);
+        ParkingLot lot = parkingLotRepository.save(lot("Test Lot"));
 
         Alert alert = new Alert();
         alert.setParkingLot(lot);
@@ -138,5 +244,16 @@ class AlertControllerIT {
         alert.setDescription("Test sensor failure");
         alert.setCreatedAt(LocalDateTime.now());
         return alertRepository.save(alert);
+    }
+
+    private ParkingLot lot(String name) {
+        ParkingLot lot = new ParkingLot();
+        lot.setName(name);
+        lot.setCity("Aveiro");
+        lot.setAddress("Rua Central");
+        lot.setLatitude(40.6405);
+        lot.setLongitude(-8.6531);
+        lot.setTotalSpaces(100);
+        return lot;
     }
 }
