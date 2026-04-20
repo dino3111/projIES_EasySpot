@@ -2,6 +2,14 @@
 name: SonarQube Analysis
 
 on:
+  push:
+    branches: [master]
+    paths:
+      - 'sonar-project.properties'
+      - '.github/workflows/sonarqube.yml'
+      - 'projX/api-easyspot/**'
+      - 'projX/web-easyspot/src/**'
+  workflow_dispatch:
   pull_request:
     branches: [master, develop]
     paths:
@@ -25,6 +33,7 @@ env:
 jobs:
   sonarqube:
     name: SonarQube scan
+    if: github.event_name != 'pull_request'
     runs-on: [self-hosted]
     steps:
       - name: Fix workspace permissions

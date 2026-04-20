@@ -62,6 +62,11 @@ jobs:
           set -euo pipefail
           cd projX
 
+          kafka_advertised_host="${{ secrets.KAFKA_ADVERTISED_HOST }}"
+          if [ -z "$kafka_advertised_host" ]; then
+            kafka_advertised_host="${{ vars.KAFKA_ADVERTISED_HOST }}"
+          fi
+
           required_secrets=(
             "${{ secrets.AUTHENTIK_SECRET_KEY }}"
             "${{ secrets.PG_PASS }}"
@@ -77,8 +82,8 @@ jobs:
             fi
           done
 
-          if [ -z "${{ vars.KAFKA_ADVERTISED_HOST }}" ]; then
-            echo "Missing KAFKA_ADVERTISED_HOST repository or environment variable. Set it in the production environment."
+          if [ -z "$kafka_advertised_host" ]; then
+            echo "Missing KAFKA_ADVERTISED_HOST in production secrets or variables."
             exit 1
           fi
 
@@ -121,7 +126,7 @@ jobs:
             echo ""
             echo "# Backend Time-Series Database"
             echo "TS_DB=easyspot_ts"
-            echo "KAFKA_ADVERTISED_HOST=${{ vars.KAFKA_ADVERTISED_HOST }}"
+            echo "KAFKA_ADVERTISED_HOST=$kafka_advertised_host"
             echo ""
             if [ "$stripe_enabled" = true ]; then
               echo "# Stripe CLI webhook forwarding"
