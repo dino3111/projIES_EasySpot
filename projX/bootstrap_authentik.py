@@ -8,15 +8,21 @@ Configures the Authentik IDP via REST API:
   - OAuth2 provider + application (easyspot)
   - Test users: one per role
 
-Usage:
+Usage (Automatic - no manual setup needed):
     1. Start the stack: docker compose up -d
-    2. Open http://localhost:9000 and finish the initial Authentik setup
-    3. Create an API token in Admin UI → Directory → Tokens → Create
-    4. Run: AUTHENTIK_TOKEN=<token> python3 bootstrap_authentik.py
+    2. Run: python3 bootstrap_authentik.py
+       - Automatically creates akadmin if needed
+       - Sets up groups, OAuth2 provider, test users
+       - Prints summary with credentials
+
+Usage (Manual - if automatic setup fails):
+    1. Open http://localhost:9000 and finish the initial Authentik setup
+    2. Create an API token in Admin UI → Directory → Tokens → Create
+    3. Run: AUTHENTIK_TOKEN=<token> python3 bootstrap_authentik.py
 
 Optional env vars:
     AUTHENTIK_URL       Base URL of Authentik (default: http://localhost:9000)
-    AUTHENTIK_TOKEN     API token (required)
+    AUTHENTIK_TOKEN     API token (optional if auto-setup works)
     REDIRECT_URI        Frontend OAuth2 callback (default: http://localhost:5173/callback)
 """
 
@@ -26,7 +32,7 @@ import time
 import requests
 
 BASE_URL = os.environ.get("AUTHENTIK_URL", "http://localhost:9000").rstrip("/")
-TOKEN = os.environ.get("AUTHENTIK_TOKEN", "")
+TOKEN = os.environ.get("AUTHENTIK_TOKEN") or os.environ.get("AUTHENTIK_BOOTSTRAP_TOKEN", "")
 REDIRECT_URI = os.environ.get("REDIRECT_URI", "http://localhost:5173/callback")
 
 APP_SLUG = "easyspot"
@@ -57,7 +63,7 @@ def wait_ready(timeout: int = 120):
     deadline = time.time() + timeout
     while time.time() < deadline:
         try:
-            r = requests.get(f"{BASE_URL}/-/health/ready/", timeout=5)
+            r = requests.get(f"{BASE_URL}/authentik/-/health/ready/", timeout=5)
             if r.status_code == 204:
                 print("  Authentik is ready.")
                 return
@@ -65,6 +71,43 @@ def wait_ready(timeout: int = 120):
             pass
         time.sleep(3)
     sys.exit("Authentik did not become ready in time.")
+
+
+def setup_akadmin_if_needed() -> str:
+    """Auto-setup akadmin and return API token if needed"""
+    print("Checking if Authentik needs initial setup...")
+    
+    # Check if akadmin already exists
+    try:
+        headers = {"Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json"}
+        resp = requests.get(f"{BASE_URL}/api/v3/core/users/?username=akadmin", headers=headers, timeout=5)
+        if resp.ok and resp.json().get("results"):
+            print("  akadmin already exists.")
+            return TOKEN
+    except:
+        pass
+    
+    # Try install endpoint (for fresh Authentik instances)
+    try:
+        print("  Attempting initial setup via /api/v3/core/install/...")
+        install_payload = {
+            "username": "akadmin",
+            "email": "admin@easyspot.local",
+            "name": "EasySpot Admin",
+            "password": "EasySpot123!Admin",
+        }
+        resp = requests.post(f"{BASE_URL}/api/v3/core/install/", json=install_payload, timeout=10)
+        if resp.ok:
+            result = resp.json()
+            token = result.get("token")
+            if token:
+                print(f"  ✓ akadmin created with auto-generated token")
+                return token
+    except Exception as e:
+        print(f"  Install endpoint failed: {e}")
+    
+    print("  Skipping setup (may already be configured)")
+    return TOKEN
 
 
 def get_or_create(list_path: str, create_path: str, match_key: str, match_val: str, payload: dict) -> dict:
@@ -217,15 +260,24 @@ def print_summary(provider_pk: int):
 
 
 def main():
-    if not TOKEN:
+    wait_ready()
+    
+    # Try to auto-setup akadmin if Authentik is fresh
+    token = setup_akadmin_if_needed()
+    
+    if not token:
         sys.exit(
-            "AUTHENTIK_TOKEN is not set.\n"
-            "Create a token in Authentik Admin UI → Directory → Tokens, then:\n"
-            "  export AUTHENTIK_TOKEN=<token>\n"
-            "  python3 bootstrap_authentik.py"
+            "Could not obtain AUTHENTIK_TOKEN.\n"
+            "Options:\n"
+            "  1. Manual setup: Open http://localhost:9000, create akadmin, generate token, then:\n"
+            "     export AUTHENTIK_TOKEN=<token>\n"
+            "     python3 bootstrap_authentik.py\n"
+            "  2. Check if Authentik is fully running: docker compose logs authentik-server"
         )
 
-    wait_ready()
+    # Set token globally for api() calls
+    global TOKEN
+    TOKEN = token
 
     group_ids = create_groups()
     groups_mapping_pk = create_groups_property_mapping()
