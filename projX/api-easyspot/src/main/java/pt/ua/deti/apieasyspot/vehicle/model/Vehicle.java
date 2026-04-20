@@ -17,6 +17,9 @@ import java.time.LocalDateTime;
     uniqueConstraints = {
         @UniqueConstraint(columnNames = "plate"),
         @UniqueConstraint(columnNames = "vin")
+    },
+    indexes = {
+        @Index(name = "idx_vehicles_user_id", columnList = "user_id")
     }
 )
 public class Vehicle {

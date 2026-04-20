@@ -8,6 +8,8 @@ import pt.ua.deti.apieasyspot.analytics.dto.SensorStatusDto;
 import pt.ua.deti.apieasyspot.analytics.dto.WorkOrderSummary;
 
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.time.format.TextStyle;
 import java.util.List;
 import java.util.Locale;
@@ -35,7 +37,8 @@ public class TechnicianRepository {
             """
             select count(*) from alerts
             where type in ('SENSOR', 'SYSTEM')
-              and cast(created_at as date) = current_date
+              and created_at >= current_date
+              and created_at < current_date + interval '1 day'
               and state != 'RESOLVED'
             """, Long.class);
         return result != null ? result : 0L;
@@ -46,7 +49,8 @@ public class TechnicianRepository {
             """
             select count(*) from alerts
             where type in ('SENSOR', 'SYSTEM')
-              and cast(created_at as date) = current_date - 1
+              and created_at >= current_date - interval '1 day'
+              and created_at < current_date
               and state != 'RESOLVED'
             """, Long.class);
         return result != null ? result : 0L;
@@ -93,7 +97,7 @@ public class TechnicianRepository {
                 from alerts
                 where type = 'SENSOR'
                   and sensor_id is not null
-                  and cast(created_at as date) >= current_date - 6
+                  and created_at >= current_date - 6
                 group by cast(created_at as date)
             )
             select d.day,
@@ -149,7 +153,7 @@ public class TechnicianRepository {
                 rs.getString("description"),
                 rs.getString("severity").toLowerCase(Locale.ROOT),
                 rs.getString("state").toLowerCase(Locale.ROOT).replace("_", "-"),
-                rs.getTimestamp("created_at").toLocalDateTime(),
+                rs.getTimestamp("created_at").toInstant().atOffset(ZoneOffset.UTC),
                 rs.getString("attributed_to")));
     }
 

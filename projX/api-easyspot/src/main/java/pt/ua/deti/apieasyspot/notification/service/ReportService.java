@@ -21,7 +21,8 @@ import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingLotRepository;
 
 import java.io.IOException;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Set;
 import java.util.UUID;
 
@@ -96,7 +97,7 @@ public class ReportService {
         alert.setDescription(request.description());
         alert.setPhotoUrl(photoUrl);
         alert.setAttributedTo(driver.getName());
-        alert.setCreatedAt(LocalDateTime.now());
+        alert.setCreatedAt(OffsetDateTime.now(ZoneOffset.UTC));
         return alert;
     }
 
