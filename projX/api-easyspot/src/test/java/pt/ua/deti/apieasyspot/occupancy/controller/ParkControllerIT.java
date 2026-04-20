@@ -66,6 +66,62 @@ class ParkControllerIT {
     }
 
     @Test
+    void listParks_MinAvailableSpaces_WithinCapacity_ReturnsResult() throws Exception {
+        mockMvc.perform(get("/api/parks/list")
+                .param("minAvailableSpaces", "50")
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(jwtWithRole("sub", "DRIVER")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].name").value("Parque Central"));
+    }
+
+    @Test
+    void listParks_MinAvailableSpaces_ExceedsCapacity_ReturnsEmpty() throws Exception {
+        mockMvc.perform(get("/api/parks/list")
+                .param("minAvailableSpaces", "101")
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(jwtWithRole("sub", "DRIVER")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items").isEmpty());
+    }
+
+    @Test
+    void listParks_EvFilter_NoSnapshots_ReturnsEmpty() throws Exception {
+        mockMvc.perform(get("/api/parks/list")
+                .param("filters", "EV")
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(jwtWithRole("sub", "DRIVER")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items").isEmpty());
+    }
+
+    @Test
+    void listParks_UnknownVehicleId_IgnoresFilter() throws Exception {
+        mockMvc.perform(get("/api/parks/list")
+                .param("vehicleId", UUID.randomUUID().toString())
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(jwtWithRole("sub", "DRIVER")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].name").value("Parque Central"));
+    }
+
+    @Test
+    void listParks_InvalidPage_ReturnsBadRequest() throws Exception {
+        mockMvc.perform(get("/api/parks/list")
+                .param("page", "0")
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(jwtWithRole("sub", "DRIVER")))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void listParks_Unauthorized_Returns401() throws Exception {
+        mockMvc.perform(get("/api/parks/list")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void getDetails_Success() throws Exception {
         mockMvc.perform(get("/api/parks/{id}/details", lot.getId())
                 .contentType(MediaType.APPLICATION_JSON)

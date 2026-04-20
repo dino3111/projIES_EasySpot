@@ -10,6 +10,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import pt.ua.deti.apieasyspot.common.exception.ResourceNotFoundException;
 import pt.ua.deti.apieasyspot.occupancy.dto.ParkingLotDetailsResponse;
+import pt.ua.deti.apieasyspot.occupancy.dto.ParkingLotSummaryResponse;
 import pt.ua.deti.apieasyspot.occupancy.model.*;
 import pt.ua.deti.apieasyspot.occupancy.repository.*;
 
@@ -35,8 +36,6 @@ class ParkServiceTest {
 
     @InjectMocks private ParkService parkService;
 
-    @Mock private pt.ua.deti.apieasyspot.vehicle.repository.VehicleRepository vehicleRepository;
-
     private UUID lotId;
     private ParkingLot lot;
 
@@ -55,30 +54,49 @@ class ParkServiceTest {
     }
 
     @Test
-    void searchParks_Success() {
-        when(jdbc.query(anyString(), any(RowMapper.class), any(), any(), any(), any(), any(), any())).thenReturn(List.of(
-            new pt.ua.deti.apieasyspot.occupancy.dto.ParkingLotSummaryResponse.ParkingLotSummary(
-                lotId, "Test Park", "Test Address", BigDecimal.valueOf(1.5), 100, 20,
-                new pt.ua.deti.apieasyspot.occupancy.dto.ParkingLotSummaryResponse.CountInfo(5, 10),
-                new pt.ua.deti.apieasyspot.occupancy.dto.ParkingLotSummaryResponse.CountInfo(2, 5),
-                "AVAILABLE"
-            )
-        ));
+    void searchParks_returnsItemsFromJdbc() {
+        ParkingLotSummaryResponse.ParkingLotSummary summary = new ParkingLotSummaryResponse.ParkingLotSummary(
+            lotId, "Test Park", "Test Address", BigDecimal.valueOf(1.5), 100, 20,
+            new ParkingLotSummaryResponse.CountInfo(5, 10),
+            new ParkingLotSummaryResponse.CountInfo(2, 5),
+            "AVAILABLE"
+        );
+        when(jdbc.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of(summary));
 
-        pt.ua.deti.apieasyspot.occupancy.dto.ParkingLotSummaryResponse response = 
-            parkService.searchParks("Test", 10, List.of("EV"), null, 1, 10);
+        ParkingLotSummaryResponse response = parkService.searchParks("Test", 10, List.of("EV"), 1, 10);
 
         assertThat(response.items()).hasSize(1);
         assertThat(response.items().get(0).name()).isEqualTo("Test Park");
-        assertThat(response.pagination().totalItems()).isEqualTo(0); // Since full_count was mocked to return 0 in lambda if not careful, but here my mock returns a list. 
-        // Wait, in my mock I should ensure full_count is handled.
+        assertThat(response.items().get(0).currentAvailabilityStatus()).isEqualTo("AVAILABLE");
+        assertThat(response.pagination().page()).isEqualTo(1);
+        assertThat(response.pagination().pageSize()).isEqualTo(10);
+    }
+
+    @Test
+    void searchParks_noFilters_callsJdbc() {
+        when(jdbc.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+
+        ParkingLotSummaryResponse response = parkService.searchParks(null, null, null, 1, 20);
+
+        assertThat(response.items()).isEmpty();
+        assertThat(response.pagination().totalItems()).isEqualTo(0);
+        assertThat(response.pagination().totalPages()).isEqualTo(0);
+    }
+
+    @Test
+    void searchParks_page2_usesCorrectOffset() {
+        when(jdbc.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+
+        ParkingLotSummaryResponse response = parkService.searchParks(null, null, null, 2, 10);
+
+        assertThat(response.pagination().page()).isEqualTo(2);
+        assertThat(response.pagination().pageSize()).isEqualTo(10);
     }
 
     @Test
     void getDetails_Success() {
         when(parkingLotRepository.findById(lotId)).thenReturn(Optional.of(lot));
-        
-        // Mocking JDBC query for zones
+
         when(jdbc.query(anyString(), any(RowMapper.class), eq(lotId))).thenReturn(List.of(
             new ParkingLotDetailsResponse.ZoneResponse("STANDARD", 80, 20, 75)
         ));

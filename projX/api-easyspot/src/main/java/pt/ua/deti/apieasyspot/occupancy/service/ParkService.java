@@ -9,7 +9,8 @@ import pt.ua.deti.apieasyspot.occupancy.dto.ParkingLotSummaryResponse;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
 import pt.ua.deti.apieasyspot.occupancy.repository.*;
 
-import java.math.BigDecimal;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -23,50 +24,54 @@ public class ParkService {
     private final EVChargerRepository evChargerRepository;
     private final AccessibleSpotRepository accessibleSpotRepository;
     private final ParkingSpotRepository parkingSpotRepository;
-    private final pt.ua.deti.apieasyspot.vehicle.repository.VehicleRepository vehicleRepository;
     private final JdbcTemplate jdbc;
 
-    public ParkingLotSummaryResponse searchParks(String textQuery, Integer minAvailableSpaces, List<String> filters, String vehicleId, int page, int pageSize) {
-        final List<String> activeFilters = filters != null ? new ArrayList<>(filters) : new ArrayList<>();
-
-        if (vehicleId != null) {
-            vehicleRepository.findById(UUID.fromString(vehicleId)).ifPresent(v -> {
-                if (v.isEv() && !activeFilters.contains("EV")) activeFilters.add("EV");
-                if (v.isAccessible() && !activeFilters.contains("ACCESSIBLE")) activeFilters.add("ACCESSIBLE");
-            });
-        }
-
-        boolean filterEV = activeFilters.contains("EV");
-        boolean filterAcc = activeFilters.contains("ACCESSIBLE");
-
+    public ParkingLotSummaryResponse searchParks(String textQuery, Integer minAvailableSpaces, List<String> filters, int page, int pageSize) {
+        boolean filterEV = filters != null && filters.contains("EV");
+        boolean filterAcc = filters != null && filters.contains("ACCESSIBLE");
         int offset = (page - 1) * pageSize;
 
-        StringBuilder sql = new StringBuilder("""
+        StringBuilder sql = buildBaseSql();
+        List<Object> params = new ArrayList<>();
+        appendFilters(sql, params, textQuery, minAvailableSpaces, filterEV, filterAcc);
+        sql.append(" GROUP BY p.id, pa.total_spaces, pa.free_spaces, pa.ev_free, pa.ev_total, pa.acc_free, pa.acc_total");
+        sql.append(" ORDER BY p.name ASC LIMIT ? OFFSET ?");
+        params.add(pageSize);
+        params.add(offset);
+
+        long[] totalItems = {0};
+        List<ParkingLotSummaryResponse.ParkingLotSummary> items = jdbc.query(
+            sql.toString(),
+            (rs, rowNum) -> mapRow(rs, totalItems),
+            params.toArray()
+        );
+
+        int totalPages = totalItems[0] == 0 ? 0 : (int) Math.ceil((double) totalItems[0] / pageSize);
+        return new ParkingLotSummaryResponse(
+            items,
+            new ParkingLotSummaryResponse.PaginationInfo(page, pageSize, totalItems[0], totalPages)
+        );
+    }
+
+    private StringBuilder buildBaseSql() {
+        return new StringBuilder("""
             WITH latest_snapshots AS (
-                SELECT 
-                    parking_lot_id,
-                    zone_type,
-                    occupied_count,
-                    total_count,
+                SELECT parking_lot_id, zone_type, occupied_count, total_count,
                     ROW_NUMBER() OVER (PARTITION BY parking_lot_id, zone_type ORDER BY recorded_at DESC) as rn
                 FROM occupancy_snapshots
             ),
-            latest_only AS (
-                SELECT * FROM latest_snapshots WHERE rn = 1
-            ),
+            latest_only AS (SELECT * FROM latest_snapshots WHERE rn = 1),
             park_availability AS (
-                SELECT 
-                    parking_lot_id,
+                SELECT parking_lot_id,
                     SUM(total_count) as total_spaces,
                     SUM(total_count - occupied_count) as free_spaces,
                     SUM(CASE WHEN zone_type = 'EV' THEN total_count ELSE 0 END) as ev_total,
                     SUM(CASE WHEN zone_type = 'EV' THEN total_count - occupied_count ELSE 0 END) as ev_free,
                     SUM(CASE WHEN zone_type = 'ACCESSIBLE' THEN total_count ELSE 0 END) as acc_total,
                     SUM(CASE WHEN zone_type = 'ACCESSIBLE' THEN total_count - occupied_count ELSE 0 END) as acc_free
-                FROM latest_only
-                GROUP BY parking_lot_id
+                FROM latest_only GROUP BY parking_lot_id
             )
-            SELECT p.id, p.name, p.address, MIN(t.price_per_hour) as price, 
+            SELECT p.id, p.name, p.address, MIN(t.price_per_hour) as price,
                    COALESCE(pa.total_spaces, p.total_spaces) as total_spaces,
                    COALESCE(pa.free_spaces, p.total_spaces) as free_spaces,
                    COALESCE(pa.ev_free, 0) as ev_free, COALESCE(pa.ev_total, 0) as ev_total,
@@ -77,9 +82,9 @@ public class ParkService {
             LEFT JOIN tariffs t ON p.id = t.parking_lot_id
             WHERE 1=1
             """);
+    }
 
-        List<Object> params = new java.util.ArrayList<>();
-
+    private void appendFilters(StringBuilder sql, List<Object> params, String textQuery, Integer minAvailableSpaces, boolean filterEV, boolean filterAcc) {
         if (textQuery != null && !textQuery.isBlank()) {
             sql.append(" AND (p.name ILIKE ? OR p.city ILIKE ? OR p.address ILIKE ?)");
             String q = "%" + textQuery + "%";
@@ -87,53 +92,35 @@ public class ParkService {
             params.add(q);
             params.add(q);
         }
-
         if (minAvailableSpaces != null) {
             sql.append(" AND COALESCE(pa.free_spaces, p.total_spaces) >= ?");
             params.add(minAvailableSpaces);
         }
+        if (filterEV) sql.append(" AND COALESCE(pa.ev_total, 0) > 0");
+        if (filterAcc) sql.append(" AND COALESCE(pa.acc_total, 0) > 0");
+    }
 
-        if (filterEV) {
-            sql.append(" AND COALESCE(pa.ev_total, 0) > 0");
-        }
-        if (filterAcc) {
-            sql.append(" AND COALESCE(pa.acc_total, 0) > 0");
-        }
-
-        sql.append(" GROUP BY p.id, pa.total_spaces, pa.free_spaces, pa.ev_free, pa.ev_total, pa.acc_free, pa.acc_total");
-        sql.append(" ORDER BY p.name ASC LIMIT ? OFFSET ?");
-        params.add(pageSize);
-        params.add(offset);
-
-        long[] totalItems = {0};
-        List<ParkingLotSummaryResponse.ParkingLotSummary> items = jdbc.query(sql.toString(), (rs, rowNum) -> {
-            totalItems[0] = rs.getLong("full_count");
-            int free = rs.getInt("free_spaces");
-            int total = rs.getInt("total_spaces");
-            
-            String status = "AVAILABLE";
-            if (free == 0) status = "FULL";
-            else if ((double)free / total < 0.1) status = "LIMITED";
-
-            return new ParkingLotSummaryResponse.ParkingLotSummary(
-                UUID.fromString(rs.getString("id")),
-                rs.getString("name"),
-                rs.getString("address"),
-                rs.getBigDecimal("price"),
-                total,
-                free,
-                new ParkingLotSummaryResponse.CountInfo(rs.getInt("ev_free"), rs.getInt("ev_total")),
-                new ParkingLotSummaryResponse.CountInfo(rs.getInt("acc_free"), rs.getInt("acc_total")),
-                status
-            );
-        }, params.toArray());
-
-        int totalPages = (int) Math.ceil((double) totalItems[0] / pageSize);
-
-        return new ParkingLotSummaryResponse(
-            items,
-            new ParkingLotSummaryResponse.PaginationInfo(page, pageSize, totalItems[0], totalPages)
+    private ParkingLotSummaryResponse.ParkingLotSummary mapRow(ResultSet rs, long[] totalItems) throws SQLException {
+        totalItems[0] = rs.getLong("full_count");
+        int free = rs.getInt("free_spaces");
+        int total = rs.getInt("total_spaces");
+        return new ParkingLotSummaryResponse.ParkingLotSummary(
+            UUID.fromString(rs.getString("id")),
+            rs.getString("name"),
+            rs.getString("address"),
+            rs.getBigDecimal("price"),
+            total,
+            free,
+            new ParkingLotSummaryResponse.CountInfo(rs.getInt("ev_free"), rs.getInt("ev_total")),
+            new ParkingLotSummaryResponse.CountInfo(rs.getInt("acc_free"), rs.getInt("acc_total")),
+            classifyAvailability(free, total)
         );
+    }
+
+    private String classifyAvailability(int free, int total) {
+        if (free == 0) return "FULL";
+        if (total > 0 && (double) free / total < 0.1) return "LIMITED";
+        return "AVAILABLE";
     }
 
     public ParkingLotDetailsResponse getDetails(UUID id) {
