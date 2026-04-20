@@ -25,7 +25,7 @@ import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingLotRepository;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -245,7 +245,7 @@ class AlertControllerIT {
         alert.setSeverity(SeverityAlert.CRITICAL);
         alert.setState(state);
         alert.setDescription("Test sensor failure");
-        alert.setCreatedAt(LocalDateTime.now());
+        alert.setCreatedAt(OffsetDateTime.now());
         return alertRepository.save(alert);
     }
 
