@@ -10,6 +10,7 @@ import pt.ua.deti.apieasyspot.common.exception.ConflictException;
 import pt.ua.deti.apieasyspot.common.exception.ExternalServiceException;
 import pt.ua.deti.apieasyspot.common.exception.ResourceNotFoundException;
 import pt.ua.deti.apieasyspot.common.exception.UnprocessableEntityException;
+import pt.ua.deti.apieasyspot.vehicle.dto.VehicleCapabilities;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleCreateRequest;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleData;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleResponse;
@@ -117,6 +118,12 @@ public class VehicleService {
             if (year >= 1900 && year <= 2100) return year;
         } catch (NumberFormatException ignored) {}
         return LocalDate.now().getYear();
+    }
+
+    public VehicleCapabilities getCapabilities(UUID vehicleId) {
+        return vehicleRepository.findById(vehicleId)
+            .map(v -> new VehicleCapabilities(v.isEv(), v.isAccessible()))
+            .orElse(new VehicleCapabilities(false, false));
     }
 
     private VehicleResponse toResponse(Vehicle vehicle) {
