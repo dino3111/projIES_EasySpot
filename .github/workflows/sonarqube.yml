@@ -105,6 +105,7 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ env.SONAR_HOST_URL_EFFECTIVE }}
+          SONAR_BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
         run: |
           curl -sSLo sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-7.0.2.4839.zip
           unzip -qo sonar-scanner.zip
@@ -113,7 +114,7 @@ jobs:
           # Community Edition does not support pull request analysis
           # Use branch analysis instead with automatic target branch detection
           sonar-scanner \
-            -Dsonar.branch.name=${{ github.head_ref || github.ref_name }}
+            -Dsonar.branch.name="$SONAR_BRANCH_NAME"
 
       - name: Quality Gate check
         uses: SonarSource/sonarqube-quality-gate-action@v1
