@@ -26,14 +26,22 @@ Optional env vars:
     REDIRECT_URI        Frontend OAuth2 callback (default: http://localhost:5173/callback)
 """
 
+from __future__ import annotations
+
 import os
 import sys
 import time
-import requests
+
+import requests  # type: ignore[import]
 
 BASE_URL = os.environ.get("AUTHENTIK_URL", "http://localhost:9000").rstrip("/")
-TOKEN = os.environ.get("AUTHENTIK_TOKEN") or os.environ.get("AUTHENTIK_BOOTSTRAP_TOKEN", "")
-REDIRECT_URI = os.environ.get("REDIRECT_URI", "http://localhost:5173/callback")
+TOKEN: str = (
+    os.environ.get("AUTHENTIK_TOKEN")
+    or os.environ.get("AUTHENTIK_BOOTSTRAP_TOKEN", "")
+)
+REDIRECT_URI = os.environ.get(
+    "REDIRECT_URI", "http://localhost:5173/callback"
+)
 
 APP_SLUG = "easyspot"
 APP_NAME = "EasySpot"
@@ -43,27 +51,55 @@ ISSUER_URI = f"{BASE_URL}/application/o/{APP_SLUG}/"
 ROLES = ["DRIVER", "MANAGER", "TECHNICAL"]
 
 TEST_USERS = [
-    {"username": "test_driver",    "email": "driver@easyspot.local",    "name": "Test Driver",    "password": "Driver123!", "role": "DRIVER"},
-    {"username": "test_manager",   "email": "manager@easyspot.local",   "name": "Test Manager",   "password": "Manager123!", "role": "MANAGER"},
-    {"username": "test_technical", "email": "technical@easyspot.local", "name": "Test Technical", "password": "Technical123!", "role": "TECHNICAL"},
+    {
+        "username": "test_driver",
+        "email": "driver@easyspot.local",
+        "name": "Test Driver",
+        "password": "Driver123!",
+        "role": "DRIVER",
+    },
+    {
+        "username": "test_manager",
+        "email": "manager@easyspot.local",
+        "name": "Test Manager",
+        "password": "Manager123!",
+        "role": "MANAGER",
+    },
+    {
+        "username": "test_technical",
+        "email": "technical@easyspot.local",
+        "name": "Test Technical",
+        "password": "Technical123!",
+        "role": "TECHNICAL",
+    },
 ]
 
 
-def api(method: str, path: str, **kwargs):
-    headers = {"Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json"}
-    resp = requests.request(method, f"{BASE_URL}/api/v3{path}", headers=headers, **kwargs)
+def api(method: str, path: str, **kwargs: object) -> dict:
+    headers = {
+        "Authorization": f"Bearer {TOKEN}",
+        "Content-Type": "application/json",
+    }
+    resp = requests.request(
+        method, f"{BASE_URL}/api/v3{path}", headers=headers, **kwargs
+    )
     if not resp.ok:
-        print(f"  ERROR {resp.status_code} on {method} {path}: {resp.text[:300]}")
+        print(
+            f"  ERROR {resp.status_code} on {method} {path}:"
+            f" {resp.text[:300]}"
+        )
         resp.raise_for_status()
     return resp.json() if resp.text else {}
 
 
-def wait_ready(timeout: int = 120):
+def wait_ready(timeout: int = 120) -> None:
     print("Waiting for Authentik to be ready...")
     deadline = time.time() + timeout
     while time.time() < deadline:
         try:
-            r = requests.get(f"{BASE_URL}/authentik/-/health/ready/", timeout=5)
+            r = requests.get(
+                f"{BASE_URL}/authentik/-/health/ready/", timeout=5
+            )
             if r.status_code == 204:
                 print("  Authentik is ready.")
                 return
@@ -74,34 +110,47 @@ def wait_ready(timeout: int = 120):
 
 
 def setup_akadmin_if_needed() -> str:
-    """Auto-setup akadmin and return API token if needed"""
+    """Auto-setup akadmin and return API token if needed."""
     print("Checking if Authentik needs initial setup...")
-    
+
     # Check if akadmin already exists
     try:
-        headers = {"Authorization": f"Bearer {TOKEN}", "Content-Type": "application/json"}
-        resp = requests.get(f"{BASE_URL}/api/v3/core/users/?username=akadmin", headers=headers, timeout=5)
+        headers = {
+            "Authorization": f"Bearer {TOKEN}",
+            "Content-Type": "application/json",
+        }
+        resp = requests.get(
+            f"{BASE_URL}/api/v3/core/users/?username=akadmin",
+            headers=headers,
+            timeout=5,
+        )
         if resp.ok and resp.json().get("results"):
             print("  akadmin already exists.")
             return TOKEN
-    except:
+    except Exception:
         pass
     
     # Try install endpoint (for fresh Authentik instances)
     try:
-        print("  Attempting initial setup via /api/v3/core/install/...")
+        print(
+            "  Attempting initial setup via /api/v3/core/install/..."
+        )
         install_payload = {
             "username": "akadmin",
             "email": "admin@easyspot.local",
             "name": "EasySpot Admin",
             "password": "EasySpot123!Admin",
         }
-        resp = requests.post(f"{BASE_URL}/api/v3/core/install/", json=install_payload, timeout=10)
+        resp = requests.post(
+            f"{BASE_URL}/api/v3/core/install/",
+            json=install_payload,
+            timeout=10,
+        )
         if resp.ok:
             result = resp.json()
             token = result.get("token")
             if token:
-                print(f"  ✓ akadmin created with auto-generated token")
+                print("  ✓ akadmin created with auto-generated token")
                 return token
     except Exception as e:
         print(f"  Install endpoint failed: {e}")
@@ -110,7 +159,13 @@ def setup_akadmin_if_needed() -> str:
     return TOKEN
 
 
-def get_or_create(list_path: str, create_path: str, match_key: str, match_val: str, payload: dict) -> dict:
+def get_or_create(
+    list_path: str,
+    create_path: str,
+    match_key: str,
+    match_val: str,
+    payload: dict,
+) -> dict:
     existing = api("GET", f"{list_path}?{match_key}={match_val}")
     results = existing.get("results", [])
     if results:
@@ -123,20 +178,30 @@ def create_groups() -> dict[str, int]:
     group_ids: dict[str, int] = {}
     for role in ROLES:
         group = get_or_create(
-            "/core/groups/", "/core/groups/",
-            "name", role,
+            "/core/groups/",
+            "/core/groups/",
+            "name",
+            role,
             {"name": role, "is_superuser": False},
         )
-        group_ids[role] = group["pk"]
-        print(f"  Group '{role}' → pk={group['pk']}")
+        pk = group.get("pk")
+        if not pk:
+            sys.exit(f"Failed to get group pk for role {role}")
+        if isinstance(pk, str):
+            group_ids[role] = int(pk)
+        else:
+            group_ids[role] = pk
+        print(f"  Group '{role}' → pk={group_ids[role]}")
     return group_ids
 
 
 def create_groups_property_mapping() -> str:
     print("Creating 'groups' property mapping...")
     mapping = get_or_create(
-        "/propertymappings/scope/", "/propertymappings/scope/",
-        "scope_name", "groups",
+        "/propertymappings/scope/",
+        "/propertymappings/scope/",
+        "scope_name",
+        "groups",
         {
             "name": "EasySpot Groups Claim",
             "scope_name": "groups",
@@ -146,7 +211,11 @@ def create_groups_property_mapping() -> str:
             ),
         },
     )
-    pk = mapping["pk"]
+    pk = mapping.get("pk")
+    if not pk:
+        sys.exit("Failed to get property mapping pk")
+    if not isinstance(pk, str):
+        pk = str(pk)
     print(f"  Property mapping pk={pk}")
     return pk
 
@@ -155,7 +224,9 @@ def get_default_scope_mappings() -> list[str]:
     resp = api("GET", "/propertymappings/scope/?scope_name=openid")
     pks = [m["pk"] for m in resp.get("results", [])]
     for name in ("email", "profile"):
-        r = api("GET", f"/propertymappings/scope/?scope_name={name}")
+        r = api(
+            "GET", f"/propertymappings/scope/?scope_name={name}"
+        )
         pks += [m["pk"] for m in r.get("results", [])]
     return pks
 
@@ -164,8 +235,17 @@ def get_default_flow(designation: str) -> str:
     resp = api("GET", f"/flows/instances/?designation={designation}")
     results = resp.get("results", [])
     if not results:
-        sys.exit(f"No flow with designation '{designation}' found. Run initial Authentik setup first.")
-    return results[0]["pk"]
+        msg = (
+            f"No flow with designation '{designation}' found. "
+            "Run initial Authentik setup first."
+        )
+        sys.exit(msg)
+    flow_pk = results[0].get("pk")
+    if not flow_pk:
+        sys.exit(f"Flow with designation '{designation}' has no pk")
+    if not isinstance(flow_pk, str):
+        flow_pk = str(flow_pk)
+    return flow_pk
 
 
 def create_provider(groups_mapping_pk: str) -> int:
@@ -175,8 +255,10 @@ def create_provider(groups_mapping_pk: str) -> int:
     authz_flow = get_default_flow("authorization")
 
     provider = get_or_create(
-        "/providers/oauth2/", "/providers/oauth2/",
-        "name", PROVIDER_NAME,
+        "/providers/oauth2/",
+        "/providers/oauth2/",
+        "name",
+        PROVIDER_NAME,
         {
             "name": PROVIDER_NAME,
             "authentication_flow": auth_flow,
@@ -196,16 +278,25 @@ def create_provider(groups_mapping_pk: str) -> int:
             "sub_mode": "hashed_user_id",
         },
     )
-    pk = provider["pk"]
-    print(f"  Provider pk={pk}, client_id={provider.get('client_id', '(see Authentik UI)')}")
-    return pk
+    pk = provider.get("pk")
+    if not pk:
+        sys.exit("Failed to get provider pk")
+    if isinstance(pk, str):
+        pk_int: int = int(pk)
+    else:
+        pk_int = pk
+    client_id = provider.get("client_id", "(see Authentik UI)")
+    print(f"  Provider pk={pk_int}, client_id={client_id}")
+    return pk_int
 
 
-def create_application(provider_pk: int):
+def create_application(provider_pk: int) -> dict:
     print("Creating application...")
     app = get_or_create(
-        "/core/applications/", "/core/applications/",
-        "slug", APP_SLUG,
+        "/core/applications/",
+        "/core/applications/",
+        "slug",
+        APP_SLUG,
         {
             "name": APP_NAME,
             "slug": APP_SLUG,
@@ -218,12 +309,14 @@ def create_application(provider_pk: int):
     return app
 
 
-def create_test_users(group_ids: dict[str, int]):
+def create_test_users(group_ids: dict[str, int]) -> None:
     print("Creating test users...")
     for u in TEST_USERS:
         user = get_or_create(
-            "/core/users/", "/core/users/",
-            "username", u["username"],
+            "/core/users/",
+            "/core/users/",
+            "username",
+            u["username"],
             {
                 "username": u["username"],
                 "email": u["email"],
@@ -234,45 +327,58 @@ def create_test_users(group_ids: dict[str, int]):
             },
         )
         uid = user["pk"]
-        api("POST", f"/core/users/{uid}/set_password/", json={"password": u["password"]})
-        print(f"  User '{u['username']}' (role={u['role']}) → pk={uid}")
+        api(
+            "POST",
+            f"/core/users/{uid}/set_password/",
+            json={"password": u["password"]},
+        )
+        print(
+            f"  User '{u['username']}' (role={u['role']}) → pk={uid}"
+        )
 
 
-def print_summary(provider_pk: int):
+def print_summary(provider_pk: int) -> None:
     provider = api("GET", f"/providers/oauth2/{provider_pk}/")
     print()
     print("=" * 60)
     print("Bootstrap complete. EasySpot Authentik configuration:")
     print(f"  Issuer URI:   {ISSUER_URI}")
-    print(f"  Client ID:    {provider.get('client_id', 'see Authentik UI')}")
+    client_id = provider.get("client_id", "see Authentik UI")
+    print(f"  Client ID:    {client_id}")
     print(f"  Client type:  public (PKCE)")
     print(f"  Redirect URI: {REDIRECT_URI}")
     print()
     print("Test users (all at http://localhost:9000):")
     for u in TEST_USERS:
-        print(f"  {u['role']:<12} {u['username']:<18} password: {u['password']}")
+        print(
+            f"  {u['role']:<12} {u['username']:<18}"
+            f" password: {u['password']}"
+        )
     print()
     print("Add to your .env:")
     print(f"  AUTHENTIK_ISSUER_URI={ISSUER_URI}")
-    print(f"  VITE_AUTHENTIK_CLIENT_ID={provider.get('client_id', '<client_id>')}")
+    client_id_val = provider.get("client_id", "<client_id>")
+    print(f"  VITE_AUTHENTIK_CLIENT_ID={client_id_val}")
     print(f"  VITE_AUTHENTIK_REDIRECT_URI={REDIRECT_URI}")
     print("=" * 60)
 
 
-def main():
+def main() -> None:
     wait_ready()
-    
+
     # Try to auto-setup akadmin if Authentik is fresh
     token = setup_akadmin_if_needed()
-    
+
     if not token:
         sys.exit(
             "Could not obtain AUTHENTIK_TOKEN.\n"
             "Options:\n"
-            "  1. Manual setup: Open http://localhost:9000, create akadmin, generate token, then:\n"
+            "  1. Manual setup: Open http://localhost:9000, create"
+            " akadmin, generate token, then:\n"
             "     export AUTHENTIK_TOKEN=<token>\n"
             "     python3 bootstrap_authentik.py\n"
-            "  2. Check if Authentik is fully running: docker compose logs authentik-server"
+            "  2. Check if Authentik is fully running: docker compose"
+            " logs authentik-server"
         )
 
     # Set token globally for api() calls
