@@ -35,7 +35,7 @@ import time
 
 import requests  # type: ignore[import]
 
-BASE_URL = os.environ.get("AUTHENTIK_URL", "http://localhost:9000").rstrip("/")
+BASE_URL = os.environ.get("AUTHENTIK_URL", "http://localhost:9000/authentik").rstrip("/")
 TOKEN: str = (
     os.environ.get("AUTHENTIK_TOKEN")
     or os.environ.get("AUTHENTIK_BOOTSTRAP_TOKEN")
@@ -48,7 +48,8 @@ REDIRECT_URI = os.environ.get(
 APP_SLUG = "easyspot"
 APP_NAME = "EasySpot"
 PROVIDER_NAME = "easyspot-oauth2"
-ISSUER_URI = f"{BASE_URL}/application/o/{APP_SLUG}/"
+_AUTHENTIK_HOST = os.environ.get("AUTHENTIK_URL", "http://localhost:9000").rstrip("/").removesuffix("/authentik")
+ISSUER_URI = f"{_AUTHENTIK_HOST}/application/o/{APP_SLUG}/"
 
 ROLES = ["DRIVER", "MANAGER", "TECHNICAL"]
 
@@ -100,9 +101,9 @@ def wait_ready(timeout: int = 120) -> None:
     while time.time() < deadline:
         try:
             r = requests.get(
-                f"{BASE_URL}/authentik/-/health/ready/", timeout=5
+                f"{BASE_URL}/-/health/ready/", timeout=5
             )
-            if r.status_code == 204:
+            if r.status_code in (200, 204):
                 print("  Authentik is ready.")
                 return
         except requests.exceptions.ConnectionError:
@@ -175,9 +176,9 @@ def get_or_create(
     return api("POST", create_path, json=payload)
 
 
-def create_groups() -> dict[str, int]:
+def create_groups() -> dict[str, str]:
     print("Creating groups...")
-    group_ids: dict[str, int] = {}
+    group_ids: dict[str, str] = {}
     for role in ROLES:
         group = get_or_create(
             "/core/groups/",
@@ -189,10 +190,7 @@ def create_groups() -> dict[str, int]:
         pk = group.get("pk")
         if not pk:
             sys.exit(f"Failed to get group pk for role {role}")
-        if isinstance(pk, str):
-            group_ids[role] = int(pk)
-        else:
-            group_ids[role] = pk
+        group_ids[role] = str(pk)
         print(f"  Group '{role}' → pk={group_ids[role]}")
     return group_ids
 
@@ -200,8 +198,8 @@ def create_groups() -> dict[str, int]:
 def create_groups_property_mapping() -> str:
     print("Creating 'groups' property mapping...")
     mapping = get_or_create(
-        "/propertymappings/scope/",
-        "/propertymappings/scope/",
+        "/propertymappings/provider/scope/",
+        "/propertymappings/provider/scope/",
         "scope_name",
         "groups",
         {
@@ -223,11 +221,11 @@ def create_groups_property_mapping() -> str:
 
 
 def get_default_scope_mappings() -> list[str]:
-    resp = api("GET", "/propertymappings/scope/?scope_name=openid")
+    resp = api("GET", "/propertymappings/provider/scope/?scope_name=openid")
     pks = [m["pk"] for m in resp.get("results", [])]
     for name in ("email", "profile"):
         r = api(
-            "GET", f"/propertymappings/scope/?scope_name={name}"
+            "GET", f"/propertymappings/provider/scope/?scope_name={name}"
         )
         pks += [m["pk"] for m in r.get("results", [])]
     return pks
@@ -250,11 +248,12 @@ def get_default_flow(designation: str) -> str:
     return flow_pk
 
 
-def create_provider(groups_mapping_pk: str) -> int:
+def create_provider(groups_mapping_pk: str) -> str:
     print("Creating OAuth2 provider...")
     scope_pks = get_default_scope_mappings() + [groups_mapping_pk]
     auth_flow = get_default_flow("authentication")
     authz_flow = get_default_flow("authorization")
+    invalidation_flow = get_default_flow("invalidation")
 
     provider = get_or_create(
         "/providers/oauth2/",
@@ -265,6 +264,7 @@ def create_provider(groups_mapping_pk: str) -> int:
             "name": PROVIDER_NAME,
             "authentication_flow": auth_flow,
             "authorization_flow": authz_flow,
+            "invalidation_flow": invalidation_flow,
             "client_type": "public",
             "redirect_uris": [
                 {"matching_mode": "strict", "url": REDIRECT_URI},
@@ -283,16 +283,13 @@ def create_provider(groups_mapping_pk: str) -> int:
     pk = provider.get("pk")
     if not pk:
         sys.exit("Failed to get provider pk")
-    if isinstance(pk, str):
-        pk_int: int = int(pk)
-    else:
-        pk_int = pk
+    pk_str: str = str(pk)
     client_id = provider.get("client_id", "(see Authentik UI)")
-    print(f"  Provider pk={pk_int}, client_id={client_id}")
-    return pk_int
+    print(f"  Provider pk={pk_str}, client_id={client_id}")
+    return pk_str
 
 
-def create_application(provider_pk: int) -> dict:
+def create_application(provider_pk: str) -> dict:
     print("Creating application...")
     app = get_or_create(
         "/core/applications/",
@@ -311,7 +308,7 @@ def create_application(provider_pk: int) -> dict:
     return app
 
 
-def create_test_users(group_ids: dict[str, int]) -> None:
+def create_test_users(group_ids: dict[str, str]) -> None:
     print("Creating test users...")
     for u in TEST_USERS:
         user = get_or_create(
@@ -339,7 +336,7 @@ def create_test_users(group_ids: dict[str, int]) -> None:
         )
 
 
-def print_summary(provider_pk: int) -> None:
+def print_summary(provider_pk: str) -> None:
     provider = api("GET", f"/providers/oauth2/{provider_pk}/")
     print()
     print("=" * 60)
