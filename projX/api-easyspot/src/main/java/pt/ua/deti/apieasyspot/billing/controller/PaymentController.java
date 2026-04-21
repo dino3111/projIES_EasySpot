@@ -51,6 +51,7 @@ public class PaymentController {
 
     @Operation(summary = "Get Payment Status")
     @GetMapping("/payments/status")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<PaymentStatusResponse> getPaymentStatus(
             @RequestParam UUID reservationId) {
         return ResponseEntity.ok(stripeService.getPaymentStatus(reservationId));
