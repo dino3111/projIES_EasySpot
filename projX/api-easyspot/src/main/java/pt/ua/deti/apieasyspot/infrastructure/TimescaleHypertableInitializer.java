@@ -29,6 +29,7 @@ public class TimescaleHypertableInitializer implements ApplicationRunner {
             addPolicies();
             applyStorageSettings();
             createPartialIndexes();
+            createPaymentIndexes();
             log.info("TimescaleDB initialization complete.");
         } catch (Exception e) {
             log.warn("TimescaleDB initialization skipped: {}", e.getMessage());
@@ -39,7 +40,6 @@ public class TimescaleHypertableInitializer implements ApplicationRunner {
         jdbc.execute("select create_hypertable('occupancy_snapshots', 'recorded_at', if_not_exists => true, migrate_data => true)");
         jdbc.execute("select create_hypertable('parking_sessions', 'entry_time', if_not_exists => true, migrate_data => true)");
         jdbc.execute("select create_hypertable('alerts', 'created_at', if_not_exists => true, migrate_data => true)");
-        jdbc.execute("select create_hypertable('payment_records', 'created_at', if_not_exists => true, migrate_data => true)");
         log.info("TimescaleDB hypertables ready.");
     }
 
@@ -160,6 +160,37 @@ public class TimescaleHypertableInitializer implements ApplicationRunner {
                 """);
         } catch (Exception e) {
             log.debug("idx_alerts_active skipped: {}", e.getMessage());
+        }
+    }
+
+    private void createPaymentIndexes() {
+        try {
+            jdbc.execute("""
+                create index if not exists idx_payment_records_reservation_id
+                on payment_records (reservation_id, created_at desc)
+                """);
+            jdbc.execute("""
+                create index if not exists idx_payment_records_stripe_session_id
+                on payment_records (stripe_session_id)
+                where stripe_session_id is not null
+                """);
+            jdbc.execute("""
+                create index if not exists idx_payment_records_payment_intent_id
+                on payment_records (payment_intent_id)
+                where payment_intent_id is not null
+                """);
+            jdbc.execute("""
+                create index if not exists idx_payment_records_status
+                on payment_records (status, created_at desc)
+                where status in ('PENDING', 'COMPLETED')
+                """);
+            jdbc.execute("""
+                create index if not exists idx_stripe_events_processed_at
+                on processed_stripe_events (processed_at desc)
+                """);
+            log.info("Payment indexes ready.");
+        } catch (Exception e) {
+            log.debug("Payment indexes skipped: {}", e.getMessage());
         }
     }
 
