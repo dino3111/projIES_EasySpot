@@ -229,6 +229,7 @@ class ReservationServiceTest {
             eq(ReservationStatus.CONFIRMED), eq(ReservationStatus.EXPIRED))).thenReturn(0);
         when(reservationRepository.countLotReservations(any(), any(), any())).thenReturn(0L);
         when(reservationRepository.countVehicleConflicts(any(), any(), any(), any())).thenReturn(0L);
+        when(occupancySnapshotRepository.sumFreeSpacesFromLatestSnapshot(lot.getId())).thenReturn(-1);
         when(reservationRepository.spotBelongsToPark(spot.getId(), lot.getId())).thenReturn(true);
         when(parkingSpotRepository.findByIdWithLock(spot.getId())).thenReturn(Optional.of(spot));
         when(reservationRepository.countSpotConflicts(eq(spot.getId()), any(), any())).thenReturn(1L);
@@ -256,6 +257,7 @@ class ReservationServiceTest {
             eq(ReservationStatus.CONFIRMED), eq(ReservationStatus.EXPIRED))).thenReturn(0);
         when(reservationRepository.countLotReservations(any(), any(), any())).thenReturn(0L);
         when(reservationRepository.countVehicleConflicts(any(), any(), any(), any())).thenReturn(0L);
+        when(occupancySnapshotRepository.sumFreeSpacesFromLatestSnapshot(lot.getId())).thenReturn(-1);
         when(reservationRepository.spotBelongsToPark(spot.getId(), lot.getId())).thenReturn(true);
         when(parkingSpotRepository.findByIdWithLock(spot.getId())).thenReturn(Optional.of(spot));
 
@@ -274,6 +276,7 @@ class ReservationServiceTest {
             eq(ReservationStatus.CONFIRMED), eq(ReservationStatus.EXPIRED))).thenReturn(0);
         when(reservationRepository.countLotReservations(any(), any(), any())).thenReturn(0L);
         when(reservationRepository.countVehicleConflicts(any(), any(), any(), any())).thenReturn(0L);
+        when(occupancySnapshotRepository.sumFreeSpacesFromLatestSnapshot(lot.getId())).thenReturn(-1);
         when(reservationRepository.spotBelongsToPark(spot.getId(), lot.getId())).thenReturn(false);
 
         assertThatThrownBy(() ->
