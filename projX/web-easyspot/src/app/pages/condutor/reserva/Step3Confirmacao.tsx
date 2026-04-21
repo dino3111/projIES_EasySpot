@@ -5,13 +5,14 @@ import { calcHours, fmtDateTime, fmtDuration } from './reservaHelpers';
 export function Step3Confirmacao({
   lot, floor, spot, arrivalTime, exitTime, cost,
   vehicle, agreeTerms, setAgreeTerms,
-  onConfirm, onBack,
+  onConfirm, onBack, isSubmitting = false,
 }: {
   lot: ParkingLot; floor: string; spot: ParkingSpot | null;
   arrivalTime: string; exitTime: string; cost: number;
   vehicle: Vehicle | null;
   agreeTerms: boolean; setAgreeTerms: (b: boolean) => void;
   onConfirm: () => void; onBack: () => void;
+  isSubmitting?: boolean;
 }) {
   const hours = calcHours(arrivalTime, exitTime);
 
@@ -109,12 +110,14 @@ export function Step3Confirmacao({
         </button>
         <button
           onClick={onConfirm}
-          disabled={!agreeTerms}
+          disabled={!agreeTerms || isSubmitting}
           className="btn btn-primary rounded-full flex-1 shadow-lg shadow-primary/30 disabled:opacity-40"
           aria-label="Confirmar e reservar lugar"
         >
-          <i className="fa-solid fa-lock mr-2" />
-          Confirmar Reserva
+          {isSubmitting
+            ? <span className="loading loading-spinner loading-sm" />
+            : <i className="fa-solid fa-lock mr-2" />}
+          {isSubmitting ? 'A reservar…' : 'Confirmar Reserva'}
         </button>
       </div>
     </div>
