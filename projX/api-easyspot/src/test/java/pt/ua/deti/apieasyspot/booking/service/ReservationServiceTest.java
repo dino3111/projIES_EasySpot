@@ -69,7 +69,8 @@ class ReservationServiceTest {
     private Tariff tariff;
 
     private static final String AUTH_ID = "auth-sub-123";
-    private static final OffsetDateTime ARRIVAL = OffsetDateTime.now(ZoneOffset.UTC).plusHours(2);
+    private static final OffsetDateTime ARRIVAL = OffsetDateTime.now(ZoneOffset.UTC)
+            .plusDays(1).withHour(10).withMinute(0).withSecond(0).withNano(0);
     private static final OffsetDateTime DEPARTURE = ARRIVAL.plusHours(2);
 
     @BeforeEach
