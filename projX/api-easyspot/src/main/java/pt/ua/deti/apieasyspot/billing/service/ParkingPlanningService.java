@@ -1,7 +1,9 @@
 package pt.ua.deti.apieasyspot.billing.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import pt.ua.deti.apieasyspot.billing.dto.ParkingPlanningRequest;
 import pt.ua.deti.apieasyspot.billing.dto.ParkingPlanningResponse;
@@ -13,42 +15,48 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ParkingPlanningService {
 
     private final JdbcTemplate jdbc;
+    private final NamedParameterJdbcTemplate namedJdbc;
 
     private static final ZoneId LISBON = ZoneId.of("Europe/Lisbon");
+    private static final double MAX_PRICE_REFERENCE_EUR = 5.0;
 
     public ParkingPlanningResponse plan(ParkingPlanningRequest req) {
         List<LotCandidate> candidates = fetchCandidates(req);
         candidates = candidates.stream()
             .filter(c -> c.distanceMeters <= req.maxDistanceMeters())
-            .filter(c -> isOpen(c.openingHours))
+            .filter(c -> isOpen(c.openingHours, c.id))
             .filter(c -> !needsEv(req) || c.hasEv)
             .filter(c -> !needsAccessible(req) || c.hasAccessible)
             .filter(c -> c.currentOccupancyPct < 100)
             .toList();
 
+        double maxDist = req.maxDistanceMeters();
         Comparator<LotCandidate> comparator = switch (req.effectiveOrderBy()) {
-            case lowestPrice -> Comparator.comparing(c -> c.pricePerHour != null ? c.pricePerHour : BigDecimal.valueOf(Double.MAX_VALUE));
-            case nearest -> Comparator.comparingDouble(c -> c.distanceMeters);
-            case best -> Comparator.comparingDouble(this::score).reversed();
+            case LOWEST_PRICE -> Comparator.comparing(c -> c.pricePerHour != null ? c.pricePerHour : BigDecimal.valueOf(Double.MAX_VALUE));
+            case NEAREST -> Comparator.comparingDouble(c -> c.distanceMeters);
+            case BEST -> Comparator.comparingDouble((LotCandidate c) -> score(c, maxDist)).reversed();
         };
 
         List<ParkingPlanningResponse.ParkingSummary> summaries = candidates.stream()
             .sorted(comparator)
-            .map(c -> toSummary(c, req.estimatedDurationMinutes()))
+            .map(this::toSummary)
             .toList();
 
         return new ParkingPlanningResponse(summaries);
     }
 
     private List<LotCandidate> fetchCandidates(ParkingPlanningRequest req) {
-        boolean needEv = needsEv(req);
+        boolean needEv  = needsEv(req);
         boolean needAcc = needsAccessible(req);
 
         String sql = """
@@ -82,10 +90,8 @@ public class ParkingPlanningService {
             LEFT JOIN park_agg pa ON p.id = pa.parking_lot_id
             LEFT JOIN tariffs t ON p.id = t.parking_lot_id AND t.status = 'ACTIVE'
             WHERE p.city ILIKE ?
-            """ +
-            (needEv  ? " AND COALESCE(pa.ev_total, 0) > 0"  : "") +
-            (needAcc ? " AND COALESCE(pa.acc_total, 0) > 0" : "") +
-            """
+              AND (? OR COALESCE(pa.ev_total, 0) > 0)
+              AND (? OR COALESCE(pa.acc_total, 0) > 0)
             GROUP BY p.id, p.name, p.address, p.opening_hours, p.latitude, p.longitude,
                      pa.occ_total, pa.cap_total, pa.ev_total, pa.acc_total
             HAVING (6371000 * acos(
@@ -98,55 +104,73 @@ public class ParkingPlanningService {
 
         double lat = req.location().lat();
         double lng = req.location().lng();
-        String cityLike = "%" + req.city() + "%";
+        String cityPrefix = req.city() + "%";
 
-        return jdbc.query(sql,
-            (rs, rowNum) -> mapCandidate(rs),
-            lat, lng, lat, cityLike,
+        List<LotCandidate> candidates = jdbc.query(sql,
+            (rs, rowNum) -> mapCandidateWithoutHourly(rs),
+            lat, lng, lat, cityPrefix, !needEv, !needAcc,
             lat, lng, lat, req.maxDistanceMeters()
+        );
+
+        if (candidates.isEmpty()) return candidates;
+
+        List<UUID> ids = candidates.stream().map(c -> c.id).toList();
+        Map<UUID, List<ParkingPlanningResponse.HourlyOccupancy>> hourlyByLot = fetchAllHourlyOccupancy(ids);
+
+        return candidates.stream()
+            .map(c -> new LotCandidate(c.id, c.name, c.address, c.openingHours, c.distanceMeters,
+                c.pricePerHour, c.occTotal, c.capTotal, c.currentOccupancyPct, c.hasEv, c.hasAccessible,
+                hourlyByLot.getOrDefault(c.id, List.of())))
+            .toList();
+    }
+
+    private LotCandidate mapCandidateWithoutHourly(ResultSet rs) throws SQLException {
+        UUID id = UUID.fromString(rs.getString("id"));
+        int occTotal = rs.getInt("occ_total");
+        int capTotal = rs.getInt("cap_total");
+        int pct = capTotal > 0 ? (int) Math.round((double) occTotal / capTotal * 100) : 0;
+
+        return new LotCandidate(
+            id,
+            rs.getString("name"),
+            rs.getString("address"),
+            rs.getString("opening_hours"),
+            rs.getDouble("distance_meters"),
+            rs.getBigDecimal("price_per_hour"),
+            occTotal,
+            capTotal,
+            pct,
+            rs.getInt("ev_total") > 0,
+            rs.getInt("acc_total") > 0,
+            List.of()
         );
     }
 
-    private LotCandidate mapCandidate(ResultSet rs) throws SQLException {
-        UUID id = UUID.fromString(rs.getString("id"));
-        String name = rs.getString("name");
-        String address = rs.getString("address");
-        String openingHours = rs.getString("opening_hours");
-        double distanceMeters = rs.getDouble("distance_meters");
-        BigDecimal pricePerHour = rs.getBigDecimal("price_per_hour");
-        int occTotal = rs.getInt("occ_total");
-        int capTotal = rs.getInt("cap_total");
-        int evTotal = rs.getInt("ev_total");
-        int accTotal = rs.getInt("acc_total");
-        int pct = capTotal > 0 ? (int) Math.round((double) occTotal / capTotal * 100) : 0;
-
-        List<ParkingPlanningResponse.HourlyOccupancy> hourly = fetchHourlyOccupancy(id);
-
-        return new LotCandidate(id, name, address, openingHours, distanceMeters,
-            pricePerHour, occTotal, capTotal, pct, evTotal > 0, accTotal > 0, hourly);
-    }
-
-    private List<ParkingPlanningResponse.HourlyOccupancy> fetchHourlyOccupancy(UUID lotId) {
-        return jdbc.query(
-            """
-            SELECT EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Lisbon') AS hour_of_day,
+    private Map<UUID, List<ParkingPlanningResponse.HourlyOccupancy>> fetchAllHourlyOccupancy(List<UUID> lotIds) {
+        String sql = """
+            SELECT parking_lot_id,
+                   EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Lisbon') AS hour_of_day,
                    ROUND(AVG(CASE WHEN total_count > 0
                        THEN occupied_count::numeric / total_count * 100 ELSE 0 END)) AS occ_pct
             FROM occupancy_snapshots
-            WHERE parking_lot_id = ?
+            WHERE parking_lot_id IN (:ids)
               AND recorded_at >= NOW() - INTERVAL '7 days'
-            GROUP BY hour_of_day
-            ORDER BY hour_of_day
-            """,
-            (rs, rowNum) -> new ParkingPlanningResponse.HourlyOccupancy(
-                String.format("%02dh", rs.getInt("hour_of_day")),
-                rs.getInt("occ_pct")
-            ),
-            lotId
-        );
+            GROUP BY parking_lot_id, hour_of_day
+            ORDER BY parking_lot_id, hour_of_day
+            """;
+
+        return namedJdbc.query(sql, Map.of("ids", lotIds), (rs, rowNum) -> {
+            UUID lotId = UUID.fromString(rs.getString("parking_lot_id"));
+            String hour = String.format("%02dh", rs.getInt("hour_of_day"));
+            int pct = rs.getInt("occ_pct");
+            return Map.entry(lotId, new ParkingPlanningResponse.HourlyOccupancy(hour, pct));
+        }).stream().collect(Collectors.groupingBy(
+            Map.Entry::getKey,
+            Collectors.mapping(Map.Entry::getValue, Collectors.toList())
+        ));
     }
 
-    private ParkingPlanningResponse.ParkingSummary toSummary(LotCandidate c, int durationMinutes) {
+    private ParkingPlanningResponse.ParkingSummary toSummary(LotCandidate c) {
         String status = classifyStatus(c.currentOccupancyPct);
         return new ParkingPlanningResponse.ParkingSummary(
             c.id,
@@ -161,41 +185,48 @@ public class ParkingPlanningService {
     }
 
     // Composite score: 50% availability, 30% price (inverse), 20% distance (inverse)
-    double score(LotCandidate c) {
+    double score(LotCandidate c, double maxDistanceMeters) {
         double availScore = 1.0 - (c.currentOccupancyPct / 100.0);
 
         double priceScore;
         if (c.pricePerHour == null || c.pricePerHour.compareTo(BigDecimal.ZERO) == 0) {
             priceScore = 1.0;
         } else {
-            // Normalize: assume max meaningful price is 5.0 EUR/h
-            priceScore = Math.max(0, 1.0 - c.pricePerHour.doubleValue() / 5.0);
+            priceScore = Math.max(0, 1.0 - c.pricePerHour.doubleValue() / MAX_PRICE_REFERENCE_EUR);
         }
 
-        // Normalize distance: assume max is maxDistanceMeters, but we use 5000m as reference
-        double distScore = Math.max(0, 1.0 - c.distanceMeters / 5000.0);
+        double distScore = maxDistanceMeters > 0
+            ? Math.max(0, 1.0 - c.distanceMeters / maxDistanceMeters)
+            : 0.0;
 
         return 0.5 * availScore + 0.3 * priceScore + 0.2 * distScore;
     }
 
-    boolean isOpen(String openingHours) {
+    boolean isOpen(String openingHours, UUID lotId) {
         if (openingHours == null || openingHours.isBlank()) return true;
         String h = openingHours.trim().toLowerCase();
         if (h.equals("24h") || h.equals("24/7")) return true;
 
-        // Parse patterns like "08:00-22:00" or "08h-22h"
         String normalized = h.replace("h", ":00").replaceAll("\\s", "");
         String[] parts = normalized.split("-");
-        if (parts.length != 2) return true;
+        if (parts.length != 2) {
+            log.warn("Unparseable opening_hours '{}' for lot {} — assuming open", openingHours, lotId);
+            return true;
+        }
 
         try {
-            int nowMinutes = nowMinutesOfDay();
-            int openMinutes = parseTimeToMinutes(parts[0]);
+            int nowMinutes   = nowMinutesOfDay();
+            int openMinutes  = parseTimeToMinutes(parts[0]);
             int closeMinutes = parseTimeToMinutes(parts[1]);
-            if (closeMinutes <= openMinutes) return true; // overnight schedule, treat as open
+
+            if (closeMinutes <= openMinutes) {
+                // Overnight schedule (e.g. 22:00–06:00): open if after opening OR before closing
+                return nowMinutes >= openMinutes || nowMinutes < closeMinutes;
+            }
             return nowMinutes >= openMinutes && nowMinutes < closeMinutes;
         } catch (Exception e) {
-            return true; // unparseable → assume open
+            log.warn("Failed to parse opening_hours '{}' for lot {}: {}", openingHours, lotId, e.getMessage());
+            return true;
         }
     }
 

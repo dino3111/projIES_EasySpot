@@ -21,10 +21,10 @@ public record ParkingPlanningRequest(
     ) {}
 
     public enum OrderBy {
-        best, lowestPrice, nearest
+        BEST, LOWEST_PRICE, NEAREST
     }
 
     public OrderBy effectiveOrderBy() {
-        return orderBy != null ? orderBy : OrderBy.best;
+        return orderBy != null ? orderBy : OrderBy.BEST;
     }
 }

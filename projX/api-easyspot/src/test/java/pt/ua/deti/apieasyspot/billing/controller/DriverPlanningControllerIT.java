@@ -142,7 +142,7 @@ class DriverPlanningControllerIT {
                 .param("estimatedDurationMinutes", "30")
                 .param("lat", "40.6405")
                 .param("lng", "-8.6538")
-                .param("orderBy", "lowestPrice")
+                .param("orderBy", "LOWEST_PRICE")
                 .with(jwtWithRole("driver-sub", "DRIVER")))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.recommendations").isArray());
@@ -156,7 +156,7 @@ class DriverPlanningControllerIT {
                 .param("estimatedDurationMinutes", "30")
                 .param("lat", "40.6405")
                 .param("lng", "-8.6538")
-                .param("orderBy", "nearest")
+                .param("orderBy", "NEAREST")
                 .with(jwtWithRole("driver-sub", "DRIVER")))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.recommendations").isArray());

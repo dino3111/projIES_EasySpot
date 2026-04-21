@@ -5,25 +5,30 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import pt.ua.deti.apieasyspot.billing.dto.ParkingPlanningRequest;
 import pt.ua.deti.apieasyspot.billing.dto.ParkingPlanningRequest.LocationRequest;
 import pt.ua.deti.apieasyspot.billing.dto.ParkingPlanningRequest.OrderBy;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class ParkingPlanningServiceTest {
 
     @Mock private JdbcTemplate jdbc;
+    @Mock private NamedParameterJdbcTemplate namedJdbc;
     @InjectMocks private ParkingPlanningService service;
 
     private ParkingPlanningService.LotCandidate availableLot;
@@ -51,38 +56,46 @@ class ParkingPlanningServiceTest {
 
     @Test
     void isOpen_24h_returnsTrue() {
-        assertThat(service.isOpen("24h")).isTrue();
+        assertThat(service.isOpen("24h", UUID.randomUUID())).isTrue();
     }
 
     @Test
     void isOpen_247_returnsTrue() {
-        assertThat(service.isOpen("24/7")).isTrue();
+        assertThat(service.isOpen("24/7", UUID.randomUUID())).isTrue();
     }
 
     @Test
     void isOpen_null_returnsTrue() {
-        assertThat(service.isOpen(null)).isTrue();
+        assertThat(service.isOpen(null, UUID.randomUUID())).isTrue();
     }
 
     @Test
     void isOpen_blank_returnsTrue() {
-        assertThat(service.isOpen("  ")).isTrue();
+        assertThat(service.isOpen("  ", UUID.randomUUID())).isTrue();
     }
 
     @Test
     void isOpen_unparseable_returnsTrue() {
-        assertThat(service.isOpen("manhã-tarde")).isTrue();
+        assertThat(service.isOpen("manhã-tarde", UUID.randomUUID())).isTrue();
     }
 
     @Test
     void isOpen_fullDayRange_returnsTrue() {
-        assertThat(service.isOpen("00:00-23:59")).isTrue();
+        assertThat(service.isOpen("00:00-23:59", UUID.randomUUID())).isTrue();
     }
 
     @Test
-    void isOpen_overnightSchedule_returnsTrue() {
-        // close < open → treated as always open
-        assertThat(service.isOpen("22:00-06:00")).isTrue();
+    void isOpen_overnightSchedule_openDuringNightHours() {
+        ParkingPlanningService spy = Mockito.spy(service);
+        doReturn(23 * 60).when(spy).nowMinutesOfDay(); // 23:00 → inside 22:00–06:00
+        assertThat(spy.isOpen("22:00-06:00", UUID.randomUUID())).isTrue();
+    }
+
+    @Test
+    void isOpen_overnightSchedule_closedDuringDayHours() {
+        ParkingPlanningService spy = Mockito.spy(service);
+        doReturn(12 * 60).when(spy).nowMinutesOfDay(); // 12:00 → outside 22:00–06:00
+        assertThat(spy.isOpen("22:00-06:00", UUID.randomUUID())).isFalse();
     }
 
     // --- score tests ---
@@ -92,7 +105,7 @@ class ParkingPlanningServiceTest {
         var best = new ParkingPlanningService.LotCandidate(
             UUID.randomUUID(), "Best", "Addr", "24h",
             100.0, BigDecimal.valueOf(0.50), 5, 100, 5, false, false, List.of());
-        assertThat(service.score(best)).isGreaterThan(0.8);
+        assertThat(service.score(best, 5000.0)).isGreaterThan(0.8);
     }
 
     @Test
@@ -100,7 +113,7 @@ class ParkingPlanningServiceTest {
         var worst = new ParkingPlanningService.LotCandidate(
             UUID.randomUUID(), "Worst", "Addr", "24h",
             4900.0, BigDecimal.valueOf(4.90), 95, 100, 95, false, false, List.of());
-        assertThat(service.score(worst)).isLessThan(0.3);
+        assertThat(service.score(worst, 5000.0)).isLessThan(0.3);
     }
 
     @Test
@@ -111,12 +124,12 @@ class ParkingPlanningServiceTest {
         var pricey = new ParkingPlanningService.LotCandidate(
             UUID.randomUUID(), "Pricey", "Addr", "24h",
             500.0, BigDecimal.valueOf(3.00), 10, 100, 10, false, false, List.of());
-        assertThat(service.score(noPrice)).isGreaterThan(service.score(pricey));
+        assertThat(service.score(noPrice, 5000.0)).isGreaterThan(service.score(pricey, 5000.0));
     }
 
     @Test
     void score_twoLotsProduceDifferentValues() {
-        assertThat(service.score(availableLot)).isNotEqualTo(service.score(nearLot));
+        assertThat(service.score(availableLot, 5000.0)).isNotEqualTo(service.score(nearLot, 5000.0));
     }
 
     // --- plan filtering tests ---
@@ -124,7 +137,7 @@ class ParkingPlanningServiceTest {
     @Test
     void plan_filtersFullLots() {
         stubCandidates(List.of(availableLot, fullLot));
-        var response = service.plan(req("Aveiro", 60, null, null, 5000.0, OrderBy.best));
+        var response = service.plan(req("Aveiro", 60, null, null, 5000.0, OrderBy.BEST));
         assertThat(response.recommendations()).hasSize(1);
         assertThat(response.recommendations().get(0).name()).isEqualTo("Central Park");
     }
@@ -135,7 +148,7 @@ class ParkingPlanningServiceTest {
             UUID.randomUUID(), "Far Park", "Rua Z", "24h",
             6000.0, BigDecimal.valueOf(1.00), 10, 100, 10, false, false, List.of());
         stubCandidates(List.of(availableLot, farLot));
-        var response = service.plan(req("Aveiro", 60, null, null, 1000.0, OrderBy.nearest));
+        var response = service.plan(req("Aveiro", 60, null, null, 1000.0, OrderBy.NEAREST));
         assertThat(response.recommendations()).hasSize(1);
         assertThat(response.recommendations().get(0).name()).isEqualTo("Central Park");
     }
@@ -146,7 +159,7 @@ class ParkingPlanningServiceTest {
             UUID.randomUUID(), "EV Park", "Rua EV", "24h",
             400.0, BigDecimal.valueOf(1.50), 10, 100, 10, true, false, List.of());
         stubCandidates(List.of(availableLot, evLot));
-        var response = service.plan(req("Aveiro", 60, Boolean.TRUE, null, 5000.0, OrderBy.nearest));
+        var response = service.plan(req("Aveiro", 60, Boolean.TRUE, null, 5000.0, OrderBy.NEAREST));
         assertThat(response.recommendations()).hasSize(1);
         assertThat(response.recommendations().get(0).name()).isEqualTo("EV Park");
     }
@@ -157,7 +170,7 @@ class ParkingPlanningServiceTest {
             UUID.randomUUID(), "Acc Park", "Rua Acc", "24h",
             400.0, BigDecimal.valueOf(1.00), 5, 100, 5, false, true, List.of());
         stubCandidates(List.of(availableLot, accLot));
-        var response = service.plan(req("Aveiro", 60, null, Boolean.TRUE, 5000.0, OrderBy.nearest));
+        var response = service.plan(req("Aveiro", 60, null, Boolean.TRUE, 5000.0, OrderBy.NEAREST));
         assertThat(response.recommendations()).hasSize(1);
         assertThat(response.recommendations().get(0).name()).isEqualTo("Acc Park");
     }
@@ -165,21 +178,21 @@ class ParkingPlanningServiceTest {
     @Test
     void plan_orderByLowestPrice_sortsCorrectly() {
         stubCandidates(List.of(availableLot, cheapLot));
-        var recs = service.plan(req("Aveiro", 60, null, null, 5000.0, OrderBy.lowestPrice)).recommendations();
+        var recs = service.plan(req("Aveiro", 60, null, null, 5000.0, OrderBy.LOWEST_PRICE)).recommendations();
         assertThat(recs.get(0).pricePerHour()).isLessThanOrEqualTo(recs.get(1).pricePerHour());
     }
 
     @Test
     void plan_orderByNearest_sortsCorrectly() {
         stubCandidates(List.of(cheapLot, nearLot));
-        var recs = service.plan(req("Aveiro", 60, null, null, 5000.0, OrderBy.nearest)).recommendations();
+        var recs = service.plan(req("Aveiro", 60, null, null, 5000.0, OrderBy.NEAREST)).recommendations();
         assertThat(recs.get(0).distanceMeters()).isLessThanOrEqualTo(recs.get(1).distanceMeters());
     }
 
     @Test
     void plan_emptyResult_whenNoLotsMatch() {
         stubCandidates(List.of());
-        var response = service.plan(req("UnknownCity", 60, null, null, 5000.0, OrderBy.best));
+        var response = service.plan(req("UnknownCity", 60, null, null, 5000.0, OrderBy.BEST));
         assertThat(response.recommendations()).isEmpty();
     }
 
@@ -187,13 +200,13 @@ class ParkingPlanningServiceTest {
     void plan_defaultOrderBy_isBest() {
         var r = new ParkingPlanningRequest("Aveiro", 60, null, null, 5000.0,
             new LocationRequest(40.6, -8.6), null);
-        assertThat(r.effectiveOrderBy()).isEqualTo(OrderBy.best);
+        assertThat(r.effectiveOrderBy()).isEqualTo(OrderBy.BEST);
     }
 
     @Test
     void plan_occupancyStatus_AVAILABLE_under90pct() {
         stubCandidates(List.of(availableLot)); // 20%
-        var occ = service.plan(req("Aveiro", 60, null, null, 5000.0, OrderBy.best))
+        var occ = service.plan(req("Aveiro", 60, null, null, 5000.0, OrderBy.BEST))
             .recommendations().get(0).currentOccupancy();
         assertThat(occ.status()).isEqualTo("AVAILABLE");
     }
@@ -204,7 +217,7 @@ class ParkingPlanningServiceTest {
             UUID.randomUUID(), "Limited", "Rua L", "24h",
             200.0, BigDecimal.valueOf(1.00), 92, 100, 92, false, false, List.of());
         stubCandidates(List.of(limited));
-        var occ = service.plan(req("Aveiro", 60, null, null, 5000.0, OrderBy.best))
+        var occ = service.plan(req("Aveiro", 60, null, null, 5000.0, OrderBy.BEST))
             .recommendations().get(0).currentOccupancy();
         assertThat(occ.status()).isEqualTo("LIMITED");
     }
@@ -212,7 +225,7 @@ class ParkingPlanningServiceTest {
     @Test
     void plan_summaryContainsExpectedFields() {
         stubCandidates(List.of(availableLot));
-        var s = service.plan(req("Aveiro", 60, null, null, 5000.0, OrderBy.best))
+        var s = service.plan(req("Aveiro", 60, null, null, 5000.0, OrderBy.BEST))
             .recommendations().get(0);
         assertThat(s.id()).isNotNull();
         assertThat(s.name()).isEqualTo("Central Park");
@@ -232,7 +245,7 @@ class ParkingPlanningServiceTest {
     private void stubCandidates(List<ParkingPlanningService.LotCandidate> candidates) {
         when(jdbc.query(anyString(), (RowMapper) any(RowMapper.class), any(Object[].class)))
             .thenReturn((List) candidates);
-        when(jdbc.query(anyString(), (RowMapper) any(RowMapper.class), any(UUID.class)))
+        when(namedJdbc.query(anyString(), any(Map.class), (RowMapper) any(RowMapper.class)))
             .thenReturn(List.of());
     }
 
