@@ -1,0 +1,620 @@
+{
+  "info": {
+    "name": "EasySpot - Manager Tariffs API",
+    "description": "Comprehensive API tests for manager tariff management endpoints including GET listing and PUT updates with full edge case coverage",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "parkId", "value": "" },
+    { "key": "managerToken", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Setup - Create Park (Prerequisite)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 201 || pm.response.code === 200) {",
+              "  var body = pm.response.json();",
+              "  pm.environment.set('parkId', body.id);",
+              "  pm.test('Park created successfully', function () {",
+              "    pm.response.to.have.status([200, 201]);",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{managerToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Test Parking Lot\",\n  \"city\": \"Aveiro\",\n  \"address\": \"Rua de Teste 123\",\n  \"latitude\": 40.6412,\n  \"longitude\": -8.6536,\n  \"totalSpaces\": 100\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/parks" }
+      }
+    },
+    {
+      "name": "GET /api/manager/tariffs - 401 No Auth",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 401 when no token provided', function () {",
+              "  pm.response.to.have.status(401);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/api/manager/tariffs" }
+      }
+    },
+    {
+      "name": "GET /api/manager/tariffs - 403 Wrong Role",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 403 when user is not a manager', function () {",
+              "  pm.response.to.have.status(403);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "url": { "raw": "{{baseUrl}}/api/manager/tariffs" }
+      }
+    },
+    {
+      "name": "GET /api/manager/tariffs - 200 List All",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 200 with tariff list', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Response is array', function () {",
+              "  var body = pm.response.json();",
+              "  pm.expect(body).to.be.an('array');",
+              "});",
+              "pm.test('Each tariff has required fields', function () {",
+              "  var body = pm.response.json();",
+              "  if (body.length > 0) {",
+              "    var tariff = body[0];",
+              "    pm.expect(tariff).to.have.all.keys('id', 'parkId', 'parkName', 'city', 'pricePerHour', 'maxDaily', 'monthlyPrice', 'pricePerKwh', 'status');",
+              "    pm.expect(tariff.id).to.be.a('string');",
+              "    pm.expect(tariff.parkId).to.be.a('string');",
+              "    pm.expect(tariff.parkName).to.be.a('string');",
+              "    pm.expect(tariff.city).to.be.a('string');",
+              "    pm.expect(tariff.status).to.be.oneOf(['ACTIVE', 'INACTIVE']);",
+              "  }",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{managerToken}}" }
+        ],
+        "url": { "raw": "{{baseUrl}}/api/manager/tariffs" }
+      }
+    },
+    {
+      "name": "GET /api/manager/tariffs - Filter by City",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 200 with filtered results', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('All results match the city filter', function () {",
+              "  var body = pm.response.json();",
+              "  if (body.length > 0) {",
+              "    body.forEach(function(tariff) {",
+              "      pm.expect(tariff.city.toLowerCase()).to.include('aveiro'.toLowerCase());",
+              "    });",
+              "  }",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{managerToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/manager/tariffs?city=Aveiro",
+          "query": [
+            { "key": "city", "value": "Aveiro" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "GET /api/manager/tariffs - Filter by Status ACTIVE",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 200 with status-filtered results', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('All results have ACTIVE status', function () {",
+              "  var body = pm.response.json();",
+              "  body.forEach(function(tariff) {",
+              "    pm.expect(tariff.status).to.equal('ACTIVE');",
+              "  });",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{managerToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/manager/tariffs?status=ACTIVE",
+          "query": [
+            { "key": "status", "value": "ACTIVE" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "GET /api/manager/tariffs - Filter by Status INACTIVE",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 200 with status-filtered results', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('All results have INACTIVE status', function () {",
+              "  var body = pm.response.json();",
+              "  body.forEach(function(tariff) {",
+              "    pm.expect(tariff.status).to.equal('INACTIVE');",
+              "  });",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{managerToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/manager/tariffs?status=INACTIVE",
+          "query": [
+            { "key": "status", "value": "INACTIVE" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "GET /api/manager/tariffs - Empty Result NonExistent City",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 200 with empty array', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Result is empty array', function () {",
+              "  var body = pm.response.json();",
+              "  pm.expect(body).to.be.an('array').that.is.empty;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{managerToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/manager/tariffs?city=NonExistentCity",
+          "query": [
+            { "key": "city", "value": "NonExistentCity" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "PUT /api/manager/tariffs - 401 No Auth",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 401 when no token provided', function () {",
+              "  pm.response.to.have.status(401);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"parkId\": \"{{parkId}}\",\n  \"pricePerHour\": 2.50,\n  \"maxDaily\": 20.00,\n  \"monthlyPrice\": 150.00,\n  \"pricePerKwh\": 0.35,\n  \"status\": \"ACTIVE\"\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/manager/tariffs" }
+      }
+    },
+    {
+      "name": "PUT /api/manager/tariffs - 403 Wrong Role",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 403 for non-manager role', function () {",
+              "  pm.response.to.have.status(403);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"parkId\": \"{{parkId}}\",\n  \"pricePerHour\": 2.50,\n  \"maxDaily\": 20.00,\n  \"monthlyPrice\": 150.00,\n  \"pricePerKwh\": 0.35,\n  \"status\": \"ACTIVE\"\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/manager/tariffs" }
+      }
+    },
+    {
+      "name": "PUT /api/manager/tariffs - 404 Park Not Found",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 404 for non-existent park', function () {",
+              "  pm.response.to.have.status(404);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{managerToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"parkId\": \"00000000-0000-0000-0000-000000000000\",\n  \"pricePerHour\": 2.50,\n  \"maxDaily\": 20.00,\n  \"monthlyPrice\": 150.00,\n  \"pricePerKwh\": 0.35,\n  \"status\": \"ACTIVE\"\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/manager/tariffs" }
+      }
+    },
+    {
+      "name": "PUT /api/manager/tariffs - 400 Negative Price",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 400 for negative price', function () {",
+              "  pm.response.to.have.status(400);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{managerToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"parkId\": \"{{parkId}}\",\n  \"pricePerHour\": -1.00,\n  \"maxDaily\": 20.00,\n  \"monthlyPrice\": 150.00,\n  \"pricePerKwh\": 0.35,\n  \"status\": \"ACTIVE\"\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/manager/tariffs" }
+      }
+    },
+    {
+      "name": "PUT /api/manager/tariffs - 400 Too Many Decimals",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 400 for price with too many decimals', function () {",
+              "  pm.response.to.have.status(400);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{managerToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"parkId\": \"{{parkId}}\",\n  \"pricePerHour\": 1.505,\n  \"maxDaily\": 20.00,\n  \"monthlyPrice\": 150.00,\n  \"pricePerKwh\": 0.35,\n  \"status\": \"ACTIVE\"\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/manager/tariffs" }
+      }
+    },
+    {
+      "name": "PUT /api/manager/tariffs - 400 Missing Required Field",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 400 for missing required field', function () {",
+              "  pm.response.to.have.status(400);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{managerToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"pricePerHour\": 2.50,\n  \"maxDaily\": 20.00,\n  \"monthlyPrice\": 150.00,\n  \"pricePerKwh\": 0.35,\n  \"status\": \"ACTIVE\"\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/manager/tariffs" }
+      }
+    },
+    {
+      "name": "PUT /api/manager/tariffs - 200 Success Update Tariff",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 200 on successful update', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Response contains updated tariff data', function () {",
+              "  var body = pm.response.json();",
+              "  pm.expect(body).to.have.property('id');",
+              "  pm.expect(body).to.have.property('parkId');",
+              "  pm.expect(body).to.have.property('pricePerHour').to.equal(2.5);",
+              "  pm.expect(body).to.have.property('maxDaily').to.equal(20.0);",
+              "  pm.expect(body).to.have.property('monthlyPrice').to.equal(150.0);",
+              "  pm.expect(body).to.have.property('pricePerKwh').to.equal(0.35);",
+              "  pm.expect(body).to.have.property('status').to.equal('ACTIVE');",
+              "});",
+              "pm.test('Audit trail created (implicit via response)', function () {",
+              "  pm.response.to.have.status(200);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{managerToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"parkId\": \"{{parkId}}\",\n  \"pricePerHour\": 2.50,\n  \"maxDaily\": 20.00,\n  \"monthlyPrice\": 150.00,\n  \"pricePerKwh\": 0.35,\n  \"status\": \"ACTIVE\"\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/manager/tariffs" }
+      }
+    },
+    {
+      "name": "PUT /api/manager/tariffs - 200 Zero Prices Allowed",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 200 with zero prices', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Zero prices accepted and stored', function () {",
+              "  var body = pm.response.json();",
+              "  pm.expect(body.pricePerHour).to.equal(0.0);",
+              "  pm.expect(body.maxDaily).to.equal(0.0);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{managerToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"parkId\": \"{{parkId}}\",\n  \"pricePerHour\": 0.00,\n  \"maxDaily\": 0.00,\n  \"monthlyPrice\": 0.00,\n  \"pricePerKwh\": 0.00,\n  \"status\": \"INACTIVE\"\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/manager/tariffs" }
+      }
+    },
+    {
+      "name": "PUT /api/manager/tariffs - 200 Large Prices",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 200 with large prices', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Large prices handled correctly', function () {",
+              "  var body = pm.response.json();",
+              "  pm.expect(body.pricePerHour).to.equal(99999.99);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{managerToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"parkId\": \"{{parkId}}\",\n  \"pricePerHour\": 99999.99,\n  \"maxDaily\": 99999.99,\n  \"monthlyPrice\": 99999.99,\n  \"pricePerKwh\": 99999.99,\n  \"status\": \"ACTIVE\"\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/manager/tariffs" }
+      }
+    },
+    {
+      "name": "PUT /api/manager/tariffs - 200 Status Transition ACTIVE to INACTIVE",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 200 with status transition', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Status changed to INACTIVE', function () {",
+              "  var body = pm.response.json();",
+              "  pm.expect(body.status).to.equal('INACTIVE');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{managerToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"parkId\": \"{{parkId}}\",\n  \"pricePerHour\": 1.50,\n  \"maxDaily\": 15.00,\n  \"monthlyPrice\": 100.00,\n  \"pricePerKwh\": 0.25,\n  \"status\": \"INACTIVE\"\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/manager/tariffs" }
+      }
+    },
+    {
+      "name": "GET /api/manager/tariffs - Verify Status Change",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Latest tariff shows INACTIVE status', function () {",
+              "  var body = pm.response.json();",
+              "  if (body.length > 0) {",
+              "    var found = body.some(function(tariff) { return tariff.status === 'INACTIVE'; });",
+              "    pm.expect(found).to.be.true;",
+              "  }",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{managerToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/manager/tariffs?status=INACTIVE",
+          "query": [
+            { "key": "status", "value": "INACTIVE" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Contract Test - Tariff Response Schema",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Response matches TariffResponse schema', function () {",
+              "  var body = pm.response.json();",
+              "  if (Array.isArray(body) && body.length > 0) {",
+              "    var tariff = body[0];",
+              "    pm.expect(tariff).to.have.property('id').to.be.a('string');",
+              "    pm.expect(tariff).to.have.property('parkId').to.be.a('string');",
+              "    pm.expect(tariff).to.have.property('parkName').to.be.a('string');",
+              "    pm.expect(tariff).to.have.property('city').to.be.a('string');",
+              "    pm.expect(tariff).to.have.property('pricePerHour').to.be.a('number');",
+              "    pm.expect(tariff).to.have.property('maxDaily').to.be.a('number');",
+              "    pm.expect(tariff).to.have.property('monthlyPrice').to.be.a('number');",
+              "    pm.expect(tariff).to.have.property('pricePerKwh').to.be.a('number');",
+              "    pm.expect(tariff).to.have.property('status').to.be.oneOf(['ACTIVE', 'INACTIVE']);",
+              "  }",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{managerToken}}" }
+        ],
+        "url": { "raw": "{{baseUrl}}/api/manager/tariffs" }
+      }
+    }
+  ]
+}

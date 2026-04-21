@@ -2,28 +2,26 @@ package pt.ua.deti.apieasyspot.occupancy.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Data
 @Entity
-@Table(name = "tariffs")
-public class Tariff {
+@Table(name = "tariff_audit")
+public class TariffAudit {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "parking_lot_id", nullable = false)
-    private ParkingLot parkingLot;
+    @Column(nullable = false)
+    private UUID tariffId;
 
-    @Column(nullable = false, length = 100)
-    private String name;
-
-    @Column(length = 255)
-    private String description;
+    @Column(nullable = false)
+    private UUID parkingLotId;
 
     @Column(precision = 10, scale = 2)
     private BigDecimal pricePerHour;
@@ -38,6 +36,13 @@ public class Tariff {
     private BigDecimal pricePerKwh;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private TariffStatus status = TariffStatus.ACTIVE;
+    @Column(length = 20)
+    private TariffStatus status;
+
+    @CreationTimestamp
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime changedAt;
+
+    @Column(nullable = false)
+    private String changedBy;
 }
