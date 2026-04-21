@@ -58,7 +58,11 @@ export async function createReservation(
   return res.json() as Promise<ReservationResponse>;
 }
 
+const FALLBACK_LOCK_SECONDS = 30 * 60;
+
 export function lockedUntilCountdownSeconds(lockedUntil: string): number {
-  const diff = Math.floor((new Date(lockedUntil).getTime() - Date.now()) / 1000);
-  return Math.max(0, diff);
+  const lockDate = new Date(lockedUntil);
+  if (isNaN(lockDate.getTime())) return FALLBACK_LOCK_SECONDS;
+  const diff = Math.floor((lockDate.getTime() - Date.now()) / 1000);
+  return diff > 0 ? diff : FALLBACK_LOCK_SECONDS;
 }

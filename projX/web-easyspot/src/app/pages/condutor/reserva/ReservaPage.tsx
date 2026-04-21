@@ -15,18 +15,19 @@ import { Step4Reservado } from './Step4Reservado';
 import { createReservation, lockedUntilCountdownSeconds } from '../../../../services/reservationService';
 
 // Reads the Authentik OIDC access token from localStorage.
-// When the OIDC client is integrated, replace this with useAuth().accessToken.
+// TODO: replace with useAuth().accessToken once OIDC client is fully integrated.
 function getAccessToken(): string | null {
   try {
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i) ?? '';
-      if (key.startsWith('oidc.user:')) {
-        const raw = localStorage.getItem(key);
-        if (raw) return (JSON.parse(raw) as { access_token?: string }).access_token ?? null;
-      }
+      if (!key.startsWith('oidc.user:')) continue;
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const token = (JSON.parse(raw) as { access_token?: string }).access_token;
+      if (token && token.length > 0) return token;
     }
   } catch {
-    // ignore parse errors
+    // ignore parse errors — token unavailable
   }
   return null;
 }
@@ -109,6 +110,9 @@ export function ReservaPage() {
     setIsSubmitting(true);
     setReservationError(null);
 
+    // Generated before the try so retries (network failure, double-tap) use the same key
+    const idempotencyKey = crypto.randomUUID();
+
     try {
       const token = getAccessToken();
 
@@ -122,6 +126,7 @@ export function ReservaPage() {
             selectedSpotId: selectedSpotId || null,
           },
           token,
+          idempotencyKey,
         );
 
         setBookingCode(response.bookingCode);

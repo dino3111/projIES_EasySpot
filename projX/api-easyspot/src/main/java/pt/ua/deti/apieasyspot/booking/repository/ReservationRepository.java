@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import pt.ua.deti.apieasyspot.booking.model.Reservation;
+import pt.ua.deti.apieasyspot.booking.model.ReservationStatus;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -64,19 +65,26 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
     // Lazy expiry: CONFIRMED reservations where the no-show grace window has passed
     @Modifying
     @Query("""
-        UPDATE Reservation r SET r.status = 'EXPIRED'
-        WHERE r.status = 'CONFIRMED'
+        UPDATE Reservation r SET r.status = :expiredStatus
+        WHERE r.status = :confirmedStatus
           AND r.lockedUntil < :now
         """)
-    int expireTimedOutLocks(@Param("now") OffsetDateTime now);
+    int expireTimedOutLocks(
+        @Param("now") OffsetDateTime now,
+        @Param("confirmedStatus") ReservationStatus confirmedStatus,
+        @Param("expiredStatus") ReservationStatus expiredStatus
+    );
 
     @Query("""
         SELECT r FROM Reservation r
         WHERE r.user.id = :userId
-          AND r.status IN ('PENDING', 'CONFIRMED')
+          AND r.status IN :activeStatuses
         ORDER BY r.arrivalTime ASC
         """)
-    List<Reservation> findActiveByUserId(@Param("userId") UUID userId);
+    List<Reservation> findActiveByUserId(
+        @Param("userId") UUID userId,
+        @Param("activeStatuses") List<ReservationStatus> activeStatuses
+    );
 
     boolean existsByBookingCode(String bookingCode);
 

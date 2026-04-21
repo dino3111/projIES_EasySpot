@@ -77,7 +77,7 @@ public class ReservationService {
         validateTimeWindow(arrival, departure, now);
 
         // 2. Lazy expiry of timed-out locks before conflict detection
-        reservationRepository.expireTimedOutLocks(now);
+        reservationRepository.expireTimedOutLocks(now, ReservationStatus.CONFIRMED, ReservationStatus.EXPIRED);
 
         // 3. Resolve entities
         User user       = findUser(authentikUserId);

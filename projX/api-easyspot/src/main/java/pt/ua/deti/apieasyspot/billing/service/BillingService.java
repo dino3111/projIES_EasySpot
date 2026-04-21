@@ -1,8 +1,8 @@
 package pt.ua.deti.apieasyspot.billing.service;
 
-import com.stripe.Stripe;
 import com.stripe.exception.StripeException;
 import com.stripe.model.PaymentIntent;
+import com.stripe.net.RequestOptions;
 import com.stripe.param.PaymentIntentCreateParams;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -46,8 +46,6 @@ public class BillingService {
             return null;
         }
         try {
-            Stripe.apiKey = stripeSecretKey;
-
             long amountCents = reservation.getEstimatedCost() != null
                 ? reservation.getEstimatedCost().multiply(java.math.BigDecimal.valueOf(100)).longValue()
                 : 0L;
@@ -60,7 +58,11 @@ public class BillingService {
                 .putMetadata("bookingCode", reservation.getBookingCode())
                 .build();
 
-            PaymentIntent intent = PaymentIntent.create(params);
+            RequestOptions options = RequestOptions.builder()
+                .setApiKey(stripeSecretKey)
+                .build();
+
+            PaymentIntent intent = PaymentIntent.create(params, options);
             log.info("Stripe PaymentIntent {} created for reservation {}", intent.getId(), reservation.getBookingCode());
             return intent.getId();
 

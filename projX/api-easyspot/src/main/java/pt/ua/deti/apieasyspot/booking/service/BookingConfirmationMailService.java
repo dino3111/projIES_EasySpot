@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import pt.ua.deti.apieasyspot.booking.model.Reservation;
 
@@ -18,6 +19,7 @@ public class BookingConfirmationMailService {
 
     private final JavaMailSender mailSender;
 
+    @Async
     public void sendConfirmation(Reservation reservation) {
         String email = reservation.getUser().getEmail();
         if (email == null || email.isBlank()) {

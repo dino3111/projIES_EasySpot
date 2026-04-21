@@ -1,5 +1,7 @@
 package pt.ua.deti.apieasyspot.booking.event;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -7,6 +9,7 @@ import org.springframework.stereotype.Component;
 import pt.ua.deti.apieasyspot.booking.model.Reservation;
 
 import java.time.Instant;
+import java.util.Map;
 
 @Slf4j
 @Component
@@ -16,40 +19,42 @@ public class ReservationEventPublisher {
     static final String TOPIC = "reservation-events";
 
     private final KafkaTemplate<String, String> kafkaTemplate;
+    private final ObjectMapper objectMapper;
 
     public void publishCreated(Reservation reservation) {
-        String payload = buildPayload(
-            "RESERVATION_CREATED",
-            reservation.getParkingLot().getId().toString(),
-            reservation.getVehicle() != null ? reservation.getVehicle().getId().toString() : null,
-            "Reservation " + reservation.getBookingCode() + " confirmed"
-        );
-        send(reservation.getId().toString(), payload);
+        send(reservation, "RESERVATION_CREATED",
+            "Reservation " + reservation.getBookingCode() + " confirmed");
     }
 
     public void publishCancelled(Reservation reservation) {
-        String payload = buildPayload(
-            "RESERVATION_CANCELLED",
-            reservation.getParkingLot().getId().toString(),
-            reservation.getVehicle() != null ? reservation.getVehicle().getId().toString() : null,
-            "Reservation " + reservation.getBookingCode() + " cancelled"
+        send(reservation, "RESERVATION_CANCELLED",
+            "Reservation " + reservation.getBookingCode() + " cancelled");
+    }
+
+    private void send(Reservation reservation, String alertType, String message) {
+        String vehicleId = reservation.getVehicle() != null
+            ? reservation.getVehicle().getId().toString()
+            : null;
+
+        Map<String, Object> payload = Map.of(
+            "alertType", alertType,
+            "parkId", reservation.getParkingLot().getId().toString(),
+            "vehicleId", vehicleId != null ? vehicleId : "",
+            "message", message,
+            "occurredAt", Instant.now().toString(),
+            "source", "reservation-service"
         );
-        send(reservation.getId().toString(), payload);
-    }
 
-    private String buildPayload(String alertType, String parkId, String vehicleId, String message) {
-        String vid = vehicleId != null ? "\"" + vehicleId + "\"" : "null";
-        return """
-            {"alertType":"%s","parkId":"%s","vehicleId":%s,"message":"%s","occurredAt":"%s","source":"reservation-service"}
-            """.formatted(alertType, parkId, vid, message, Instant.now()).strip();
-    }
-
-    private void send(String key, String payload) {
-        kafkaTemplate.send(TOPIC, key, payload)
-            .whenComplete((result, ex) -> {
-                if (ex != null) {
-                    log.warn("Failed to publish reservation event: {}", ex.getMessage());
-                }
-            });
+        try {
+            String json = objectMapper.writeValueAsString(payload);
+            kafkaTemplate.send(TOPIC, reservation.getId().toString(), json)
+                .whenComplete((result, ex) -> {
+                    if (ex != null) {
+                        log.warn("Failed to publish reservation event: {}", ex.getMessage());
+                    }
+                });
+        } catch (JsonProcessingException ex) {
+            log.warn("Failed to serialize reservation event for {}: {}", reservation.getBookingCode(), ex.getMessage());
+        }
     }
 }
