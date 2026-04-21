@@ -224,7 +224,8 @@ class ReservationServiceTest {
     void create_spotConflict_throwsConflict() {
         ParkingSpot spot = freeSpot();
         stubUserAndLotAndVehicle();
-        when(reservationRepository.expireTimedOutLocks(any())).thenReturn(0);
+        when(reservationRepository.expireTimedOutLocks(any(OffsetDateTime.class),
+            eq(ReservationStatus.CONFIRMED), eq(ReservationStatus.EXPIRED))).thenReturn(0);
         when(reservationRepository.countLotReservations(any(), any(), any())).thenReturn(0L);
         when(reservationRepository.countVehicleConflicts(any(), any(), any(), any())).thenReturn(0L);
         when(reservationRepository.spotBelongsToPark(spot.getId(), lot.getId())).thenReturn(true);
@@ -250,7 +251,8 @@ class ReservationServiceTest {
         spot.setParkingLot(lot);
 
         stubUserAndLotAndVehicle();
-        when(reservationRepository.expireTimedOutLocks(any())).thenReturn(0);
+        when(reservationRepository.expireTimedOutLocks(any(OffsetDateTime.class),
+            eq(ReservationStatus.CONFIRMED), eq(ReservationStatus.EXPIRED))).thenReturn(0);
         when(reservationRepository.countLotReservations(any(), any(), any())).thenReturn(0L);
         when(reservationRepository.countVehicleConflicts(any(), any(), any(), any())).thenReturn(0L);
         when(reservationRepository.spotBelongsToPark(spot.getId(), lot.getId())).thenReturn(true);
@@ -267,7 +269,8 @@ class ReservationServiceTest {
     void create_spotNotInPark_throwsUnprocessable() {
         ParkingSpot spot = freeSpot();
         stubUserAndLotAndVehicle();
-        when(reservationRepository.expireTimedOutLocks(any())).thenReturn(0);
+        when(reservationRepository.expireTimedOutLocks(any(OffsetDateTime.class),
+            eq(ReservationStatus.CONFIRMED), eq(ReservationStatus.EXPIRED))).thenReturn(0);
         when(reservationRepository.countLotReservations(any(), any(), any())).thenReturn(0L);
         when(reservationRepository.countVehicleConflicts(any(), any(), any(), any())).thenReturn(0L);
         when(reservationRepository.spotBelongsToPark(spot.getId(), lot.getId())).thenReturn(false);
@@ -313,7 +316,8 @@ class ReservationServiceTest {
 
         reservationService.create(AUTH_ID, null, request(null));
 
-        verify(reservationRepository).expireTimedOutLocks(any(OffsetDateTime.class));
+        verify(reservationRepository).expireTimedOutLocks(any(OffsetDateTime.class),
+            eq(ReservationStatus.CONFIRMED), eq(ReservationStatus.EXPIRED));
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
@@ -332,7 +336,8 @@ class ReservationServiceTest {
     private void stubHappyPath(long lotConflicts, long vehicleConflicts,
                                long spotConflicts, List<ParkingSpot> freeSpots) {
         stubUserAndLotAndVehicle();
-        when(reservationRepository.expireTimedOutLocks(any())).thenReturn(0);
+        when(reservationRepository.expireTimedOutLocks(any(OffsetDateTime.class),
+            eq(ReservationStatus.CONFIRMED), eq(ReservationStatus.EXPIRED))).thenReturn(0);
         when(reservationRepository.countLotReservations(eq(lot.getId()), any(), any()))
             .thenReturn(lotConflicts);
         when(reservationRepository.countVehicleConflicts(eq(vehicle.getId()), eq(lot.getId()), any(), any()))

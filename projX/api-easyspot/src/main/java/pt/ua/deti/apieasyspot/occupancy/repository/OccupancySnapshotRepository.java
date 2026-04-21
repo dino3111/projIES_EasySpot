@@ -20,4 +20,3 @@ public interface OccupancySnapshotRepository extends JpaRepository<OccupancySnap
         ) s
         """, nativeQuery = true)
     int sumFreeSpacesFromLatestSnapshot(@Param("lotId") UUID lotId);
-}
