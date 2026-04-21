@@ -37,7 +37,8 @@ import requests  # type: ignore[import]
 BASE_URL = os.environ.get("AUTHENTIK_URL", "http://localhost:9000").rstrip("/")
 TOKEN: str = (
     os.environ.get("AUTHENTIK_TOKEN")
-    or os.environ.get("AUTHENTIK_BOOTSTRAP_TOKEN", "")
+    or os.environ.get("AUTHENTIK_BOOTSTRAP_TOKEN")
+    or ""
 )
 REDIRECT_URI = os.environ.get(
     "REDIRECT_URI", "http://localhost:5173/callback"
