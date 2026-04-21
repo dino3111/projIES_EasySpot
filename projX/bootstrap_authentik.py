@@ -23,7 +23,8 @@ Usage (Manual - if automatic setup fails):
 Optional env vars:
     AUTHENTIK_URL       Base URL of Authentik (default: http://localhost:9000)
     AUTHENTIK_TOKEN     API token (optional if auto-setup works)
-    REDIRECT_URI        Frontend OAuth2 callback (default: http://localhost:5173/callback)
+    REDIRECT_URI        Frontend OAuth2 callback
+                        (default: http://localhost:5173/callback)
 """
 
 from __future__ import annotations
