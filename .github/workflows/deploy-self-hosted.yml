@@ -69,6 +69,7 @@ jobs:
             "${{ secrets.SONAR_GITHUB_CLIENT_ID }}"
             "${{ secrets.SONAR_GITHUB_CLIENT_SECRET }}"
             "${{ secrets.APP_DB_PASS }}"
+            "${{ secrets.AUTHENTIK_BOOTSTRAP_TOKEN }}"
           )
           for secret_value in "${required_secrets[@]}"; do
             if [ -z "$secret_value" ]; then
@@ -122,6 +123,10 @@ jobs:
             echo "# Backend Time-Series Database"
             echo "TS_DB=easyspot_ts"
             echo "KAFKA_ADVERTISED_HOST=${{ vars.KAFKA_ADVERTISED_HOST }}"
+            echo ""
+            echo "# API / Backend"
+            echo "AUTHENTIK_ISSUER_URI=${{ vars.AUTHENTIK_ISSUER_URI || 'http://authentik-server:9000/application/o/easyspot/' }}"
+            echo "CORS_ALLOWED_ORIGINS=${{ vars.CORS_ALLOWED_ORIGINS || 'http://localhost:5173' }}"
             echo ""
             if [ "$stripe_enabled" = true ]; then
               echo "# Stripe CLI webhook forwarding"
@@ -188,7 +193,7 @@ jobs:
           cd projX
           echo "Waiting for services to become healthy..."
 
-          services_to_check=(postgres timescaledb kafka authentik-server sonarqube nginx)
+          services_to_check=(postgres timescaledb kafka authentik-server api sonarqube nginx)
           if [ "${ENABLE_STRIPE_PROFILE:-false}" = "true" ]; then
             services_to_check+=(stripe-cli)
           fi
@@ -232,6 +237,18 @@ jobs:
 
           echo "✓ All critical services are healthy"
           docker compose ps
+
+      - name: Bootstrap Authentik IDP
+        env:
+          AUTHENTIK_TOKEN: ${{ secrets.AUTHENTIK_BOOTSTRAP_TOKEN }}
+          AUTHENTIK_URL: ${{ vars.AUTHENTIK_URL || 'http://localhost:9000' }}
+          REDIRECT_URI: ${{ vars.AUTHENTIK_REDIRECT_URI || 'http://localhost:5173/callback' }}
+        run: |
+          set -euo pipefail
+          cd projX
+          echo "Running Authentik bootstrap (idempotent)..."
+          python3 bootstrap_authentik.py
+          echo "✓ Authentik bootstrap complete"
 
       - name: Cleanup generated deployment file
         if: always()
