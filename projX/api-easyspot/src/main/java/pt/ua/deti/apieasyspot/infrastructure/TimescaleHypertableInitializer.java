@@ -39,6 +39,7 @@ public class TimescaleHypertableInitializer implements ApplicationRunner {
         jdbc.execute("select create_hypertable('occupancy_snapshots', 'recorded_at', if_not_exists => true, migrate_data => true)");
         jdbc.execute("select create_hypertable('parking_sessions', 'entry_time', if_not_exists => true, migrate_data => true)");
         jdbc.execute("select create_hypertable('alerts', 'created_at', if_not_exists => true, migrate_data => true)");
+        jdbc.execute("select create_hypertable('payment_records', 'created_at', if_not_exists => true, migrate_data => true)");
         log.info("TimescaleDB hypertables ready.");
     }
 

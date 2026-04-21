@@ -5,11 +5,24 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.mail.javamail.JavaMailSender;
+import pt.ua.deti.apieasyspot.billing.service.StripeService;
 import tools.jackson.databind.ObjectMapper;
 
-@SpringBootTest
+@SpringBootTest(properties = {
+    "STRIPE_API_KEY=sk_test_dummy",
+    "STRIPE_WEBHOOK_SECRET=whsec_dummy",
+    "spring.mail.host=localhost"
+})
 @Import({TestcontainersConfiguration.class, ApiEasyspotApplicationTests.TestConfig.class})
 class ApiEasyspotApplicationTests {
+
+    @MockitoBean
+    JavaMailSender mailSender;
+
+    @MockitoBean
+    StripeService stripeService;
 
     @Test
     void contextLoads() {

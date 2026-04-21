@@ -1,0 +1,203 @@
+{
+	"info": {
+		"_postman_id": "b3f3b3b3-b3b3-4b3b-b3b3-b3b3b3b3b3b3",
+		"name": "EasySpot Stripe Payments",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Create Checkout Session",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"reservationId\": \"{{reservationId}}\",\n    \"amount\": 15.00,\n    \"currency\": \"eur\",\n    \"customerEmail\": \"user@example.com\",\n    \"successUrl\": \"http://localhost:5173/success\",\n    \"cancelUrl\": \"http://localhost:5173/cancel\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/payments/checkout-session",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"payments",
+						"checkout-session"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Payment Status",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/api/payments/status?reservationId={{reservationId}}",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"payments",
+						"status"
+					],
+					"query": [
+						{
+							"key": "reservationId",
+							"value": "{{reservationId}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Stripe Webhook (Mock)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Stripe-Signature",
+						"value": "t=123,v1=123",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"id\": \"evt_123\",\n  \"type\": \"payment_intent.succeeded\",\n  \"data\": {\n    \"object\": {\n      \"id\": \"pi_123\",\n      \"amount\": 1500,\n      \"currency\": \"eur\",\n      \"metadata\": {\n        \"reservationId\": \"{{reservationId}}\"\n      }\n    }\n  }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/stripe/webhook",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"stripe",
+						"webhook"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Refund Payment",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{managerToken}}",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"reservationId\": \"{{reservationId}}\",\n    \"amount\": 5.00,\n    \"reason\": \"requested_by_customer\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/payments/refund",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"payments",
+						"refund"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Customer Portal",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/payments/customer-portal",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"payments",
+						"customer-portal"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": "your_driver_token_here",
+			"type": "string"
+		},
+		{
+			"key": "managerToken",
+			"value": "your_manager_token_here",
+			"type": "string"
+		},
+		{
+			"key": "reservationId",
+			"value": "550e8400-e29b-41d4-a716-446655440000",
+			"type": "string"
+		}
+	]
+}
