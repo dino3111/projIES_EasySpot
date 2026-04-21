@@ -5,7 +5,7 @@ import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Data
@@ -41,7 +41,7 @@ public class TariffAudit {
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
-    private LocalDateTime changedAt;
+    private OffsetDateTime changedAt;
 
     @Column(nullable = false)
     private String changedBy;

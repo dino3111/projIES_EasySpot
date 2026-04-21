@@ -6,6 +6,9 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -16,7 +19,6 @@ import pt.ua.deti.apieasyspot.occupancy.dto.UpdateTariffRequest;
 import pt.ua.deti.apieasyspot.occupancy.model.TariffStatus;
 import pt.ua.deti.apieasyspot.occupancy.service.ManagerTariffService;
 
-import java.util.List;
 import java.util.UUID;
 
 @Tag(name = "Manager", description = "Manager tariff management")
@@ -35,11 +37,12 @@ public class ManagerTariffController {
     })
     @GetMapping
     @PreAuthorize("hasRole('MANAGER')")
-    public ResponseEntity<List<TariffResponse>> listTariffs(
+    public ResponseEntity<Page<TariffResponse>> listTariffs(
             @RequestParam(required = false) UUID parkId,
             @RequestParam(required = false) String city,
-            @RequestParam(required = false) TariffStatus status) {
-        return ResponseEntity.ok(managerTariffService.listTariffs(parkId, city, status));
+            @RequestParam(required = false) TariffStatus status,
+            @PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(managerTariffService.listTariffs(parkId, city, status, pageable));
     }
 
     @Operation(summary = "Update tariffs (hourly, max daily, monthly, pricePerKwh, status)")
