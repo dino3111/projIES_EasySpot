@@ -1,6 +1,9 @@
 package pt.ua.deti.apieasyspot.common.exception;
 
+import com.stripe.exception.SignatureVerificationException;
+import com.stripe.exception.StripeException;
 import jakarta.validation.ConstraintViolationException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -10,6 +13,7 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.util.stream.Collectors;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -62,5 +66,16 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ProblemDetail handleFileTooLarge(MaxUploadSizeExceededException ex){
         return ProblemDetail.forStatusAndDetail(HttpStatus.PAYLOAD_TOO_LARGE, "Photo must not exceed 10 MB");
+    }
+
+    @ExceptionHandler(SignatureVerificationException.class)
+    public ProblemDetail handleInvalidWebhookSignature(SignatureVerificationException ex) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Invalid webhook signature");
+    }
+
+    @ExceptionHandler(StripeException.class)
+    public ProblemDetail handleStripeException(StripeException ex) {
+        log.error("Stripe API error [{}]: {}", ex.getCode(), ex.getMessage());
+        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_GATEWAY, "Payment provider error");
     }
 }
