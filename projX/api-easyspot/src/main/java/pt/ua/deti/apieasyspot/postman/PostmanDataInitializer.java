@@ -25,7 +25,6 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -174,6 +173,8 @@ class PostmanDataInitializer implements ApplicationRunner {
     }
 
     private void seedSessions(List<ParkingLot> lots, User driver) {
+        Vehicle primary = vehicleRepository.findById(vehicleId).orElseThrow();
+        Vehicle secondary = vehicleRepository.findById(secondaryVehicleId).orElseThrow();
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         for (int daysAgo = 6; daysAgo >= 0; daysAgo--) {
             int count = 50 + (int) (Math.random() * 100);
@@ -181,8 +182,8 @@ class PostmanDataInitializer implements ApplicationRunner {
                 ParkingLot lot = lots.get(i % lots.size());
                 OffsetDateTime entry = now.minusDays(daysAgo).withHour(7 + (i % 14)).withMinute(i % 60);
                 double durationH = 0.5 + (Math.random() * 3.5);
-                UUID chosenVehicle = i % 2 == 0 ? vehicleId : secondaryVehicleId;
-                parkingSessionRepository.save(session(lot, entry, durationH, driver, chosenVehicle));
+                Vehicle chosen = i % 2 == 0 ? primary : secondary;
+                parkingSessionRepository.save(session(lot, entry, durationH, driver, chosen));
             }
         }
     }
@@ -241,11 +242,11 @@ class PostmanDataInitializer implements ApplicationRunner {
         return l;
     }
 
-    private ParkingSession session(ParkingLot lot, OffsetDateTime entry, double durationHours, User driver, UUID vehicleId) {
+    private ParkingSession session(ParkingLot lot, OffsetDateTime entry, double durationHours, User driver, Vehicle vehicle) {
         ParkingSession s = new ParkingSession();
         s.setUser(driver);
         s.setParkingLot(lot);
-        vehicleRepository.findById(vehicleId).ifPresent(s::setVehicle);
+        s.setVehicle(vehicle);
         s.setZoneType(ZoneType.STANDARD);
         s.setEntryTime(entry);
         s.setExitTime(entry.plusMinutes((long) (durationHours * 60)));

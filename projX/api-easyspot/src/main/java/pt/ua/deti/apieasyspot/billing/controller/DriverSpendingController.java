@@ -74,8 +74,13 @@ public class DriverSpendingController {
             description = "Custom range end (ISO8601 date/datetime). Must be used with `from` and without `timeWindow`",
             example = "2026-01-31"
         )
-        @RequestParam(required = false) String to
+        @RequestParam(required = false) String to,
+        @Parameter(description = "Zero-based page index for history results", example = "0")
+        @RequestParam(defaultValue = "0") int historyPage,
+        @Parameter(description = "Number of history items per page (1–200)", example = "50")
+        @RequestParam(defaultValue = "50") int historySize
     ) {
-        return ResponseEntity.ok(driverSpendingService.getSpending(jwt.getSubject(), vehicleId, timeWindow, from, to));
+        return ResponseEntity.ok(
+            driverSpendingService.getSpending(jwt.getSubject(), vehicleId, timeWindow, from, to, historyPage, historySize));
     }
 }

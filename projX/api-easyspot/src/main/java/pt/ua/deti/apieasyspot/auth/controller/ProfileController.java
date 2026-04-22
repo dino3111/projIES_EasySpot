@@ -1,6 +1,8 @@
 package pt.ua.deti.apieasyspot.auth.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -21,12 +23,21 @@ public class ProfileController {
     private final ProfileService profileService;
 
     @Operation(summary = "Get authenticated user profile (role-aware)")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Authenticated profile retrieved successfully"),
+        @ApiResponse(responseCode = "401", description = "Missing or invalid authentication token")
+    })
     @GetMapping
     public ResponseEntity<Object> getProfile(@AuthenticationPrincipal Jwt jwt) {
         return ResponseEntity.ok(profileService.getProfile(jwt.getSubject(), extractRole(jwt)));
     }
 
     @Operation(summary = "Update authenticated user profile preferences")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Profile updated successfully"),
+        @ApiResponse(responseCode = "400", description = "Invalid profile update payload"),
+        @ApiResponse(responseCode = "401", description = "Missing or invalid authentication token")
+    })
     @PutMapping
     public ResponseEntity<Object> updateProfile(
         @RequestBody ProfileUpdateRequest request,

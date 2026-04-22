@@ -54,7 +54,7 @@ class DriverSpendingContractIT {
             .andExpect(jsonPath("$.totals.parkingSpent").isNumber())
             .andExpect(jsonPath("$.totals.chargingSpent").isNumber())
             .andExpect(jsonPath("$.insights").exists())
-            .andExpect(jsonPath("$.insights.mostUsedPark").exists())
+            .andExpect(jsonPath("$.insights.sessionCount").isNumber())
             .andExpect(jsonPath("$.timeseries").isArray())
             .andExpect(jsonPath("$.breakdownByPark").isArray())
             .andExpect(jsonPath("$.breakdownByVehicle").isArray())

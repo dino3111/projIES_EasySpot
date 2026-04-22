@@ -25,6 +25,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
@@ -70,7 +71,7 @@ class DriverSpendingServiceTest {
         UUID vehicleId = UUID.randomUUID();
         when(vehicleRepository.findByIdAndUserId(vehicleId, user.getId())).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.getSpending("driver-sub-001", vehicleId.toString(), "7D", null, null))
+        assertThatThrownBy(() -> service.getSpending("driver-sub-001", vehicleId.toString(), "7D", null, null, 0, 50))
             .isInstanceOf(ResourceNotFoundException.class)
             .hasMessageContaining("Unknown vehicleId");
     }
@@ -80,14 +81,13 @@ class DriverSpendingServiceTest {
     void getSpending_emptyHistory_returnsZeroedResponse() {
         when(repository.totals(eq(user.getId()), any(), any(), any()))
             .thenReturn(new DriverSpendingRepository.TotalsRow(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, 0));
-        when(repository.mostUsedPark(eq(user.getId()), any(), any(), any())).thenReturn(null);
         when(repository.costliestSession(eq(user.getId()), any(), any(), any())).thenReturn(null);
         when(repository.timeseries(eq(user.getId()), any(), any(), any())).thenReturn(List.of());
         when(repository.breakdownByPark(eq(user.getId()), any(), any(), any())).thenReturn(List.of());
         when(repository.breakdownByVehicle(eq(user.getId()), any(), any(), any())).thenReturn(List.of());
-        when(repository.history(eq(user.getId()), any(), any(), any())).thenReturn(List.of());
+        when(repository.history(eq(user.getId()), any(), any(), any(), anyInt(), anyInt())).thenReturn(List.of());
 
-        DriverSpendingResponse response = service.getSpending("driver-sub-001", null, "30D", null, null);
+        DriverSpendingResponse response = service.getSpending("driver-sub-001", null, "30D", null, null, 0, 50);
 
         assertThat(response.totals().totalSpent()).isEqualByComparingTo("0.00");
         assertThat(response.totals().avgPerSession()).isEqualByComparingTo("0.00");
@@ -108,15 +108,16 @@ class DriverSpendingServiceTest {
         when(repository.totals(eq(user.getId()), eq(vehicleId), any(), any()))
             .thenReturn(new DriverSpendingRepository.TotalsRow(
                 new BigDecimal("30.00"), new BigDecimal("12.00"), new BigDecimal("18.00"), 3));
-        when(repository.mostUsedPark(eq(user.getId()), eq(vehicleId), any(), any())).thenReturn("Fórum Aveiro");
         when(repository.costliestSession(eq(user.getId()), eq(vehicleId), any(), any()))
             .thenReturn(new DriverSpendingRepository.CostliestSessionRow("Fórum Aveiro", now, "AA-00-AA", new BigDecimal("20.00")));
         when(repository.timeseries(eq(user.getId()), eq(vehicleId), any(), any())).thenReturn(List.of());
-        when(repository.breakdownByPark(eq(user.getId()), eq(vehicleId), any(), any())).thenReturn(List.of());
+        when(repository.breakdownByPark(eq(user.getId()), eq(vehicleId), any(), any()))
+            .thenReturn(List.of(new DriverSpendingRepository.ParkBreakdownRow(
+                UUID.randomUUID(), "Fórum Aveiro", new BigDecimal("14.00"), 2)));
         when(repository.breakdownByVehicle(eq(user.getId()), eq(vehicleId), any(), any())).thenReturn(List.of());
-        when(repository.history(eq(user.getId()), eq(vehicleId), any(), any())).thenReturn(List.of());
+        when(repository.history(eq(user.getId()), eq(vehicleId), any(), any(), anyInt(), anyInt())).thenReturn(List.of());
 
-        DriverSpendingResponse response = service.getSpending("driver-sub-001", vehicleId.toString(), null, null, null);
+        DriverSpendingResponse response = service.getSpending("driver-sub-001", vehicleId.toString(), null, null, null, 0, 50);
 
         assertThat(response.totals().totalSpent()).isEqualByComparingTo("30.00");
         assertThat(response.totals().avgPerSession()).isEqualByComparingTo("10.00");

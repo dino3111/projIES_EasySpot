@@ -14,6 +14,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.*;
 import java.time.format.DateTimeParseException;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
@@ -22,6 +23,7 @@ import java.util.UUID;
 public class DriverSpendingService {
 
     private static final SpendingTimeWindow DEFAULT_WINDOW = SpendingTimeWindow.DAYS_30;
+    private static final int MAX_HISTORY_SIZE = 200;
 
     private final UserRepository userRepository;
     private final VehicleRepository vehicleRepository;
@@ -32,8 +34,15 @@ public class DriverSpendingService {
         String vehicleIdRaw,
         String timeWindowRaw,
         String fromRaw,
-        String toRaw
+        String toRaw,
+        int historyPage,
+        int historySize
     ) {
+        if (historyPage < 0 || historySize < 1 || historySize > MAX_HISTORY_SIZE) {
+            throw new IllegalArgumentException(
+                "historyPage must be >= 0 and historySize must be between 1 and " + MAX_HISTORY_SIZE);
+        }
+
         User user = userRepository.findByAuthentikUserId(authentikUserId)
             .orElseThrow(() -> new ResourceNotFoundException("User not found: " + authentikUserId));
 
@@ -45,7 +54,15 @@ public class DriverSpendingService {
             ? totals.totalSpent().divide(BigDecimal.valueOf(totals.sessions()), 2, RoundingMode.HALF_UP)
             : BigDecimal.ZERO;
 
-        String mostUsedPark = repository.mostUsedPark(user.getId(), vehicleId, range.fromInclusive(), range.toExclusive());
+        List<DriverSpendingRepository.ParkBreakdownRow> parkBreakdown =
+            repository.breakdownByPark(user.getId(), vehicleId, range.fromInclusive(), range.toExclusive());
+        String mostUsedPark = parkBreakdown.stream()
+            .max(Comparator.comparingLong(DriverSpendingRepository.ParkBreakdownRow::sessionCount)
+                .thenComparing(DriverSpendingRepository.ParkBreakdownRow::totalSpent)
+                .thenComparing(Comparator.comparing(DriverSpendingRepository.ParkBreakdownRow::parkName).reversed()))
+            .map(DriverSpendingRepository.ParkBreakdownRow::parkName)
+            .orElse(null);
+
         DriverSpendingRepository.CostliestSessionRow costliest =
             repository.costliestSession(user.getId(), vehicleId, range.fromInclusive(), range.toExclusive());
 
@@ -66,13 +83,13 @@ public class DriverSpendingService {
             repository.timeseries(user.getId(), vehicleId, range.fromInclusive(), range.toExclusive()).stream()
                 .map(row -> new DriverSpendingResponse.TimeseriesPoint(row.date(), safe(row.totalSpent())))
                 .toList(),
-            repository.breakdownByPark(user.getId(), vehicleId, range.fromInclusive(), range.toExclusive()).stream()
+            parkBreakdown.stream()
                 .map(row -> new DriverSpendingResponse.ParkBreakdown(row.parkId(), row.parkName(), safe(row.totalSpent())))
                 .toList(),
             repository.breakdownByVehicle(user.getId(), vehicleId, range.fromInclusive(), range.toExclusive()).stream()
                 .map(row -> new DriverSpendingResponse.VehicleBreakdown(row.vehicleId(), row.licensePlate(), safe(row.totalSpent())))
                 .toList(),
-            repository.history(user.getId(), vehicleId, range.fromInclusive(), range.toExclusive()).stream()
+            repository.history(user.getId(), vehicleId, range.fromInclusive(), range.toExclusive(), historyPage, historySize).stream()
                 .map(row -> new DriverSpendingResponse.HistoryItem(
                     row.parkName(), row.date(), row.durationMinutes(), row.vehicle(), safe(row.totalSpent()), row.status()
                 ))

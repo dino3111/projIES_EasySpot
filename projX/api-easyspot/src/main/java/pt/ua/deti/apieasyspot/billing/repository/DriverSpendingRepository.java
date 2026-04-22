@@ -71,7 +71,9 @@ public class DriverSpendingRepository {
     public List<ParkBreakdownRow> breakdownByPark(UUID userId, UUID vehicleId, OffsetDateTime fromInclusive, OffsetDateTime toExclusive) {
         return jdbc.query(
             """
-            select ps.parking_lot_id, pl.name as park_name, coalesce(sum(ps.revenue_euros), 0) as total_spent
+            select ps.parking_lot_id, pl.name as park_name,
+                   coalesce(sum(ps.revenue_euros), 0) as total_spent,
+                   count(*) as session_count
             from parking_sessions ps
             join parking_lots pl on pl.id = ps.parking_lot_id
             where ps.user_id = :userId
@@ -87,7 +89,8 @@ public class DriverSpendingRepository {
             (rs, row) -> new ParkBreakdownRow(
                 UUID.fromString(rs.getString("parking_lot_id")),
                 rs.getString("park_name"),
-                rs.getBigDecimal("total_spent")
+                rs.getBigDecimal("total_spent"),
+                rs.getLong("session_count")
             )
         );
     }
@@ -115,28 +118,6 @@ public class DriverSpendingRepository {
                 rs.getBigDecimal("total_spent")
             )
         );
-    }
-
-    public String mostUsedPark(UUID userId, UUID vehicleId, OffsetDateTime fromInclusive, OffsetDateTime toExclusive) {
-        List<String> rows = jdbc.query(
-            """
-            select pl.name
-            from parking_sessions ps
-            join parking_lots pl on pl.id = ps.parking_lot_id
-            where ps.user_id = :userId
-              and ps.entry_time >= :fromInclusive
-              and ps.entry_time < :toExclusive
-              and ps.exit_time is not null
-              and ps.revenue_euros is not null
-              and (cast(:vehicleId as uuid) is null or ps.vehicle_id = cast(:vehicleId as uuid))
-            group by pl.name
-            order by count(*) desc, coalesce(sum(ps.revenue_euros), 0) desc, pl.name asc
-            limit 1
-            """,
-            params(userId, vehicleId, fromInclusive, toExclusive),
-            (rs, row) -> rs.getString(1)
-        );
-        return rows.isEmpty() ? null : rows.get(0);
     }
 
     public CostliestSessionRow costliestSession(UUID userId, UUID vehicleId, OffsetDateTime fromInclusive, OffsetDateTime toExclusive) {
@@ -169,7 +150,12 @@ public class DriverSpendingRepository {
         return rows.isEmpty() ? null : rows.get(0);
     }
 
-    public List<HistoryRow> history(UUID userId, UUID vehicleId, OffsetDateTime fromInclusive, OffsetDateTime toExclusive) {
+    private static final String STATUS_COMPLETED = "COMPLETED";
+
+    public List<HistoryRow> history(UUID userId, UUID vehicleId, OffsetDateTime fromInclusive, OffsetDateTime toExclusive, int page, int size) {
+        var p = params(userId, vehicleId, fromInclusive, toExclusive)
+            .addValue("limit", size)
+            .addValue("offset", (long) page * size);
         return jdbc.query(
             """
             select pl.name as park_name,
@@ -188,15 +174,16 @@ public class DriverSpendingRepository {
               and ps.revenue_euros is not null
               and (cast(:vehicleId as uuid) is null or ps.vehicle_id = cast(:vehicleId as uuid))
             order by ps.entry_time desc
+            limit :limit offset :offset
             """,
-            params(userId, vehicleId, fromInclusive, toExclusive),
+            p,
             (rs, row) -> new HistoryRow(
                 rs.getString("park_name"),
                 asOffset(rs.getTimestamp("entry_time")),
                 Math.round(rs.getDouble("duration_minutes")),
                 rs.getString("vehicle"),
                 rs.getBigDecimal("total_spent"),
-                "COMPLETED"
+                STATUS_COMPLETED
             )
         );
     }
@@ -215,7 +202,7 @@ public class DriverSpendingRepository {
 
     public record TotalsRow(BigDecimal totalSpent, BigDecimal chargingSpent, BigDecimal parkingSpent, long sessions) {}
     public record TimeseriesPointRow(LocalDate date, BigDecimal totalSpent) {}
-    public record ParkBreakdownRow(UUID parkId, String parkName, BigDecimal totalSpent) {}
+    public record ParkBreakdownRow(UUID parkId, String parkName, BigDecimal totalSpent, long sessionCount) {}
     public record VehicleBreakdownRow(UUID vehicleId, String licensePlate, BigDecimal totalSpent) {}
     public record CostliestSessionRow(String parkName, OffsetDateTime date, String vehicle, BigDecimal totalSpent) {}
     public record HistoryRow(String parkName, OffsetDateTime date, long durationMinutes, String vehicle, BigDecimal totalSpent, String status) {}

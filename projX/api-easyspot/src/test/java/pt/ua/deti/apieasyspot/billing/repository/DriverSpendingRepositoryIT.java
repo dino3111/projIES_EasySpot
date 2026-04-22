@@ -85,15 +85,15 @@ class DriverSpendingRepositoryIT {
         assertThat(parks).hasSize(2);
         assertThat(parks.get(0).parkName()).isEqualTo("Fórum Aveiro");
         assertThat(parks.get(0).totalSpent()).isEqualByComparingTo("14.00");
+        assertThat(parks.get(0).sessionCount()).isEqualTo(2);
 
         var vehicles = repository.breakdownByVehicle(driver.getId(), null, from, to);
         assertThat(vehicles).hasSize(2);
         assertThat(vehicles.stream().filter(v -> v.licensePlate().equals("AA-00-AA")).findFirst().orElseThrow().totalSpent())
             .isEqualByComparingTo("15.00");
 
-        assertThat(repository.mostUsedPark(driver.getId(), null, from, to)).isEqualTo("Fórum Aveiro");
         assertThat(repository.costliestSession(driver.getId(), null, from, to).totalSpent()).isEqualByComparingTo("10.00");
-        assertThat(repository.history(driver.getId(), null, from, to)).hasSize(3);
+        assertThat(repository.history(driver.getId(), null, from, to, 0, 50)).hasSize(3);
     }
 
     @Test
