@@ -1,7 +1,7 @@
 package pt.ua.deti.apieasyspot.booking.event;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -53,7 +53,7 @@ public class ReservationEventPublisher {
                         log.warn("Failed to publish reservation event: {}", ex.getMessage());
                     }
                 });
-        } catch (JsonProcessingException ex) {
+        } catch (JacksonException ex) {
             log.warn("Failed to serialize reservation event for {}: {}", reservation.getBookingCode(), ex.getMessage());
         }
     }
