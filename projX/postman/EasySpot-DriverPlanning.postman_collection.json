@@ -1,0 +1,476 @@
+{
+  "info": {
+    "name": "EasySpot - Driver Planning API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "token", "value": "REPLACE_WITH_DRIVER_JWT" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "401 - No token",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Returns 401 when unauthenticated', function () {",
+            "  pm.response.to.have.status(401);",
+            "});"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/driver/costs/planning?city=Aveiro&estimatedDurationMinutes=60&lat=40.6405&lng=-8.6538",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "driver", "costs", "planning"],
+              "query": [
+                { "key": "city", "value": "Aveiro" },
+                { "key": "estimatedDurationMinutes", "value": "60" },
+                { "key": "lat", "value": "40.6405" },
+                { "key": "lng", "value": "-8.6538" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "403 - Wrong role (MANAGER)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Returns 403 for non-DRIVER role', function () {",
+            "  pm.response.to.have.status(403);",
+            "});"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{manager_token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/driver/costs/planning?city=Aveiro&estimatedDurationMinutes=60&lat=40.6405&lng=-8.6538",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "driver", "costs", "planning"],
+              "query": [
+                { "key": "city", "value": "Aveiro" },
+                { "key": "estimatedDurationMinutes", "value": "60" },
+                { "key": "lat", "value": "40.6405" },
+                { "key": "lng", "value": "-8.6538" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Happy Path",
+      "item": [
+        {
+          "name": "200 - Default orderBy (best)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+            "var body = pm.response.json();",
+            "pm.test('Has recommendations array', function () {",
+            "  pm.expect(body).to.have.property('recommendations');",
+            "  pm.expect(body.recommendations).to.be.an('array');",
+            "});",
+            "if (body.recommendations.length > 0) {",
+            "  var rec = body.recommendations[0];",
+            "  pm.test('Recommendation has required fields', function () {",
+            "    pm.expect(rec).to.have.property('id');",
+            "    pm.expect(rec).to.have.property('name');",
+            "    pm.expect(rec).to.have.property('address');",
+            "    pm.expect(rec).to.have.property('openingHours');",
+            "    pm.expect(rec).to.have.property('distanceMeters');",
+            "    pm.expect(rec).to.have.property('pricePerHour');",
+            "    pm.expect(rec).to.have.property('currentOccupancy');",
+            "    pm.expect(rec).to.have.property('occupancyByHour');",
+            "  });",
+            "  pm.test('currentOccupancy has required fields', function () {",
+            "    var occ = rec.currentOccupancy;",
+            "    pm.expect(occ).to.have.property('occupied');",
+            "    pm.expect(occ).to.have.property('total');",
+            "    pm.expect(occ).to.have.property('occupancyPercent');",
+            "    pm.expect(occ).to.have.property('status');",
+            "    pm.expect(['AVAILABLE', 'LIMITED', 'FULL']).to.include(occ.status);",
+            "  });",
+            "  pm.test('occupancyByHour is array', function () {",
+            "    pm.expect(rec.occupancyByHour).to.be.an('array');",
+            "  });",
+            "  pm.test('distanceMeters is non-negative', function () {",
+            "    pm.expect(rec.distanceMeters).to.be.at.least(0);",
+            "  });",
+            "}"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/driver/costs/planning?city=Aveiro&estimatedDurationMinutes=60&lat=40.6405&lng=-8.6538",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "driver", "costs", "planning"],
+              "query": [
+                { "key": "city", "value": "Aveiro" },
+                { "key": "estimatedDurationMinutes", "value": "60" },
+                { "key": "lat", "value": "40.6405" },
+                { "key": "lng", "value": "-8.6538" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "200 - orderBy=lowestPrice - sorted ascending",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+            "var recs = pm.response.json().recommendations;",
+            "pm.test('Prices are non-decreasing', function () {",
+            "  for (var i = 1; i < recs.length; i++) {",
+            "    var prev = recs[i-1].pricePerHour || 0;",
+            "    var curr = recs[i].pricePerHour || 0;",
+            "    pm.expect(prev).to.be.at.most(curr);",
+            "  }",
+            "});"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/driver/costs/planning?city=Aveiro&estimatedDurationMinutes=60&lat=40.6405&lng=-8.6538&orderBy=lowestPrice",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "driver", "costs", "planning"],
+              "query": [
+                { "key": "city", "value": "Aveiro" },
+                { "key": "estimatedDurationMinutes", "value": "60" },
+                { "key": "lat", "value": "40.6405" },
+                { "key": "lng", "value": "-8.6538" },
+                { "key": "orderBy", "value": "lowestPrice" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "200 - orderBy=nearest - sorted by distance",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+            "var recs = pm.response.json().recommendations;",
+            "pm.test('Distances are non-decreasing', function () {",
+            "  for (var i = 1; i < recs.length; i++) {",
+            "    pm.expect(recs[i-1].distanceMeters).to.be.at.most(recs[i].distanceMeters);",
+            "  }",
+            "});"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/driver/costs/planning?city=Aveiro&estimatedDurationMinutes=60&lat=40.6405&lng=-8.6538&orderBy=nearest",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "driver", "costs", "planning"],
+              "query": [
+                { "key": "city", "value": "Aveiro" },
+                { "key": "estimatedDurationMinutes", "value": "60" },
+                { "key": "lat", "value": "40.6405" },
+                { "key": "lng", "value": "-8.6538" },
+                { "key": "orderBy", "value": "nearest" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "200 - EV filter - only lots with EV spots",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+            "pm.test('Response is valid', function () {",
+            "  pm.expect(pm.response.json().recommendations).to.be.an('array');",
+            "});"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/driver/costs/planning?city=Aveiro&estimatedDurationMinutes=60&lat=40.6405&lng=-8.6538&isElectric=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "driver", "costs", "planning"],
+              "query": [
+                { "key": "city", "value": "Aveiro" },
+                { "key": "estimatedDurationMinutes", "value": "60" },
+                { "key": "lat", "value": "40.6405" },
+                { "key": "lng", "value": "-8.6538" },
+                { "key": "isElectric", "value": "true" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "200 - Accessible filter",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+            "pm.test('Response is valid', function () {",
+            "  pm.expect(pm.response.json().recommendations).to.be.an('array');",
+            "});"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/driver/costs/planning?city=Aveiro&estimatedDurationMinutes=60&lat=40.6405&lng=-8.6538&isAccessible=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "driver", "costs", "planning"],
+              "query": [
+                { "key": "city", "value": "Aveiro" },
+                { "key": "estimatedDurationMinutes", "value": "60" },
+                { "key": "lat", "value": "40.6405" },
+                { "key": "lng", "value": "-8.6538" },
+                { "key": "isAccessible", "value": "true" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "200 - maxDistanceMeters boundary - tight radius",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+            "var recs = pm.response.json().recommendations;",
+            "pm.test('All results within max distance', function () {",
+            "  recs.forEach(function (r) {",
+            "    pm.expect(r.distanceMeters).to.be.at.most(200);",
+            "  });",
+            "});"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/driver/costs/planning?city=Aveiro&estimatedDurationMinutes=60&lat=40.6405&lng=-8.6538&maxDistanceMeters=200",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "driver", "costs", "planning"],
+              "query": [
+                { "key": "city", "value": "Aveiro" },
+                { "key": "estimatedDurationMinutes", "value": "60" },
+                { "key": "lat", "value": "40.6405" },
+                { "key": "lng", "value": "-8.6538" },
+                { "key": "maxDistanceMeters", "value": "200" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Edge Cases",
+      "item": [
+        {
+          "name": "400 - Missing city",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Returns 400 when city is missing', function () {",
+            "  pm.response.to.have.status(400);",
+            "});"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/driver/costs/planning?estimatedDurationMinutes=60&lat=40.6405&lng=-8.6538",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "driver", "costs", "planning"],
+              "query": [
+                { "key": "estimatedDurationMinutes", "value": "60" },
+                { "key": "lat", "value": "40.6405" },
+                { "key": "lng", "value": "-8.6538" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "400 - Missing lat/lng",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Returns 400 when location is missing', function () {",
+            "  pm.response.to.have.status(400);",
+            "});"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/driver/costs/planning?city=Aveiro&estimatedDurationMinutes=60",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "driver", "costs", "planning"],
+              "query": [
+                { "key": "city", "value": "Aveiro" },
+                { "key": "estimatedDurationMinutes", "value": "60" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "400 - estimatedDurationMinutes=0 (below min)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Returns 400 for zero duration', function () {",
+            "  pm.response.to.have.status(400);",
+            "});"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/driver/costs/planning?city=Aveiro&estimatedDurationMinutes=0&lat=40.6405&lng=-8.6538",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "driver", "costs", "planning"],
+              "query": [
+                { "key": "city", "value": "Aveiro" },
+                { "key": "estimatedDurationMinutes", "value": "0" },
+                { "key": "lat", "value": "40.6405" },
+                { "key": "lng", "value": "-8.6538" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "400 - Blank city (empty string)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Returns 400 for blank city', function () {",
+            "  pm.response.to.have.status(400);",
+            "});"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/driver/costs/planning?city=&estimatedDurationMinutes=60&lat=40.6405&lng=-8.6538",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "driver", "costs", "planning"],
+              "query": [
+                { "key": "city", "value": "" },
+                { "key": "estimatedDurationMinutes", "value": "60" },
+                { "key": "lat", "value": "40.6405" },
+                { "key": "lng", "value": "-8.6538" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "200 - Unknown city returns empty recommendations",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+            "pm.test('Recommendations empty for unknown city', function () {",
+            "  pm.expect(pm.response.json().recommendations).to.be.an('array').that.is.empty;",
+            "});"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/driver/costs/planning?city=CidadeInexistente&estimatedDurationMinutes=60&lat=40.6405&lng=-8.6538",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "driver", "costs", "planning"],
+              "query": [
+                { "key": "city", "value": "CidadeInexistente" },
+                { "key": "estimatedDurationMinutes", "value": "60" },
+                { "key": "lat", "value": "40.6405" },
+                { "key": "lng", "value": "-8.6538" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "200 - Location far from lots returns empty",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+            "pm.test('Recommendations empty when far', function () {",
+            "  pm.expect(pm.response.json().recommendations).to.be.an('array').that.is.empty;",
+            "});"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/driver/costs/planning?city=Aveiro&estimatedDurationMinutes=60&lat=38.7&lng=-9.1&maxDistanceMeters=100",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "driver", "costs", "planning"],
+              "query": [
+                { "key": "city", "value": "Aveiro" },
+                { "key": "estimatedDurationMinutes", "value": "60" },
+                { "key": "lat", "value": "38.7" },
+                { "key": "lng", "value": "-9.1" },
+                { "key": "maxDistanceMeters", "value": "100" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "200 - No offline/unavailable sensor data - graceful response",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200 even without sensor data', function () {",
+            "  pm.response.to.have.status(200);",
+            "});",
+            "pm.test('Recommendations is array', function () {",
+            "  pm.expect(pm.response.json().recommendations).to.be.an('array');",
+            "});"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/driver/costs/planning?city=Aveiro&estimatedDurationMinutes=120&lat=40.6405&lng=-8.6538",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "driver", "costs", "planning"],
+              "query": [
+                { "key": "city", "value": "Aveiro" },
+                { "key": "estimatedDurationMinutes", "value": "120" },
+                { "key": "lat", "value": "40.6405" },
+                { "key": "lng", "value": "-8.6538" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "200 - Night schedule (very short window) - closed lots excluded",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+            "var recs = pm.response.json().recommendations;",
+            "pm.test('Response is an array', function () {",
+            "  pm.expect(recs).to.be.an('array');",
+            "});"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/driver/costs/planning?city=Aveiro&estimatedDurationMinutes=30&lat=40.6405&lng=-8.6538",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "driver", "costs", "planning"],
+              "query": [
+                { "key": "city", "value": "Aveiro" },
+                { "key": "estimatedDurationMinutes", "value": "30" },
+                { "key": "lat", "value": "40.6405" },
+                { "key": "lng", "value": "-8.6538" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "200 - Multiple users concurrent - same results shape",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+            "pm.test('Has recommendations', function () {",
+            "  pm.expect(pm.response.json()).to.have.property('recommendations');",
+            "});"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/driver/costs/planning?city=Aveiro&estimatedDurationMinutes=90&lat=40.6405&lng=-8.6538&orderBy=best",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "driver", "costs", "planning"],
+              "query": [
+                { "key": "city", "value": "Aveiro" },
+                { "key": "estimatedDurationMinutes", "value": "90" },
+                { "key": "lat", "value": "40.6405" },
+                { "key": "lng", "value": "-8.6538" },
+                { "key": "orderBy", "value": "best" }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

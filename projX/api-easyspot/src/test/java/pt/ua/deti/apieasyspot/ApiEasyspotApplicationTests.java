@@ -2,10 +2,10 @@ package pt.ua.deti.apieasyspot;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import pt.ua.deti.apieasyspot.billing.service.StripeService;
-import pt.ua.deti.apieasyspot.booking.event.ReservationEventPublisher;
 
 @SpringBootTest(properties = {
     "STRIPE_API_KEY=sk_test_dummy",
@@ -15,8 +15,7 @@ import pt.ua.deti.apieasyspot.booking.event.ReservationEventPublisher;
     "spring.datasource.driver-class-name=org.h2.Driver",
     "spring.datasource.username=sa",
     "spring.datasource.password=",
-    "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect",
-    "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration"
+    "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect"
 })
 class ApiEasyspotApplicationTests {
 
@@ -27,7 +26,7 @@ class ApiEasyspotApplicationTests {
     StripeService stripeService;
 
     @MockitoBean
-    ReservationEventPublisher reservationEventPublisher;
+    KafkaTemplate<String, String> kafkaTemplate;
 
     @Test
     void contextLoads() {
