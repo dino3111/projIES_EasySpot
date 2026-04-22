@@ -1,0 +1,200 @@
+{
+  "info": {
+    "name": "EasySpot - Alert Subscriptions",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8080" },
+    { "key": "driver_token", "value": "" },
+    { "key": "park_id", "value": "" },
+    { "key": "subscription_id", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "0. Setup",
+      "item": [
+        {
+          "name": "Get Driver JWT",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Driver JWT obtained', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.collectionVariables.set('driver_token', pm.response.json().access_token);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/test/token?role=DRIVER&sub=auth-sub-postman-driver"
+          }
+        },
+        {
+          "name": "Seed Data",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Seed returned parkId', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const parkId = pm.response.json().parkId;",
+                  "  pm.expect(parkId).to.be.a('string');",
+                  "  pm.collectionVariables.set('park_id', parkId);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{driver_token}}" }],
+            "url": "{{base_url}}/api/test/seed"
+          }
+        }
+      ]
+    },
+    {
+      "name": "1. Create Realtime Subscription",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Response envelope is valid', function () {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.alertSubscription).to.exist;",
+              "  pm.expect(body.alertSubscription.id).to.be.a('string');",
+              "  pm.expect(body.alertSubscription.enabled).to.eql(true);",
+              "  pm.collectionVariables.set('subscription_id', body.alertSubscription.id);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{driver_token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": "{{base_url}}/api/alerts",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"alertType\": \"SPACE_AVAILABLE\",\n  \"parkIds\": [\"{{park_id}}\"],\n  \"vehicleId\": \"AA-11-AA\"\n}"
+        }
+      }
+    },
+    {
+      "name": "2. Duplicate Subscription Returns 409",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 409', function () { pm.response.to.have.status(409); });",
+              "pm.test('Conflict detail returned', function () {",
+              "  pm.expect(pm.response.json().detail).to.include('already exists');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{driver_token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": "{{base_url}}/api/alerts",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"alertType\": \"SPACE_AVAILABLE\",\n  \"parkIds\": [\"{{park_id}}\"],\n  \"vehicleId\": \"AA-11-AA\"\n}"
+        }
+      }
+    },
+    {
+      "name": "3. Trigger Kafka-like Alert Path",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Delivery path activated', function () {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.delivered).to.be.at.least(1);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{driver_token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": "{{base_url}}/api/test/alerts/trigger",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"alertType\": \"SPACE_AVAILABLE\",\n  \"parkId\": \"{{park_id}}\",\n  \"vehicleId\": \"AA-11-AA\",\n  \"message\": \"Space available from OccupancyModule\",\n  \"occurredAt\": \"2026-04-19T10:00:00Z\",\n  \"source\": \"OccupancyModule\"\n}"
+        }
+      }
+    },
+    {
+      "name": "4. Create DAILY_SUMMARY Subscription",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Summary subscription created', function () {",
+              "  pm.expect(pm.response.json().alertSubscription.id).to.be.a('string');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{driver_token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": "{{base_url}}/api/alerts",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"alertType\": \"DAILY_SUMMARY\",\n  \"parkIds\": [\"{{park_id}}\"],\n  \"schedule\": {\n    \"frequency\": \"DAILY\",\n    \"time\": \"10:45\",\n    \"timezone\": \"UTC\"\n  }\n}"
+        }
+      }
+    },
+    {
+      "name": "5. Run Summary Scheduler Path",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Summary path executed', function () {",
+              "  pm.expect(pm.response.json().sent).to.be.at.least(1);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Authorization", "value": "Bearer {{driver_token}}" }],
+        "url": "{{base_url}}/api/test/alerts/summaries/run?at=2026-04-19T10:45:00Z"
+      }
+    }
+  ]
+}

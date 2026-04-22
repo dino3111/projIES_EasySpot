@@ -34,7 +34,7 @@ export function WelcomePage() {
   const { setDriverType, setAccountType: saveAccountType } = useProfile();
   const [modalMode, setModalMode]   = useState<ModalMode>(null);
   const [onboardStep, setOnboardStep] = useState(0);
-  const [accountType, setAccountType] = useState<AccountType>('condutor');
+  const [accountType, setAccountType] = useState<AccountType>('DRIVER');
 
   const finishOnboarding = (dt: DriverType, at: AccountType) => {
     setDriverType(dt);

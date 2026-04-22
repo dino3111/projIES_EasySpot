@@ -1,0 +1,423 @@
+{
+  "info": {
+    "name": "EasySpot - Vehicle API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "vehicleId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "POST vehicle - 200 success",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "var body = pm.response.json();",
+              "pm.test('Vehicle created with correct plate', function () {",
+              "  pm.expect(body.plate).to.eql('CC-00-CC');",
+              "});",
+              "pm.collectionVariables.set('newVehicleId', body.id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"licensePlate\":\"CC-00-CC\",\"externalIdentifier\":\"RFID-POSTMAN\"}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/vehicles" }
+      }
+    },
+    {
+      "name": "POST vehicle - 400 invalid plate",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 400', function () {",
+              "  pm.response.to.have.status(400);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"licensePlate\":\"INVALID-PLATE\"}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/vehicles" }
+      }
+    },
+    {
+      "name": "POST vehicle - 409 duplicate plate",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 409', function () {",
+              "  pm.response.to.have.status(409);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"licensePlate\":\"CC-00-CC\"}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/vehicles" }
+      }
+    },
+    {
+      "name": "POST vehicle - 200 manual entry (foreign plate)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "var body = pm.response.json();",
+              "pm.test('Vehicle created with manual data', function () {",
+              "  pm.expect(body.plate).to.eql('FR-123-AB');",
+              "  pm.expect(body.make).to.eql('Renault');",
+              "  pm.expect(body.model).to.eql('Megane');",
+              "  pm.expect(body.fuelType).to.eql('Gasolina');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"licensePlate\":\"FR-123-AB\",\"make\":\"Renault\",\"model\":\"Megane\",\"fuelType\":\"Gasolina\",\"year\":2019}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/vehicles" }
+      }
+    },
+    {
+      "name": "Setup - Fetch seeded vehicle ID",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Seed endpoint returns 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "var body = pm.response.json();",
+              "pm.test('vehicleId is present', function () {",
+              "  pm.expect(body.vehicleId).to.be.a('string');",
+              "});",
+              "pm.collectionVariables.set('vehicleId', body.vehicleId);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "url": { "raw": "{{baseUrl}}/api/test/seed" }
+      }
+    },
+    {
+      "name": "PUT vehicle - 401 unauthenticated",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 401 when no token', function () {",
+              "  pm.response.to.have.status(401);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"plate\":\"AA-00-AA\",\"nickname\":\"test\",\"isPrimary\":false}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/vehicles/{{vehicleId}}" }
+      }
+    },
+    {
+      "name": "PUT vehicle - 403 wrong role",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 403 for non-DRIVER role', function () {",
+              "  pm.response.to.have.status(403);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{managerToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"plate\":\"AA-00-AA\",\"nickname\":\"test\",\"isPrimary\":false}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/vehicles/{{vehicleId}}" }
+      }
+    },
+    {
+      "name": "PUT vehicle - 200 same plate",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Plate and nickname are updated', function () {",
+              "  var body = pm.response.json();",
+              "  pm.expect(body.plate).to.eql('AA-00-AA');",
+              "  pm.expect(body.nickname).to.eql('My Corsa');",
+              "  pm.expect(body.isPrimary).to.eql(true);",
+              "});",
+              "pm.test('Response has expected fields', function () {",
+              "  var body = pm.response.json();",
+              "  pm.expect(body).to.have.property('id');",
+              "  pm.expect(body).to.have.property('make');",
+              "  pm.expect(body).to.have.property('model');",
+              "  pm.expect(body).to.have.property('fuelType');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"plate\":\"AA-00-AA\",\"nickname\":\"My Corsa\",\"isPrimary\":true}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/vehicles/{{vehicleId}}" }
+      }
+    },
+    {
+      "name": "PUT vehicle - 200 plate changed (triggers lookup stub)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Plate updated and lookup data applied', function () {",
+              "  var body = pm.response.json();",
+              "  pm.expect(body.plate).to.eql('BB-00-BB');",
+              "  pm.expect(body.make).to.eql('TestMake');",
+              "  pm.expect(body.model).to.eql('TestModel');",
+              "  pm.expect(body.fuelType).to.eql('Gasolina');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"plate\":\"BB-00-BB\",\"nickname\":\"New Plate\",\"isPrimary\":false}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/vehicles/{{vehicleId}}" }
+      }
+    },
+    {
+      "name": "PUT vehicle - 400 blank plate",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 400 for blank plate', function () {",
+              "  pm.response.to.have.status(400);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"plate\":\"\",\"nickname\":\"test\",\"isPrimary\":false}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/vehicles/{{vehicleId}}" }
+      }
+    },
+    {
+      "name": "PUT vehicle - 404 unknown vehicle",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 404 for unknown vehicle', function () {",
+              "  pm.response.to.have.status(404);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"plate\":\"BB-00-BB\",\"nickname\":null,\"isPrimary\":false}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/vehicles/00000000-0000-0000-0000-000000000000" }
+      }
+    },
+    {
+      "name": "DELETE vehicle - 401 unauthenticated",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 401 when no token', function () {",
+              "  pm.response.to.have.status(401);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "url": { "raw": "{{baseUrl}}/api/vehicles/{{vehicleId}}" }
+      }
+    },
+    {
+      "name": "DELETE vehicle - 404 unknown vehicle",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 404 for unknown vehicle', function () {",
+              "  pm.response.to.have.status(404);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "url": { "raw": "{{baseUrl}}/api/vehicles/00000000-0000-0000-0000-000000000000" }
+      }
+    },
+    {
+      "name": "DELETE vehicle - 204 success",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 204', function () {",
+              "  pm.response.to.have.status(204);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "url": { "raw": "{{baseUrl}}/api/vehicles/{{vehicleId}}" }
+      }
+    },
+    {
+      "name": "DELETE vehicle - 404 after already deleted",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 404 after vehicle already deleted', function () {",
+              "  pm.response.to.have.status(404);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "url": { "raw": "{{baseUrl}}/api/vehicles/{{vehicleId}}" }
+      }
+    }
+  ]
+}

@@ -4,8 +4,26 @@ name: CI - repository validation
 on:
   push:
     branches: ["master", "develop"]
+    paths:
+      - '.github/workflows/ci.yml'
+      - '.github/workflows/pre-commit.yml'
+      - '.github/workflows/sonarqube.yml'
+      - '.github/workflows/release.yml'
+      - '.github/workflows/deploy-self-hosted.yml'
+      - '**/*.yml'
+      - '**/*.yaml'
+      - '**/*.json'
+      - '**/*.md'
+      - '**/Dockerfile'
+      - '**/*.dockerfile'
+      - 'projX/api-easyspot/**'
+      - 'projX/web-easyspot/**'
+      - 'projX/pom.xml'
   pull_request:
-    branches: ["master", "develop"]
+
+concurrency:
+  group: ci-config-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -15,64 +33,185 @@ env:
 
 jobs:
   lint-configs:
-    name: Lint configs (YAML / JSON / Markdown / Dockerfile)
+    name: Lint configs (YAML / JSON / Dockerfile)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Run Super-Linter (light, config files)
-        uses: github/super-linter@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pre-commit environments (aggressive for Pi)
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pre-commit
+            ~/.cache/pip
+            ~/.pre-commit-cache
+          key: ${{ runner.os }}-ci-precommit-${{ hashFiles('.pre-commit-config.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-ci-precommit-
+            ${{ runner.os }}-ci-
+
+      - name: Install pre-commit
+        run: |
+          python -m pip install --upgrade pip --quiet
+          pip install pre-commit --quiet
+        timeout-minutes: 10
+
+      - name: Run config hooks
+        run: |
+          pre-commit run --all-files
+
+  test-backend:
+    name: Backend tests (unit + integration)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java (Temurin 21)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Run unit and integration tests
+        run: |
+          cd projX/api-easyspot
+          ./mvnw -B clean verify
+        timeout-minutes: 20
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-reports
+          path: |
+            projX/api-easyspot/target/surefire-reports/
+            projX/api-easyspot/target/failsafe-reports/
+            projX/api-easyspot/target/site/jacoco/
+          retention-days: 30
+
+  test-newman:
+    name: Backend Newman validation
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VALIDATE_ALL_CODEBASE: false
-          VALIDATE_YAML: true
-          VALIDATE_JSON: true
-          VALIDATE_MARKDOWN: true
-          VALIDATE_DOCKERFILE: true
-          DEFAULT_BRANCH: master
-          YAML_CONFIG_FILETYPES: .yaml,.yml
-
-  repo-scan:
-    name: Repository scan (detect stacks — no installs)
-    runs-on: ubuntu-latest
-    outputs:
-      has_frontend: ${{ steps.check.outputs.frontend }}
-      has_java: ${{ steps.check.outputs.java }}
-      has_python: ${{ steps.check.outputs.python }}
+          POSTGRES_USER: easyspot
+          POSTGRES_PASSWORD: easyspot
+          POSTGRES_DB: easyspot_postman
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd="pg_isready -U easyspot -d easyspot_postman"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Detect common stack files
-        id: check
-        run: |
-          frontend=false
-          java=false
-          python=false
-          if [ -f package.json ] || \
-            find . -name package.json -print -quit | grep -q .; then
-            frontend=true
-          fi
-          if [ -f pom.xml ] || [ -f build.gradle ] || \
-            find . -name pom.xml -print -quit | grep -q . || \
-            find . -name 'build.gradle*' -type f -print -quit | \
-            grep -q .; then
-            java=true
-          fi
-          if [ -f requirements.txt ] || \
-            find . -name requirements.txt -print -quit | grep -q . || \
-            find . -name pyproject.toml -print -quit | grep -q .; then
-            python=true
-          fi
-          echo "frontend=$frontend" >> $GITHUB_OUTPUT
-          echo "java=$java" >> $GITHUB_OUTPUT
-          echo "python=$python" >> $GITHUB_OUTPUT
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
 
-      - name: Summary / guidance
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Newman
+        run: npm install --global newman
+
+      - name: Prepare multipart fixtures
         run: |
-          echo "Repository scan summary:"
-          echo " - Frontend (package.json): ${{ steps.check.outputs.frontend }}"
-          echo " - Java (pom/gradle): ${{ steps.check.outputs.java }}"
-          echo " - Python (requirements/pyproject): ${{ steps.check.outputs.python }}"
-          echo ""
+          cd projX/api-easyspot
+          ./postman/scripts/prepare-fixtures.sh
+
+      - name: Build project
+        run: |
+          cd projX/api-easyspot
+          ./mvnw -B -DskipTests package
+
+      - name: Start API with postman profile
+        env:
+          SPRING_PROFILES_ACTIVE: postman
+          POSTMAN_DB_URL: jdbc:postgresql://localhost:5433/easyspot_postman
+          POSTMAN_DB_USER: easyspot
+          POSTMAN_DB_PASS: easyspot
+          POSTMAN_KAFKA_SERVERS: localhost:9093
+          POSTMAN_JWT_SECRET: easyspot-postman-secret-key-change-me-2026
+        run: |
+          cd projX/api-easyspot
+          ./mvnw -B spring-boot:run > app.log 2>&1 &
+          echo $! > app.pid
+
+      - name: Wait for health endpoint
+        run: |
+          for i in {1..60}; do
+            if curl -fsS http://localhost:8080/actuator/health >/dev/null; then
+              echo "API is up"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "API did not become healthy in time"
+          tail -n 200 projX/api-easyspot/app.log || true
+          exit 1
+
+      - name: Run reports collection
+        run: |
+          cd projX/api-easyspot
+          ./postman/scripts/run-reports-newman.sh
+
+      - name: Stop API
+        if: always()
+        run: |
+          if [ -f projX/api-easyspot/app.pid ]; then
+            kill "$(cat projX/api-easyspot/app.pid)" || true
+          fi
+
+      - name: Upload Newman artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: postman-reports-artifacts
+          path: |
+            projX/api-easyspot/newman/
+            projX/api-easyspot/app.log
+          if-no-files-found: warn
+
+  test-frontend-build:
+    name: Frontend build validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: projX/web-easyspot/package.json
+
+      - name: Install dependencies
+        run: |
+          cd projX/web-easyspot
+          npm install --no-audit --no-fund --package-lock=false
+
+      - name: Build frontend
+        run: |
+          cd projX/web-easyspot
+          npm run build

@@ -1,0 +1,51 @@
+package pt.ua.deti.apieasyspot.notification.service;
+
+
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import pt.ua.deti.apieasyspot.common.exception.ResourceNotFoundException;
+import pt.ua.deti.apieasyspot.notification.model.Alert;
+import pt.ua.deti.apieasyspot.notification.model.StateAlert;
+import pt.ua.deti.apieasyspot.notification.repository.AlertRepository;
+
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.Locale;
+import java.util.UUID;
+
+@Service
+@RequiredArgsConstructor
+public class AlertService {
+
+    private final AlertRepository alertRepository;
+
+    public void updateState(UUID id, String rawState){
+        Alert alert = alertRepository.findById(id)
+            .orElseThrow(()-> new ResourceNotFoundException("Alert not found: " + id));
+
+        StateAlert newState = parseState(rawState);
+        boolean becomingResolved = newState == StateAlert.RESOLVED && alert.getState() != StateAlert.RESOLVED;
+        boolean leavingResolved = newState != StateAlert.RESOLVED && alert.getState() == StateAlert.RESOLVED;
+
+        alert.setState(newState);
+        if (becomingResolved) {
+            alert.setResolvedAt(OffsetDateTime.now(ZoneOffset.UTC));
+        } else if (leavingResolved) {
+            alert.setResolvedAt(null);
+        }
+
+        alertRepository.save(alert);
+
+    }
+
+    private StateAlert parseState(String rawState) {
+        if (rawState == null || rawState.isBlank()) {
+            throw new IllegalArgumentException("State must not be blank");
+        }
+        try {
+            return StateAlert.valueOf(rawState.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid state: " + rawState);
+        }
+    }
+}

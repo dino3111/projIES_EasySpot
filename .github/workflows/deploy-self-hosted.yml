@@ -1,0 +1,275 @@
+name: Deploy
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Branch to deploy
+        required: true
+        default: develop
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  deploy:
+    name: Deploy to VM
+    runs-on: [self-hosted]
+    concurrency:
+      group: easyspot-vm-deploy
+      cancel-in-progress: true
+    environment: production
+    env:
+      DEPLOY_BRANCH: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.ref_name }}
+    steps:
+      - name: Fix workspace permissions
+        run: |
+          sudo chown -R "$USER:$USER" "$GITHUB_WORKSPACE" 2>/dev/null || \
+          docker run --rm -v "$GITHUB_WORKSPACE:/workspace" alpine \
+            sh -c "chown -R $(id -u):$(id -g) /workspace"
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DEPLOY_BRANCH }}
+
+      - name: Configure Docker socket permissions
+        run: |
+          set -euo pipefail
+          # Garante que o socket do docker está acessível ao utilizador do runner
+          if [ -S /var/run/docker.sock ]; then
+            sudo -n usermod -aG docker $USER 2>/dev/null || true
+            if ! docker ps >/dev/null 2>&1; then
+              echo "Warning: Docker socket not accessible, attempting to fix permissions..."
+              sudo -n chmod 666 /var/run/docker.sock 2>/dev/null || true
+            fi
+          fi
+        continue-on-error: true
+
+      - name: Validate runtime dependencies
+        run: |
+          set -euo pipefail
+          docker --version || (echo "Docker not available" && exit 1)
+          docker compose version || (echo "Docker Compose not available" && exit 1)
+
+      - name: Create .env file from GitHub secrets
+        run: |
+          set -euo pipefail
+          cd projX
+
+          kafka_advertised_host="${{ secrets.KAFKA_ADVERTISED_HOST }}"
+          if [ -z "$kafka_advertised_host" ]; then
+            kafka_advertised_host="${{ vars.KAFKA_ADVERTISED_HOST }}"
+          fi
+
+          required_secrets=(
+            "${{ secrets.AUTHENTIK_SECRET_KEY }}"
+            "${{ secrets.PG_PASS }}"
+            "${{ secrets.SONAR_DB_PASSWORD }}"
+            "${{ secrets.SONAR_GITHUB_CLIENT_ID }}"
+            "${{ secrets.SONAR_GITHUB_CLIENT_SECRET }}"
+            "${{ secrets.APP_DB_PASS }}"
+            "${{ secrets.AUTHENTIK_BOOTSTRAP_TOKEN }}"
+          )
+          for secret_value in "${required_secrets[@]}"; do
+            if [ -z "$secret_value" ]; then
+              echo "Missing one or more required deployment secrets. Check production environment secrets configuration."
+              exit 1
+            fi
+          done
+
+          if [ -z "$kafka_advertised_host" ]; then
+            echo "Missing KAFKA_ADVERTISED_HOST in production secrets or variables."
+            exit 1
+          fi
+
+          stripe_enabled=false
+          if [ -n "${{ secrets.STRIPE_API_KEY }}" ] && [ -n "${{ secrets.STRIPE_WEBHOOK_FORWARD_TO }}" ]; then
+            stripe_enabled=true
+            echo "ENABLE_STRIPE_PROFILE=true" >> "$GITHUB_ENV"
+            echo "COMPOSE_PROFILE_FLAG=--profile stripe" >> "$GITHUB_ENV"
+          else
+            echo "ENABLE_STRIPE_PROFILE=false" >> "$GITHUB_ENV"
+            echo "COMPOSE_PROFILE_FLAG=" >> "$GITHUB_ENV"
+            echo "Stripe CLI secrets not configured; deploying without the stripe profile."
+          fi
+
+          if [ -n "${{ secrets.STRIPE_WEBHOOK_PUBLIC_URL }}" ]; then
+            echo "HAS_STRIPE_WEBHOOK_PUBLIC_URL=true" >> "$GITHUB_ENV"
+          else
+            echo "HAS_STRIPE_WEBHOOK_PUBLIC_URL=false" >> "$GITHUB_ENV"
+          fi
+
+          {
+            echo "# Authentik Configuration"
+            echo "AUTHENTIK_SECRET_KEY=${{ secrets.AUTHENTIK_SECRET_KEY }}"
+            echo "AUTHENTIK_TAG=2024.12.3"
+            echo ""
+            echo "# Authentik PostgreSQL credentials"
+            echo "PG_USER=authentik"
+            echo "PG_DB=authentik"
+            echo "PG_PASS=${{ secrets.PG_PASS }}"
+            echo ""
+            echo "# SonarQube Configuration"
+            echo "SONAR_DB_PASSWORD=${{ secrets.SONAR_DB_PASSWORD }}"
+            echo "SONAR_GITHUB_CLIENT_ID=${{ secrets.SONAR_GITHUB_CLIENT_ID }}"
+            echo "SONAR_GITHUB_CLIENT_SECRET=${{ secrets.SONAR_GITHUB_CLIENT_SECRET }}"
+            echo ""
+            echo "# Backend Application Database"
+            echo "APP_DB_USER=easyspot"
+            echo "APP_DB_PASS=${{ secrets.APP_DB_PASS }}"
+            echo "APP_DB=easyspot"
+            echo ""
+            echo "# Backend Time-Series Database"
+            echo "TS_DB=easyspot_ts"
+            echo "KAFKA_ADVERTISED_HOST=$kafka_advertised_host"
+            echo ""
+            echo "# API / Backend"
+            echo "AUTHENTIK_ISSUER_URI=${{ vars.AUTHENTIK_ISSUER_URI || 'http://authentik-server:9000/application/o/easyspot/' }}"
+            echo "CORS_ALLOWED_ORIGINS=${{ vars.CORS_ALLOWED_ORIGINS || 'http://localhost:5173' }}"
+            echo ""
+            if [ "$stripe_enabled" = true ]; then
+              echo "# Stripe CLI webhook forwarding"
+              echo "STRIPE_WEBHOOK_FORWARD_TO=${{ secrets.STRIPE_WEBHOOK_FORWARD_TO }}"
+              echo ""
+              printf '%s' "${{ secrets.STRIPE_API_KEY }}" > .stripe_api_key
+              chmod 600 .stripe_api_key
+            fi
+            echo "# Docker Configuration"
+            echo "UID=1000"
+            echo "GID=1000"
+          } > .env
+          chmod 600 .env
+          echo "✓ .env file created successfully"
+          echo ""
+          echo "Validating .env file..."
+          grep -E "^[A-Z_]+=" .env | wc -l | xargs echo "Total variables:"
+          [ -s .env ] && echo "✓ .env is not empty" || (echo "✗ .env is empty!" && exit 1)
+
+      - name: Stop previous deployment
+        run: |
+          set -euo pipefail
+          cd projX
+          echo "Stopping existing services (preserving volumes and images)..."
+          docker compose down 2>/dev/null || true
+          echo "✓ Cleanup completed"
+
+      - name: Validate Docker Compose configuration
+        run: |
+          set -euo pipefail
+          cd projX
+          echo "Validating compose configuration..."
+          docker compose ${COMPOSE_PROFILE_FLAG:-} config > /dev/null && echo "✓ Configuration is valid" || exit 1
+
+      - name: Bootstrap Stripe dashboard configuration
+        if: env.ENABLE_STRIPE_PROFILE == 'true' && env.HAS_STRIPE_WEBHOOK_PUBLIC_URL == 'true'
+        env:
+          STRIPE_API_KEY: ${{ secrets.STRIPE_API_KEY }}
+          STRIPE_WEBHOOK_PUBLIC_URL: ${{ secrets.STRIPE_WEBHOOK_PUBLIC_URL }}
+          STRIPE_WEBHOOK_ENDPOINT_ID: ${{ secrets.STRIPE_WEBHOOK_ENDPOINT_ID }}
+          STRIPE_WEBHOOK_EVENTS: ${{ vars.STRIPE_WEBHOOK_EVENTS }}
+          STRIPE_WEBHOOK_DESCRIPTION: ${{ vars.STRIPE_WEBHOOK_DESCRIPTION }}
+          STRIPE_REQUIRED_PAYMENT_METHODS: ${{ vars.STRIPE_REQUIRED_PAYMENT_METHODS }}
+          STRIPE_PAYMENT_METHOD_CHECK_STRICT: ${{ vars.STRIPE_PAYMENT_METHOD_CHECK_STRICT }}
+        run: |
+          set -euo pipefail
+          cd projX
+          chmod +x ./stripe-dashboard-bootstrap.sh
+          ./stripe-dashboard-bootstrap.sh
+
+      - name: Deploy stack with Docker Compose
+        run: |
+          set -euo pipefail
+          cd projX
+          echo "Pulling latest images..."
+          docker compose ${COMPOSE_PROFILE_FLAG:-} pull --ignore-pull-failures
+          echo "Starting services..."
+          docker compose ${COMPOSE_PROFILE_FLAG:-} up -d --build --remove-orphans
+          echo "✓ Services deployed successfully"
+
+      - name: Wait for services to be healthy
+        run: |
+          set -euo pipefail
+          cd projX
+          echo "Waiting for services to become healthy..."
+
+          services_to_check=(postgres timescaledb kafka authentik-server api sonarqube nginx)
+          if [ "${ENABLE_STRIPE_PROFILE:-false}" = "true" ]; then
+            services_to_check+=(stripe-cli)
+          fi
+
+          wait_for_service() {
+            service="$1"
+            max_wait_seconds="${2:-300}"
+            poll_interval_seconds=5
+            elapsed=0
+
+            echo "Checking $service (timeout: ${max_wait_seconds}s)..."
+            while [ "$elapsed" -lt "$max_wait_seconds" ]; do
+              container_id="$(docker compose ps -q "$service" 2>/dev/null || true)"
+
+              if [ -n "$container_id" ]; then
+                state_status="$(docker inspect -f '{{.State.Status}}' "$container_id" 2>/dev/null || true)"
+                health_status="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$container_id" 2>/dev/null || true)"
+
+                if [ "$state_status" = "running" ]; then
+                  if [ -z "$health_status" ] || [ "$health_status" = "healthy" ]; then
+                    echo "✓ $service is ready (state=$state_status, health=${health_status:-n/a})"
+                    return 0
+                  fi
+                fi
+              fi
+
+              elapsed=$((elapsed + poll_interval_seconds))
+              sleep "$poll_interval_seconds"
+            done
+
+            echo "✗ $service did not become ready within ${max_wait_seconds}s"
+            docker compose ps "$service" || true
+            echo ""
+            docker compose logs "$service" | tail -100 || true
+            return 1
+          }
+
+          for service in "${services_to_check[@]}"; do
+            wait_for_service "$service" 300
+          done
+
+          echo "✓ All critical services are healthy"
+          docker compose ps
+
+      - name: Bootstrap Authentik IDP
+        env:
+          AUTHENTIK_TOKEN: ${{ secrets.AUTHENTIK_BOOTSTRAP_TOKEN }}
+          AUTHENTIK_URL: ${{ vars.AUTHENTIK_URL || 'http://localhost:9000' }}
+          REDIRECT_URI: ${{ vars.AUTHENTIK_REDIRECT_URI || 'http://localhost:5173/callback' }}
+        run: |
+          set -euo pipefail
+          cd projX
+          echo "Running Authentik bootstrap (idempotent)..."
+          python3 bootstrap_authentik.py
+          echo "✓ Authentik bootstrap complete"
+
+      - name: Cleanup generated deployment file
+        if: always()
+        run: |
+          set -euo pipefail
+          cd projX
+          if [ -f .env ]; then
+            rm -f .env
+            echo "✓ .env file removed"
+          fi
+          if [ -f .stripe_api_key ]; then
+            rm -f .stripe_api_key
+            echo "✓ .stripe_api_key removed"
+          fi
+
+      - name: Cleanup unused Docker images
+        run: |
+          set -euo pipefail
+          docker image prune -f
