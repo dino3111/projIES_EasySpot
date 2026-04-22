@@ -23,7 +23,8 @@ class PostmanTestDataController {
         return Map.of(
             "vehicleId", initializer.getVehicleId().toString(),
             "secondaryVehicleId", initializer.getSecondaryVehicleId().toString(),
-            "parkId", initializer.getParkId().toString()
+            "parkId", initializer.getParkId().toString(),
+            "userId", initializer.getUserId().toString()
         );
     }
 }

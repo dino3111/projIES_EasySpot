@@ -53,6 +53,9 @@ class PostmanDataInitializer implements ApplicationRunner {
     @Getter
     private UUID parkId;
 
+    @Getter
+    private UUID userId;
+
     PostmanDataInitializer(
         UserRepository userRepository,
         VehicleRepository vehicleRepository,
@@ -94,6 +97,7 @@ class PostmanDataInitializer implements ApplicationRunner {
         user.setName("Postman Driver");
         user.setRole("DRIVER");
         user = userRepository.save(user);
+        userId = user.getId();
 
         Vehicle vehicle = new Vehicle();
         vehicle.setUser(user);

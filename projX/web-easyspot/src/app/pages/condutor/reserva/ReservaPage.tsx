@@ -12,6 +12,25 @@ import { Step1ParkHorario } from './Step1ParkHorario';
 import { Step2EscolhaLugar } from './Step2EscolhaLugar';
 import { Step3Confirmacao } from './Step3Confirmacao';
 import { Step4Reservado } from './Step4Reservado';
+import { createReservation, lockedUntilCountdownSeconds } from '../../../../services/reservationService';
+
+// Reads the Authentik OIDC access token from localStorage.
+// TODO: replace with useAuth().accessToken once OIDC client is fully integrated.
+function getAccessToken(): string | null {
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i) ?? '';
+      if (!key.startsWith('oidc.user:')) continue;
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const token = (JSON.parse(raw) as { access_token?: string }).access_token;
+      if (token && token.length > 0) return token;
+    }
+  } catch {
+    // ignore parse errors — token unavailable
+  }
+  return null;
+}
 
 export function ReservaPage() {
   const [searchParams] = useSearchParams();
@@ -44,6 +63,9 @@ export function ReservaPage() {
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [bookingCode, setBookingCode] = useState<string>('');
   const [countdown, setCountdown]     = useState(30 * 60);
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [reservationError, setReservationError] = useState<string | null>(null);
 
   const selectedLot = useMemo(
     () => mockParkingLots.find(l => l.id === selectedParkId) || null,
@@ -80,12 +102,48 @@ export function ReservaPage() {
     setAgreeTerms(false);
     setBookingCode('');
     setCountdown(30 * 60);
+    setReservationError(null);
   }
 
-  function handleConfirm() {
-    setBookingCode(genBookingCode());
-    setCountdown(30 * 60);
-    setStep(4);
+  async function handleConfirm() {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    setReservationError(null);
+
+    // Generated before the try so retries (network failure, double-tap) use the same key
+    const idempotencyKey = crypto.randomUUID();
+
+    try {
+      const token = getAccessToken();
+
+      if (token && selectedVehicleId) {
+        const response = await createReservation(
+          {
+            parkId: selectedParkId,
+            vehicleId: selectedVehicleId,
+            arrivalDateTime: new Date(arrivalTime).toISOString(),
+            departureDateTime: new Date(exitTime).toISOString(),
+            selectedSpotId: selectedSpotId || null,
+          },
+          token,
+          idempotencyKey,
+        );
+
+        setBookingCode(response.bookingCode);
+        setCountdown(lockedUntilCountdownSeconds(response.lockedUntil));
+      } else {
+        // Fallback: no auth token yet (frontend not fully wired to OIDC)
+        setBookingCode(genBookingCode());
+        setCountdown(30 * 60);
+      }
+
+      setStep(4);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erro ao criar reserva. Tente novamente.';
+      setReservationError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -104,6 +162,20 @@ export function ReservaPage() {
         <div className="mb-6">
           <StepBar current={step} />
         </div>
+
+        {reservationError && (
+          <div className="alert alert-error mb-4 rounded-2xl">
+            <i className="fa-solid fa-circle-exclamation" />
+            <span>{reservationError}</span>
+            <button
+              className="btn btn-ghost btn-xs ml-auto"
+              onClick={() => setReservationError(null)}
+              aria-label="Fechar erro"
+            >
+              <i className="fa-solid fa-xmark" />
+            </button>
+          </div>
+        )}
 
         <div className="flex flex-col lg:flex-row gap-6">
           <div className="flex-1 min-w-0">
@@ -131,6 +203,7 @@ export function ReservaPage() {
                 arrivalTime={arrivalTime} exitTime={exitTime} cost={estimatedCost}
                 vehicle={selectedVehicle} agreeTerms={agreeTerms} setAgreeTerms={setAgreeTerms}
                 onConfirm={handleConfirm} onBack={() => setStep(2)}
+                isSubmitting={isSubmitting}
               />
             )}
             {step === 4 && (
