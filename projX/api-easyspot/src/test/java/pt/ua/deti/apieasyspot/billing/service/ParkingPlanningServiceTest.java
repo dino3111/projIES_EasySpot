@@ -16,7 +16,7 @@ import pt.ua.deti.apieasyspot.billing.dto.ParkingPlanningRequest.OrderBy;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Map;
+
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -245,8 +245,6 @@ class ParkingPlanningServiceTest {
     private void stubCandidates(List<ParkingPlanningService.LotCandidate> candidates) {
         when(jdbc.query(anyString(), (RowMapper) any(RowMapper.class), any(Object[].class)))
             .thenReturn((List) candidates);
-        when(namedJdbc.query(anyString(), any(Map.class), (RowMapper) any(RowMapper.class)))
-            .thenReturn(List.of());
     }
 
     private ParkingPlanningRequest req(String city, int duration,
