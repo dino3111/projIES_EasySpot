@@ -4,11 +4,26 @@
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "baseUrl", "value": "http://localhost:8080" },
-    { "key": "reservationId", "value": "" },
-    { "key": "bookingCode", "value": "" },
-    { "key": "seedParkId", "value": "" },
-    { "key": "seedVehicleId", "value": "" }
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "reservationId",
+      "value": ""
+    },
+    {
+      "key": "bookingCode",
+      "value": ""
+    },
+    {
+      "key": "seedParkId",
+      "value": ""
+    },
+    {
+      "key": "seedVehicleId",
+      "value": ""
+    }
   ],
   "item": [
     {
@@ -37,9 +52,22 @@
       "request": {
         "method": "GET",
         "header": [
-          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+          {
+            "key": "Authorization",
+            "value": "Bearer {{driverToken}}"
+          }
         ],
-        "url": { "raw": "{{baseUrl}}/api/test/seed" }
+        "url": {
+          "raw": "{{baseUrl}}/api/test/seed",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "test",
+            "seed"
+          ]
+        }
       }
     },
     {
@@ -89,14 +117,29 @@
       "request": {
         "method": "POST",
         "header": [
-          { "key": "Content-Type", "value": "application/json" },
-          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{driverToken}}"
+          }
         ],
         "body": {
           "mode": "raw",
           "raw": "{\"parkId\":\"{{seedParkId}}\",\"vehicleId\":\"{{seedVehicleId}}\",\"arrivalDateTime\":\"{{arrivalDateTime}}\",\"departureDateTime\":\"{{departureDateTime}}\"}"
         },
-        "url": { "raw": "{{baseUrl}}/api/reservations" }
+        "url": {
+          "raw": "{{baseUrl}}/api/reservations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "reservations"
+          ]
+        }
       }
     },
     {
@@ -130,15 +173,33 @@
       "request": {
         "method": "POST",
         "header": [
-          { "key": "Content-Type", "value": "application/json" },
-          { "key": "Authorization", "value": "Bearer {{driverToken}}" },
-          { "key": "Idempotency-Key", "value": "{{idemKey}}" }
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{driverToken}}"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{idemKey}}"
+          }
         ],
         "body": {
           "mode": "raw",
           "raw": "{\"parkId\":\"{{seedParkId}}\",\"vehicleId\":\"{{seedVehicleId}}\",\"arrivalDateTime\":\"{{idemArrival}}\",\"departureDateTime\":\"{{idemDeparture}}\"}"
         },
-        "url": { "raw": "{{baseUrl}}/api/reservations" }
+        "url": {
+          "raw": "{{baseUrl}}/api/reservations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "reservations"
+          ]
+        }
       }
     },
     {
@@ -162,15 +223,33 @@
       "request": {
         "method": "POST",
         "header": [
-          { "key": "Content-Type", "value": "application/json" },
-          { "key": "Authorization", "value": "Bearer {{driverToken}}" },
-          { "key": "Idempotency-Key", "value": "{{idemKey}}" }
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{driverToken}}"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{idemKey}}"
+          }
         ],
         "body": {
           "mode": "raw",
           "raw": "{\"parkId\":\"{{seedParkId}}\",\"vehicleId\":\"{{seedVehicleId}}\",\"arrivalDateTime\":\"{{idemArrival}}\",\"departureDateTime\":\"{{idemDeparture}}\"}"
         },
-        "url": { "raw": "{{baseUrl}}/api/reservations" }
+        "url": {
+          "raw": "{{baseUrl}}/api/reservations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "reservations"
+          ]
+        }
       }
     },
     {
@@ -201,13 +280,25 @@
       "request": {
         "method": "POST",
         "header": [
-          { "key": "Content-Type", "value": "application/json" }
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
         ],
         "body": {
           "mode": "raw",
           "raw": "{\"parkId\":\"{{seedParkId}}\",\"vehicleId\":\"{{seedVehicleId}}\",\"arrivalDateTime\":\"{{arrivalDateTime}}\",\"departureDateTime\":\"{{departureDateTime}}\"}"
         },
-        "url": { "raw": "{{baseUrl}}/api/reservations" }
+        "url": {
+          "raw": "{{baseUrl}}/api/reservations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "reservations"
+          ]
+        }
       }
     },
     {
@@ -238,14 +329,29 @@
       "request": {
         "method": "POST",
         "header": [
-          { "key": "Content-Type", "value": "application/json" },
-          { "key": "Authorization", "value": "Bearer {{managerToken}}" }
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{managerToken}}"
+          }
         ],
         "body": {
           "mode": "raw",
           "raw": "{\"parkId\":\"{{seedParkId}}\",\"vehicleId\":\"{{seedVehicleId}}\",\"arrivalDateTime\":\"{{arrivalDateTime}}\",\"departureDateTime\":\"{{departureDateTime}}\"}"
         },
-        "url": { "raw": "{{baseUrl}}/api/reservations" }
+        "url": {
+          "raw": "{{baseUrl}}/api/reservations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "reservations"
+          ]
+        }
       }
     },
     {
@@ -276,14 +382,29 @@
       "request": {
         "method": "POST",
         "header": [
-          { "key": "Content-Type", "value": "application/json" },
-          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{driverToken}}"
+          }
         ],
         "body": {
           "mode": "raw",
           "raw": "{\"parkId\":\"00000000-0000-0000-0000-000000000000\",\"vehicleId\":\"{{seedVehicleId}}\",\"arrivalDateTime\":\"{{arrivalDateTime}}\",\"departureDateTime\":\"{{departureDateTime}}\"}"
         },
-        "url": { "raw": "{{baseUrl}}/api/reservations" }
+        "url": {
+          "raw": "{{baseUrl}}/api/reservations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "reservations"
+          ]
+        }
       }
     },
     {
@@ -314,14 +435,29 @@
       "request": {
         "method": "POST",
         "header": [
-          { "key": "Content-Type", "value": "application/json" },
-          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{driverToken}}"
+          }
         ],
         "body": {
           "mode": "raw",
           "raw": "{\"parkId\":\"{{seedParkId}}\",\"vehicleId\":\"00000000-0000-0000-0000-000000000000\",\"arrivalDateTime\":\"{{arrivalDateTime}}\",\"departureDateTime\":\"{{departureDateTime}}\"}"
         },
-        "url": { "raw": "{{baseUrl}}/api/reservations" }
+        "url": {
+          "raw": "{{baseUrl}}/api/reservations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "reservations"
+          ]
+        }
       }
     },
     {
@@ -352,14 +488,29 @@
       "request": {
         "method": "POST",
         "header": [
-          { "key": "Content-Type", "value": "application/json" },
-          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{driverToken}}"
+          }
         ],
         "body": {
           "mode": "raw",
           "raw": "{\"parkId\":\"{{seedParkId}}\",\"vehicleId\":\"{{seedVehicleId}}\",\"arrivalDateTime\":\"{{pastArrival}}\",\"departureDateTime\":\"{{pastDeparture}}\"}"
         },
-        "url": { "raw": "{{baseUrl}}/api/reservations" }
+        "url": {
+          "raw": "{{baseUrl}}/api/reservations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "reservations"
+          ]
+        }
       }
     },
     {
@@ -390,14 +541,29 @@
       "request": {
         "method": "POST",
         "header": [
-          { "key": "Content-Type", "value": "application/json" },
-          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{driverToken}}"
+          }
         ],
         "body": {
           "mode": "raw",
           "raw": "{\"parkId\":\"{{seedParkId}}\",\"vehicleId\":\"{{seedVehicleId}}\",\"arrivalDateTime\":\"{{tooSoonArrival}}\",\"departureDateTime\":\"{{tooSoonDeparture}}\"}"
         },
-        "url": { "raw": "{{baseUrl}}/api/reservations" }
+        "url": {
+          "raw": "{{baseUrl}}/api/reservations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "reservations"
+          ]
+        }
       }
     },
     {
@@ -428,14 +594,29 @@
       "request": {
         "method": "POST",
         "header": [
-          { "key": "Content-Type", "value": "application/json" },
-          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{driverToken}}"
+          }
         ],
         "body": {
           "mode": "raw",
           "raw": "{\"parkId\":\"{{seedParkId}}\",\"vehicleId\":\"{{seedVehicleId}}\",\"arrivalDateTime\":\"{{dblArrival}}\",\"departureDateTime\":\"{{dblDeparture}}\"}"
         },
-        "url": { "raw": "{{baseUrl}}/api/reservations" }
+        "url": {
+          "raw": "{{baseUrl}}/api/reservations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "reservations"
+          ]
+        }
       }
     }
   ]

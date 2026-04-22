@@ -2,8 +2,8 @@ package pt.ua.deti.apieasyspot.booking.event;
 
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 import pt.ua.deti.apieasyspot.booking.model.Reservation;
@@ -13,13 +13,18 @@ import java.util.Map;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class ReservationEventPublisher {
 
     static final String TOPIC = "reservation-events";
 
-    private final KafkaTemplate<String, String> kafkaTemplate;
+    @Autowired(required = false)
+    private KafkaTemplate<String, String> kafkaTemplate;
+
     private final ObjectMapper objectMapper;
+
+    public ReservationEventPublisher(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
 
     public void publishCreated(Reservation reservation) {
         send(reservation, "RESERVATION_CREATED",
@@ -32,6 +37,11 @@ public class ReservationEventPublisher {
     }
 
     private void send(Reservation reservation, String alertType, String message) {
+        if (kafkaTemplate == null) {
+            log.debug("Kafka not configured — skipping event {} for {}", alertType, reservation.getBookingCode());
+            return;
+        }
+
         String vehicleId = reservation.getVehicle() != null
             ? reservation.getVehicle().getId().toString()
             : null;
