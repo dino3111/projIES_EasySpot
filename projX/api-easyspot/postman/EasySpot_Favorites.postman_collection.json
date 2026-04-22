@@ -1,0 +1,223 @@
+{
+  "info": {
+    "name": "EasySpot – Favorites",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url",       "value": "http://localhost:8080" },
+    { "key": "authentik_url",  "value": "http://localhost:9000" },
+    { "key": "client_id",      "value": "ofKD7SBGMHydVs5ydIQlOPZgakHJ3ExfGPPkxN11" },
+    { "key": "driver_user",    "value": "postman-driver@easyspot.test" },
+    { "key": "driver_pass",    "value": "postman-driver-pass" },
+    { "key": "manager_user",   "value": "postman-manager@easyspot.test" },
+    { "key": "manager_pass",   "value": "postman-manager-pass" },
+    { "key": "driver_token",   "value": "" },
+    { "key": "manager_token",  "value": "" },
+    { "key": "park_id",        "value": "" }
+  ],
+  "item": [
+    {
+      "name": "0. Setup",
+      "item": [
+        {
+          "name": "Get Driver JWT",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Driver JWT obtained', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "    const token = pm.response.json().access_token;",
+                  "    pm.expect(token).to.be.a('string');",
+                  "    pm.collectionVariables.set('driver_token', token);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{authentik_url}}/application/o/token/",
+            "header": [{ "key": "Content-Type", "value": "application/x-www-form-urlencoded" }],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "password" },
+                { "key": "client_id",  "value": "{{client_id}}" },
+                { "key": "username",   "value": "{{driver_user}}" },
+                { "key": "password",   "value": "{{driver_pass}}" },
+                { "key": "scope",      "value": "openid profile email" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Manager JWT",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Manager JWT obtained', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "    const token = pm.response.json().access_token;",
+                  "    pm.expect(token).to.be.a('string');",
+                  "    pm.collectionVariables.set('manager_token', token);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": "{{authentik_url}}/application/o/token/",
+            "header": [{ "key": "Content-Type", "value": "application/x-www-form-urlencoded" }],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "password" },
+                { "key": "client_id",  "value": "{{client_id}}" },
+                { "key": "username",   "value": "{{manager_user}}" },
+                { "key": "password",   "value": "{{manager_pass}}" },
+                { "key": "scope",      "value": "openid profile email" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Seed Test Data",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Seed data returned', function() {",
+                  "    pm.response.to.have.status(200);",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.parkId).to.be.a('string');",
+                  "    pm.collectionVariables.set('park_id', body.parkId);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/test/seed",
+            "header": [{ "key": "Authorization", "value": "Bearer {{driver_token}}" }]
+          }
+        }
+      ]
+    },
+    {
+      "name": "1. Toggle Favorite – Add (200)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', function() {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('isFavorite is true', function() {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.isFavorite).to.be.true;",
+              "    pm.expect(body.parkId).to.eql(pm.collectionVariables.get('park_id'));",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/api/parks/{{park_id}}/favorite",
+        "header": [{ "key": "Authorization", "value": "Bearer {{driver_token}}" }]
+      }
+    },
+    {
+      "name": "2. Toggle Favorite – Remove (200)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', function() {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('isFavorite is false', function() {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.isFavorite).to.be.false;",
+              "    pm.expect(body.parkId).to.eql(pm.collectionVariables.get('park_id'));",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/api/parks/{{park_id}}/favorite",
+        "header": [{ "key": "Authorization", "value": "Bearer {{driver_token}}" }]
+      }
+    },
+    {
+      "name": "3. Invalid Park ID – 404",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 404', function() {",
+              "    pm.response.to.have.status(404);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/api/parks/00000000-0000-0000-0000-000000000000/favorite",
+        "header": [{ "key": "Authorization", "value": "Bearer {{driver_token}}" }]
+      }
+    },
+    {
+      "name": "4. No Token – 401",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 401', function() {",
+              "    pm.response.to.have.status(401);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/api/parks/{{park_id}}/favorite"
+      }
+    },
+    {
+      "name": "5. Wrong Role (Manager) – 403",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 403', function() {",
+              "    pm.response.to.have.status(403);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/api/parks/{{park_id}}/favorite",
+        "header": [{ "key": "Authorization", "value": "Bearer {{manager_token}}" }]
+      }
+    }
+  ]
+}

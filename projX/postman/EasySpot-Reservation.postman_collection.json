@@ -1,0 +1,623 @@
+{
+  "info": {
+    "name": "EasySpot - Reservation API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "reservationId",
+      "value": ""
+    },
+    {
+      "key": "bookingCode",
+      "value": ""
+    },
+    {
+      "key": "seedParkId",
+      "value": ""
+    },
+    {
+      "key": "seedVehicleId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Setup - Fetch seeded IDs",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Seed endpoint returns 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "var body = pm.response.json();",
+              "pm.test('seedParkId is present', function () {",
+              "  pm.expect(body.parkId).to.be.a('string');",
+              "});",
+              "pm.test('seedVehicleId is present', function () {",
+              "  pm.expect(body.vehicleId).to.be.a('string');",
+              "});",
+              "pm.collectionVariables.set('seedParkId', body.parkId);",
+              "pm.collectionVariables.set('seedVehicleId', body.vehicleId);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{driverToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/test/seed",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "test",
+            "seed"
+          ]
+        }
+      }
+    },
+    {
+      "name": "POST reservation - 201 success",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "var arrival = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();",
+              "var departure = new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString();",
+              "pm.collectionVariables.set('arrivalDateTime', arrival);",
+              "pm.collectionVariables.set('departureDateTime', departure);"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 201', function () {",
+              "  pm.response.to.have.status(201);",
+              "});",
+              "var body = pm.response.json();",
+              "pm.test('Has booking code starting with ES-', function () {",
+              "  pm.expect(body.bookingCode).to.match(/^ES-/);",
+              "});",
+              "pm.test('Status is CONFIRMED', function () {",
+              "  pm.expect(body.status).to.eql('CONFIRMED');",
+              "});",
+              "pm.test('Response has expected fields', function () {",
+              "  pm.expect(body).to.have.property('reservationId');",
+              "  pm.expect(body).to.have.property('parkId');",
+              "  pm.expect(body).to.have.property('parkName');",
+              "  pm.expect(body).to.have.property('vehicleId');",
+              "  pm.expect(body).to.have.property('arrivalDateTime');",
+              "  pm.expect(body).to.have.property('departureDateTime');",
+              "  pm.expect(body).to.have.property('lockedUntil');",
+              "  pm.expect(body).to.have.property('estimatedCost');",
+              "});",
+              "pm.collectionVariables.set('reservationId', body.reservationId);",
+              "pm.collectionVariables.set('bookingCode', body.bookingCode);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{driverToken}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"parkId\":\"{{seedParkId}}\",\"vehicleId\":\"{{seedVehicleId}}\",\"arrivalDateTime\":\"{{arrivalDateTime}}\",\"departureDateTime\":\"{{departureDateTime}}\"}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/reservations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "reservations"
+          ]
+        }
+      }
+    },
+    {
+      "name": "POST reservation - 201 idempotency first call",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "var arrival = new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString();",
+              "var departure = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString();",
+              "pm.collectionVariables.set('idemArrival', arrival);",
+              "pm.collectionVariables.set('idemDeparture', departure);",
+              "pm.collectionVariables.set('idemKey', 'idempotency-test-' + Date.now());"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 201', function () {",
+              "  pm.response.to.have.status(201);",
+              "});",
+              "var body = pm.response.json();",
+              "pm.collectionVariables.set('idemBookingCode', body.bookingCode);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{driverToken}}"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{idemKey}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"parkId\":\"{{seedParkId}}\",\"vehicleId\":\"{{seedVehicleId}}\",\"arrivalDateTime\":\"{{idemArrival}}\",\"departureDateTime\":\"{{idemDeparture}}\"}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/reservations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "reservations"
+          ]
+        }
+      }
+    },
+    {
+      "name": "POST reservation - 201 idempotency replay (same key)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 201', function () {",
+              "  pm.response.to.have.status(201);",
+              "});",
+              "var body = pm.response.json();",
+              "pm.test('Same booking code as first call', function () {",
+              "  pm.expect(body.bookingCode).to.eql(pm.collectionVariables.get('idemBookingCode'));",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{driverToken}}"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{idemKey}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"parkId\":\"{{seedParkId}}\",\"vehicleId\":\"{{seedVehicleId}}\",\"arrivalDateTime\":\"{{idemArrival}}\",\"departureDateTime\":\"{{idemDeparture}}\"}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/reservations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "reservations"
+          ]
+        }
+      }
+    },
+    {
+      "name": "POST reservation - 401 unauthenticated",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "var arrival = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();",
+              "var departure = new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString();",
+              "pm.collectionVariables.set('arrivalDateTime', arrival);",
+              "pm.collectionVariables.set('departureDateTime', departure);"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 401 when no token', function () {",
+              "  pm.response.to.have.status(401);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"parkId\":\"{{seedParkId}}\",\"vehicleId\":\"{{seedVehicleId}}\",\"arrivalDateTime\":\"{{arrivalDateTime}}\",\"departureDateTime\":\"{{departureDateTime}}\"}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/reservations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "reservations"
+          ]
+        }
+      }
+    },
+    {
+      "name": "POST reservation - 403 wrong role",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "var arrival = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();",
+              "var departure = new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString();",
+              "pm.collectionVariables.set('arrivalDateTime', arrival);",
+              "pm.collectionVariables.set('departureDateTime', departure);"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 403 for non-DRIVER role', function () {",
+              "  pm.response.to.have.status(403);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{managerToken}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"parkId\":\"{{seedParkId}}\",\"vehicleId\":\"{{seedVehicleId}}\",\"arrivalDateTime\":\"{{arrivalDateTime}}\",\"departureDateTime\":\"{{departureDateTime}}\"}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/reservations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "reservations"
+          ]
+        }
+      }
+    },
+    {
+      "name": "POST reservation - 404 park not found",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "var arrival = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();",
+              "var departure = new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString();",
+              "pm.collectionVariables.set('arrivalDateTime', arrival);",
+              "pm.collectionVariables.set('departureDateTime', departure);"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 404 for unknown park', function () {",
+              "  pm.response.to.have.status(404);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{driverToken}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"parkId\":\"00000000-0000-0000-0000-000000000000\",\"vehicleId\":\"{{seedVehicleId}}\",\"arrivalDateTime\":\"{{arrivalDateTime}}\",\"departureDateTime\":\"{{departureDateTime}}\"}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/reservations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "reservations"
+          ]
+        }
+      }
+    },
+    {
+      "name": "POST reservation - 404 vehicle not found",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "var arrival = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();",
+              "var departure = new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString();",
+              "pm.collectionVariables.set('arrivalDateTime', arrival);",
+              "pm.collectionVariables.set('departureDateTime', departure);"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 404 for unknown vehicle', function () {",
+              "  pm.response.to.have.status(404);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{driverToken}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"parkId\":\"{{seedParkId}}\",\"vehicleId\":\"00000000-0000-0000-0000-000000000000\",\"arrivalDateTime\":\"{{arrivalDateTime}}\",\"departureDateTime\":\"{{departureDateTime}}\"}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/reservations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "reservations"
+          ]
+        }
+      }
+    },
+    {
+      "name": "POST reservation - 422 arrival in the past",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "var pastArrival = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();",
+              "var pastDeparture = new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString();",
+              "pm.collectionVariables.set('pastArrival', pastArrival);",
+              "pm.collectionVariables.set('pastDeparture', pastDeparture);"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 422 for past arrival', function () {",
+              "  pm.response.to.have.status(422);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{driverToken}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"parkId\":\"{{seedParkId}}\",\"vehicleId\":\"{{seedVehicleId}}\",\"arrivalDateTime\":\"{{pastArrival}}\",\"departureDateTime\":\"{{pastDeparture}}\"}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/reservations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "reservations"
+          ]
+        }
+      }
+    },
+    {
+      "name": "POST reservation - 422 arrival less than 30 min from now",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "var tooSoonArrival = new Date(Date.now() + 10 * 60 * 1000).toISOString();",
+              "var tooSoonDeparture = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();",
+              "pm.collectionVariables.set('tooSoonArrival', tooSoonArrival);",
+              "pm.collectionVariables.set('tooSoonDeparture', tooSoonDeparture);"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 422 for arrival less than 30 min ahead', function () {",
+              "  pm.response.to.have.status(422);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{driverToken}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"parkId\":\"{{seedParkId}}\",\"vehicleId\":\"{{seedVehicleId}}\",\"arrivalDateTime\":\"{{tooSoonArrival}}\",\"departureDateTime\":\"{{tooSoonDeparture}}\"}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/reservations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "reservations"
+          ]
+        }
+      }
+    },
+    {
+      "name": "POST reservation - 409 vehicle double-book",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "var arrival = new Date(Date.now() + 2.5 * 60 * 60 * 1000).toISOString();",
+              "var departure = new Date(Date.now() + 3.5 * 60 * 60 * 1000).toISOString();",
+              "pm.collectionVariables.set('dblArrival', arrival);",
+              "pm.collectionVariables.set('dblDeparture', departure);"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 409 for overlapping vehicle reservation', function () {",
+              "  pm.response.to.have.status(409);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{driverToken}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"parkId\":\"{{seedParkId}}\",\"vehicleId\":\"{{seedVehicleId}}\",\"arrivalDateTime\":\"{{dblArrival}}\",\"departureDateTime\":\"{{dblDeparture}}\"}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/reservations",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "reservations"
+          ]
+        }
+      }
+    }
+  ]
+}

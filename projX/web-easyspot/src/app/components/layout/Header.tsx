@@ -13,9 +13,9 @@ const PROFILE_OPTIONS: {
   color: string;
   home: string;
 }[] = [
-  { id: 'condutor', icon: 'fa-car',               label: 'Condutor',              desc: 'Encontrar e reservar lugares',          color: '#22c55e', home: '/' },
-  { id: 'gestor',   icon: 'fa-building',           label: 'Gestor de Parques',     desc: 'Dashboard, tarifas e ocorrências',      color: '#f59e0b', home: '/gestor/dashboard' },
-  { id: 'tecnico',  icon: 'fa-screwdriver-wrench', label: 'Técnico de Manutenção', desc: 'Diagnóstico, sensores e tarefas',       color: '#3b82f6', home: '/tecnico/dashboard' },
+  { id: 'DRIVER',     icon: 'fa-car',               label: 'Condutor',              desc: 'Encontrar e reservar lugares',          color: '#22c55e', home: '/' },
+  { id: 'MANAGER',    icon: 'fa-building',           label: 'Gestor de Parques',     desc: 'Dashboard, tarifas e ocorrências',      color: '#f59e0b', home: '/gestor/dashboard' },
+  { id: 'TECHNICAL',  icon: 'fa-screwdriver-wrench', label: 'Técnico de Manutenção', desc: 'Diagnóstico, sensores e tarefas',       color: '#3b82f6', home: '/tecnico/dashboard' },
 ];
 
 export function Header() {
@@ -77,13 +77,13 @@ export function Header() {
             </span>
           </Link>
 
-          {profile !== 'condutor' && (
+          {profile !== 'DRIVER' && (
             <span
               className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/20 text-white"
               style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.05em' }}
             >
               <i className={`fas ${currentOpt.icon}`} style={{ fontSize: '0.6rem' }} aria-hidden="true"></i>
-              {profile === 'gestor' ? 'GESTOR' : 'TÉCNICO'}
+              {profile === 'MANAGER' ? 'GESTOR' : 'TÉCNICO'}
             </span>
           )}
         </div>

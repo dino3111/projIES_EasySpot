@@ -73,14 +73,14 @@ export function OnboardingModal({
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [plate]);
 
-  const maxStep = accountType === 'condutor' ? 6 : 3;
+  const maxStep = accountType === 'DRIVER' ? 6 : 3;
   const progressPct = Math.round((step / maxStep) * 100);
-  const isFinishStep = (accountType === 'condutor' && step === 6) || (accountType !== 'condutor' && step === 3);
+  const isFinishStep = (accountType === 'DRIVER' && step === 6) || (accountType !== 'DRIVER' && step === 3);
 
   const stepTitles: Record<number, string> = {
     1: 'Tipo de conta',
-    2: accountType === 'condutor' ? 'Associar veículo' : 'Configurar acesso',
-    3: accountType === 'condutor' ? 'Método de pagamento' : 'Concluído',
+    2: accountType === 'DRIVER' ? 'Associar veículo' : 'Configurar acesso',
+    3: accountType === 'DRIVER' ? 'Método de pagamento' : 'Concluído',
     4: 'Tipo de condutor',
     5: 'Preferências',
     6: 'Concluído',
@@ -88,7 +88,7 @@ export function OnboardingModal({
 
   const renderStep = () => {
     if (step === 1) return <StepAccountType accountType={accountType} onSet={onSetAccountType} />;
-    if (step === 2 && accountType === 'condutor') return (
+    if (step === 2 && accountType === 'DRIVER') return (
       <StepVehicle plate={plate} setPlate={setPlate} rfid={rfid} setRfid={setRfid}
         plateLoading={plateLoading} vehicleData={vehicleData} insuranceData={insuranceData}
         plateError={plateError} manualVehicleData={manualVehicleData} setManualVehicleData={setManualVehicleData}
@@ -96,14 +96,14 @@ export function OnboardingModal({
       />
     );
     if (step === 2) return <StepAccess accountType={accountType} />;
-    if (step === 3 && accountType === 'condutor') return (
+    if (step === 3 && accountType === 'DRIVER') return (
       <StepPayment payMethod={payMethod} setPayMethod={setPayMethod} cardN={cardN} setCardN={setCardN}
         cardExpiry={cardExpiry} setCardExpiry={setCardExpiry} cardCvv={cardCvv} setCardCvv={setCardCvv}
         phone={phone} setPhone={setPhone}
       />
     );
-    if (step === 4 && accountType === 'condutor') return <StepDriverType driverType={driverType} setDriverType={setDriverType} />;
-    if (step === 5 && accountType === 'condutor') return <StepPreferences notifPush={notifPush} setNotifPush={setNotifPush} notifEmail={notifEmail} setNotifEmail={setNotifEmail} />;
+    if (step === 4 && accountType === 'DRIVER') return <StepDriverType driverType={driverType} setDriverType={setDriverType} />;
+    if (step === 5 && accountType === 'DRIVER') return <StepPreferences notifPush={notifPush} setNotifPush={setNotifPush} notifEmail={notifEmail} setNotifEmail={setNotifEmail} />;
     if (isFinishStep) return <StepFinished accountType={accountType} />;
     return null;
   };

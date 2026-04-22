@@ -1,0 +1,581 @@
+{
+  "info": {
+    "name": "EasySpot - Reports",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8080" },
+    { "key": "driver_token", "value": "" },
+    { "key": "manager_token", "value": "" },
+    { "key": "technical_token", "value": "" },
+    { "key": "unknown_driver_token", "value": "" },
+    { "key": "park_id", "value": "" },
+    { "key": "valid_image_path", "value": "postman/files/valid-image.svg" },
+    { "key": "invalid_file_path", "value": "postman/files/not-image.txt" },
+    { "key": "max_size_file_path", "value": "postman/files/max-size-10mb.jpg" },
+    { "key": "oversized_file_path", "value": "postman/files/oversized.jpg" }
+  ],
+  "item": [
+    {
+      "name": "0. Setup",
+      "item": [
+        {
+          "name": "Get Driver JWT",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Driver JWT obtained', function() {",
+                  "  pm.response.to.have.status(200);",
+                  "  const token = pm.response.json().access_token;",
+                  "  pm.expect(token).to.be.a('string');",
+                  "  pm.collectionVariables.set('driver_token', token);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/test/token?role=DRIVER"
+          }
+        },
+        {
+          "name": "Get Manager JWT",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Manager JWT obtained', function() {",
+                  "  pm.response.to.have.status(200);",
+                  "  const token = pm.response.json().access_token;",
+                  "  pm.expect(token).to.be.a('string');",
+                  "  pm.collectionVariables.set('manager_token', token);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/test/token?role=MANAGER"
+          }
+        },
+        {
+          "name": "Get Technical JWT",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Technical JWT obtained', function() {",
+                  "  pm.response.to.have.status(200);",
+                  "  const token = pm.response.json().access_token;",
+                  "  pm.expect(token).to.be.a('string');",
+                  "  pm.collectionVariables.set('technical_token', token);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/test/token?role=TECHNICAL"
+          }
+        },
+        {
+          "name": "Get Unknown Driver JWT",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Unknown driver JWT obtained', function() {",
+                  "  pm.response.to.have.status(200);",
+                  "  const token = pm.response.json().access_token;",
+                  "  pm.expect(token).to.be.a('string');",
+                  "  pm.collectionVariables.set('unknown_driver_token', token);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/test/token?role=DRIVER&sub=auth-sub-postman-ghost-driver"
+          }
+        },
+        {
+          "name": "Seed Test Data",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Seed data returned', function() {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.parkId).to.be.a('string');",
+                  "  pm.collectionVariables.set('park_id', body.parkId);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/test/seed",
+            "header": [{ "key": "Authorization", "value": "Bearer {{driver_token}}" }]
+          }
+        }
+      ]
+    },
+    {
+      "name": "1. Submit Report - Warning - Created (201)",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status 201', function() { pm.response.to.have.status(201); });",
+        "pm.test('Response payload (warning) is correct', function() {",
+        "  const body = pm.response.json();",
+        "  pm.expect(body.id).to.be.a('string');",
+        "  pm.expect(body.type).to.eql('CLIENT');",
+        "  pm.expect(body.parkId).to.eql(pm.collectionVariables.get('park_id'));",
+        "  pm.expect(body.zone).to.eql('A');",
+        "  pm.expect(body.spotNumber).to.eql('12');",
+        "  pm.expect(body.plate).to.eql('11-AA-11');",
+        "  pm.expect(body.description).to.eql('Vehicle parked in a reserved spot.');",
+        "  pm.expect(body.photoUrl).to.eql(null);",
+        "  pm.expect(body.severity).to.eql('WARNING');",
+        "  pm.expect(body.state).to.eql('OPEN');",
+        "  pm.expect(body.createdAt).to.be.a('string');",
+        "});"
+      ] } }],
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/api/reports",
+        "header": [{ "key": "Authorization", "value": "Bearer {{driver_token}}" }],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "parkingLotId", "value": "{{park_id}}", "type": "text" },
+            { "key": "zone", "value": "A", "type": "text" },
+            { "key": "spotNumber", "value": "12", "type": "text" },
+            { "key": "violationType", "value": "reserved", "type": "text" },
+            { "key": "vehiclePlate", "value": "11-AA-11", "type": "text" },
+            { "key": "description", "value": "Vehicle parked in a reserved spot.", "type": "text" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "2. Submit Report - Critical + Photo - Created (201)",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status 201', function() { pm.response.to.have.status(201); });",
+        "pm.test('Response payload (critical) is correct', function() {",
+        "  const body = pm.response.json();",
+        "  pm.expect(body.id).to.be.a('string');",
+        "  pm.expect(body.zone).to.eql('B');",
+        "  pm.expect(body.spotNumber).to.eql('01');",
+        "  pm.expect(body.plate).to.eql(null);",
+        "  pm.expect(body.severity).to.eql('CRITICAL');",
+        "  pm.expect(body.photoUrl).to.be.a('string');",
+        "  pm.expect(body.photoUrl).to.include('/r2/reports/');",
+        "});"
+      ] } }],
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/api/reports",
+        "header": [{ "key": "Authorization", "value": "Bearer {{driver_token}}" }],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "parkingLotId", "value": "{{park_id}}", "type": "text" },
+            { "key": "zone", "value": "B", "type": "text" },
+            { "key": "spotNumber", "value": "01", "type": "text" },
+            { "key": "violationType", "value": "blocking", "type": "text" },
+            { "key": "description", "value": "Blocking another parked vehicle.", "type": "text" },
+            { "key": "photo", "type": "file", "src": "{{valid_image_path}}" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "3. Invalid Violation Type - 400",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status 400', function() { pm.response.to.have.status(400); });",
+        "pm.test('Returns invalid violation detail', function() {",
+        "  const body = pm.response.json();",
+        "  pm.expect(body.detail).to.include('Invalid violation type');",
+        "});"
+      ] } }],
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/api/reports",
+        "header": [{ "key": "Authorization", "value": "Bearer {{driver_token}}" }],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "parkingLotId", "value": "{{park_id}}", "type": "text" },
+            { "key": "zone", "value": "A", "type": "text" },
+            { "key": "spotNumber", "value": "13", "type": "text" },
+            { "key": "violationType", "value": "invalid-type", "type": "text" },
+            { "key": "description", "value": "Testing invalid violation type.", "type": "text" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "4. Invalid Park ID - 404",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status 404', function() { pm.response.to.have.status(404); });",
+        "pm.test('Returns not found detail', function() {",
+        "  const body = pm.response.json();",
+        "  pm.expect(body.detail).to.include('Parking lot not found');",
+        "});"
+      ] } }],
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/api/reports",
+        "header": [{ "key": "Authorization", "value": "Bearer {{driver_token}}" }],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "parkingLotId", "value": "00000000-0000-0000-0000-000000000000", "type": "text" },
+            { "key": "zone", "value": "B", "type": "text" },
+            { "key": "spotNumber", "value": "01", "type": "text" },
+            { "key": "violationType", "value": "other", "type": "text" },
+            { "key": "description", "value": "Testing parking lot not found.", "type": "text" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "5. Missing Required Field (zone) - 400",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status 400', function() { pm.response.to.have.status(400); });",
+        "pm.test('Returns validation detail for blank zone', function() {",
+        "  const body = pm.response.json();",
+        "  pm.expect(body.detail).to.include('must not be blank');",
+        "});"
+      ] } }],
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/api/reports",
+        "header": [{ "key": "Authorization", "value": "Bearer {{driver_token}}" }],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "parkingLotId", "value": "{{park_id}}", "type": "text" },
+            { "key": "zone", "value": "", "type": "text" },
+            { "key": "spotNumber", "value": "14", "type": "text" },
+            { "key": "violationType", "value": "reserved", "type": "text" },
+            { "key": "description", "value": "Zone is intentionally blank.", "type": "text" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "6. Missing Required Field (spotNumber) - 400",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status 400', function() { pm.response.to.have.status(400); });",
+        "pm.test('Returns validation detail for blank spotNumber', function() {",
+        "  const body = pm.response.json();",
+        "  pm.expect(body.detail).to.include('must not be blank');",
+        "});"
+      ] } }],
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/api/reports",
+        "header": [{ "key": "Authorization", "value": "Bearer {{driver_token}}" }],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "parkingLotId", "value": "{{park_id}}", "type": "text" },
+            { "key": "zone", "value": "A", "type": "text" },
+            { "key": "spotNumber", "value": "", "type": "text" },
+            { "key": "violationType", "value": "reserved", "type": "text" },
+            { "key": "description", "value": "Spot number is intentionally blank.", "type": "text" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "7. Missing Required Field (description) - 400",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status 400', function() { pm.response.to.have.status(400); });",
+        "pm.test('Returns validation detail for blank description', function() {",
+        "  const body = pm.response.json();",
+        "  pm.expect(body.detail).to.include('must not be blank');",
+        "});"
+      ] } }],
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/api/reports",
+        "header": [{ "key": "Authorization", "value": "Bearer {{driver_token}}" }],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "parkingLotId", "value": "{{park_id}}", "type": "text" },
+            { "key": "zone", "value": "A", "type": "text" },
+            { "key": "spotNumber", "value": "15", "type": "text" },
+            { "key": "violationType", "value": "other", "type": "text" },
+            { "key": "description", "value": "", "type": "text" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "8. Missing Request Param (parkingLotId) - 400",
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 400', function() { pm.response.to.have.status(400); });"] } }],
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/api/reports",
+        "header": [{ "key": "Authorization", "value": "Bearer {{driver_token}}" }],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "zone", "value": "A", "type": "text" },
+            { "key": "spotNumber", "value": "16", "type": "text" },
+            { "key": "violationType", "value": "other", "type": "text" },
+            { "key": "description", "value": "parkingLotId omitted on purpose.", "type": "text" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "9. Invalid parkingLotId Format - 400",
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 400', function() { pm.response.to.have.status(400); });"] } }],
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/api/reports",
+        "header": [{ "key": "Authorization", "value": "Bearer {{driver_token}}" }],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "parkingLotId", "value": "not-a-uuid", "type": "text" },
+            { "key": "zone", "value": "A", "type": "text" },
+            { "key": "spotNumber", "value": "17", "type": "text" },
+            { "key": "violationType", "value": "other", "type": "text" },
+            { "key": "description", "value": "parkingLotId is not a UUID.", "type": "text" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "10. Missing Request Param (violationType) - 400",
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 400', function() { pm.response.to.have.status(400); });"] } }],
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/api/reports",
+        "header": [{ "key": "Authorization", "value": "Bearer {{driver_token}}" }],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "parkingLotId", "value": "{{park_id}}", "type": "text" },
+            { "key": "zone", "value": "A", "type": "text" },
+            { "key": "spotNumber", "value": "18", "type": "text" },
+            { "key": "description", "value": "violationType omitted on purpose.", "type": "text" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "11. No Token - 401",
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 401', function() { pm.response.to.have.status(401); });"] } }],
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/api/reports",
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "parkingLotId", "value": "{{park_id}}", "type": "text" },
+            { "key": "zone", "value": "C", "type": "text" },
+            { "key": "spotNumber", "value": "19", "type": "text" },
+            { "key": "violationType", "value": "other", "type": "text" },
+            { "key": "description", "value": "Unauthorized call without token.", "type": "text" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "12. Malformed Token - 401",
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 401', function() { pm.response.to.have.status(401); });"] } }],
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/api/reports",
+        "header": [{ "key": "Authorization", "value": "Bearer this.is.not.a.valid.token" }],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "parkingLotId", "value": "{{park_id}}", "type": "text" },
+            { "key": "zone", "value": "C", "type": "text" },
+            { "key": "spotNumber", "value": "20", "type": "text" },
+            { "key": "violationType", "value": "other", "type": "text" },
+            { "key": "description", "value": "Invalid token format.", "type": "text" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "13. Wrong Role (Manager) - 403",
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 403', function() { pm.response.to.have.status(403); });"] } }],
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/api/reports",
+        "header": [{ "key": "Authorization", "value": "Bearer {{manager_token}}" }],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "parkingLotId", "value": "{{park_id}}", "type": "text" },
+            { "key": "zone", "value": "D", "type": "text" },
+            { "key": "spotNumber", "value": "21", "type": "text" },
+            { "key": "violationType", "value": "other", "type": "text" },
+            { "key": "description", "value": "Forbidden role test: manager.", "type": "text" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "14. Wrong Role (Technical) - 403",
+      "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 403', function() { pm.response.to.have.status(403); });"] } }],
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/api/reports",
+        "header": [{ "key": "Authorization", "value": "Bearer {{technical_token}}" }],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "parkingLotId", "value": "{{park_id}}", "type": "text" },
+            { "key": "zone", "value": "D", "type": "text" },
+            { "key": "spotNumber", "value": "22", "type": "text" },
+            { "key": "violationType", "value": "other", "type": "text" },
+            { "key": "description", "value": "Forbidden role test: technical.", "type": "text" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "15. Unknown Driver Subject - 404",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status 404', function() { pm.response.to.have.status(404); });",
+        "pm.test('Returns unknown user detail', function() {",
+        "  const body = pm.response.json();",
+        "  pm.expect(body.detail).to.include('Authenticated user not found');",
+        "});"
+      ] } }],
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/api/reports",
+        "header": [{ "key": "Authorization", "value": "Bearer {{unknown_driver_token}}" }],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "parkingLotId", "value": "{{park_id}}", "type": "text" },
+            { "key": "zone", "value": "A", "type": "text" },
+            { "key": "spotNumber", "value": "23", "type": "text" },
+            { "key": "violationType", "value": "other", "type": "text" },
+            { "key": "description", "value": "Driver subject not present in DB.", "type": "text" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "16. Invalid Photo Type - 400",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status 400', function() { pm.response.to.have.status(400); });",
+        "pm.test('Returns invalid photo detail', function() {",
+        "  const body = pm.response.json();",
+        "  pm.expect(body.detail).to.include('Only image files are accepted');",
+        "});"
+      ] } }],
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/api/reports",
+        "header": [{ "key": "Authorization", "value": "Bearer {{driver_token}}" }],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "parkingLotId", "value": "{{park_id}}", "type": "text" },
+            { "key": "zone", "value": "A", "type": "text" },
+            { "key": "spotNumber", "value": "24", "type": "text" },
+            { "key": "violationType", "value": "other", "type": "text" },
+            { "key": "description", "value": "Invalid file type should fail.", "type": "text" },
+            { "key": "photo", "type": "file", "src": "{{invalid_file_path}}" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "17. Max Accepted Photo Size (10MB) - 201",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status 201', function() { pm.response.to.have.status(201); });",
+        "pm.test('Photo URL is present', function() {",
+        "  const body = pm.response.json();",
+        "  pm.expect(body.photoUrl).to.be.a('string');",
+        "  pm.expect(body.photoUrl).to.include('/r2/reports/');",
+        "});"
+      ] } }],
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/api/reports",
+        "header": [{ "key": "Authorization", "value": "Bearer {{driver_token}}" }],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "parkingLotId", "value": "{{park_id}}", "type": "text" },
+            { "key": "zone", "value": "A", "type": "text" },
+            { "key": "spotNumber", "value": "25", "type": "text" },
+            { "key": "violationType", "value": "ev", "type": "text" },
+            { "key": "description", "value": "Exactly 10MB file should pass.", "type": "text" },
+            { "key": "photo", "type": "file", "src": "{{max_size_file_path}}" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "18. Oversized Photo - 413",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status 413', function() { pm.response.to.have.status(413); });",
+        "pm.test('Returns payload size detail', function() {",
+        "  const body = pm.response.json();",
+        "  pm.expect(body.detail).to.include('Photo must not exceed 10 MB');",
+        "});"
+      ] } }],
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/api/reports",
+        "header": [{ "key": "Authorization", "value": "Bearer {{driver_token}}" }],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "parkingLotId", "value": "{{park_id}}", "type": "text" },
+            { "key": "zone", "value": "A", "type": "text" },
+            { "key": "spotNumber", "value": "26", "type": "text" },
+            { "key": "violationType", "value": "other", "type": "text" },
+            { "key": "description", "value": "Oversized file should fail.", "type": "text" },
+            { "key": "photo", "type": "file", "src": "{{oversized_file_path}}" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "19. Unsupported Media Type (JSON body) - 415",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status 415', function() { pm.response.to.have.status(415); });"
+      ] } }],
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/api/reports",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{driver_token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"parkingLotId\": \"{{park_id}}\",\n  \"zone\": \"A\",\n  \"spotNumber\": \"27\",\n  \"violationType\": \"other\",\n  \"description\": \"JSON should be rejected because endpoint consumes multipart.\"\n}"
+        }
+      }
+    }
+  ]
+}
