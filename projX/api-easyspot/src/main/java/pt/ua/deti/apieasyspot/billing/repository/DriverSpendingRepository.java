@@ -7,6 +7,7 @@ import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.sql.Timestamp;
+import java.sql.Types;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -33,7 +34,7 @@ public class DriverSpendingRepository {
               and ps.entry_time < :toExclusive
               and ps.exit_time is not null
               and ps.revenue_euros is not null
-              and (:vehicleId is null or ps.vehicle_id = :vehicleId)
+              and (cast(:vehicleId as uuid) is null or ps.vehicle_id = cast(:vehicleId as uuid))
             """,
             params(userId, vehicleId, fromInclusive, toExclusive),
             (rs, row) -> new TotalsRow(
@@ -55,7 +56,7 @@ public class DriverSpendingRepository {
               and ps.entry_time < :toExclusive
               and ps.exit_time is not null
               and ps.revenue_euros is not null
-              and (:vehicleId is null or ps.vehicle_id = :vehicleId)
+              and (cast(:vehicleId as uuid) is null or ps.vehicle_id = cast(:vehicleId as uuid))
             group by date(ps.entry_time)
             order by day
             """,
@@ -78,7 +79,7 @@ public class DriverSpendingRepository {
               and ps.entry_time < :toExclusive
               and ps.exit_time is not null
               and ps.revenue_euros is not null
-              and (:vehicleId is null or ps.vehicle_id = :vehicleId)
+              and (cast(:vehicleId as uuid) is null or ps.vehicle_id = cast(:vehicleId as uuid))
             group by ps.parking_lot_id, pl.name
             order by total_spent desc, pl.name asc
             """,
@@ -103,7 +104,7 @@ public class DriverSpendingRepository {
               and ps.exit_time is not null
               and ps.revenue_euros is not null
               and ps.vehicle_id is not null
-              and (:vehicleId is null or ps.vehicle_id = :vehicleId)
+              and (cast(:vehicleId as uuid) is null or ps.vehicle_id = cast(:vehicleId as uuid))
             group by ps.vehicle_id, v.plate
             order by total_spent desc, v.plate asc
             """,
@@ -127,7 +128,7 @@ public class DriverSpendingRepository {
               and ps.entry_time < :toExclusive
               and ps.exit_time is not null
               and ps.revenue_euros is not null
-              and (:vehicleId is null or ps.vehicle_id = :vehicleId)
+              and (cast(:vehicleId as uuid) is null or ps.vehicle_id = cast(:vehicleId as uuid))
             group by pl.name
             order by count(*) desc, coalesce(sum(ps.revenue_euros), 0) desc, pl.name asc
             limit 1
@@ -153,7 +154,7 @@ public class DriverSpendingRepository {
               and ps.entry_time < :toExclusive
               and ps.exit_time is not null
               and ps.revenue_euros is not null
-              and (:vehicleId is null or ps.vehicle_id = :vehicleId)
+              and (cast(:vehicleId as uuid) is null or ps.vehicle_id = cast(:vehicleId as uuid))
             order by ps.revenue_euros desc, ps.exit_time desc
             limit 1
             """,
@@ -185,7 +186,7 @@ public class DriverSpendingRepository {
               and ps.entry_time < :toExclusive
               and ps.exit_time is not null
               and ps.revenue_euros is not null
-              and (:vehicleId is null or ps.vehicle_id = :vehicleId)
+              and (cast(:vehicleId as uuid) is null or ps.vehicle_id = cast(:vehicleId as uuid))
             order by ps.entry_time desc
             """,
             params(userId, vehicleId, fromInclusive, toExclusive),
@@ -203,7 +204,7 @@ public class DriverSpendingRepository {
     private MapSqlParameterSource params(UUID userId, UUID vehicleId, OffsetDateTime fromInclusive, OffsetDateTime toExclusive) {
         return new MapSqlParameterSource()
             .addValue("userId", userId)
-            .addValue("vehicleId", vehicleId)
+            .addValue("vehicleId", vehicleId, Types.OTHER)
             .addValue("fromInclusive", fromInclusive)
             .addValue("toExclusive", toExclusive);
     }
