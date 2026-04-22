@@ -22,6 +22,7 @@ class PostmanTestDataController {
     Map<String, String> getSeedData() {
         return Map.of(
             "vehicleId", initializer.getVehicleId().toString(),
+            "secondaryVehicleId", initializer.getSecondaryVehicleId().toString(),
             "parkId", initializer.getParkId().toString()
         );
     }
