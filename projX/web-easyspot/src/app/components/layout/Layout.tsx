@@ -9,11 +9,11 @@ export function Layout() {
   const location = useLocation();
   const path = location.pathname;
 
-  if (path.startsWith('/gestor') && profile !== 'MANAGER') {
+  if (path.startsWith('/manager') && profile !== 'MANAGER') {
     return <Navigate to="/" replace />;
   }
 
-  if (path.startsWith('/tecnico') && profile !== 'TECHNICAL') {
+  if (path.startsWith('/technician') && profile !== 'TECHNICAL') {
     return <Navigate to="/" replace />;
   }
 
@@ -24,10 +24,7 @@ export function Layout() {
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
 
-        <main
-          className="flex-1 overflow-y-auto pb-20 md:pb-6"
-          id="main-content"
-        >
+        <main className="flex-1 overflow-y-auto pb-20 md:pb-6" id="main-content">
           <Outlet />
         </main>
       </div>

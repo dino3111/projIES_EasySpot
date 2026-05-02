@@ -1,5 +1,4 @@
-import { useEffect, useRef } from 'react';
-import { useTheme } from 'next-themes';
+import { useEffect, useRef, useState } from 'react';
 import type { ParkingLot } from '../../data/parkingData';
 
 import L from 'leaflet';
@@ -69,8 +68,17 @@ export function LeafletMap({
   const mapRef = useRef<L.Map | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const markersRef = useRef<Map<string, L.Marker>>(new Map());
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === 'dark';
+  const [isDark, setIsDark] = useState(() =>
+    document.documentElement.classList.contains('dark')
+  );
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDark(document.documentElement.classList.contains('dark'));
+    });
+    observer.observe(document.documentElement, { attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
 
   const lastFlyToIdRef = useRef<string | null>(null);
 

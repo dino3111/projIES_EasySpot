@@ -90,7 +90,7 @@ export function ParkingCard({ lot, highlightAccessible = false, filterMode = nul
 
   return (
     <Link
-      to={`/parque/${id}`}
+      to={`/parking/${id}`}
       className="h-full flex flex-col focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-xl no-underline"
       aria-label={`Ver detalhes do ${name}.`}
     >

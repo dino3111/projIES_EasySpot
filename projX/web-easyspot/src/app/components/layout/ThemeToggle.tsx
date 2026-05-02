@@ -1,34 +1,46 @@
-import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
 
+function getStoredTheme(): 'light' | 'dark' {
+  try {
+    const stored = localStorage.getItem('easyspot_theme');
+    if (stored === 'light' || stored === 'dark') return stored;
+  } catch {}
+  return 'dark';
+}
+
+function applyTheme(theme: 'light' | 'dark') {
+  document.documentElement.setAttribute('data-theme', theme);
+  if (theme === 'dark') {
+    document.documentElement.classList.add('dark');
+  } else {
+    document.documentElement.classList.remove('dark');
+  }
+  try {
+    localStorage.setItem('easyspot_theme', theme);
+  } catch {}
+}
+
 export function ThemeToggle() {
-  const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => getStoredTheme());
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
+    applyTheme(theme);
+  }, [theme]);
 
-  if (!mounted) {
-    return <div className="w-9 h-9 rounded-full bg-white/20 animate-pulse" />;
-  }
-
-  const isDark = theme === 'dark';
+  const toggle = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
 
   return (
     <button
-      onClick={() => setTheme(isDark ? 'light' : 'dark')}
+      onClick={toggle}
       className="w-9 h-9 rounded-full flex items-center justify-center transition-all duration-300 bg-white/15 hover:bg-white/25 text-white"
-      aria-label={isDark ? 'Mudar para modo claro' : 'Mudar para modo escuro'}
-      title={isDark ? 'Modo claro' : 'Modo escuro'}
+      aria-label={theme === 'dark' ? 'Mudar para modo claro' : 'Mudar para modo escuro'}
+      title={theme === 'dark' ? 'Modo claro' : 'Modo escuro'}
     >
-      <span key={isDark ? 'sun' : 'moon'} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        {isDark ? (
-          <i className="fas fa-sun text-[1rem]" aria-hidden="true" />
-        ) : (
-          <i className="fas fa-moon text-[1rem]" aria-hidden="true" />
-        )}
-      </span>
+      {theme === 'dark' ? (
+        <i className="fas fa-sun text-[1rem]" aria-hidden="true" />
+      ) : (
+        <i className="fas fa-moon text-[1rem]" aria-hidden="true" />
+      )}
     </button>
   );
 }
