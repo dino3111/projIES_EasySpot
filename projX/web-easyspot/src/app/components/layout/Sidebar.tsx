@@ -1,45 +1,47 @@
 import { Link, useLocation } from 'react-router';
-import { useProfile, type DriverType } from '../../context/ProfileContext';
+import { useProfile } from '../../context/ProfileContext';
 
 interface NavItem {
   path: string;
   icon: string;
   label: string;
   exact: boolean;
-  driverTypes?: DriverType[];
 }
 
-const condutorNav: NavItem[] = [
-  { path: '/', icon: 'fa-list', label: 'Lista de Parques', exact: true },
-  { path: '/mapa', icon: 'fa-map-location-dot', label: 'Mapa', exact: false },
-  { path: '/custos', icon: 'fa-wallet', label: 'Custos', exact: false },
-  { path: '/favoritos', icon: 'fa-star', label: 'Favoritos', exact: false },
-  { path: '/perfil', icon: 'fa-user', label: 'Perfil', exact: false },
+const driverNav: NavItem[] = [
+  { path: '/',         icon: 'fa-list',               label: 'Lista de Parques',          exact: true },
+  { path: '/map',      icon: 'fa-map-location-dot',   label: 'Mapa',                      exact: false },
+  { path: '/costs',    icon: 'fa-wallet',              label: 'Custos',                    exact: false },
+  { path: '/favorites',icon: 'fa-star',               label: 'Favoritos',                 exact: false },
+  { path: '/profile',  icon: 'fa-user',               label: 'Perfil',                    exact: false },
 ];
 
-const gestorNav: NavItem[] = [
-  { path: '/gestor/dashboard', icon: 'fa-chart-line', label: 'Painel de Desempenho', exact: true },
-  { path: '/gestor/tarifas-ocorrencias', icon: 'fa-file-invoice-dollar', label: 'Tarifas & Ocorrências', exact: false },
-  { path: '/perfil', icon: 'fa-gear', label: 'Definições', exact: false },
+const managerNav: NavItem[] = [
+  { path: '/manager/dashboard',          icon: 'fa-chart-line',         label: 'Painel de Desempenho',    exact: true },
+  { path: '/manager/tariffs-incidents',  icon: 'fa-file-invoice-dollar', label: 'Tarifas & Ocorrências',  exact: false },
+  { path: '/profile',                    icon: 'fa-gear',               label: 'Definições',              exact: false },
 ];
 
-const tecnicoNav = [
-  { path: '/tecnico/dashboard', icon: 'fa-gauge-high', label: 'Painel Técnico', exact: true },
-  { path: '/tecnico/manutencao', icon: 'fa-screwdriver-wrench', label: 'Diagnóstico & Manutenção', exact: false },
-  { path: '/tecnico/mapa', icon: 'fa-map-location-dot', label: 'Mapa', exact: false },
-  { path: '/perfil', icon: 'fa-gear', label: 'Definições', exact: false },
+const technicianNav: NavItem[] = [
+  { path: '/technician/dashboard',    icon: 'fa-gauge-high',          label: 'Painel Técnico',            exact: true },
+  { path: '/technician/maintenance',  icon: 'fa-screwdriver-wrench',  label: 'Diagnóstico & Manutenção',  exact: false },
+  { path: '/technician/map',          icon: 'fa-map-location-dot',    label: 'Mapa',                      exact: false },
+  { path: '/profile',                 icon: 'fa-gear',                label: 'Definições',                exact: false },
 ];
+
+function isActive(path: string, exact: boolean, current: string): boolean {
+  if (exact) return current === path;
+  return current.startsWith(path);
+}
 
 export function Sidebar() {
   const location = useLocation();
-  const { profile, driverType } = useProfile();
+  const { profile } = useProfile();
 
-  const navItems = profile === 'MANAGER' ? gestorNav : profile === 'TECHNICAL' ? tecnicoNav : condutorNav;
-
-  const isActive = (path: string, exact: boolean) => {
-    if (exact) return location.pathname === path;
-    return location.pathname.startsWith(path);
-  };
+  const navItems =
+    profile === 'MANAGER' ? managerNav :
+    profile === 'TECHNICAL' ? technicianNav :
+    driverNav;
 
   return (
     <aside
@@ -57,7 +59,7 @@ export function Sidebar() {
         )}
 
         {navItems.map((item) => {
-          const active = isActive(item.path, item.exact);
+          const active = isActive(item.path, item.exact, location.pathname);
           return (
             <Link
               key={item.path}
@@ -75,7 +77,7 @@ export function Sidebar() {
                 className={`fas ${item.icon}`}
                 aria-hidden="true"
                 style={{ width: '18px', textAlign: 'center', fontSize: '1rem' }}
-              ></i>
+              />
               <span style={{ fontSize: '0.875rem' }}>{item.label}</span>
             </Link>
           );
@@ -83,25 +85,32 @@ export function Sidebar() {
       </nav>
 
       {(profile === 'MANAGER' || profile === 'TECHNICAL') && (
-        <div className="mt-auto p-3">
-          <div className="flex items-center gap-2 rounded-xl p-2.5 bg-primary/10 border border-primary/20">
-            <div className="w-7 h-7 rounded-lg bg-primary/20 flex items-center justify-center flex-shrink-0" aria-hidden="true">
-              <i
-                className={`fas ${profile === 'MANAGER' ? 'fa-building' : 'fa-screwdriver-wrench'} text-primary`}
-                style={{ fontSize: '0.75rem' }}
-              ></i>
-            </div>
-            <div className="min-w-0">
-              <p className="text-primary" style={{ fontSize: '0.72rem', fontWeight: 700 }}>
-                {profile === 'MANAGER' ? 'Modo Gestor' : 'Modo Técnico'}
-              </p>
-              <p className="text-muted-foreground" style={{ fontSize: '0.62rem' }}>
-                {profile === 'MANAGER' ? 'António Videira' : 'Laura Farias'}
-              </p>
-            </div>
-          </div>
-        </div>
+        <SidebarRoleBadge profile={profile} />
       )}
     </aside>
+  );
+}
+
+function SidebarRoleBadge({ profile }: { profile: 'MANAGER' | 'TECHNICAL' }) {
+  const isManager = profile === 'MANAGER';
+  return (
+    <div className="mt-auto p-3">
+      <div className="flex items-center gap-2 rounded-xl p-2.5 bg-primary/10 border border-primary/20">
+        <div className="w-7 h-7 rounded-lg bg-primary/20 flex items-center justify-center flex-shrink-0" aria-hidden="true">
+          <i
+            className={`fas ${isManager ? 'fa-building' : 'fa-screwdriver-wrench'} text-primary`}
+            style={{ fontSize: '0.75rem' }}
+          />
+        </div>
+        <div className="min-w-0">
+          <p className="text-primary" style={{ fontSize: '0.72rem', fontWeight: 700 }}>
+            {isManager ? 'Modo Gestor' : 'Modo Técnico'}
+          </p>
+          <p className="text-muted-foreground" style={{ fontSize: '0.62rem' }}>
+            {isManager ? 'António Videira' : 'Laura Farias'}
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }

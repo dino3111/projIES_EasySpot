@@ -2,7 +2,7 @@ import { createContext, useContext, useState, type ReactNode } from 'react';
 
 export type AppProfile = 'DRIVER' | 'MANAGER' | 'TECHNICAL';
 export type AccountType = AppProfile;
-export type DriverType = 'regular' | 'ev' | 'mobilidade_reduzida' | null;
+export type DriverType = 'regular' | 'ev' | 'reduced_mobility' | null;
 
 export interface Vehicle {
   id: string;
@@ -64,24 +64,28 @@ function readJSON<T>(key: string, fallback: T): T {
 export function ProfileProvider({ children }: { children: ReactNode }) {
   const [profile, setProfileState] = useState<AppProfile>(() => {
     const stored = localStorage.getItem(STORAGE_KEYS.profile);
-    return (stored === 'MANAGER' || stored === 'DRIVER' || stored === 'TECHNICAL') ? stored : 'DRIVER';
+    return stored === 'MANAGER' || stored === 'DRIVER' || stored === 'TECHNICAL' ? stored : 'DRIVER';
   });
 
   const [accountType, setAccountTypeState] = useState<AccountType>(() => {
     const stored = localStorage.getItem(STORAGE_KEYS.accountType);
-    return (stored === 'MANAGER' || stored === 'DRIVER' || stored === 'TECHNICAL') ? stored : 'DRIVER';
+    return stored === 'MANAGER' || stored === 'DRIVER' || stored === 'TECHNICAL' ? stored : 'DRIVER';
   });
 
   const [driverType, setDriverTypeState] = useState<DriverType>(() => {
     const stored = localStorage.getItem(STORAGE_KEYS.driverType);
-    return (stored === 'regular' || stored === 'ev' || stored === 'mobilidade_reduzida') ? stored : null;
+    if (stored === 'regular' || stored === 'ev' || stored === 'reduced_mobility') return stored;
+    if (stored === 'mobilidade_reduzida') return 'reduced_mobility';
+    return null;
   });
 
-  const [vehicles, setVehicles] = useState<Vehicle[]>(() => readJSON<Vehicle[]>(STORAGE_KEYS.vehicles, []));
+  const [vehicles, setVehicles] = useState<Vehicle[]>(() =>
+    readJSON<Vehicle[]>(STORAGE_KEYS.vehicles, [])
+  );
 
   const [managerParks, setManagerParksState] = useState<string[]>(() => {
-    const newKey = readJSON<string[]>(STORAGE_KEYS.managerParks, []);
-    if (newKey.length > 0) return newKey;
+    const stored = readJSON<string[]>(STORAGE_KEYS.managerParks, []);
+    if (stored.length > 0) return stored;
     return readJSON<string[]>('easyspot-manager-parks', ['coimbra-1', 'coimbra-2']);
   });
 
@@ -114,8 +118,8 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   };
 
   const addVehicle = (vehicle: Vehicle) => {
-    const nextVehicle = vehicles.length === 0 ? { ...vehicle, isPrimary: true } : vehicle;
-    persistVehicles([...vehicles, nextVehicle]);
+    const next = vehicles.length === 0 ? { ...vehicle, isPrimary: true } : vehicle;
+    persistVehicles([...vehicles, next]);
   };
 
   const updateVehicle = (id: string, updates: Partial<Vehicle>) => {
@@ -141,8 +145,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   };
 
   const addManagerPark = (parkId: string) => {
-    const updated = Array.from(new Set([...managerParks, parkId]));
-    setManagerParks(updated);
+    setManagerParks(Array.from(new Set([...managerParks, parkId])));
   };
 
   const removeManagerPark = (parkId: string) => {
@@ -176,8 +179,6 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
 
 export function useProfile() {
   const context = useContext(ProfileContext);
-  if (!context) {
-    throw new Error('useProfile must be used within a ProfileProvider');
-  }
+  if (!context) throw new Error('useProfile must be used within a ProfileProvider');
   return context;
 }

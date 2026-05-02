@@ -1,4 +1,4 @@
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (&:is([data-theme="dark"] *));
 
 /* Import Font Awesome */
 @import '@fortawesome/fontawesome-free/css/all.min.css';
@@ -68,7 +68,7 @@
   --color-accent-content: #ffffff;
 }
 
-.dark {
+[data-theme="dark"] {
   --background: #18181a;
   --foreground: #FFFFFF;
   --card: #222225;

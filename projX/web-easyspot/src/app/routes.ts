@@ -1,24 +1,23 @@
 import { createBrowserRouter } from 'react-router';
 import { Layout } from './components/layout/Layout';
-import { WelcomePage } from './pages/condutor/welcome/WelcomePage';
-import { ListaPage } from './pages/condutor/ListaPage';
-import { MapaPage } from './pages/condutor/MapaPage';
-import { FavoritosPage } from './pages/condutor/FavoritosPage';
-import { PerfilPage } from './pages/condutor/PerfilPage';
-import { AcessibilidadePage } from './pages/condutor/AcessibilidadePage';
-import { ParqueDetalhe } from './pages/condutor/parque/ParqueDetalhe';
-import { VeiculosPage } from './pages/condutor/veiculos/VeiculosPage';
-import { CustosPage } from './pages/condutor/custos/CustosPage';
-import { ReservaPage } from './pages/condutor/reserva/ReservaPage';
-import { ReportarPage } from './pages/condutor/reportar/ReportarPage';
-import { DashboardGestorPage } from './pages/gestor/DashboardGestorPage';
-import { TarifasOcorrenciasPage } from './pages/gestor/TarifasOcorrenciasPage';
-import { DashboardTecnicoPage } from './pages/tecnico/DashboardTecnicoPage';
-import { ManutencaoPage } from './pages/tecnico/ManutencaoPage';
-import { TechinoMapaPage } from './pages/tecnico/TechinoMapaPage';
+import { WelcomePage } from './pages/driver/welcome/WelcomePage';
+import { ParkingListPage } from './pages/driver/ParkingListPage';
+import { MapPage } from './pages/driver/MapPage';
+import { FavoritesPage } from './pages/driver/FavoritesPage';
+import { ProfilePage } from './pages/driver/ProfilePage';
+import { AccessibilityPage } from './pages/driver/AccessibilityPage';
+import { ParkingDetail } from './pages/driver/parking/ParkingDetail';
+import { VehiclesPage } from './pages/driver/vehicles/VehiclesPage';
+import { CostsPage } from './pages/driver/costs/CostsPage';
+import { ReservationPage } from './pages/driver/reservation/ReservationPage';
+import { ReportPage } from './pages/driver/report/ReportPage';
+import { DashboardManagerPage } from './pages/manager/DashboardManagerPage';
+import { TariffsIncidentsPage } from './pages/manager/TariffsIncidentsPage';
+import { DashboardTechnicianPage } from './pages/technician/DashboardTechnicianPage';
+import { MaintenancePage } from './pages/technician/MaintenancePage';
+import { TechMapPage } from './pages/technician/TechMapPage';
 
 export const router = createBrowserRouter([
-  // Página de boas-vindas — sem Layout (sem sidebar/header/bottomnav)
   {
     path: '/welcome',
     Component: WelcomePage,
@@ -27,23 +26,21 @@ export const router = createBrowserRouter([
     path: '/',
     Component: Layout,
     children: [
-      { index: true, Component: ListaPage },
-      { path: 'parque/:id', Component: ParqueDetalhe },
-      { path: 'mapa', Component: MapaPage },
-      { path: 'favoritos', Component: FavoritosPage },
-      { path: 'perfil', Component: PerfilPage },
-      { path: 'veiculos', Component: VeiculosPage },
-      { path: 'custos', Component: CustosPage },
-      { path: 'reserva', Component: ReservaPage },
-      { path: 'reportar', Component: ReportarPage },
-      { path: 'acessibilidade', Component: AcessibilidadePage },
-      // Rotas do Gestor
-      { path: 'gestor/dashboard', Component: DashboardGestorPage },
-      { path: 'gestor/tarifas-ocorrencias', Component: TarifasOcorrenciasPage },
-      // Rotas do Técnico
-      { path: 'tecnico/dashboard', Component: DashboardTecnicoPage },
-      { path: 'tecnico/mapa', Component: TechinoMapaPage },
-      { path: 'tecnico/manutencao', Component: ManutencaoPage },
+      { index: true, Component: ParkingListPage },
+      { path: 'parking/:id', Component: ParkingDetail },
+      { path: 'map', Component: MapPage },
+      { path: 'favorites', Component: FavoritesPage },
+      { path: 'profile', Component: ProfilePage },
+      { path: 'vehicles', Component: VehiclesPage },
+      { path: 'costs', Component: CostsPage },
+      { path: 'reservation', Component: ReservationPage },
+      { path: 'report', Component: ReportPage },
+      { path: 'accessibility', Component: AccessibilityPage },
+      { path: 'manager/dashboard', Component: DashboardManagerPage },
+      { path: 'manager/tariffs-incidents', Component: TariffsIncidentsPage },
+      { path: 'technician/dashboard', Component: DashboardTechnicianPage },
+      { path: 'technician/map', Component: TechMapPage },
+      { path: 'technician/maintenance', Component: MaintenancePage },
     ],
   },
 ]);

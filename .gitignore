@@ -67,6 +67,9 @@ package-lock.json.tmp
 .idea/
 .history/
 
+# Vite cache
+.vite/
+
 # Java / Spring / backend (Maven & Gradle)
 # Gradle
 .gradle/
