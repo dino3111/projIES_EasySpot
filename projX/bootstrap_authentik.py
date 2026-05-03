@@ -29,9 +29,12 @@ Optional env vars:
 
 from __future__ import annotations
 
+import base64
 import os
+import struct
 import sys
 import time
+import zlib
 
 import requests  # type: ignore[import]
 
@@ -42,7 +45,7 @@ TOKEN: str = (
     or ""
 )
 REDIRECT_URI = os.environ.get(
-    "REDIRECT_URI", "http://localhost:5173/callback"
+    "REDIRECT_URI", "http://localhost/callback"
 )
 
 APP_SLUG = "easyspot"
@@ -76,6 +79,70 @@ TEST_USERS = [
         "role": "TECHNICAL",
     },
 ]
+
+# Logo with dark/light mode support via SVG CSS media query.
+# The icon box always uses the purple gradient; text color adapts.
+_LOGO_SVG = """\
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 60" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#3d2e8a"/>
+      <stop offset="100%" stop-color="#7357ec"/>
+    </linearGradient>
+    <style>
+      .lt { fill: #1a0f4a; }
+      .lta { fill: #7357ec; }
+      @media (prefers-color-scheme: dark) {
+        .lt { fill: white; }
+        .lta { fill: #c4baf0; }
+      }
+    </style>
+  </defs>
+  <rect x="4" y="10" width="40" height="40" rx="10" fill="url(#bg)"/>
+  <text x="24" y="36" font-family="Arial,sans-serif" font-size="20"
+        font-weight="900" fill="white" text-anchor="middle">P</text>
+  <text x="54" y="38" font-family="Arial,sans-serif" font-size="22"
+        font-weight="800" class="lt">Easy</text>
+  <text x="104" y="38" font-family="Arial,sans-serif" font-size="22"
+        font-weight="800" class="lta">Spot</text>
+</svg>"""
+
+_FAVICON_SVG = """\
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2e1c7c"/>
+      <stop offset="100%" stop-color="#7357ec"/>
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="8" fill="url(#g)"/>
+  <text x="16" y="23" font-family="Arial,sans-serif" font-size="18"
+        font-weight="900" fill="white" text-anchor="middle">P</text>
+</svg>"""
+
+
+def _svg_data_uri(svg: str) -> str:
+    encoded = base64.b64encode(svg.encode()).decode()
+    return f"data:image/svg+xml;base64,{encoded}"
+
+
+def _make_transparent_png() -> bytes:
+    """Build a minimal 1×1 transparent PNG in memory."""
+    sig = b"\x89PNG\r\n\x1a\n"
+
+    ihdr_data = struct.pack(">IIBBBBB", 1, 1, 8, 6, 0, 0, 0)  # RGBA
+    ihdr_crc = zlib.crc32(b"IHDR" + ihdr_data) & 0xFFFFFFFF
+    ihdr = struct.pack(">I", 13) + b"IHDR" + ihdr_data + struct.pack(">I", ihdr_crc)
+
+    raw = b"\x00\x00\x00\x00\x00"  # filter byte + R G B A (fully transparent)
+    compressed = zlib.compress(raw)
+    idat_crc = zlib.crc32(b"IDAT" + compressed) & 0xFFFFFFFF
+    idat = struct.pack(">I", len(compressed)) + b"IDAT" + compressed + struct.pack(">I", idat_crc)
+
+    iend_crc = zlib.crc32(b"IEND") & 0xFFFFFFFF
+    iend = struct.pack(">I", 0) + b"IEND" + struct.pack(">I", iend_crc)
+
+    return sig + ihdr + idat + iend
 
 
 def api(method: str, path: str, **kwargs: object) -> dict:
@@ -116,7 +183,6 @@ def setup_akadmin_if_needed() -> str:
     """Auto-setup akadmin and return API token if needed."""
     print("Checking if Authentik needs initial setup...")
 
-    # Check if akadmin already exists
     try:
         headers = {
             "Authorization": f"Bearer {TOKEN}",
@@ -132,8 +198,7 @@ def setup_akadmin_if_needed() -> str:
             return TOKEN
     except Exception:
         pass
-    
-    # Try install endpoint (for fresh Authentik instances)
+
     try:
         print(
             "  Attempting initial setup via /api/v3/core/install/..."
@@ -157,7 +222,7 @@ def setup_akadmin_if_needed() -> str:
                 return token
     except Exception as e:
         print(f"  Install endpoint failed: {e}")
-    
+
     print("  Skipping setup (may already be configured)")
     return TOKEN
 
@@ -231,6 +296,11 @@ def get_default_scope_mappings() -> list[str]:
     return pks
 
 
+def _build_redirect_uris(primary: str) -> list[dict]:
+    uris = {primary, primary.replace(":5173", ""), "http://localhost", "http://localhost:5173"}
+    return [{"matching_mode": "strict", "url": u} for u in uris if u]
+
+
 def get_default_flow(designation: str) -> str:
     resp = api("GET", f"/flows/instances/?designation={designation}")
     results = resp.get("results", [])
@@ -255,35 +325,35 @@ def create_provider(groups_mapping_pk: str) -> str:
     authz_flow = get_default_flow("authorization")
     invalidation_flow = get_default_flow("invalidation")
 
-    provider = get_or_create(
-        "/providers/oauth2/",
-        "/providers/oauth2/",
-        "name",
-        PROVIDER_NAME,
-        {
-            "name": PROVIDER_NAME,
-            "authentication_flow": auth_flow,
-            "authorization_flow": authz_flow,
-            "invalidation_flow": invalidation_flow,
-            "client_type": "public",
-            "redirect_uris": [
-                {"matching_mode": "strict", "url": REDIRECT_URI},
-                {"matching_mode": "strict", "url": "http://localhost:5173"},
-            ],
-            "signing_key": None,
-            "access_code_validity": "minutes=1",
-            "access_token_validity": "minutes=5",
-            "refresh_token_validity": "days=30",
-            "include_claims_in_id_token": True,
-            "issuer_mode": "global",
-            "property_mappings": scope_pks,
-            "sub_mode": "hashed_user_id",
-        },
-    )
+    payload = {
+        "name": PROVIDER_NAME,
+        "authentication_flow": auth_flow,
+        "authorization_flow": authz_flow,
+        "invalidation_flow": invalidation_flow,
+        "client_type": "public",
+        "redirect_uris": _build_redirect_uris(REDIRECT_URI),
+        "signing_key": None,
+        "access_code_validity": "minutes=1",
+        "access_token_validity": "minutes=5",
+        "refresh_token_validity": "days=30",
+        "include_claims_in_id_token": True,
+        "issuer_mode": "global",
+        "property_mappings": scope_pks,
+        "sub_mode": "hashed_user_id",
+    }
+
+    existing = api("GET", f"/providers/oauth2/?name={PROVIDER_NAME}")
+    results = existing.get("results", [])
+    if results:
+        pk_str = str(results[0]["pk"])
+        provider = api("PUT", f"/providers/oauth2/{pk_str}/", json=payload)
+    else:
+        provider = api("POST", "/providers/oauth2/", json=payload)
+
     pk = provider.get("pk")
     if not pk:
         sys.exit("Failed to get provider pk")
-    pk_str: str = str(pk)
+    pk_str = str(pk)
     client_id = provider.get("client_id", "(see Authentik UI)")
     print(f"  Provider pk={pk_str}, client_id={client_id}")
     return pk_str
@@ -336,6 +406,75 @@ def create_test_users(group_ids: dict[str, str]) -> None:
         )
 
 
+def apply_branding(app_slug: str) -> None:
+    print("Applying EasySpot branding...")
+
+    logo_uri = _svg_data_uri(_LOGO_SVG)
+    favicon_uri = _svg_data_uri(_FAVICON_SVG)
+
+    _patch_default_brand(logo_uri, favicon_uri)
+    _patch_application_icon(app_slug, logo_uri)
+    _patch_authentication_flows()
+
+
+def _patch_default_brand(logo_uri: str, favicon_uri: str) -> None:
+    resp = api("GET", "/core/brands/")
+    brands = resp.get("results", [])
+    default_brand = next((b for b in brands if b.get("default")), None)
+    if not default_brand:
+        print("  No default brand found — skipping brand patch")
+        return
+
+    brand_uuid = default_brand["brand_uuid"]
+    payload = {
+        **default_brand,
+        "branding_title": "EasySpot",
+        "branding_logo": logo_uri,
+        "branding_favicon": favicon_uri,
+    }
+
+    api("PUT", f"/core/brands/{brand_uuid}/", json=payload)
+    print(f"  Default brand '{default_brand.get('domain')}' patched with EasySpot branding")
+
+
+def _patch_application_icon(app_slug: str, icon_uri: str) -> None:
+    resp = api("GET", f"/core/applications/?slug={app_slug}")
+    results = resp.get("results", [])
+    if not results:
+        print(f"  Application '{app_slug}' not found — skipping icon patch")
+        return
+
+    app = results[0]
+    payload = {
+        **app,
+        "meta_icon": icon_uri,
+        "meta_description": "Estacione sem stress, pague só o que usa.",
+        "meta_publisher": "EasySpot",
+    }
+    api("PUT", f"/core/applications/{app_slug}/", json=payload)
+    print(f"  Application '{app_slug}' meta icon + description set")
+
+
+def _patch_authentication_flows() -> None:
+    """Replace the default mountain background and title on all authentication flows."""
+    png_bytes = _make_transparent_png()
+    resp = api("GET", "/flows/instances/?designation=authentication")
+    flows = resp.get("results", [])
+
+    for flow in flows:
+        slug = flow["slug"]
+
+        api("PATCH", f"/flows/instances/{slug}/", json={"title": "Entrar no EasySpot"})
+
+        headers = {"Authorization": f"Bearer {TOKEN}"}
+        requests.post(
+            f"{BASE_URL}/api/v3/flows/instances/{slug}/set_background/",
+            headers=headers,
+            files={"file": ("bg.png", png_bytes, "image/png")},
+        )
+        print(f"  Flow '{slug}': title and background updated")
+
+
 def print_summary(provider_pk: str) -> None:
     provider = api("GET", f"/providers/oauth2/{provider_pk}/")
     print()
@@ -365,7 +504,6 @@ def print_summary(provider_pk: str) -> None:
 def main() -> None:
     wait_ready()
 
-    # Try to auto-setup akadmin if Authentik is fresh
     token = setup_akadmin_if_needed()
 
     if not token:
@@ -380,7 +518,6 @@ def main() -> None:
             " logs authentik-server"
         )
 
-    # Set token globally for api() calls
     global TOKEN
     TOKEN = token
 
@@ -389,6 +526,7 @@ def main() -> None:
     provider_pk = create_provider(groups_mapping_pk)
     create_application(provider_pk)
     create_test_users(group_ids)
+    apply_branding(APP_SLUG)
     print_summary(provider_pk)
 
 

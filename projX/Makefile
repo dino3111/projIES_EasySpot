@@ -25,7 +25,10 @@ logs:
 	$(COMPOSE) logs -f
 
 bootstrap:
-	$(PYTHON) bootstrap_authentik.py
+	@grep -v '^\s*#' .env | grep -v '^\s*$$' | grep -v '^UID=' | grep -v '^GID=' > /tmp/.env.bootstrap && \
+	export $$(cat /tmp/.env.bootstrap | xargs -d '\n') 2>/dev/null; \
+	$(PYTHON) bootstrap_authentik.py; \
+	rm -f /tmp/.env.bootstrap
 
 setup:
 	@if [ ! -f .env ]; then \

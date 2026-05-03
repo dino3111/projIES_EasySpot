@@ -67,6 +67,7 @@ services:
     volumes:
       - authentik-media:/media
       - authentik-certs:/certs
+      - ./authentik-custom.css:/web/dist/custom.css:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -92,6 +93,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - authentik-media:/media
       - authentik-certs:/certs
+      - ./authentik-custom.css:/web/dist/custom.css:ro
     depends_on:
       postgres:
         condition: service_healthy

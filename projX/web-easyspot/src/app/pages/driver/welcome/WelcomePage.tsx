@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
 import { Toaster } from 'sonner';
-import { useProfile, type DriverType, type AccountType } from '../../../context/ProfileContext';
 import { AuthModal } from './AuthModal';
-import { OnboardingModal } from './OnboardingModal';
+import logo from '../../../../assets/logo.svg';
+import logoWhite from '../../../../assets/logo-white.svg';
 
 type ModalMode = 'login' | 'register' | null;
 
@@ -30,17 +29,7 @@ const steps = [
 ];
 
 export function WelcomePage() {
-  const navigate = useNavigate();
-  const { setDriverType, setAccountType: saveAccountType } = useProfile();
-  const [modalMode, setModalMode]   = useState<ModalMode>(null);
-  const [onboardStep, setOnboardStep] = useState(0);
-  const [accountType, setAccountType] = useState<AccountType>('DRIVER');
-
-  const finishOnboarding = (dt: DriverType, at: AccountType) => {
-    setDriverType(dt);
-    saveAccountType(at);
-    navigate('/');
-  };
+  const [modalMode, setModalMode] = useState<ModalMode>(null);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -48,12 +37,7 @@ export function WelcomePage() {
 
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center shadow-md shadow-primary/30">
-              <i className="fas fa-square-parking text-primary-foreground" style={{ fontSize: '0.9rem' }} />
-            </div>
-            <span className="text-foreground font-extrabold" style={{ fontSize: '1.1rem' }}>Easy<span className="text-primary">Spot</span></span>
-          </div>
+          <img src={logo} alt="EasySpot" className="h-8 w-auto" />
           <div className="flex items-center gap-2">
             <button onClick={() => setModalMode('login')} className="px-4 py-2 rounded-full border border-border text-foreground font-semibold hover:bg-muted transition-colors" style={{ fontSize: '0.85rem' }}>Entrar</button>
             <button onClick={() => setModalMode('register')} className="px-4 py-2 rounded-full bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity shadow-md shadow-primary/25" style={{ fontSize: '0.85rem' }}>Criar conta</button>
@@ -62,10 +46,10 @@ export function WelcomePage() {
       </nav>
 
       <section className="relative pt-14 min-h-screen flex items-center justify-center overflow-hidden" style={{ background: 'linear-gradient(135deg, #2e1c7c 0%, #5948a6 40%, #7357ec 100%)' }}>
-        <div className="absolute inset-0 opacity-10" style={{ backgroundImage: `url(https://images.unsplash.com/photo-1518376939577-af724b358f40?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=1080)`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
         <div className="absolute top-20 right-10 w-64 h-64 rounded-full opacity-10" style={{ background: 'radial-gradient(circle, #fff 0%, transparent 70%)' }} />
         <div className="absolute bottom-10 left-10 w-48 h-48 rounded-full opacity-10" style={{ background: 'radial-gradient(circle, #a99be8 0%, transparent 70%)' }} />
         <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 text-center py-20">
+          <img src={logoWhite} alt="EasySpot" className="h-12 w-auto mx-auto mb-6" />
           <h1 className="text-white mb-4" style={{ fontSize: 'clamp(2rem, 5vw, 3.5rem)', fontWeight: 900, lineHeight: 1.1 }}>
             Estacione sem stress,<br /><span style={{ color: '#c4baf0' }}>pague só o que usa.</span>
           </h1>
@@ -165,12 +149,7 @@ export function WelcomePage() {
 
       <footer className="border-t border-border py-8 px-4 sm:px-6">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-lg bg-primary flex items-center justify-center">
-              <i className="fas fa-square-parking text-primary-foreground" style={{ fontSize: '0.65rem' }} />
-            </div>
-            <span className="text-foreground font-bold" style={{ fontSize: '0.875rem' }}>Easy<span className="text-primary">Spot</span></span>
-          </div>
+          <img src={logo} alt="EasySpot" className="h-6 w-auto" />
           <p className="text-muted-foreground" style={{ fontSize: '0.75rem' }}>© 2026 EasySpot · <a href="mailto:suporte@easyspot.pt" className="text-primary hover:underline">suporte@easyspot.pt</a> · Conformidade RGPD</p>
           <div className="flex gap-3">
             {['fa-shield-halved', 'fa-file-contract', 'fa-envelope'].map((ic) => (
@@ -187,18 +166,6 @@ export function WelcomePage() {
           mode={modalMode}
           onClose={() => setModalMode(null)}
           onSwitchMode={setModalMode}
-          onSuccess={() => { setModalMode(null); setOnboardStep(1); }}
-        />
-      )}
-      {onboardStep > 0 && (
-        <OnboardingModal
-          step={onboardStep}
-          accountType={accountType}
-          onSetAccountType={setAccountType}
-          onNext={() => setOnboardStep((s) => s + 1)}
-          onBack={() => setOnboardStep((s) => Math.max(1, s - 1))}
-          onFinish={finishOnboarding}
-          onClose={() => setOnboardStep(0)}
         />
       )}
     </div>
