@@ -26,6 +26,8 @@ Optional env vars:
     REDIRECT_URI        Frontend OAuth2 callback
                         (default: http://localhost:5173/callback)
     BOOTSTRAP_ENV_FILE  Optional explicit .env file path to load first
+    BOOTSTRAP_LOAD_PARENT_ENV
+                        Set to 1/true to also load ../.env
 """
 
 from __future__ import annotations
@@ -51,12 +53,19 @@ def _load_env_file(env_path: str) -> None:
             if not line or line.startswith("#") or "=" not in line:
                 continue
 
+            if line.startswith("export "):
+                line = line[len("export ") :].lstrip()
+                if "=" not in line:
+                    continue
+
             key, value = line.split("=", 1)
             key = key.strip()
             if not key or key in os.environ:
                 continue
 
             value = value.strip()
+            if value and value[0] not in {'"', "'"} and " #" in value:
+                value = value.split(" #", 1)[0].rstrip()
             if (
                 len(value) >= 2
                 and value[0] == value[-1]
@@ -70,32 +79,51 @@ def _load_env_file(env_path: str) -> None:
 def _load_bootstrap_env() -> None:
     script_dir = os.path.dirname(os.path.abspath(__file__))
     explicit_path = os.environ.get("BOOTSTRAP_ENV_FILE", "").strip()
-    candidates = [
-        explicit_path,
-        os.path.join(script_dir, ".env"),
-        os.path.join(script_dir, "..", ".env"),
-    ]
+    load_parent = os.environ.get("BOOTSTRAP_LOAD_PARENT_ENV", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+    if explicit_path:
+        candidates = [explicit_path]
+    else:
+        candidates = [os.path.join(script_dir, ".env")]
+        if load_parent:
+            candidates.append(os.path.join(script_dir, "..", ".env"))
+
     for candidate in candidates:
         _load_env_file(os.path.abspath(candidate) if candidate else "")
 
 
-_load_bootstrap_env()
+BASE_URL = ""
+TOKEN = ""
+REDIRECT_URI = ""
+_AUTHENTIK_HOST = ""
+ISSUER_URI = ""
 
-BASE_URL = os.environ.get("AUTHENTIK_URL", "http://localhost:9000/authentik").rstrip("/")
-TOKEN: str = (
-    os.environ.get("AUTHENTIK_TOKEN")
-    or os.environ.get("AUTHENTIK_BOOTSTRAP_TOKEN")
-    or ""
-)
-REDIRECT_URI = os.environ.get(
-    "REDIRECT_URI", "http://localhost/callback"
-)
+
+def _refresh_runtime_config() -> None:
+    global BASE_URL
+    global TOKEN
+    global REDIRECT_URI
+    global _AUTHENTIK_HOST
+    global ISSUER_URI
+
+    BASE_URL = os.environ.get("AUTHENTIK_URL", "http://localhost:9000/authentik").rstrip("/")
+    TOKEN = (
+        os.environ.get("AUTHENTIK_TOKEN")
+        or os.environ.get("AUTHENTIK_BOOTSTRAP_TOKEN")
+        or ""
+    )
+    REDIRECT_URI = os.environ.get("REDIRECT_URI", "http://localhost/callback")
+    _AUTHENTIK_HOST = os.environ.get("AUTHENTIK_URL", "http://localhost:9000").rstrip("/").removesuffix("/authentik")
+    ISSUER_URI = f"{_AUTHENTIK_HOST}/application/o/{APP_SLUG}/"
 
 APP_SLUG = "easyspot"
 APP_NAME = "EasySpot"
 PROVIDER_NAME = "easyspot-oauth2"
-_AUTHENTIK_HOST = os.environ.get("AUTHENTIK_URL", "http://localhost:9000").rstrip("/").removesuffix("/authentik")
-ISSUER_URI = f"{_AUTHENTIK_HOST}/application/o/{APP_SLUG}/"
 
 ROLES = ["DRIVER", "MANAGER", "TECHNICAL"]
 
@@ -733,6 +761,9 @@ def _bind_stage(flow_pk: str, stage_pk: str, order: int) -> None:
 
 
 def main() -> None:
+    _load_bootstrap_env()
+    _refresh_runtime_config()
+
     wait_ready()
 
     token = setup_akadmin_if_needed()
