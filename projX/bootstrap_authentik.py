@@ -540,6 +540,156 @@ def print_summary(provider_pk: str) -> None:
     print("=" * 60)
 
 
+ENROLLMENT_FLOW_SLUG = "easyspot-enrollment"
+
+
+def create_enrollment_flow() -> None:
+    print("Creating enrollment flow...")
+
+    prompt_pk = _get_or_create_enrollment_prompt_stage()
+    write_pk = _get_or_create_enrollment_write_stage()
+    login_pk = _get_or_create_enrollment_login_stage()
+
+    flow = get_or_create(
+        "/flows/instances/",
+        "/flows/instances/",
+        "slug",
+        ENROLLMENT_FLOW_SLUG,
+        {
+            "name": "EasySpot Enrollment",
+            "slug": ENROLLMENT_FLOW_SLUG,
+            "title": "Criar conta EasySpot",
+            "designation": "enrollment",
+            "authentication": "none",
+            "policy_engine_mode": "any",
+            "denied_action": "message_continue",
+            "layout": "stacked",
+        },
+    )
+    flow_slug = flow["slug"]
+
+    flow_pk = str(flow["pk"])
+    _bind_stage(flow_pk, prompt_pk, order=10)
+    _bind_stage(flow_pk, write_pk, order=20)
+    _bind_stage(flow_pk, login_pk, order=30)
+
+    print(f"  Enrollment flow '{flow_slug}' ready")
+
+
+def _get_or_create_enrollment_prompt_stage() -> str:
+    name = "easyspot-enrollment-prompt"
+
+    field_pks = [
+        _get_or_create_prompt("easyspot-enrollment-name", {
+            "field_key": "name",
+            "label": "Nome completo",
+            "type": "text",
+            "required": True,
+            "placeholder": "",
+            "order": 100,
+            "sub_text": "",
+        }),
+        _get_or_create_prompt("easyspot-enrollment-username", {
+            "field_key": "username",
+            "label": "Nome de utilizador",
+            "type": "username",
+            "required": True,
+            "placeholder": "",
+            "order": 200,
+            "sub_text": "",
+        }),
+        _get_or_create_prompt("easyspot-enrollment-email", {
+            "field_key": "email",
+            "label": "Email",
+            "type": "email",
+            "required": True,
+            "placeholder": "",
+            "order": 300,
+            "sub_text": "",
+        }),
+        _get_or_create_prompt("easyspot-enrollment-password", {
+            "field_key": "password",
+            "label": "Palavra-passe",
+            "type": "password",
+            "required": True,
+            "placeholder": "",
+            "order": 400,
+            "sub_text": "",
+        }),
+        _get_or_create_prompt("easyspot-enrollment-password-repeat", {
+            "field_key": "password_repeat",
+            "label": "Repetir palavra-passe",
+            "type": "password",
+            "required": True,
+            "placeholder": "",
+            "order": 500,
+            "sub_text": "",
+        }),
+    ]
+
+    existing = api("GET", f"/stages/prompt/stages/?name={name}")
+    if existing.get("results"):
+        stage = existing["results"][0]
+        api("PATCH", f"/stages/prompt/stages/{stage['pk']}/", json={"fields": field_pks})
+        return str(stage["pk"])
+
+    stage = api("POST", "/stages/prompt/stages/", json={
+        "name": name,
+        "fields": field_pks,
+        "validation_policies": [],
+    })
+    return str(stage["pk"])
+
+
+def _get_or_create_prompt(name: str, payload: dict) -> str:
+    existing = api("GET", f"/stages/prompt/prompts/?name={name}")
+    if existing.get("results"):
+        return str(existing["results"][0]["pk"])
+    result = api("POST", "/stages/prompt/prompts/", json={"name": name, **payload})
+    return str(result["pk"])
+
+
+def _get_or_create_enrollment_write_stage() -> str:
+    name = "easyspot-enrollment-write"
+    existing = api("GET", f"/stages/user_write/?name={name}")
+    if existing.get("results"):
+        return str(existing["results"][0]["pk"])
+    stage = api("POST", "/stages/user_write/", json={
+        "name": name,
+        "user_creation_mode": "always_create",
+        "create_users_as_inactive": False,
+        "create_users_group": None,
+    })
+    return str(stage["pk"])
+
+
+def _get_or_create_enrollment_login_stage() -> str:
+    name = "easyspot-enrollment-login"
+    existing = api("GET", f"/stages/user_login/?name={name}")
+    if existing.get("results"):
+        return str(existing["results"][0]["pk"])
+    stage = api("POST", "/stages/user_login/", json={
+        "name": name,
+        "session_duration": "seconds=0",
+        "terminate_other_sessions": False,
+        "remember_me_offset": "seconds=0",
+    })
+    return str(stage["pk"])
+
+
+def _bind_stage(flow_pk: str, stage_pk: str, order: int) -> None:
+    existing = api("GET", f"/flows/bindings/?target={flow_pk}&stage={stage_pk}")
+    if existing.get("results"):
+        return
+    api("POST", "/flows/bindings/", json={
+        "target": flow_pk,
+        "stage": stage_pk,
+        "order": order,
+        "enabled": True,
+        "policy_engine_mode": "any",
+    })
+
+
 def main() -> None:
     wait_ready()
 
@@ -564,6 +714,7 @@ def main() -> None:
     groups_mapping_pk = create_groups_property_mapping()
     provider_pk = create_provider(groups_mapping_pk)
     create_application(provider_pk)
+    create_enrollment_flow()
     create_test_users(group_ids)
     apply_branding(APP_SLUG)
     print_summary(provider_pk)
