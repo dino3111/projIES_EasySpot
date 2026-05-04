@@ -8,7 +8,7 @@ const REDIRECT_URI   = import.meta.env.VITE_AUTHENTIK_REDIRECT_URI ?? 'http://lo
 const AUTHORIZE_URL  = `${AUTHENTIK_BASE}/application/o/authorize/`;
 const TOKEN_URL      = `${AUTHENTIK_BASE}/application/o/token/`;
 const LOGOUT_URL     = `${AUTHENTIK_BASE}/application/o/easyspot/end-session/`;
-const ENROLLMENT_URL = `${AUTHENTIK_BASE}/if/flow/default-enrollment-flow/`;
+const ENROLLMENT_URL = `${AUTHENTIK_BASE}/if/flow/easyspot-enrollment/`;
 
 const SK = {
   accessToken:  'es_access_token',
