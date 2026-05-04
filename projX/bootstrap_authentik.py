@@ -25,6 +25,7 @@ Optional env vars:
     AUTHENTIK_TOKEN     API token (optional if auto-setup works)
     REDIRECT_URI        Frontend OAuth2 callback
                         (default: http://localhost:5173/callback)
+    BOOTSTRAP_ENV_FILE  Optional explicit .env file path to load first
 """
 
 from __future__ import annotations
@@ -38,6 +39,47 @@ import zlib
 from urllib.parse import urlparse
 
 import requests  # type: ignore[import]
+
+
+def _load_env_file(env_path: str) -> None:
+    if not env_path or not os.path.isfile(env_path):
+        return
+
+    with open(env_path, encoding="utf-8") as env_file:
+        for raw_line in env_file:
+            line = raw_line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+
+            key, value = line.split("=", 1)
+            key = key.strip()
+            if not key or key in os.environ:
+                continue
+
+            value = value.strip()
+            if (
+                len(value) >= 2
+                and value[0] == value[-1]
+                and value[0] in {'"', "'"}
+            ):
+                value = value[1:-1]
+
+            os.environ[key] = value
+
+
+def _load_bootstrap_env() -> None:
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    explicit_path = os.environ.get("BOOTSTRAP_ENV_FILE", "").strip()
+    candidates = [
+        explicit_path,
+        os.path.join(script_dir, ".env"),
+        os.path.join(script_dir, "..", ".env"),
+    ]
+    for candidate in candidates:
+        _load_env_file(os.path.abspath(candidate) if candidate else "")
+
+
+_load_bootstrap_env()
 
 BASE_URL = os.environ.get("AUTHENTIK_URL", "http://localhost:9000/authentik").rstrip("/")
 TOKEN: str = (
