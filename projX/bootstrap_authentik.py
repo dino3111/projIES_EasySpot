@@ -35,6 +35,7 @@ import struct
 import sys
 import time
 import zlib
+from urllib.parse import urlparse
 
 import requests  # type: ignore[import]
 
@@ -301,6 +302,25 @@ def _build_redirect_uris(primary: str) -> list[dict]:
     return [{"matching_mode": "strict", "url": u} for u in uris if u]
 
 
+def _build_post_logout_redirect_uris() -> list[dict]:
+    frontend_origin = urlparse(REDIRECT_URI)._replace(path="", params="", query="", fragment="")
+    welcome_url = frontend_origin._replace(path="/welcome").geturl()
+    uris = {
+        welcome_url,
+        "http://localhost/welcome",
+        "http://localhost:5173/welcome",
+    }
+    return [
+        {
+            "matching_mode": "strict",
+            "redirect_uri_type": "logout",
+            "url": u,
+        }
+        for u in uris
+        if u
+    ]
+
+
 def get_default_flow(designation: str) -> str:
     resp = api("GET", f"/flows/instances/?designation={designation}")
     results = resp.get("results", [])
@@ -331,7 +351,8 @@ def create_provider(groups_mapping_pk: str) -> str:
         "authorization_flow": authz_flow,
         "invalidation_flow": invalidation_flow,
         "client_type": "public",
-        "redirect_uris": _build_redirect_uris(REDIRECT_URI),
+        "redirect_uris": _build_redirect_uris(REDIRECT_URI)
+        + _build_post_logout_redirect_uris(),
         "signing_key": None,
         "access_code_validity": "minutes=1",
         "access_token_validity": "minutes=5",
@@ -417,6 +438,16 @@ def apply_branding(app_slug: str) -> None:
     _patch_authentication_flows()
 
 
+def _load_custom_css() -> str:
+    css_path = os.path.join(os.path.dirname(__file__), "authentik-custom.css")
+    try:
+        with open(css_path, encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        print(f"  Warning: {css_path} not found — skipping custom CSS")
+        return ""
+
+
 def _patch_default_brand(logo_uri: str, favicon_uri: str) -> None:
     resp = api("GET", "/core/brands/")
     brands = resp.get("results", [])
@@ -426,15 +457,23 @@ def _patch_default_brand(logo_uri: str, favicon_uri: str) -> None:
         return
 
     brand_uuid = default_brand["brand_uuid"]
+    supports_branding_custom_css = "branding_custom_css" in default_brand
     payload = {
         **default_brand,
         "branding_title": "EasySpot",
         "branding_logo": logo_uri,
         "branding_favicon": favicon_uri,
     }
+    if supports_branding_custom_css:
+        payload["branding_custom_css"] = _load_custom_css()
 
     api("PUT", f"/core/brands/{brand_uuid}/", json=payload)
-    print(f"  Default brand '{default_brand.get('domain')}' patched with EasySpot branding")
+    if supports_branding_custom_css:
+        print(
+            f"  Default brand '{default_brand.get('domain')}' patched with EasySpot branding + custom CSS"
+        )
+    else:
+        print(f"  Default brand '{default_brand.get('domain')}' patched with EasySpot branding")
 
 
 def _patch_application_icon(app_slug: str, icon_uri: str) -> None:

@@ -5,9 +5,10 @@ const AUTHENTIK_BASE = (import.meta.env.VITE_AUTHENTIK_URL ?? 'http://localhost:
 const CLIENT_ID      = import.meta.env.VITE_AUTHENTIK_CLIENT_ID ?? '';
 const REDIRECT_URI   = import.meta.env.VITE_AUTHENTIK_REDIRECT_URI ?? 'http://localhost/callback';
 
-const AUTHORIZE_URL = `${AUTHENTIK_BASE}/application/o/authorize/`;
-const TOKEN_URL     = `${AUTHENTIK_BASE}/application/o/token/`;
-const LOGOUT_URL    = `${AUTHENTIK_BASE}/application/o/easyspot/end-session/`;
+const AUTHORIZE_URL  = `${AUTHENTIK_BASE}/application/o/authorize/`;
+const TOKEN_URL      = `${AUTHENTIK_BASE}/application/o/token/`;
+const LOGOUT_URL     = `${AUTHENTIK_BASE}/application/o/easyspot/end-session/`;
+const ENROLLMENT_URL = `${AUTHENTIK_BASE}/if/flow/default-enrollment-flow/`;
 
 const SK = {
   accessToken:  'es_access_token',
@@ -29,6 +30,7 @@ interface AuthContextType {
   accessToken: string | null;
   isLoading: boolean;
   login: () => Promise<void>;
+  register: () => void;
   logout: () => void;
   handleCallback: (code: string, state: string) => Promise<void>;
 }
@@ -116,6 +118,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.location.href = `${AUTHORIZE_URL}?${params.toString()}`;
   }, []);
 
+  const register = useCallback(() => {
+    window.location.href = ENROLLMENT_URL;
+  }, []);
+
   const handleCallback = useCallback(async (code: string, state: string) => {
     const savedState   = sessionStorage.getItem(SK.pkceState);
     const codeVerifier = sessionStorage.getItem(SK.pkceVerifier);
@@ -173,7 +179,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, accessToken, isLoading, login, logout, handleCallback }}>
+    <AuthContext.Provider value={{ user, accessToken, isLoading, login, register, logout, handleCallback }}>
       {children}
     </AuthContext.Provider>
   );

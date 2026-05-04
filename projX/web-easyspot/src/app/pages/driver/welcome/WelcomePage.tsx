@@ -1,10 +1,7 @@
-import { useState } from 'react';
 import { Toaster } from 'sonner';
-import { AuthModal } from './AuthModal';
+import { useAuth } from '../../../context/AuthContext';
 import logo from '../../../../assets/logo.svg';
 import logoWhite from '../../../../assets/logo-white.svg';
-
-type ModalMode = 'login' | 'register' | null;
 
 const features = [
   { icon: 'fa-satellite-dish',   title: 'Sensores em Tempo Real',     desc: 'Infravermelhos e LEDs em cada lugar. Disponibilidade atualizada ao segundo.' },
@@ -29,7 +26,7 @@ const steps = [
 ];
 
 export function WelcomePage() {
-  const [modalMode, setModalMode] = useState<ModalMode>(null);
+  const { login, register } = useAuth();
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -39,8 +36,8 @@ export function WelcomePage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <img src={logo} alt="EasySpot" className="h-8 w-auto" />
           <div className="flex items-center gap-2">
-            <button onClick={() => setModalMode('login')} className="px-4 py-2 rounded-full border border-border text-foreground font-semibold hover:bg-muted transition-colors" style={{ fontSize: '0.85rem' }}>Entrar</button>
-            <button onClick={() => setModalMode('register')} className="px-4 py-2 rounded-full bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity shadow-md shadow-primary/25" style={{ fontSize: '0.85rem' }}>Criar conta</button>
+            <button onClick={login} className="px-4 py-2 rounded-full border border-border text-foreground font-semibold hover:bg-muted transition-colors" style={{ fontSize: '0.85rem' }}>Entrar</button>
+            <button onClick={register} className="px-4 py-2 rounded-full bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity shadow-md shadow-primary/25" style={{ fontSize: '0.85rem' }}>Criar conta</button>
           </div>
         </div>
       </nav>
@@ -57,10 +54,10 @@ export function WelcomePage() {
             Disponibilidade em tempo real, carregadores EV, lugares acessíveis e cobrança automática. Tudo numa só app.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center mb-12">
-            <button onClick={() => setModalMode('register')} className="px-7 py-3.5 rounded-full bg-white text-primary font-extrabold hover:bg-white/90 shadow-xl transition-all active:scale-[0.98]" style={{ fontSize: '0.95rem' }}>
+            <button onClick={register} className="px-7 py-3.5 rounded-full bg-white text-primary font-extrabold hover:bg-white/90 shadow-xl transition-all active:scale-[0.98]" style={{ fontSize: '0.95rem' }}>
               <i className="fas fa-rocket mr-2" />Começar gratuitamente
             </button>
-            <button onClick={() => setModalMode('login')} className="px-7 py-3.5 rounded-full border-2 border-white/40 text-white font-semibold hover:bg-white/10 transition-all" style={{ fontSize: '0.95rem' }}>
+            <button onClick={login} className="px-7 py-3.5 rounded-full border-2 border-white/40 text-white font-semibold hover:bg-white/10 transition-all" style={{ fontSize: '0.95rem' }}>
               <i className="fas fa-sign-in-alt mr-2" />Já tenho conta
             </button>
           </div>
@@ -140,7 +137,7 @@ export function WelcomePage() {
           <div className="relative z-10">
             <h2 className="text-white mb-3" style={{ fontSize: 'clamp(1.4rem, 3vw, 2rem)', fontWeight: 800 }}>Comece agora. É gratuito.</h2>
             <p className="text-white/75 mb-7" style={{ fontSize: '0.9rem' }}>Sem compromisso. Configure a sua conta em menos de 3 minutos e estacione de forma mais inteligente.</p>
-            <button onClick={() => setModalMode('register')} className="px-8 py-3.5 rounded-full bg-white font-extrabold hover:bg-white/90 transition-all shadow-xl active:scale-[0.98]" style={{ fontSize: '0.95rem', color: '#7357ec' }}>
+            <button onClick={register} className="px-8 py-3.5 rounded-full bg-white font-extrabold hover:bg-white/90 transition-all shadow-xl active:scale-[0.98]" style={{ fontSize: '0.95rem', color: '#7357ec' }}>
               <i className="fas fa-arrow-right mr-2" />Criar conta gratuita
             </button>
           </div>
@@ -161,13 +158,6 @@ export function WelcomePage() {
         </div>
       </footer>
 
-      {modalMode && (
-        <AuthModal
-          mode={modalMode}
-          onClose={() => setModalMode(null)}
-          onSwitchMode={setModalMode}
-        />
-      )}
     </div>
   );
 }
