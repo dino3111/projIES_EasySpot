@@ -17,6 +17,7 @@ import pt.ua.deti.apieasyspot.billing.dto.*;
 import pt.ua.deti.apieasyspot.billing.service.StripeService;
 
 import java.util.UUID;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api")
@@ -89,6 +90,33 @@ public class PaymentController {
     public ResponseEntity<String> createCustomerPortalSession(
             @AuthenticationPrincipal Jwt jwt) throws StripeException {
         return ResponseEntity.ok(stripeService.createCustomerPortalSession(jwt.getSubject(), jwt.getClaimAsString("email")));
+    }
+
+    @Operation(summary = "List Stripe payment methods for authenticated user")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Payment methods listed successfully"),
+        @ApiResponse(responseCode = "401", description = "Missing or invalid authentication token")
+    })
+    @GetMapping("/payments/methods")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<PaymentMethodSummaryResponse>> listPaymentMethods(
+            @AuthenticationPrincipal Jwt jwt) throws StripeException {
+        return ResponseEntity.ok(stripeService.listPaymentMethods(jwt.getSubject(), jwt.getClaimAsString("email")));
+    }
+
+    @Operation(summary = "Detach Stripe payment method for authenticated user")
+    @ApiResponses({
+        @ApiResponse(responseCode = "204", description = "Payment method detached successfully"),
+        @ApiResponse(responseCode = "401", description = "Missing or invalid authentication token"),
+        @ApiResponse(responseCode = "404", description = "Payment method not found")
+    })
+    @DeleteMapping("/payments/methods/{paymentMethodId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> detachPaymentMethod(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable String paymentMethodId) throws StripeException {
+        stripeService.detachPaymentMethod(jwt.getSubject(), jwt.getClaimAsString("email"), paymentMethodId);
+        return ResponseEntity.noContent().build();
     }
 
     @Operation(summary = "Get Payment Status")

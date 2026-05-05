@@ -5,8 +5,10 @@ import com.stripe.exception.StripeException;
 import com.stripe.model.Charge;
 import com.stripe.model.Event;
 import com.stripe.model.PaymentIntent;
+import com.stripe.model.PaymentMethod;
 import com.stripe.model.Refund;
 import com.stripe.model.PaymentMethodCollection;
+import com.stripe.model.Customer;
 import com.stripe.model.checkout.Session;
 import com.stripe.net.RequestOptions;
 import com.stripe.net.Webhook;
@@ -24,6 +26,7 @@ import pt.ua.deti.apieasyspot.billing.dto.CheckoutSessionRequest;
 import pt.ua.deti.apieasyspot.billing.dto.CheckoutSessionResponse;
 import pt.ua.deti.apieasyspot.billing.dto.PaymentSetupStatusResponse;
 import pt.ua.deti.apieasyspot.billing.dto.PaymentStatusResponse;
+import pt.ua.deti.apieasyspot.billing.dto.PaymentMethodSummaryResponse;
 import pt.ua.deti.apieasyspot.billing.dto.RefundRequest;
 import pt.ua.deti.apieasyspot.billing.model.PaymentRecord;
 import pt.ua.deti.apieasyspot.billing.model.PaymentStatus;
@@ -35,6 +38,7 @@ import pt.ua.deti.apieasyspot.common.exception.UnprocessableEntityException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -301,6 +305,50 @@ public class StripeService {
         return new PaymentSetupStatusResponse(configured);
     }
 
+    public List<PaymentMethodSummaryResponse> listPaymentMethods(String authentikUserId, String tokenEmail) throws StripeException {
+        ensureStripeConfigured();
+        String customerEmail = resolveCustomerEmail(authentikUserId, tokenEmail);
+        String customerId = findCustomerIdByEmail(customerEmail);
+
+        if (customerId == null) {
+            return List.of();
+        }
+
+        Customer customer = Customer.retrieve(customerId);
+        String defaultPaymentMethodId = customer.getInvoiceSettings() != null
+            ? customer.getInvoiceSettings().getDefaultPaymentMethod()
+            : null;
+
+        PaymentMethodCollection paymentMethods = PaymentMethod.list(
+            com.stripe.param.PaymentMethodListParams.builder()
+                .setCustomer(customerId)
+                .setLimit(20L)
+                .build()
+        );
+
+        return paymentMethods.getData().stream()
+            .map(method -> toSummary(method, defaultPaymentMethodId))
+            .toList();
+    }
+
+    public void detachPaymentMethod(String authentikUserId, String tokenEmail, String paymentMethodId) throws StripeException {
+        ensureStripeConfigured();
+        String customerEmail = resolveCustomerEmail(authentikUserId, tokenEmail);
+        String customerId = findCustomerIdByEmail(customerEmail);
+
+        if (customerId == null) {
+            throw new ResourceNotFoundException("No Stripe customer found for authenticated user");
+        }
+
+        PaymentMethod method = PaymentMethod.retrieve(paymentMethodId);
+        if (method.getCustomer() == null || !customerId.equals(method.getCustomer())) {
+            throw new ResourceNotFoundException("Payment method not found for authenticated user");
+        }
+
+        method.detach();
+        log.info("Detached Stripe payment method {} for user={} customer={}", paymentMethodId, authentikUserId, customerId);
+    }
+
     private void ensureStripeConfigured() {
         if (!StringUtils.hasText(stripeApiKey)) {
             throw new IllegalStateException("Stripe is not configured on the server");
@@ -326,5 +374,27 @@ public class StripeService {
             .filter(StringUtils::hasText)
             .orElseThrow(() -> new IllegalStateException(
                 "Authenticated user does not have an email address available for Stripe"));
+    }
+
+    private PaymentMethodSummaryResponse toSummary(PaymentMethod method, String defaultPaymentMethodId) {
+        String brand = null;
+        String last4 = null;
+        Long expMonth = null;
+        Long expYear = null;
+        if (method.getCard() != null) {
+            brand = method.getCard().getBrand();
+            last4 = method.getCard().getLast4();
+            expMonth = method.getCard().getExpMonth();
+            expYear = method.getCard().getExpYear();
+        }
+        return new PaymentMethodSummaryResponse(
+            method.getId(),
+            method.getType(),
+            brand,
+            last4,
+            expMonth,
+            expYear,
+            method.getId().equals(defaultPaymentMethodId)
+        );
     }
 }

@@ -1,15 +1,84 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { useProfile } from '../../../context/ProfileContext';
+import { paymentApi, type PaymentMethodSummaryResponse } from '../../../../services/apiService';
 import { SectionHeader, UserTypeOption, ToggleRow, StatCard, AccountRow, AccountRowWithBadge } from './ProfilePrimitives';
+import { StepPaymentStripe } from '../welcome/StepPaymentStripe';
 
 export function DriverProfile() {
   const { driverType, setDriverType, vehicles } = useProfile();
+  const [activeTab, setActiveTab] = useState<'profile' | 'payments'>('profile');
   const [notifications, setNotifications] = useState(true);
   const [realtime, setRealtime] = useState(true);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethodSummaryResponse[]>([]);
+  const [loadingPayments, setLoadingPayments] = useState(false);
+  const [paymentsError, setPaymentsError] = useState<string | null>(null);
+  const [showAddPaymentModal, setShowAddPaymentModal] = useState(false);
+  const [removingId, setRemovingId] = useState<string | null>(null);
+
+  const loadPaymentMethods = async () => {
+    setLoadingPayments(true);
+    setPaymentsError(null);
+    try {
+      const methods = await paymentApi.listMethods();
+      setPaymentMethods(methods);
+    } catch (error) {
+      setPaymentsError(error instanceof Error ? error.message : 'Não foi possível carregar métodos de pagamento.');
+    } finally {
+      setLoadingPayments(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'payments') {
+      loadPaymentMethods();
+    }
+  }, [activeTab]);
+
+  const handleRemoveMethod = async (id: string) => {
+    setRemovingId(id);
+    try {
+      await paymentApi.removeMethod(id);
+      await loadPaymentMethods();
+    } catch (error) {
+      setPaymentsError(error instanceof Error ? error.message : 'Não foi possível remover o método.');
+    } finally {
+      setRemovingId(null);
+    }
+  };
+
+  const openCustomerPortal = async () => {
+    try {
+      const url = await paymentApi.createCustomerPortalSession();
+      window.location.href = url;
+    } catch (error) {
+      setPaymentsError(error instanceof Error ? error.message : 'Não foi possível abrir o portal Stripe.');
+    }
+  };
 
   return (
     <>
+      <div className="rounded-2xl p-1 mb-5 bg-card border border-border flex">
+        <button
+          type="button"
+          onClick={() => setActiveTab('profile')}
+          className={`flex-1 py-2.5 rounded-xl font-semibold transition-all ${activeTab === 'profile' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted/50'}`}
+          style={{ fontSize: '0.82rem' }}
+        >
+          Perfil
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('payments')}
+          className={`flex-1 py-2.5 rounded-xl font-semibold transition-all ${activeTab === 'payments' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted/50'}`}
+          style={{ fontSize: '0.82rem' }}
+        >
+          Pagamentos
+        </button>
+      </div>
+
+      {activeTab === 'profile' ? (
+        <>
       <SectionHeader icon="fa-car" title="Os Meus Veículos" />
       <div className="rounded-2xl overflow-hidden mb-5 bg-card border border-border">
         <AccountRowWithBadge to="/vehicles" icon="fa-car-side" label="Gerir Veículos" badge={vehicles.length > 0 ? String(vehicles.length) : undefined} />
@@ -51,6 +120,102 @@ export function DriverProfile() {
         <div className="h-px bg-border mx-4" />
         <AccountRow to="/report" icon="fa-flag" label="Reportar Problema" accent />
       </div>
+        </>
+      ) : (
+        <>
+      <SectionHeader icon="fa-credit-card" title="Métodos de Pagamento Stripe" />
+      <div className="rounded-2xl p-4 mb-5 bg-card border border-border space-y-3">
+        <p className="text-muted-foreground" style={{ fontSize: '0.78rem' }}>
+          Consulte, adicione e remova métodos de pagamento associados à sua conta Stripe.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setShowAddPaymentModal(true)}
+            className="px-3.5 py-2 rounded-xl bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-all"
+            style={{ fontSize: '0.78rem' }}
+          >
+            <i className="fas fa-plus mr-1.5" />
+            Adicionar método
+          </button>
+          <button
+            type="button"
+            onClick={openCustomerPortal}
+            className="px-3.5 py-2 rounded-xl border border-border text-foreground font-semibold hover:bg-muted/40 transition-all"
+            style={{ fontSize: '0.78rem' }}
+          >
+            <i className="fas fa-up-right-from-square mr-1.5" />
+            Abrir portal Stripe
+          </button>
+          <button
+            type="button"
+            onClick={loadPaymentMethods}
+            className="px-3.5 py-2 rounded-xl border border-border text-foreground font-semibold hover:bg-muted/40 transition-all"
+            style={{ fontSize: '0.78rem' }}
+          >
+            <i className={`fas ${loadingPayments ? 'fa-spinner fa-spin' : 'fa-rotate-right'} mr-1.5`} />
+            Atualizar
+          </button>
+        </div>
+        {paymentsError && (
+          <div className="rounded-xl border border-error/30 bg-error/10 p-3 text-error" style={{ fontSize: '0.75rem' }}>
+            {paymentsError}
+          </div>
+        )}
+        <div className="space-y-2">
+          {loadingPayments && (
+            <div className="text-muted-foreground" style={{ fontSize: '0.78rem' }}>A carregar métodos...</div>
+          )}
+          {!loadingPayments && paymentMethods.length === 0 && !paymentsError && (
+            <div className="text-muted-foreground" style={{ fontSize: '0.78rem' }}>Sem métodos guardados.</div>
+          )}
+          {!loadingPayments && paymentMethods.map((method) => (
+            <div key={method.id} className="rounded-xl border border-border p-3 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-foreground font-semibold" style={{ fontSize: '0.82rem' }}>
+                  {method.brand ? `${method.brand.toUpperCase()} •••• ${method.last4 ?? '----'}` : `${method.type} (${method.id})`}
+                </p>
+                <p className="text-muted-foreground" style={{ fontSize: '0.72rem' }}>
+                  {method.expMonth && method.expYear ? `Validade ${String(method.expMonth).padStart(2, '0')}/${method.expYear}` : 'Sem validade disponível'}
+                  {method.isDefault ? ' · Predefinido' : ''}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleRemoveMethod(method.id)}
+                disabled={removingId === method.id}
+                className="px-2.5 py-1.5 rounded-lg border border-error/30 text-error hover:bg-error/10 disabled:opacity-50"
+                style={{ fontSize: '0.72rem' }}
+              >
+                {removingId === method.id ? 'A remover...' : 'Remover'}
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+        </>
+      )}
+
+      {showAddPaymentModal && (
+        <div className="fixed inset-0 z-[220] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }}>
+          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-foreground font-bold" style={{ fontSize: '0.95rem' }}>Adicionar método de pagamento</h3>
+              <button type="button" onClick={() => setShowAddPaymentModal(false)} className="text-muted-foreground hover:text-foreground">
+                <i className="fas fa-times" />
+              </button>
+            </div>
+            <StepPaymentStripe
+              onReady={(confirmed) => {
+                if (confirmed) {
+                  setShowAddPaymentModal(false);
+                  loadPaymentMethods();
+                }
+              }}
+            />
+          </div>
+        </div>
+      )}
     </>
   );
 }

@@ -16,14 +16,21 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     let errorMessage = `HTTP ${res.status}`;
+    const isHtmlError = text.trim().startsWith('<!DOCTYPE html') || text.trim().startsWith('<html');
     if (text) {
-      try {
-        const json = JSON.parse(text);
-        if (json.detail) errorMessage = json.detail;
-        else if (json.message) errorMessage = json.message;
-        else errorMessage = text;
-      } catch (e) {
-        errorMessage = text;
+      if (!isHtmlError) {
+        try {
+          const json = JSON.parse(text);
+          if (json.detail) errorMessage = json.detail;
+          else if (json.message) errorMessage = json.message;
+          else errorMessage = text;
+        } catch (e) {
+          errorMessage = text;
+        }
+      } else if (res.status === 502) {
+        errorMessage = 'Serviço de pagamentos temporariamente indisponível (502). Tente novamente em alguns segundos.';
+      } else {
+        errorMessage = `Erro de servidor (${res.status}).`;
       }
     }
     throw new Error(errorMessage);
@@ -69,6 +76,16 @@ export interface VehicleLookupResponse {
 
 export interface PaymentSetupStatusResponse {
   configured: boolean;
+}
+
+export interface PaymentMethodSummaryResponse {
+  id: string;
+  type: string;
+  brand: string | null;
+  last4: string | null;
+  expMonth: number | null;
+  expYear: number | null;
+  isDefault: boolean;
 }
 
 export interface DriverProfileResponse {
@@ -123,6 +140,10 @@ export const vehicleApi = {
 export const paymentApi = {
   createSetupIntent: () => request<string>('/api/payments/setup-intent', { method: 'POST' }),
   getSetupStatus: () => request<PaymentSetupStatusResponse>('/api/payments/setup-status'),
+  listMethods: () => request<PaymentMethodSummaryResponse[]>('/api/payments/methods'),
+  removeMethod: (paymentMethodId: string) =>
+    request<void>(`/api/payments/methods/${paymentMethodId}`, { method: 'DELETE' }),
+  createCustomerPortalSession: () => request<string>('/api/payments/customer-portal'),
 };
 
 export const profileApi = {
