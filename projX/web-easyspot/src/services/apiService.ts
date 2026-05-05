@@ -29,7 +29,14 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
     throw new Error(errorMessage);
   }
   const text = await res.text();
-  return text ? (JSON.parse(text) as T) : (undefined as T);
+  if (!text) return undefined as T;
+
+  const contentType = res.headers.get('content-type') ?? '';
+  if (contentType.includes('application/json')) {
+    return JSON.parse(text) as T;
+  }
+
+  return text as T;
 }
 
 export interface VehicleResponse {
@@ -48,6 +55,52 @@ export interface VehicleResponse {
   isPrimary: boolean;
 }
 
+export interface VehicleLookupResponse {
+  plate?: string;
+  vin?: string;
+  make?: string;
+  model?: string;
+  version?: string;
+  plateDate?: string;
+  color?: string;
+  fuelType?: string;
+  categoryType?: string;
+}
+
+export interface PaymentSetupStatusResponse {
+  configured: boolean;
+}
+
+export interface DriverProfileResponse {
+  name: string;
+  email: string;
+  role: string;
+  photoUrl: string | null;
+  driverType: 'regular' | 'ev' | 'reduced_mobility' | null;
+  notificationsEnabled: boolean;
+  pushNotificationsEnabled: boolean;
+  emailNotificationsEnabled: boolean;
+  spending: unknown;
+  favoritesCount: number;
+}
+
+export interface ProfileUpdateRequest {
+  driverType?: 'regular' | 'ev' | 'reduced_mobility' | null;
+  notificationsEnabled?: boolean;
+  pushNotificationsEnabled?: boolean;
+  emailNotificationsEnabled?: boolean;
+  photoUrl?: string | null;
+}
+
+export interface InsuranceLookupResponse {
+  entity?: string;
+  policy?: string;
+  endDate?: string;
+  startDate?: string;
+  license?: string;
+  logo?: string;
+}
+
 export interface VehicleCreateRequest {
   licensePlate: string;
   externalIdentifier?: string;
@@ -60,10 +113,23 @@ export interface VehicleCreateRequest {
 export const vehicleApi = {
   list: () => request<VehicleResponse[]>('/api/vehicles'),
   create: (body: VehicleCreateRequest) =>
-    request<VehicleResponse>('/api/vehicles', { method: 'POST', body: JSON.stringify(body) }),
+    request<VehicleResponse>('/api/vehicles', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
   remove: (id: string) => request<void>(`/api/vehicles/${id}`, { method: 'DELETE' }),
 };
 
 export const paymentApi = {
   createSetupIntent: () => request<string>('/api/payments/setup-intent', { method: 'POST' }),
+  getSetupStatus: () => request<PaymentSetupStatusResponse>('/api/payments/setup-status'),
+};
+
+export const profileApi = {
+  get: () => request<DriverProfileResponse>('/api/profile'),
+  update: (body: ProfileUpdateRequest) =>
+    request<DriverProfileResponse>('/api/profile', {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
 };

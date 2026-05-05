@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { vehicleApi, type VehicleResponse } from '../../services/apiService';
+import { paymentApi, vehicleApi, type VehicleResponse } from '../../services/apiService';
 import { useProfile } from '../context/ProfileContext';
 
 export function useDriverOnboarding() {
   const { user } = useAuth();
   const { vehicles, addVehicle } = useProfile();
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [needsVehicle, setNeedsVehicle] = useState(false);
+  const [needsPayment, setNeedsPayment] = useState(false);
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
@@ -15,18 +17,31 @@ export function useDriverOnboarding() {
       return;
     }
 
-    vehicleApi.list()
-      .then((serverVehicles) => {
-        syncVehiclesToContext(serverVehicles, vehicles, addVehicle);
-        if (serverVehicles.length === 0) setShowOnboarding(true);
-      })
-      .catch(() => {
-        if (vehicles.length === 0) setShowOnboarding(true);
+    Promise.allSettled([
+      vehicleApi.list(),
+      paymentApi.getSetupStatus(),
+    ])
+      .then(([vehicleResult, paymentResult]) => {
+        const hasVehicleData = vehicleResult.status === 'fulfilled';
+        const serverVehicles = hasVehicleData ? vehicleResult.value : [];
+        const vehicleMissing = hasVehicleData ? serverVehicles.length === 0 : vehicles.length === 0;
+
+        if (hasVehicleData) {
+          syncVehiclesToContext(serverVehicles, vehicles, addVehicle);
+        }
+
+        const paymentMissing = paymentResult.status === 'fulfilled'
+          ? !paymentResult.value.configured
+          : true;
+
+        setNeedsVehicle(vehicleMissing);
+        setNeedsPayment(paymentMissing);
+        setShowOnboarding(vehicleMissing || paymentMissing);
       })
       .finally(() => setChecked(true));
   }, [user]);
 
-  return { showOnboarding, setShowOnboarding, checked };
+  return { showOnboarding, setShowOnboarding, checked, needsVehicle, needsPayment };
 }
 
 function syncVehiclesToContext(

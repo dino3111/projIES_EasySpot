@@ -62,6 +62,14 @@ public class ProfileService {
     private void applyUpdates(User user, ProfileUpdateRequest request, String jwtRole) {
         if (request.notificationsEnabled() != null) {
             user.setNotificationsEnabled(request.notificationsEnabled());
+            user.setPushNotificationsEnabled(request.notificationsEnabled());
+            user.setEmailNotificationsEnabled(request.notificationsEnabled());
+        }
+        if (request.pushNotificationsEnabled() != null) {
+            user.setPushNotificationsEnabled(request.pushNotificationsEnabled());
+        }
+        if (request.emailNotificationsEnabled() != null) {
+            user.setEmailNotificationsEnabled(request.emailNotificationsEnabled());
         }
         if (request.photoUrl() != null) {
             user.setPhotoUrl(request.photoUrl());
@@ -69,6 +77,7 @@ public class ProfileService {
         if ("DRIVER".equals(jwtRole) && request.driverType() != null) {
             user.setDriverType(request.driverType());
         }
+        user.setNotificationsEnabled(user.isPushNotificationsEnabled() || user.isEmailNotificationsEnabled());
     }
 
     private DriverProfileResponse buildDriverProfile(User user) {
@@ -76,7 +85,9 @@ public class ProfileService {
         long favorites = userFavoriteRepository.countByUserId(user.getId());
         return new DriverProfileResponse(
             user.getName(), user.getEmail(), user.getRole(), user.getPhotoUrl(),
-            user.getDriverType(), user.isNotificationsEnabled(), spending, favorites);
+            user.getDriverType(), user.isNotificationsEnabled(),
+            user.isPushNotificationsEnabled(), user.isEmailNotificationsEnabled(),
+            spending, favorites);
     }
 
     private ManagerProfileResponse buildManagerProfile(User user) {

@@ -13,6 +13,7 @@ import pt.ua.deti.apieasyspot.auth.model.User;
 import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
 import pt.ua.deti.apieasyspot.common.exception.ConflictException;
 import pt.ua.deti.apieasyspot.common.exception.ExternalServiceException;
+import pt.ua.deti.apieasyspot.common.exception.PlateNotFoundException;
 import pt.ua.deti.apieasyspot.common.exception.ResourceNotFoundException;
 import pt.ua.deti.apieasyspot.common.exception.UnprocessableEntityException;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleCreateRequest;
@@ -70,12 +71,12 @@ public class VehicleServiceTest {
 
         when(userRepository.findByAuthentikUserId("auth-sub-123")).thenReturn(Optional.of(user));
         when(vehicleRepository.findByPlate("CC-00-CC")).thenReturn(Optional.empty());
-        when(vehicleLookupClient.lookup("CC-00-CC")).thenReturn(data);
+        when(vehicleLookupClient.lookup("CC-00-CC", null)).thenReturn(data);
         when(vehicleRepository.save(any())).thenReturn(vehicle);
 
-        vehicleService.createVehicle("auth-sub-123", request);
+        vehicleService.createVehicle("auth-sub-123", request, null);
 
-        verify(vehicleLookupClient).lookup("CC-00-CC");
+        verify(vehicleLookupClient).lookup("CC-00-CC", null);
         verify(vehicleRepository).save(argThat(v ->
             v.getPlate().equals("CC-00-CC") &&
             v.getMake().equals("Tesla") &&
@@ -91,23 +92,37 @@ public class VehicleServiceTest {
         when(userRepository.findByAuthentikUserId("auth-sub-123")).thenReturn(Optional.of(user));
         when(vehicleRepository.findByPlate("AA-00-AA")).thenReturn(Optional.of(vehicle));
 
-        assertThatThrownBy(() -> vehicleService.createVehicle("auth-sub-123", request))
+        assertThatThrownBy(() -> vehicleService.createVehicle("auth-sub-123", request, null))
             .isInstanceOf(ConflictException.class)
             .hasMessageContaining("already exists");
     }
 
     @Test
-    @DisplayName("createVehicle - lookup failure, no manual data - throws UnprocessableEntityException")
+    @DisplayName("createVehicle - plate not found, no manual data - throws UnprocessableEntityException")
     void createVehicle_lookupFailure_noManualData_throws() {
         VehicleCreateRequest request = new VehicleCreateRequest("DD-00-DD", null, null, null, null, null);
 
         when(userRepository.findByAuthentikUserId("auth-sub-123")).thenReturn(Optional.of(user));
         when(vehicleRepository.findByPlate("DD-00-DD")).thenReturn(Optional.empty());
-        when(vehicleLookupClient.lookup("DD-00-DD")).thenThrow(new ExternalServiceException("Service down"));
+        when(vehicleLookupClient.lookup("DD-00-DD", null)).thenThrow(new PlateNotFoundException("Not found"));
 
-        assertThatThrownBy(() -> vehicleService.createVehicle("auth-sub-123", request))
+        assertThatThrownBy(() -> vehicleService.createVehicle("auth-sub-123", request, null))
             .isInstanceOf(UnprocessableEntityException.class)
             .hasMessageContaining("Please provide");
+    }
+
+    @Test
+    @DisplayName("createVehicle - external lookup failure, no manual data - propagates ExternalServiceException")
+    void createVehicle_externalLookupFailure_noManualData_throwsExternal() {
+        VehicleCreateRequest request = new VehicleCreateRequest("EE-00-EE", null, null, null, null, null);
+
+        when(userRepository.findByAuthentikUserId("auth-sub-123")).thenReturn(Optional.of(user));
+        when(vehicleRepository.findByPlate("EE-00-EE")).thenReturn(Optional.empty());
+        when(vehicleLookupClient.lookup("EE-00-EE", null)).thenThrow(new ExternalServiceException("Service down"));
+
+        assertThatThrownBy(() -> vehicleService.createVehicle("auth-sub-123", request, null))
+            .isInstanceOf(ExternalServiceException.class)
+            .hasMessageContaining("Service down");
     }
 
     @Test
@@ -119,9 +134,9 @@ public class VehicleServiceTest {
         when(vehicleRepository.findByPlate("FR-123-AB")).thenReturn(Optional.empty());
         when(vehicleRepository.save(any())).thenReturn(vehicle);
 
-        vehicleService.createVehicle("auth-sub-123", request);
+        vehicleService.createVehicle("auth-sub-123", request, null);
 
-        verify(vehicleLookupClient, never()).lookup(any());
+        verify(vehicleLookupClient, never()).lookup(any(), any());
         verify(vehicleRepository).save(argThat(v ->
             v.getMake().equals("Renault") &&
             v.getModel().equals("Megane") &&
@@ -139,10 +154,10 @@ public class VehicleServiceTest {
         when(vehicleRepository.findByIdAndUserId(vehicleId, user.getId())).thenReturn(Optional.of(vehicle));
         when(vehicleRepository.save(any())).thenReturn(vehicle);
 
-        VehicleResponse response = vehicleService.updateVehicle("auth-sub-123", vehicleId, request);
+        VehicleResponse response = vehicleService.updateVehicle("auth-sub-123", vehicleId, request, null);
 
         assertThat(response).isNotNull();
-        verify(vehicleLookupClient, never()).lookup(any());
+        verify(vehicleLookupClient, never()).lookup(any(), any());
     }
 
     @Test
@@ -153,12 +168,12 @@ public class VehicleServiceTest {
 
         when(userRepository.findByAuthentikUserId("auth-sub-123")).thenReturn(Optional.of(user));
         when(vehicleRepository.findByIdAndUserId(vehicleId, user.getId())).thenReturn(Optional.of(vehicle));
-        when(vehicleLookupClient.lookup("BB-00-BB")).thenReturn(data);
+        when(vehicleLookupClient.lookup("BB-00-BB", null)).thenReturn(data);
         when(vehicleRepository.save(any())).thenReturn(vehicle);
 
-        vehicleService.updateVehicle("auth-sub-123", vehicleId, request);
+        vehicleService.updateVehicle("auth-sub-123", vehicleId, request, null);
 
-        verify(vehicleLookupClient).lookup("BB-00-BB");
+        verify(vehicleLookupClient).lookup("BB-00-BB", null);
     }
 
     @Test
@@ -166,7 +181,7 @@ public class VehicleServiceTest {
     void updateVehicle_userNotFound_throws(){
         when(userRepository.findByAuthentikUserId("auth-sub-123")).thenReturn(Optional.empty());
 
-        assertThatThrownBy(()-> vehicleService.updateVehicle("auth-sub-123", vehicleId, new VehicleUpdateRequest("BB-00-BB", "my car", false)))
+        assertThatThrownBy(()-> vehicleService.updateVehicle("auth-sub-123", vehicleId, new VehicleUpdateRequest("BB-00-BB", "my car", false), null))
             .isInstanceOf(ResourceNotFoundException.class);
     }
 

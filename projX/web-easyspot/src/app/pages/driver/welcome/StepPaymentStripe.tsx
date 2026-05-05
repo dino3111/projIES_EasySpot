@@ -1,9 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { paymentApi } from '../../../../services/apiService';
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY as string);
+const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY as string | undefined;
+const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
+
+function getCurrentTheme(): 'light' | 'dark' {
+  if (typeof document === 'undefined') return 'dark';
+  return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+}
 
 function PaymentForm({ onReady }: { onReady: (confirmed: boolean) => void }) {
   const stripe = useStripe();
@@ -36,7 +42,7 @@ function PaymentForm({ onReady }: { onReady: (confirmed: boolean) => void }) {
 
   return (
     <div className="space-y-4">
-      <PaymentElement />
+      <PaymentElement options={{ layout: { type: 'tabs', defaultCollapsed: false } }} />
       {error && (
         <p className="text-error font-semibold" style={{ fontSize: '0.8rem' }}>{error}</p>
       )}
@@ -64,11 +70,74 @@ function PaymentForm({ onReady }: { onReady: (confirmed: boolean) => void }) {
 export function StepPaymentStripe({ onReady }: { onReady: (confirmed: boolean) => void }) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => getCurrentTheme());
 
   useEffect(() => {
+    const root = document.documentElement;
+    const observer = new MutationObserver(() => setTheme(getCurrentTheme()));
+    observer.observe(root, { attributes: true, attributeFilter: ['data-theme', 'class'] });
+    return () => observer.disconnect();
+  }, []);
+
+  const elementOptions = useMemo(() => ({
+    clientSecret,
+    appearance: {
+      theme: theme === 'dark' ? 'night' : 'stripe',
+      variables: {
+        colorPrimary: 'var(--primary)',
+        colorBackground: 'var(--card)',
+        colorText: 'var(--foreground)',
+        colorTextSecondary: 'var(--muted-foreground)',
+        colorDanger: '#d4183d',
+        colorIcon: 'var(--muted-foreground)',
+        borderRadius: '16px',
+        spacingUnit: '4px',
+        fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif',
+      },
+      rules: {
+        '.Input': {
+          backgroundColor: 'var(--card)',
+          border: '1px solid var(--border)',
+          boxShadow: 'none',
+        },
+        '.Input:focus': {
+          border: '1px solid var(--primary)',
+          boxShadow: '0 0 0 1px var(--primary)',
+        },
+        '.Tab': {
+          backgroundColor: 'var(--background)',
+          border: '1px solid var(--border)',
+        },
+        '.Tab:hover': {
+          color: 'var(--foreground)',
+        },
+        '.Tab--selected': {
+          backgroundColor: 'var(--card)',
+          borderColor: 'var(--primary)',
+          color: 'var(--foreground)',
+        },
+        '.Label': {
+          color: 'var(--foreground)',
+        },
+      },
+    },
+  }), [clientSecret, theme]);
+
+  useEffect(() => {
+    if (!stripePublishableKey || stripePublishableKey.includes('REPLACE_WITH_YOUR_STRIPE_PUBLISHABLE_KEY')) {
+      const message = 'A chave pública do Stripe não está configurada no frontend.';
+      console.error(`[Stripe onboarding] ${message}`);
+      setLoadError(`Não foi possível inicializar o pagamento: ${message}`);
+      return;
+    }
+
     paymentApi.createSetupIntent()
       .then(setClientSecret)
-      .catch(() => setLoadError('Não foi possível inicializar o pagamento. Podes configurar mais tarde no perfil.'));
+      .catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : 'Erro desconhecido ao inicializar pagamento.';
+        console.error('[Stripe onboarding] Failed to initialize payment step:', error);
+        setLoadError(`Não foi possível inicializar o pagamento: ${message}`);
+      });
   }, []);
 
   if (loadError) {
@@ -104,7 +173,7 @@ export function StepPaymentStripe({ onReady }: { onReady: (confirmed: boolean) =
       <p className="text-muted-foreground" style={{ fontSize: '0.82rem' }}>
         O método de pagamento é guardado de forma segura pelo <strong>Stripe</strong> e usado para cobranças automáticas à saída do parque.
       </p>
-      <Elements stripe={stripePromise} options={{ clientSecret }}>
+      <Elements stripe={stripePromise} options={elementOptions}>
         <PaymentForm onReady={onReady} />
       </Elements>
     </div>

@@ -13,6 +13,8 @@ import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
+import pt.ua.deti.apieasyspot.auth.model.User;
+import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
 import pt.ua.deti.apieasyspot.billing.dto.RefundRequest;
 import pt.ua.deti.apieasyspot.billing.model.PaymentRecord;
 import pt.ua.deti.apieasyspot.billing.model.PaymentStatus;
@@ -41,6 +43,9 @@ class StripeServiceTest {
 
     @Mock
     private BillingNotificationService notificationService;
+
+    @Mock
+    private UserRepository userRepository;
 
     @InjectMocks
     private StripeService stripeService;
@@ -130,6 +135,30 @@ class StripeServiceTest {
 
         assertThatThrownBy(() -> stripeService.refundPayment(new RefundRequest(reservationId, null, null)))
             .isInstanceOf(UnprocessableEntityException.class);
+    }
+
+    @Test
+    @DisplayName("createSetupIntent throws IllegalStateException when Stripe key is not configured")
+    void createSetupIntent_withoutStripeKey_throwsIllegalStateException() {
+        ReflectionTestUtils.setField(stripeService, "stripeApiKey", "");
+
+        assertThatThrownBy(() -> stripeService.createSetupIntent("sub-123", "user@example.com"))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("Stripe is not configured");
+    }
+
+    @Test
+    @DisplayName("createCustomerPortalSession resolves email from local user when token email is missing")
+    void createCustomerPortalSession_usesStoredEmailWhenTokenEmailMissing() {
+        User user = new User();
+        user.setEmail("stored@example.com");
+
+        when(userRepository.findByAuthentikUserId("sub-123")).thenReturn(Optional.of(user));
+
+        String resolvedEmail = ReflectionTestUtils.invokeMethod(
+            stripeService, "resolveCustomerEmail", "sub-123", null);
+
+        assertThat(resolvedEmail).isEqualTo("stored@example.com");
     }
 
     @Test

@@ -107,7 +107,7 @@ class ProfileServiceTest {
     @Test
     @DisplayName("updateProfile - unknown role - throws before persisting (EC-role-guard)")
     void updateProfile_unknownRole_doesNotPersist() {
-        ProfileUpdateRequest request = new ProfileUpdateRequest(null, false, null);
+        ProfileUpdateRequest request = new ProfileUpdateRequest(null, false, null, null, null);
 
         assertThatThrownBy(() -> profileService.updateProfile("sub", request, "UNKNOWN"))
             .isInstanceOf(IllegalArgumentException.class)
@@ -134,7 +134,7 @@ class ProfileServiceTest {
             .thenReturn(new SpendingSummary(BigDecimal.ZERO, 0L, BigDecimal.ZERO));
         when(userFavoriteRepository.countByUserId(user.getId())).thenReturn(0L);
 
-        ProfileUpdateRequest request = new ProfileUpdateRequest(DriverType.EV, null, null);
+        ProfileUpdateRequest request = new ProfileUpdateRequest(DriverType.EV, null, null, null, null);
         Object result = profileService.updateProfile("sub", request, "DRIVER");
 
         assertThat(result).isInstanceOf(DriverProfileResponse.class);
@@ -144,7 +144,7 @@ class ProfileServiceTest {
     @Test
     @DisplayName("updateProfile - driverType rejected for MANAGER (EC-11)")
     void updateProfile_driverType_rejectedForManager() {
-        ProfileUpdateRequest request = new ProfileUpdateRequest(DriverType.EV, null, null);
+        ProfileUpdateRequest request = new ProfileUpdateRequest(DriverType.EV, null, null, null, null);
 
         assertThatThrownBy(() -> profileService.updateProfile("sub", request, "MANAGER"))
             .isInstanceOf(IllegalArgumentException.class)
@@ -154,7 +154,7 @@ class ProfileServiceTest {
     @Test
     @DisplayName("updateProfile - driverType rejected for TECHNICAL (EC-11)")
     void updateProfile_driverType_rejectedForTechnician() {
-        ProfileUpdateRequest request = new ProfileUpdateRequest(DriverType.EV, null, null);
+        ProfileUpdateRequest request = new ProfileUpdateRequest(DriverType.EV, null, null, null, null);
 
         assertThatThrownBy(() -> profileService.updateProfile("sub", request, "TECHNICAL"))
             .isInstanceOf(IllegalArgumentException.class)
@@ -172,10 +172,27 @@ class ProfileServiceTest {
         when(analyticsRepository.countEntriesToday()).thenReturn(0L);
         when(analyticsRepository.countOpenAlerts()).thenReturn(0L);
 
-        ProfileUpdateRequest request = new ProfileUpdateRequest(null, false, null);
+        ProfileUpdateRequest request = new ProfileUpdateRequest(null, false, null, null, null);
         profileService.updateProfile("sub", request, "MANAGER");
 
         verify(userRepository).save(argThat(u -> !u.isNotificationsEnabled()));
+    }
+
+    @Test
+    @DisplayName("updateProfile - driver notification preferences persist independently")
+    void updateProfile_driverNotificationPreferences_persistIndependently() {
+        User user = buildUser("DRIVER");
+        when(userRepository.findByAuthentikUserId("sub")).thenReturn(Optional.of(user));
+        when(userRepository.save(any())).thenReturn(user);
+        when(profileRepository.spendingSummary(user.getId()))
+            .thenReturn(new SpendingSummary(BigDecimal.ZERO, 0L, BigDecimal.ZERO));
+        when(userFavoriteRepository.countByUserId(user.getId())).thenReturn(0L);
+
+        ProfileUpdateRequest request = new ProfileUpdateRequest(null, null, true, false, null);
+        profileService.updateProfile("sub", request, "DRIVER");
+
+        verify(userRepository).save(argThat(u ->
+            u.isPushNotificationsEnabled() && !u.isEmailNotificationsEnabled() && u.isNotificationsEnabled()));
     }
 
     @Test
@@ -188,7 +205,7 @@ class ProfileServiceTest {
             .thenReturn(new SpendingSummary(BigDecimal.ZERO, 0L, BigDecimal.ZERO));
         when(userFavoriteRepository.countByUserId(user.getId())).thenReturn(0L);
 
-        ProfileUpdateRequest request = new ProfileUpdateRequest(null, null, null);
+        ProfileUpdateRequest request = new ProfileUpdateRequest(null, null, null, null, null);
         profileService.updateProfile("sub", request, "DRIVER");
 
         verify(userRepository).save(argThat(u ->
@@ -206,7 +223,7 @@ class ProfileServiceTest {
         when(technicianRepository.countFailuresToday()).thenReturn(0L);
         when(profileRepository.countAssignedTasks("sub")).thenReturn(0L);
 
-        ProfileUpdateRequest request = new ProfileUpdateRequest(null, null, "https://example.com/photo.jpg");
+        ProfileUpdateRequest request = new ProfileUpdateRequest(null, null, null, null, "https://example.com/photo.jpg");
         profileService.updateProfile("sub", request, "TECHNICAL");
 
         verify(userRepository).save(argThat(u -> "https://example.com/photo.jpg".equals(u.getPhotoUrl())));
@@ -220,6 +237,8 @@ class ProfileServiceTest {
         user.setName("Test User");
         user.setRole(role);
         user.setNotificationsEnabled(true);
+        user.setPushNotificationsEnabled(true);
+        user.setEmailNotificationsEnabled(false);
         return user;
     }
 }

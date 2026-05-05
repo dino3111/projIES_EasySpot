@@ -51,7 +51,7 @@ class PostmanConfig {
     ) {
         return new VehicleLookupClient(baseUrl, apiKey) {
             @Override
-            public VehicleData lookup(String plate) {
+            public VehicleData lookup(String plate, String appCheckToken) {
                 return new VehicleData(
                     plate, null, "TestMake", "TestModel",
                     "1.0 TSI", "2020-01-01", "Branco", "Gasolina",

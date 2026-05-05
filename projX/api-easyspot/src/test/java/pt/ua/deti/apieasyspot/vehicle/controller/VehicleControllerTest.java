@@ -45,13 +45,13 @@ class VehicleControllerTest {
     @DisplayName("createVehicle - calls service and returns 200")
     void createVehicle_success() {
         VehicleCreateRequest request = new VehicleCreateRequest("BB-00-BB", "RFID-1", null, null, null, null);
-        when(vehicleService.createVehicle("auth-sub-123", request)).thenReturn(vehicleResponse);
+        when(vehicleService.createVehicle("auth-sub-123", request, null)).thenReturn(vehicleResponse);
 
-        ResponseEntity<VehicleResponse> response = vehicleController.createVehicle(request, jwt);
+        ResponseEntity<VehicleResponse> response = vehicleController.createVehicle(request, null, jwt);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isEqualTo(vehicleResponse);
-        verify(vehicleService).createVehicle("auth-sub-123", request);
+        verify(vehicleService).createVehicle("auth-sub-123", request, null);
     }
 
     @Test

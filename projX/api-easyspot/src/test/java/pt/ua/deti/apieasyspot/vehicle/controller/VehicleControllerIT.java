@@ -16,6 +16,7 @@ import pt.ua.deti.apieasyspot.TestcontainersConfiguration;
 import pt.ua.deti.apieasyspot.auth.model.User;
 import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
 import pt.ua.deti.apieasyspot.common.exception.ExternalServiceException;
+import pt.ua.deti.apieasyspot.common.exception.PlateNotFoundException;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleCreateRequest;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleData;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleUpdateRequest;
@@ -81,7 +82,7 @@ class VehicleControllerIT {
             null, null, null, null, null, null
         );
 
-        when(vehicleLookupClient.lookup("BB-00-BB")).thenReturn(data);
+        when(vehicleLookupClient.lookup("BB-00-BB", null)).thenReturn(data);
 
         mockMvc.perform(post("/api/vehicles")
                 .with(jwtWithRole("auth-sub-123", "DRIVER"))
@@ -100,7 +101,7 @@ class VehicleControllerIT {
     void createVehicle_imtNotFound_noManualData_returns422() throws Exception {
         VehicleCreateRequest request = new VehicleCreateRequest("CC-00-CC", null, null, null, null, null);
 
-        when(vehicleLookupClient.lookup("CC-00-CC")).thenThrow(new ExternalServiceException("Not found"));
+        when(vehicleLookupClient.lookup("CC-00-CC", null)).thenThrow(new PlateNotFoundException("Not found"));
 
         mockMvc.perform(post("/api/vehicles")
                 .with(jwtWithRole("auth-sub-123", "DRIVER"))
@@ -108,6 +109,20 @@ class VehicleControllerIT {
                 .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isUnprocessableEntity())
             .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("Please provide")));
+    }
+
+    @Test
+    @DisplayName("POST /api/vehicles - IMT unavailable, no manual data - returns 503")
+    void createVehicle_imtUnavailable_noManualData_returns503() throws Exception {
+        VehicleCreateRequest request = new VehicleCreateRequest("DD-00-DD", null, null, null, null, null);
+
+        when(vehicleLookupClient.lookup("DD-00-DD", null)).thenThrow(new ExternalServiceException("Service down"));
+
+        mockMvc.perform(post("/api/vehicles")
+                .with(jwtWithRole("auth-sub-123", "DRIVER"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isServiceUnavailable());
     }
 
     @Test

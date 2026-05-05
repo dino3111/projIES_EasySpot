@@ -23,6 +23,7 @@ import pt.ua.deti.apieasyspot.billing.service.StripeService;
 import java.math.BigDecimal;
 import java.util.UUID;
 
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
@@ -118,6 +119,17 @@ class PaymentControllerIT {
     // --- Payment Status ---
 
     @Test
+    @DisplayName("POST /payments/setup-intent authenticated returns 200")
+    void createSetupIntent_authenticated_returns200() throws Exception {
+        when(stripeService.createSetupIntent(eq("sub-123"), any())).thenReturn("seti_secret_123");
+
+        mockMvc.perform(post("/api/payments/setup-intent")
+                .with(jwtWithRole("sub-123", "DRIVER")))
+            .andExpect(status().isOk())
+            .andExpect(content().string("seti_secret_123"));
+    }
+
+    @Test
     @DisplayName("GET /payments/status authenticated returns 200 with status")
     void getPaymentStatus_authenticated_returns200() throws Exception {
         UUID reservationId = UUID.randomUUID();
@@ -184,7 +196,8 @@ class PaymentControllerIT {
     @Test
     @DisplayName("GET /payments/customer-portal as DRIVER returns 200")
     void customerPortal_asDriver_returns200() throws Exception {
-        when(stripeService.createCustomerPortalSession(any())).thenReturn("https://billing.stripe.com/portal/test");
+        when(stripeService.createCustomerPortalSession(eq("sub-123"), any()))
+            .thenReturn("https://billing.stripe.com/portal/test");
 
         mockMvc.perform(get("/api/payments/customer-portal")
                 .with(jwtWithRole("sub-123", "DRIVER")))

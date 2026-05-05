@@ -64,6 +64,8 @@ class ProfileControllerIT {
             .andExpect(jsonPath("$.email").value("driver@test.com"))
             .andExpect(jsonPath("$.role").value("DRIVER"))
             .andExpect(jsonPath("$.notificationsEnabled").value(true))
+            .andExpect(jsonPath("$.pushNotificationsEnabled").value(true))
+            .andExpect(jsonPath("$.emailNotificationsEnabled").value(false))
             .andExpect(jsonPath("$.spending").exists())
             .andExpect(jsonPath("$.favoritesCount").value(0));
     }
@@ -124,6 +126,23 @@ class ProfileControllerIT {
 
         User updated = userRepository.findByAuthentikUserId(DRIVER_SUBJECT).orElseThrow();
         assertThat(updated.isNotificationsEnabled()).isFalse();
+    }
+
+    @Test
+    @DisplayName("PUT /api/profile - update push/email notification preferences - persists to DB")
+    void updateProfile_notificationPreferences_persist() throws Exception {
+        mockMvc.perform(put("/api/profile")
+                .with(jwt().jwt(j -> j.subject(DRIVER_SUBJECT).claim("groups", List.of("DRIVER"))))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"pushNotificationsEnabled\":true,\"emailNotificationsEnabled\":false}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.pushNotificationsEnabled").value(true))
+            .andExpect(jsonPath("$.emailNotificationsEnabled").value(false));
+
+        User updated = userRepository.findByAuthentikUserId(DRIVER_SUBJECT).orElseThrow();
+        assertThat(updated.isPushNotificationsEnabled()).isTrue();
+        assertThat(updated.isEmailNotificationsEnabled()).isFalse();
+        assertThat(updated.isNotificationsEnabled()).isTrue();
     }
 
     @Test
@@ -216,6 +235,9 @@ class ProfileControllerIT {
         user.setEmail(email);
         user.setName("Test " + role);
         user.setRole(role);
+        user.setPushNotificationsEnabled(true);
+        user.setEmailNotificationsEnabled(false);
+        user.setNotificationsEnabled(true);
         return user;
     }
 }

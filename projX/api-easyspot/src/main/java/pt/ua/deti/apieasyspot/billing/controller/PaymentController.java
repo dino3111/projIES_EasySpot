@@ -63,8 +63,19 @@ public class PaymentController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<String> createSetupIntent(
             @AuthenticationPrincipal Jwt jwt) throws StripeException {
-        String email = jwt.getClaimAsString("email");
-        return ResponseEntity.ok(stripeService.createSetupIntent(email));
+        return ResponseEntity.ok(stripeService.createSetupIntent(jwt.getSubject(), jwt.getClaimAsString("email")));
+    }
+
+    @Operation(summary = "Get payment method setup status for authenticated user")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Payment setup status returned"),
+        @ApiResponse(responseCode = "401", description = "Missing or invalid authentication token")
+    })
+    @GetMapping("/payments/setup-status")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<PaymentSetupStatusResponse> getPaymentSetupStatus(
+            @AuthenticationPrincipal Jwt jwt) throws StripeException {
+        return ResponseEntity.ok(stripeService.getPaymentSetupStatus(jwt.getSubject(), jwt.getClaimAsString("email")));
     }
 
     @Operation(summary = "Generate Stripe Customer Portal Session")
@@ -77,8 +88,7 @@ public class PaymentController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<String> createCustomerPortalSession(
             @AuthenticationPrincipal Jwt jwt) throws StripeException {
-        String email = jwt.getClaimAsString("email");
-        return ResponseEntity.ok(stripeService.createCustomerPortalSession(email));
+        return ResponseEntity.ok(stripeService.createCustomerPortalSession(jwt.getSubject(), jwt.getClaimAsString("email")));
     }
 
     @Operation(summary = "Get Payment Status")

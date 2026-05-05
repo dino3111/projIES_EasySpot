@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
-import { vehicleApi, type VehicleResponse } from '../../../../services/apiService';
-import type { DriverType } from '../../../context/ProfileContext';
+import { profileApi, vehicleApi, type VehicleResponse } from '../../../../services/apiService';
+import { lookupVehicleData } from '../../../../services/vehicleLookup';
+import { useProfile, type DriverType } from '../../../context/ProfileContext';
 import {
   StepVehicle, StepDriverType, StepPreferences, StepFinished,
 } from './OnboardingSteps';
@@ -12,13 +13,19 @@ const PT_PLATE_REGEX = /^[A-Z0-9]{2}-[A-Z0-9]{2}-[A-Z0-9]{2}$/;
 const STEPS = ['Associar veículo', 'Método de pagamento', 'Tipo de condutor', 'Preferências', 'Concluído'];
 
 export function OnboardingModal({
+  needsVehicle,
+  needsPayment,
   onFinish,
   onClose,
 }: {
+  needsVehicle: boolean;
+  needsPayment: boolean;
   onFinish: (dt: DriverType) => void;
   onClose: () => void;
 }) {
-  const [step, setStep] = useState(1);
+  const { addVehicle, setDriverType: setProfileDriverType } = useProfile();
+  const initialStep = needsVehicle ? 1 : needsPayment ? 2 : 3;
+  const [step, setStep] = useState(initialStep);
 
   const [plate, setPlate]   = useState('');
   const [rfid, setRfid]     = useState('');
@@ -34,6 +41,23 @@ export function OnboardingModal({
   const [driverType, setDriverType]             = useState<DriverType>('regular');
   const [notifPush, setNotifPush]               = useState(true);
   const [notifEmail, setNotifEmail]             = useState(false);
+  const [savingProfile, setSavingProfile]       = useState(false);
+
+  useEffect(() => {
+    setStep(needsVehicle ? 1 : needsPayment ? 2 : 3);
+  }, [needsVehicle, needsPayment]);
+
+  useEffect(() => {
+    profileApi.get()
+      .then((profile) => {
+        setDriverType(profile.driverType ?? 'regular');
+        setNotifPush(profile.pushNotificationsEnabled ?? profile.notificationsEnabled);
+        setNotifEmail(profile.emailNotificationsEnabled ?? false);
+      })
+      .catch((error: unknown) => {
+        console.error('[Onboarding] Failed to load driver profile:', error);
+      });
+  }, []);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -46,10 +70,30 @@ export function OnboardingModal({
     setVehicleResult(null); setPlateError(null); setShowManualForm(false);
     debounceRef.current = setTimeout(async () => {
       try {
-        const created = await vehicleApi.create({ licensePlate: plate, externalIdentifier: rfid || undefined });
-        setVehicleResult(created);
-        toast.success('Veículo identificado e registado!', {
-          description: [created.make, created.model].filter(Boolean).join(' ') || plate,
+        const data = await lookupVehicleData(plate);
+        setManualData({
+          make: data.make,
+          model: data.model,
+          fuelType: data.fuelType,
+          year: data.plateDate ? data.plateDate.slice(0, 4) : undefined,
+        });
+        setVehicleResult({
+          id: '',
+          plate,
+          make: data.make ?? null,
+          model: data.model ?? null,
+          version: data.version ?? null,
+          color: data.color ?? null,
+          year: data.plateDate ? parseInt(data.plateDate.slice(0, 4), 10) : 0,
+          fuelType: data.fuelType ?? null,
+          powerKW: null,
+          nickname: null,
+          isEv: false,
+          isAccessible: false,
+          isPrimary: false,
+        });
+        toast.success('Veículo identificado automaticamente!', {
+          description: [data.make, data.model].filter(Boolean).join(' ') || plate,
         });
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Erro ao registar veículo.';
@@ -82,6 +126,19 @@ export function OnboardingModal({
         year: parseInt(manualData.year, 10),
       });
       setVehicleResult(created);
+      addVehicle({
+        id: created.id,
+        plate: created.plate,
+        make: created.make ?? undefined,
+        model: created.model ?? undefined,
+        version: created.version ?? undefined,
+        color: created.color ?? undefined,
+        year: created.year ? String(created.year) : undefined,
+        fuelType: created.fuelType ?? undefined,
+        isEV: created.isEv,
+        isAccessible: created.isAccessible,
+        isPrimary: created.isPrimary,
+      });
       setShowManualForm(false);
       toast.success('Veículo registado manualmente!');
     } catch (err) {
@@ -99,9 +156,65 @@ export function OnboardingModal({
         toast.warning('Associa um veículo para continuar.');
         return;
       }
-      
+      if (!vehicleResult?.id) {
+        setSavingVehicle(true);
+        try {
+          const created = await vehicleApi.create({
+            licensePlate: plate,
+            externalIdentifier: rfid || undefined,
+            make: manualData.make,
+            model: manualData.model,
+            fuelType: manualData.fuelType,
+            year: manualData.year ? parseInt(manualData.year, 10) : undefined,
+          });
+          setVehicleResult(created);
+          addVehicle({
+            id: created.id,
+            plate: created.plate,
+            make: created.make ?? undefined,
+            model: created.model ?? undefined,
+            version: created.version ?? undefined,
+            color: created.color ?? undefined,
+            year: created.year ? String(created.year) : undefined,
+            fuelType: created.fuelType ?? undefined,
+            isEV: created.isEv,
+            isAccessible: created.isAccessible,
+            isPrimary: created.isPrimary,
+          });
+          toast.success('Veículo associado com sucesso.');
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : 'Erro ao associar veículo.');
+          setSavingVehicle(false);
+          return;
+        }
+        setSavingVehicle(false);
+      }
+    }
+    if (step === 4) {
+      setSavingProfile(true);
+      try {
+        const updatedProfile = await profileApi.update({
+          driverType,
+          notificationsEnabled: notifPush || notifEmail,
+          pushNotificationsEnabled: notifPush,
+          emailNotificationsEnabled: notifEmail,
+        });
+        setProfileDriverType(updatedProfile.driverType ?? 'regular');
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Erro ao guardar preferências.');
+        setSavingProfile(false);
+        return;
+      }
+      setSavingProfile(false);
     }
     setStep((s) => s + 1);
+  };
+
+  const handleBack = () => {
+    if (!needsVehicle && step === 2) {
+      return;
+    }
+    setStep((s) => s - 1);
   };
 
   const isFinishStep = step === STEPS.length;
@@ -165,7 +278,7 @@ export function OnboardingModal({
 
         <div className="px-6 pb-5 pt-3 border-t border-border flex gap-3 flex-shrink-0">
           {step > 1 && !isFinishStep && (
-            <button onClick={() => setStep((s) => s - 1)} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-border text-foreground font-semibold hover:bg-muted transition-colors" style={{ fontSize: '0.85rem' }}>
+            <button onClick={handleBack} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-border text-foreground font-semibold hover:bg-muted transition-colors" style={{ fontSize: '0.85rem' }}>
               <i className="fas fa-arrow-left" />
               Anterior
             </button>
@@ -173,11 +286,11 @@ export function OnboardingModal({
           {!isFinishStep ? (
             <button
               onClick={handleNext}
-              disabled={step === 2 && !paymentConfirmed}
+              disabled={(step === 2 && !paymentConfirmed) || savingProfile}
               className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary text-primary-foreground font-extrabold hover:opacity-90 disabled:opacity-50 shadow-md shadow-primary/20 transition-all"
               style={{ fontSize: '0.9rem' }}
             >
-              Continuar
+              {savingProfile ? 'A guardar...' : 'Continuar'}
               <i className="fas fa-arrow-right" />
             </button>
           ) : (

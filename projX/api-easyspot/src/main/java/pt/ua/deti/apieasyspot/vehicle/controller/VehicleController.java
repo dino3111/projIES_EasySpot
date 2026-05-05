@@ -18,6 +18,7 @@ import pt.ua.deti.apieasyspot.vehicle.dto.VehicleResponse;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleUpdateRequest;
 import pt.ua.deti.apieasyspot.vehicle.service.VehicleService;
 
+import java.util.List;
 import java.util.UUID;
 
 @Tag(name = "Vehicles", description = "Driver vehicle management")
@@ -35,8 +36,11 @@ public class VehicleController {
     })
     @GetMapping("/lookup")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<VehicleLookupResponse> lookupPlate(@RequestParam String plate) {
-        return ResponseEntity.ok(vehicleService.lookupPlate(plate));
+    public ResponseEntity<VehicleLookupResponse> lookupPlate(
+        @RequestParam String plate,
+        @RequestHeader(value = "X-App-Check-Token", required = false) String appCheckToken
+    ) {
+        return ResponseEntity.ok(vehicleService.lookupPlate(plate, appCheckToken));
     }
 
     @Operation(summary = "Lookup insurance data", description = "Fetches insurance data for a plate from the InfoMatrícula registry.")
@@ -46,8 +50,11 @@ public class VehicleController {
     })
     @GetMapping("/insurance")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<InsuranceData> lookupInsurance(@RequestParam String plate) {
-        return ResponseEntity.ok(vehicleService.lookupInsurance(plate));
+    public ResponseEntity<InsuranceData> lookupInsurance(
+        @RequestParam String plate,
+        @RequestHeader(value = "X-App-Check-Token", required = false) String appCheckToken
+    ) {
+        return ResponseEntity.ok(vehicleService.lookupInsurance(plate, appCheckToken));
     }
 
     @Operation(summary = "Add a vehicle", description = "Adds a vehicle to the authenticated driver's profile.")
@@ -60,10 +67,10 @@ public class VehicleController {
     @PreAuthorize("hasRole('DRIVER')")
     public ResponseEntity<VehicleResponse> createVehicle(
         @RequestBody @Valid VehicleCreateRequest request,
+        @RequestHeader(value = "X-App-Check-Token", required = false) String appCheckToken,
         @AuthenticationPrincipal Jwt jwt
-    ){
-        String authentikUserId = jwt.getSubject();
-        return ResponseEntity.ok(vehicleService.createVehicle(authentikUserId, request));
+    ) {
+        return ResponseEntity.ok(vehicleService.createVehicle(jwt.getSubject(), request, appCheckToken));
     }
 
     @Operation(summary = "Update a vehicle", description = "Updates a vehicle belonging to the authenticated driver. If the plate changes, data is re-fetched from IMT")
@@ -78,10 +85,10 @@ public class VehicleController {
     public ResponseEntity<VehicleResponse> updateVehicle(
         @PathVariable UUID id,
         @RequestBody @Valid VehicleUpdateRequest request,
+        @RequestHeader(value = "X-App-Check-Token", required = false) String appCheckToken,
         @AuthenticationPrincipal Jwt jwt
-    ){
-        String authentikUserId = jwt.getSubject();
-        return ResponseEntity.ok(vehicleService.updateVehicle(authentikUserId, id, request));
+    ) {
+        return ResponseEntity.ok(vehicleService.updateVehicle(jwt.getSubject(), id, request, appCheckToken));
     }
 
     @Operation(summary = "Delete a Vehicle", description = "Removes a vehicle belonging to the authenticated driver.")
@@ -94,9 +101,8 @@ public class VehicleController {
     public ResponseEntity<Void> deleteVehicle(
         @PathVariable UUID id,
         @AuthenticationPrincipal Jwt jwt
-    ){
-        String authentikUserId = jwt.getSubject();
-        vehicleService.deleteVehicle(authentikUserId, id);
+    ) {
+        vehicleService.deleteVehicle(jwt.getSubject(), id);
         return ResponseEntity.noContent().build();
     }
 
@@ -107,10 +113,7 @@ public class VehicleController {
     })
     @GetMapping
     @PreAuthorize("hasRole('DRIVER')")
-    public ResponseEntity<java.util.List<VehicleResponse>> listVehicles(
-        @AuthenticationPrincipal Jwt jwt
-    ){
-        String authentikUserId = jwt.getSubject();
-        return ResponseEntity.ok(vehicleService.listVehicles(authentikUserId));
+    public ResponseEntity<List<VehicleResponse>> listVehicles(@AuthenticationPrincipal Jwt jwt) {
+        return ResponseEntity.ok(vehicleService.listVehicles(jwt.getSubject()));
     }
 }

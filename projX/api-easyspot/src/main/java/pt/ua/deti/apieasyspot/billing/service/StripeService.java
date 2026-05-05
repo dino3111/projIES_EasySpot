@@ -6,6 +6,7 @@ import com.stripe.model.Charge;
 import com.stripe.model.Event;
 import com.stripe.model.PaymentIntent;
 import com.stripe.model.Refund;
+import com.stripe.model.PaymentMethodCollection;
 import com.stripe.model.checkout.Session;
 import com.stripe.net.RequestOptions;
 import com.stripe.net.Webhook;
@@ -16,9 +17,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.transaction.annotation.Transactional;
+import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
 import pt.ua.deti.apieasyspot.billing.dto.CheckoutSessionRequest;
 import pt.ua.deti.apieasyspot.billing.dto.CheckoutSessionResponse;
+import pt.ua.deti.apieasyspot.billing.dto.PaymentSetupStatusResponse;
 import pt.ua.deti.apieasyspot.billing.dto.PaymentStatusResponse;
 import pt.ua.deti.apieasyspot.billing.dto.RefundRequest;
 import pt.ua.deti.apieasyspot.billing.model.PaymentRecord;
@@ -51,10 +55,14 @@ public class StripeService {
     private final PaymentRecordRepository paymentRecordRepository;
     private final StripeEventRepository stripeEventRepository;
     private final BillingNotificationService notificationService;
+    private final UserRepository userRepository;
 
     @PostConstruct
     public void init() {
         Stripe.apiKey = stripeApiKey;
+        if (!StringUtils.hasText(stripeApiKey)) {
+            log.warn("Stripe API key is not configured. Stripe setup intents and customer portal will fail until STRIPE_API_KEY is provided.");
+        }
     }
 
     public CheckoutSessionResponse createCheckoutSession(CheckoutSessionRequest request) throws StripeException {
@@ -229,48 +237,94 @@ public class StripeService {
         }
     }
 
-    public String createSetupIntent(String customerEmail) throws StripeException {
-        com.stripe.param.CustomerListParams listParams = com.stripe.param.CustomerListParams.builder()
-            .setEmail(customerEmail)
-            .setLimit(1L)
-            .build();
-        var customers = com.stripe.model.Customer.list(listParams).getData();
+    public String createSetupIntent(String authentikUserId, String tokenEmail) throws StripeException {
+        ensureStripeConfigured();
+        String customerEmail = resolveCustomerEmail(authentikUserId, tokenEmail);
+        log.info("Creating Stripe SetupIntent for user={} email={}", authentikUserId, customerEmail);
 
-        String customerId;
-        if (customers.isEmpty()) {
+        String customerId = findCustomerIdByEmail(customerEmail);
+        if (customerId == null) {
             var createParams = com.stripe.param.CustomerCreateParams.builder()
                 .setEmail(customerEmail)
                 .build();
             customerId = com.stripe.model.Customer.create(createParams).getId();
-        } else {
-            customerId = customers.get(0).getId();
         }
 
         var params = com.stripe.param.SetupIntentCreateParams.builder()
             .setCustomer(customerId)
-            .addPaymentMethodType("card")
             .build();
 
-        return com.stripe.model.SetupIntent.create(params).getClientSecret();
+        String clientSecret = com.stripe.model.SetupIntent.create(params).getClientSecret();
+        log.info("Stripe SetupIntent created successfully for user={} customer={}", authentikUserId, customerId);
+        return clientSecret;
     }
 
-    public String createCustomerPortalSession(String customerEmail) throws StripeException {
-        com.stripe.param.CustomerListParams listParams = com.stripe.param.CustomerListParams.builder()
-            .setEmail(customerEmail)
-            .setLimit(1L)
-            .build();
-        var customers = com.stripe.model.Customer.list(listParams).getData();
+    public String createCustomerPortalSession(String authentikUserId, String tokenEmail) throws StripeException {
+        ensureStripeConfigured();
+        String customerEmail = resolveCustomerEmail(authentikUserId, tokenEmail);
+        log.info("Creating Stripe customer portal session for user={} email={}", authentikUserId, customerEmail);
 
-        if (customers.isEmpty()) {
+        String customerId = findCustomerIdByEmail(customerEmail);
+        if (customerId == null) {
             throw new ResourceNotFoundException("No Stripe customer found for email: " + customerEmail);
         }
 
         com.stripe.param.billingportal.SessionCreateParams params =
             com.stripe.param.billingportal.SessionCreateParams.builder()
-                .setCustomer(customers.get(0).getId())
+                .setCustomer(customerId)
                 .setReturnUrl(frontendUrl + "/perfil")
                 .build();
 
         return com.stripe.model.billingportal.Session.create(params).getUrl();
+    }
+
+    public PaymentSetupStatusResponse getPaymentSetupStatus(String authentikUserId, String tokenEmail) throws StripeException {
+        ensureStripeConfigured();
+        String customerEmail = resolveCustomerEmail(authentikUserId, tokenEmail);
+        String customerId = findCustomerIdByEmail(customerEmail);
+
+        if (customerId == null) {
+            log.info("Stripe setup status for user={} email={} -> no customer yet", authentikUserId, customerEmail);
+            return new PaymentSetupStatusResponse(false);
+        }
+
+        PaymentMethodCollection paymentMethods = com.stripe.model.PaymentMethod.list(
+            com.stripe.param.PaymentMethodListParams.builder()
+                .setCustomer(customerId)
+                .setType(com.stripe.param.PaymentMethodListParams.Type.CARD)
+                .setLimit(1L)
+                .build()
+        );
+
+        boolean configured = !paymentMethods.getData().isEmpty();
+        log.info("Stripe setup status for user={} customer={} configured={}", authentikUserId, customerId, configured);
+        return new PaymentSetupStatusResponse(configured);
+    }
+
+    private void ensureStripeConfigured() {
+        if (!StringUtils.hasText(stripeApiKey)) {
+            throw new IllegalStateException("Stripe is not configured on the server");
+        }
+    }
+
+    private String findCustomerIdByEmail(String customerEmail) throws StripeException {
+        com.stripe.param.CustomerListParams listParams = com.stripe.param.CustomerListParams.builder()
+            .setEmail(customerEmail)
+            .setLimit(1L)
+            .build();
+        var customers = com.stripe.model.Customer.list(listParams).getData();
+        return customers.isEmpty() ? null : customers.get(0).getId();
+    }
+
+    private String resolveCustomerEmail(String authentikUserId, String tokenEmail) {
+        if (StringUtils.hasText(tokenEmail)) {
+            return tokenEmail;
+        }
+
+        return userRepository.findByAuthentikUserId(authentikUserId)
+            .map(user -> user.getEmail())
+            .filter(StringUtils::hasText)
+            .orElseThrow(() -> new IllegalStateException(
+                "Authenticated user does not have an email address available for Stripe"));
     }
 }

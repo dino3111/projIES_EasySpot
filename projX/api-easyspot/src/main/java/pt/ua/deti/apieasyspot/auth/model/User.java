@@ -48,6 +48,12 @@ public class User {
     @Column(nullable = false, columnDefinition = "boolean default true")
     private boolean notificationsEnabled = true;
 
+    @Column(nullable = false, columnDefinition = "boolean default true")
+    private boolean pushNotificationsEnabled = true;
+
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean emailNotificationsEnabled = false;
+
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Vehicle> vehicles = new ArrayList<>();
 

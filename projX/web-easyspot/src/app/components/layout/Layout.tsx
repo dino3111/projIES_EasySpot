@@ -10,7 +10,7 @@ export function Layout() {
   const { profile, setDriverType } = useProfile();
   const location = useLocation();
   const path = location.pathname;
-  const { showOnboarding, setShowOnboarding } = useDriverOnboarding();
+  const { showOnboarding, setShowOnboarding, needsVehicle, needsPayment } = useDriverOnboarding();
 
   if (path.startsWith('/manager') && profile !== 'MANAGER') {
     return <Navigate to="/" replace />;
@@ -36,6 +36,8 @@ export function Layout() {
 
       {showOnboarding && (
         <OnboardingModal
+          needsVehicle={needsVehicle}
+          needsPayment={needsPayment}
           onFinish={(dt) => { setDriverType(dt); setShowOnboarding(false); }}
           onClose={() => setShowOnboarding(false)}
         />

@@ -43,6 +43,14 @@ export function AddVehicleModal({ onClose, onAdd }: Readonly<{ onClose: () => vo
   const [saving, setSaving] = useState(false);
   const [vehicleData, setVehicleData] = useState<VehicleData | null>(null);
   const [insuranceData, setInsuranceData] = useState<InsuranceData | null>(null);
+  const [plateError, setPlateError] = useState<string | null>(null);
+  const [showManualForm, setShowManualForm] = useState(false);
+  const [manualData, setManualData] = useState<{ make: string; model: string; fuelType: string; year: string }>({
+    make: '',
+    model: '',
+    fuelType: '',
+    year: '',
+  });
   const [nickname, setNickname] = useState('');
   const [rfid, setRfid] = useState('');
   const [isEV, setIsEV] = useState(false);
@@ -59,19 +67,41 @@ export function AddVehicleModal({ onClose, onAdd }: Readonly<{ onClose: () => vo
   }, [plate]);
 
   useEffect(() => {
-    if (!PT_PLATE_REGEX.test(plate)) { setVehicleData(null); setInsuranceData(null); return; }
+    if (!PT_PLATE_REGEX.test(plate)) {
+      setVehicleData(null);
+      setInsuranceData(null);
+      setPlateError(null);
+      setShowManualForm(false);
+      setManualData({ make: '', model: '', fuelType: '', year: '' });
+      return;
+    }
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       setLoading(true);
+      setPlateError(null);
+      setShowManualForm(false);
       Promise.all([lookupVehicleData(plate), lookupInsuranceData(plate)])
         .then(([vData, iData]) => {
           setVehicleData(vData);
           setInsuranceData(iData);
+          setManualData({
+            make: vData.make ?? '',
+            model: vData.model ?? '',
+            fuelType: vData.fuelType ?? '',
+            year: vData.plateDate ? vData.plateDate.slice(0, 4) : '',
+          });
           const ev = isEVFuelType(vData.fuelType);
           setIsEV(ev);
           if (ev) setChargerTypes(detectChargerTypes(vData.make));
         })
-        .catch(() => { setVehicleData(null); setInsuranceData(null); })
+        .catch((error: unknown) => {
+          setVehicleData(null);
+          setInsuranceData(null);
+          setShowManualForm(true);
+          const msg = error instanceof Error ? error.message : 'Falha na consulta do InfoMatrícula';
+          setPlateError(msg);
+          console.warn('[Vehicle lookup] InfoMatrícula lookup failed:', msg);
+        })
         .finally(() => setLoading(false));
     }, 600);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
@@ -79,15 +109,28 @@ export function AddVehicleModal({ onClose, onAdd }: Readonly<{ onClose: () => vo
 
   const handleAdd = async () => {
     if (!PT_PLATE_REGEX.test(plate)) { toast.error('Matrícula inválida'); return; }
+    const yearFromLookup = vehicleData?.plateDate ? parseInt(vehicleData.plateDate.slice(0, 4), 10) : undefined;
+    const hasValidManualData =
+      manualData.make.trim().length > 0 &&
+      manualData.model.trim().length > 0 &&
+      manualData.fuelType.trim().length > 0 &&
+      Number.isInteger(parseInt(manualData.year, 10));
+
+    if (!vehicleData && !hasValidManualData) {
+      setShowManualForm(true);
+      toast.warning('Sem resposta do InfoMatrícula. Preencha os dados manuais para continuar.');
+      return;
+    }
+
     setSaving(true);
     try {
       const created = await vehicleApi.create({
         licensePlate: plate,
         externalIdentifier: rfid.trim() || undefined,
-        make: vehicleData?.make,
-        model: vehicleData?.model,
-        fuelType: vehicleData?.fuelType,
-        year: vehicleData?.plateDate ? parseInt(vehicleData.plateDate.slice(0, 4), 10) : undefined,
+        make: vehicleData?.make ?? (manualData.make.trim() || undefined),
+        model: vehicleData?.model ?? (manualData.model.trim() || undefined),
+        fuelType: vehicleData?.fuelType ?? (manualData.fuelType.trim() || undefined),
+        year: yearFromLookup ?? (parseInt(manualData.year, 10) || undefined),
       });
       onAdd({
         id: created.id,
@@ -124,9 +167,45 @@ export function AddVehicleModal({ onClose, onAdd }: Readonly<{ onClose: () => vo
         </div>
         <div className="px-5 py-5 space-y-4">
           <PlateInput plate={plate} setPlate={setPlate} loading={loading} inputRef={inputRef} />
+          {plateError && PT_PLATE_REGEX.test(plate) && (
+            <div className="rounded-xl border border-error/30 bg-error/5 p-3 text-sm text-error">
+              Falha na consulta automática: {plateError}
+            </div>
+          )}
           <NicknameInput nickname={nickname} setNickname={setNickname} />
           <RfidInput rfid={rfid} setRfid={setRfid} />
           {vehicleData && <VehicleDataCard vehicleData={vehicleData} insuranceData={insuranceData} />}
+          {showManualForm && (
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-2">
+              <p className="text-foreground font-semibold text-sm">Preenchimento manual (fallback)</p>
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  className="input input-bordered rounded-lg"
+                  placeholder="Marca"
+                  value={manualData.make}
+                  onChange={(e) => setManualData((prev) => ({ ...prev, make: e.target.value }))}
+                />
+                <input
+                  className="input input-bordered rounded-lg"
+                  placeholder="Modelo"
+                  value={manualData.model}
+                  onChange={(e) => setManualData((prev) => ({ ...prev, model: e.target.value }))}
+                />
+                <input
+                  className="input input-bordered rounded-lg"
+                  placeholder="Combustível"
+                  value={manualData.fuelType}
+                  onChange={(e) => setManualData((prev) => ({ ...prev, fuelType: e.target.value }))}
+                />
+                <input
+                  className="input input-bordered rounded-lg"
+                  placeholder="Ano"
+                  value={manualData.year}
+                  onChange={(e) => setManualData((prev) => ({ ...prev, year: e.target.value }))}
+                />
+              </div>
+            </div>
+          )}
           <EVOptions
             isEV={isEV} setIsEV={setIsEV}
             chargerTypes={chargerTypes} setChargerTypes={setChargerTypes}

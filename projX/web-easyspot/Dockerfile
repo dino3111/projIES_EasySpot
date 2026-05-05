@@ -4,10 +4,14 @@ WORKDIR /app
 
 RUN npm install -g pnpm
 
-COPY package*.json pnpm-lock.yaml* ./
+# Copy only package files first for better caching
+COPY package.json pnpm-lock.yaml* .npmrc* ./
 
-RUN pnpm install
+# Install dependencies (this layer is cached if package.json doesn't change)
+# Use --frozen-lockfile to ensure exact versions and --unsafe-perm to allow build scripts
+RUN CI=true pnpm install --frozen-lockfile --shamefully-hoist
 
+# Copy the rest of the application
 COPY . .
 
 EXPOSE 5173

@@ -3,11 +3,13 @@ package pt.ua.deti.apieasyspot.vehicle.service;
 import tools.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import pt.ua.deti.apieasyspot.auth.model.User;
 import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
 import pt.ua.deti.apieasyspot.common.exception.ConflictException;
-import pt.ua.deti.apieasyspot.common.exception.ExternalServiceException;
+import pt.ua.deti.apieasyspot.common.exception.PlateNotFoundException;
 import pt.ua.deti.apieasyspot.common.exception.ResourceNotFoundException;
 import pt.ua.deti.apieasyspot.common.exception.UnprocessableEntityException;
 import pt.ua.deti.apieasyspot.vehicle.dto.InsuranceData;
@@ -26,12 +28,14 @@ import java.time.LocalDateTime;
 @Service
 @RequiredArgsConstructor
 public class VehicleService {
+    private static final Logger log = LoggerFactory.getLogger(VehicleService.class);
+
     private final VehicleRepository vehicleRepository;
     private final UserRepository userRepository;
     private final VehicleLookupClient vehicleLookupClient;
     private final ObjectMapper objectMapper;
 
-    public VehicleResponse createVehicle(String authentikUserId, VehicleCreateRequest request) {
+    public VehicleResponse createVehicle(String authentikUserId, VehicleCreateRequest request, String appCheckToken) {
         User user = findUser(authentikUserId);
         String plate = request.licensePlate().toUpperCase();
 
@@ -43,12 +47,24 @@ public class VehicleService {
         vehicle.setPlate(plate);
         vehicle.setRfid(request.externalIdentifier());
 
+        log.info(
+            "Creating vehicle plate={} hasManualData={} makePresent={} modelPresent={} fuelTypePresent={} yearPresent={}",
+            plate,
+            request.hasManualData(),
+            request.make() != null && !request.make().isBlank(),
+            request.model() != null && !request.model().isBlank(),
+            request.fuelType() != null && !request.fuelType().isBlank(),
+            request.year() != null
+        );
+
         if (request.hasManualData()) {
+            log.info("Persisting vehicle plate={} with client-provided data, skipping InfoMatricula backend lookup", plate);
             applyManualData(vehicle, request);
         } else {
             try {
-                applyLookupData(vehicle, vehicleLookupClient.lookup(plate));
-            } catch (ExternalServiceException ex) {
+                log.info("No complete client-provided data for plate={}, attempting InfoMatricula backend lookup", plate);
+                applyLookupData(vehicle, vehicleLookupClient.lookup(plate, appCheckToken));
+            } catch (PlateNotFoundException ex) {
                 throw new UnprocessableEntityException(
                     "Plate not found in the registry. Please provide: make, model, fuelType, year."
                 );
@@ -58,12 +74,12 @@ public class VehicleService {
         return toResponse(vehicleRepository.save(vehicle));
     }
 
-    public VehicleResponse updateVehicle(String authentikUserId, UUID vehicleId, VehicleUpdateRequest request){
+    public VehicleResponse updateVehicle(String authentikUserId, UUID vehicleId, VehicleUpdateRequest request, String appCheckToken){
         User user = findUser(authentikUserId);
         Vehicle vehicle = findVehicle(vehicleId, user.getId());
 
         if(!vehicle.getPlate().equalsIgnoreCase(request.plate())){
-            VehicleData data = vehicleLookupClient.lookup(request.plate());
+            VehicleData data = vehicleLookupClient.lookup(request.plate(), appCheckToken);
             applyLookupData(vehicle, data);
         }
 
@@ -129,8 +145,8 @@ public class VehicleService {
         return LocalDate.now().getYear();
     }
 
-    public VehicleLookupResponse lookupPlate(String plate) {
-        VehicleData data = vehicleLookupClient.lookup(plate.toUpperCase());
+    public VehicleLookupResponse lookupPlate(String plate, String appCheckToken) {
+        VehicleData data = vehicleLookupClient.lookup(plate.toUpperCase(), appCheckToken);
         return new VehicleLookupResponse(
             plate.toUpperCase(),
             data.make(),
@@ -144,8 +160,8 @@ public class VehicleService {
         );
     }
 
-    public InsuranceData lookupInsurance(String plate) {
-        return vehicleLookupClient.lookupInsurance(plate.toUpperCase());
+    public InsuranceData lookupInsurance(String plate, String appCheckToken) {
+        return vehicleLookupClient.lookupInsurance(plate.toUpperCase(), appCheckToken);
     }
 
     public VehicleCapabilities getCapabilities(UUID vehicleId) {
