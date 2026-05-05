@@ -408,12 +408,24 @@ def get_default_flow(designation: str) -> str:
     return flow_pk
 
 
+def get_rsa_signing_key() -> str | None:
+    resp = api("GET", "/crypto/certificatekeypairs/?has_key=true&ordering=name")
+    results = resp.get("results", [])
+    if results:
+        pk = str(results[0]["pk"])
+        print(f"  Using RSA signing key: {results[0].get('name')} ({pk})")
+        return pk
+    print("  No RSA signing key found — tokens will use HS256 (JWKS will be empty)")
+    return None
+
+
 def create_provider(groups_mapping_pk: str) -> str:
     print("Creating OAuth2 provider...")
     scope_pks = get_default_scope_mappings() + [groups_mapping_pk]
     auth_flow = get_default_flow("authentication")
     authz_flow = get_default_flow("authorization")
     invalidation_flow = get_default_flow("invalidation")
+    signing_key = get_rsa_signing_key()
 
     payload = {
         "name": PROVIDER_NAME,
@@ -423,7 +435,7 @@ def create_provider(groups_mapping_pk: str) -> str:
         "client_type": "public",
         "redirect_uris": _build_redirect_uris(REDIRECT_URI)
         + _build_post_logout_redirect_uris(),
-        "signing_key": None,
+        "signing_key": signing_key,
         "access_code_validity": "minutes=1",
         "access_token_validity": "minutes=5",
         "refresh_token_validity": "days=30",
@@ -613,11 +625,11 @@ def print_summary(provider_pk: str) -> None:
 ENROLLMENT_FLOW_SLUG = "easyspot-enrollment"
 
 
-def create_enrollment_flow() -> None:
+def create_enrollment_flow(driver_group_pk: str) -> None:
     print("Creating enrollment flow...")
 
     prompt_pk = _get_or_create_enrollment_prompt_stage()
-    write_pk = _get_or_create_enrollment_write_stage()
+    write_pk = _get_or_create_enrollment_write_stage(driver_group_pk)
     login_pk = _get_or_create_enrollment_login_stage()
 
     flow = get_or_create(
@@ -719,17 +731,20 @@ def _get_or_create_prompt(name: str, payload: dict) -> str:
     return str(result["pk"])
 
 
-def _get_or_create_enrollment_write_stage() -> str:
+def _get_or_create_enrollment_write_stage(driver_group_pk: str) -> str:
     name = "easyspot-enrollment-write"
-    existing = api("GET", f"/stages/user_write/?name={name}")
-    if existing.get("results"):
-        return str(existing["results"][0]["pk"])
-    stage = api("POST", "/stages/user_write/", json={
+    payload = {
         "name": name,
         "user_creation_mode": "always_create",
         "create_users_as_inactive": False,
-        "create_users_group": None,
-    })
+        "create_users_group": driver_group_pk,
+    }
+    existing = api("GET", f"/stages/user_write/?name={name}")
+    if existing.get("results"):
+        pk = str(existing["results"][0]["pk"])
+        api("PATCH", f"/stages/user_write/{pk}/", json={"create_users_group": driver_group_pk})
+        return pk
+    stage = api("POST", "/stages/user_write/", json=payload)
     return str(stage["pk"])
 
 
@@ -787,7 +802,7 @@ def main() -> None:
     groups_mapping_pk = create_groups_property_mapping()
     provider_pk = create_provider(groups_mapping_pk)
     create_application(provider_pk)
-    create_enrollment_flow()
+    create_enrollment_flow(group_ids["DRIVER"])
     create_test_users(group_ids)
     apply_branding(APP_SLUG)
     print_summary(provider_pk)

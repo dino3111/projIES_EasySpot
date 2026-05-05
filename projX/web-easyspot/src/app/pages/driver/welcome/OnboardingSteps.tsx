@@ -1,7 +1,22 @@
 import React from 'react';
-import { toast } from 'sonner';
-import { type VehicleData, type InsuranceData } from '../../../../services/vehicleLookup';
 import type { AccountType, DriverType } from '../../../context/ProfileContext';
+
+export interface VehicleData {
+  plate?: string;
+  make?: string;
+  model?: string;
+  version?: string;
+  plateDate?: string;
+  color?: string;
+  fuelType?: string;
+  [key: string]: unknown;
+}
+
+export interface InsuranceData {
+  entity?: string;
+  policy?: string;
+  endDate?: string;
+}
 
 export const INPUT_CLS = 'w-full rounded-xl px-4 py-3 bg-muted/50 border border-border text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all';
 
@@ -58,15 +73,17 @@ export function StepVehicle(props: {
   rfid: string;
   setRfid: (v: string) => void;
   plateLoading: boolean;
-  vehicleData: VehicleData | null;
+  vehicleData: Partial<VehicleData> | null;
   insuranceData: InsuranceData | null;
   plateError: string | null;
-  manualVehicleData: Partial<VehicleData>;
-  setManualVehicleData: React.Dispatch<React.SetStateAction<Partial<VehicleData>>>;
+  manualVehicleData: Record<string, unknown>;
+  setManualVehicleData: React.Dispatch<React.SetStateAction<Record<string, unknown>>>;
   showManualVehicleForm: boolean;
   setShowManualVehicleForm: React.Dispatch<React.SetStateAction<boolean>>;
+  onSaveManual?: () => void;
+  savingManual?: boolean;
 }) {
-  const { plate, setPlate, rfid, setRfid, plateLoading, vehicleData, insuranceData, plateError, manualVehicleData, setManualVehicleData, showManualVehicleForm, setShowManualVehicleForm } = props;
+  const { plate, setPlate, rfid, setRfid, plateLoading, vehicleData, insuranceData, plateError, manualVehicleData, setManualVehicleData, showManualVehicleForm, setShowManualVehicleForm, onSaveManual, savingManual } = props;
   return (
     <div className="space-y-4">
       <div>
@@ -130,18 +147,16 @@ export function StepVehicle(props: {
             <input type="text" placeholder="Marca" value={String(manualVehicleData.make || '')} onChange={(e) => setManualVehicleData((prev) => ({ ...prev, make: e.target.value }))} className={INPUT_CLS} style={{ fontSize: '0.8rem' }} />
             <input type="text" placeholder="Modelo" value={String(manualVehicleData.model || '')} onChange={(e) => setManualVehicleData((prev) => ({ ...prev, model: e.target.value }))} className={INPUT_CLS} style={{ fontSize: '0.8rem' }} />
             <input type="text" placeholder="Ano" value={String((manualVehicleData as Record<string, unknown>).year || '')} onChange={(e) => setManualVehicleData((prev) => ({ ...prev, year: e.target.value } as Partial<VehicleData>))} className={INPUT_CLS} style={{ fontSize: '0.8rem' }} />
-            <input type="text" placeholder="Combustível" value={String((manualVehicleData as Record<string, unknown>).fuel || '')} onChange={(e) => setManualVehicleData((prev) => ({ ...prev, fuel: e.target.value } as Partial<VehicleData>))} className={INPUT_CLS} style={{ fontSize: '0.8rem' }} />
+            <input type="text" placeholder="Combustível" value={String((manualVehicleData as Record<string, unknown>).fuelType || '')} onChange={(e) => setManualVehicleData((prev) => ({ ...prev, fuelType: e.target.value } as Partial<VehicleData>))} className={INPUT_CLS} style={{ fontSize: '0.8rem' }} />
           </div>
           <button
             type="button"
-            onClick={() => {
-              const hasAny = String(manualVehicleData.make || '').trim() !== '' || String(manualVehicleData.model || '').trim() !== '';
-              if (!hasAny) { toast.warning('Preencha pelo menos Marca ou Modelo.'); return; }
-              toast.success('Dados do veículo guardados manualmente.');
-            }}
-            className="px-3 py-2 rounded-lg bg-primary text-primary-foreground font-semibold hover:opacity-90"
+            onClick={onSaveManual}
+            disabled={savingManual}
+            className="px-3 py-2 rounded-lg bg-primary text-primary-foreground font-semibold hover:opacity-90 disabled:opacity-50"
             style={{ fontSize: '0.76rem' }}
           >
+            {savingManual ? <i className="fas fa-spinner fa-spin mr-1" /> : null}
             Guardar dados manuais
           </button>
         </div>

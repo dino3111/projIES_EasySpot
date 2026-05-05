@@ -229,6 +229,31 @@ public class StripeService {
         }
     }
 
+    public String createSetupIntent(String customerEmail) throws StripeException {
+        com.stripe.param.CustomerListParams listParams = com.stripe.param.CustomerListParams.builder()
+            .setEmail(customerEmail)
+            .setLimit(1L)
+            .build();
+        var customers = com.stripe.model.Customer.list(listParams).getData();
+
+        String customerId;
+        if (customers.isEmpty()) {
+            var createParams = com.stripe.param.CustomerCreateParams.builder()
+                .setEmail(customerEmail)
+                .build();
+            customerId = com.stripe.model.Customer.create(createParams).getId();
+        } else {
+            customerId = customers.get(0).getId();
+        }
+
+        var params = com.stripe.param.SetupIntentCreateParams.builder()
+            .setCustomer(customerId)
+            .addPaymentMethodType("card")
+            .build();
+
+        return com.stripe.model.SetupIntent.create(params).getClientSecret();
+    }
+
     public String createCustomerPortalSession(String customerEmail) throws StripeException {
         com.stripe.param.CustomerListParams listParams = com.stripe.param.CustomerListParams.builder()
             .setEmail(customerEmail)

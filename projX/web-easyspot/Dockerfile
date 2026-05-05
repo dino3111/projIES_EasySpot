@@ -2,11 +2,14 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm install --no-audit --no-fund
+RUN npm install -g pnpm
+
+COPY package*.json pnpm-lock.yaml* ./
+
+RUN pnpm install
 
 COPY . .
 
 EXPOSE 5173
 
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
+CMD ["pnpm", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]

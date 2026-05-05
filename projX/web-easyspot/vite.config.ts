@@ -20,13 +20,9 @@ export default defineConfig(() => {
     },
 
     server: {
-      proxy: {
-        '/infomatricula': {
-          target: 'https://api.infomatricula.pt',
-          changeOrigin: true,
-          rewrite: (proxyPath) => proxyPath.replace(/^\/infomatricula/, ''),
-        },
-      },
+      host: '0.0.0.0',
+      middlewareMode: false,
+      allowedHosts: ['localhost', '127.0.0.1', 'frontend'],
     },
 
     // File types to support raw imports. Never add .css, .tsx, or .ts files to this.

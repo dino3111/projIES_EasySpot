@@ -53,6 +53,20 @@ public class PaymentController {
         return ResponseEntity.ok().build();
     }
 
+    @Operation(summary = "Create Stripe SetupIntent for saving a payment method")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "SetupIntent client secret returned"),
+        @ApiResponse(responseCode = "401", description = "Missing or invalid authentication token"),
+        @ApiResponse(responseCode = "403", description = "User is authenticated but not a DRIVER")
+    })
+    @PostMapping("/payments/setup-intent")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<String> createSetupIntent(
+            @AuthenticationPrincipal Jwt jwt) throws StripeException {
+        String email = jwt.getClaimAsString("email");
+        return ResponseEntity.ok(stripeService.createSetupIntent(email));
+    }
+
     @Operation(summary = "Generate Stripe Customer Portal Session")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Customer portal URL generated successfully"),
@@ -60,7 +74,7 @@ public class PaymentController {
         @ApiResponse(responseCode = "403", description = "User is authenticated but not a DRIVER")
     })
     @GetMapping("/payments/customer-portal")
-    @PreAuthorize("hasRole('DRIVER')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<String> createCustomerPortalSession(
             @AuthenticationPrincipal Jwt jwt) throws StripeException {
         String email = jwt.getClaimAsString("email");

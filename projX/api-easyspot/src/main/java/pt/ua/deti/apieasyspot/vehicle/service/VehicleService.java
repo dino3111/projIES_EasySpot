@@ -10,7 +10,9 @@ import pt.ua.deti.apieasyspot.common.exception.ConflictException;
 import pt.ua.deti.apieasyspot.common.exception.ExternalServiceException;
 import pt.ua.deti.apieasyspot.common.exception.ResourceNotFoundException;
 import pt.ua.deti.apieasyspot.common.exception.UnprocessableEntityException;
+import pt.ua.deti.apieasyspot.vehicle.dto.InsuranceData;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleCapabilities;
+import pt.ua.deti.apieasyspot.vehicle.dto.VehicleLookupResponse;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleCreateRequest;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleData;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleResponse;
@@ -72,6 +74,13 @@ public class VehicleService {
         return toResponse(vehicleRepository.save(vehicle));
     }
 
+    public java.util.List<VehicleResponse> listVehicles(String authentikUserId) {
+        User user = findUser(authentikUserId);
+        return vehicleRepository.findByUserId(user.getId()).stream()
+            .map(this::toResponse)
+            .toList();
+    }
+
     public void deleteVehicle(String authentikUserId, UUID vehicleId){
         User user = findUser(authentikUserId);
         Vehicle vehicle = findVehicle(vehicleId, user.getId());
@@ -118,6 +127,25 @@ public class VehicleService {
             if (year >= 1900 && year <= 2100) return year;
         } catch (NumberFormatException ignored) {}
         return LocalDate.now().getYear();
+    }
+
+    public VehicleLookupResponse lookupPlate(String plate) {
+        VehicleData data = vehicleLookupClient.lookup(plate.toUpperCase());
+        return new VehicleLookupResponse(
+            plate.toUpperCase(),
+            data.make(),
+            data.model(),
+            data.version(),
+            data.color(),
+            data.fuelType(),
+            data.plateDate(),
+            data.categoryType(),
+            data.vin()
+        );
+    }
+
+    public InsuranceData lookupInsurance(String plate) {
+        return vehicleLookupClient.lookupInsurance(plate.toUpperCase());
     }
 
     public VehicleCapabilities getCapabilities(UUID vehicleId) {

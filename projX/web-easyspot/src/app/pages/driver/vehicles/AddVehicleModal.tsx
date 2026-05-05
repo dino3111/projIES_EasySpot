@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { lookupVehicleData, lookupInsuranceData, type VehicleData, type InsuranceData } from '../../../../services/vehicleLookup';
+import { vehicleApi } from '../../../../services/apiService';
 import { isEVFuelType, detectChargerTypes } from '../../../utils/brandLogo';
 import type { Vehicle } from '../../../context/ProfileContext';
 import { PT_PLATE_REGEX, NicknameInput, RfidInput, VehicleDataCard, EVOptions } from './vehiclesShared';
@@ -39,6 +40,7 @@ function PlateInput({
 export function AddVehicleModal({ onClose, onAdd }: Readonly<{ onClose: () => void; onAdd: (v: Vehicle) => void }>) {
   const [plate, setPlate] = useState('');
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [vehicleData, setVehicleData] = useState<VehicleData | null>(null);
   const [insuranceData, setInsuranceData] = useState<InsuranceData | null>(null);
   const [nickname, setNickname] = useState('');
@@ -69,34 +71,46 @@ export function AddVehicleModal({ onClose, onAdd }: Readonly<{ onClose: () => vo
           setIsEV(ev);
           if (ev) setChargerTypes(detectChargerTypes(vData.make));
         })
-        .catch((err) => { toast.error(err.message || 'Erro ao obter dados do veículo'); setVehicleData(null); })
+        .catch(() => { setVehicleData(null); setInsuranceData(null); })
         .finally(() => setLoading(false));
     }, 600);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [plate]);
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!PT_PLATE_REGEX.test(plate)) { toast.error('Matrícula inválida'); return; }
-    onAdd({
-      id: Date.now().toString(),
-      plate,
-      nickname: nickname.trim() || undefined,
-      make: vehicleData?.make,
-      model: vehicleData?.model,
-      version: vehicleData?.version,
-      year: vehicleData?.plateDate,
-      color: vehicleData?.color,
-      fuelType: vehicleData?.fuelType,
-      vin: vehicleData?.vin,
-      powerKW: vehicleData?.powerkw,
-      isEV,
-      chargerTypes: isEV ? chargerTypes : undefined,
-      isAccessible,
-      isPrimary: false,
-      rfid: rfid.trim() || undefined,
-    });
-    toast.success('Veículo adicionado com sucesso');
-    onClose();
+    setSaving(true);
+    try {
+      const created = await vehicleApi.create({
+        licensePlate: plate,
+        externalIdentifier: rfid.trim() || undefined,
+        make: vehicleData?.make,
+        model: vehicleData?.model,
+        fuelType: vehicleData?.fuelType,
+        year: vehicleData?.plateDate ? parseInt(vehicleData.plateDate.slice(0, 4), 10) : undefined,
+      });
+      onAdd({
+        id: created.id,
+        plate: created.plate,
+        nickname: nickname.trim() || undefined,
+        make: created.make ?? undefined,
+        model: created.model ?? undefined,
+        version: created.version ?? undefined,
+        year: created.year ? String(created.year) : undefined,
+        color: created.color ?? undefined,
+        fuelType: created.fuelType ?? undefined,
+        isEV: created.isEv,
+        isAccessible,
+        isPrimary: created.isPrimary,
+        rfid: rfid.trim() || undefined,
+      });
+      toast.success('Veículo adicionado com sucesso');
+      onClose();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erro ao adicionar veículo');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -122,8 +136,9 @@ export function AddVehicleModal({ onClose, onAdd }: Readonly<{ onClose: () => vo
         </div>
         <div className="sticky bottom-0 bg-background border-t border-border px-5 py-4 flex items-center gap-3 rounded-b-3xl">
           <button onClick={onClose} className="btn btn-ghost flex-1 rounded-full" style={{ fontSize: '0.875rem' }}>Cancelar</button>
-          <button onClick={handleAdd} disabled={!PT_PLATE_REGEX.test(plate)} className="btn btn-primary flex-1 rounded-full" style={{ fontSize: '0.875rem' }}>
-            <i className="fas fa-plus mr-2" style={{ fontSize: '0.8rem' }} />Adicionar
+          <button onClick={handleAdd} disabled={!PT_PLATE_REGEX.test(plate) || saving} className="btn btn-primary flex-1 rounded-full" style={{ fontSize: '0.875rem' }}>
+            {saving ? <i className="fas fa-spinner fa-spin mr-2" style={{ fontSize: '0.8rem' }} /> : <i className="fas fa-plus mr-2" style={{ fontSize: '0.8rem' }} />}
+            Adicionar
           </button>
         </div>
       </div>

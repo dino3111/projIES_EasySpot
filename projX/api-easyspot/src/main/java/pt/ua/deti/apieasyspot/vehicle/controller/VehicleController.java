@@ -11,7 +11,9 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
+import pt.ua.deti.apieasyspot.vehicle.dto.InsuranceData;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleCreateRequest;
+import pt.ua.deti.apieasyspot.vehicle.dto.VehicleLookupResponse;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleResponse;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleUpdateRequest;
 import pt.ua.deti.apieasyspot.vehicle.service.VehicleService;
@@ -24,6 +26,29 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class VehicleController {
     private final VehicleService vehicleService;
+
+    @Operation(summary = "Lookup plate data", description = "Fetches vehicle data from the IMT registry without persisting it.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Vehicle data found"),
+        @ApiResponse(responseCode = "404", description = "Plate not found in registry"),
+        @ApiResponse(responseCode = "503", description = "IMT service unavailable")
+    })
+    @GetMapping("/lookup")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<VehicleLookupResponse> lookupPlate(@RequestParam String plate) {
+        return ResponseEntity.ok(vehicleService.lookupPlate(plate));
+    }
+
+    @Operation(summary = "Lookup insurance data", description = "Fetches insurance data for a plate from the InfoMatrícula registry.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Insurance data found"),
+        @ApiResponse(responseCode = "503", description = "InfoMatrícula service unavailable")
+    })
+    @GetMapping("/insurance")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<InsuranceData> lookupInsurance(@RequestParam String plate) {
+        return ResponseEntity.ok(vehicleService.lookupInsurance(plate));
+    }
 
     @Operation(summary = "Add a vehicle", description = "Adds a vehicle to the authenticated driver's profile.")
     @ApiResponses({
@@ -73,5 +98,19 @@ public class VehicleController {
         String authentikUserId = jwt.getSubject();
         vehicleService.deleteVehicle(authentikUserId, id);
         return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "List driver vehicles", description = "Returns all vehicles belonging to the authenticated driver.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Vehicles retrieved successfully"),
+        @ApiResponse(responseCode = "404", description = "User not found")
+    })
+    @GetMapping
+    @PreAuthorize("hasRole('DRIVER')")
+    public ResponseEntity<java.util.List<VehicleResponse>> listVehicles(
+        @AuthenticationPrincipal Jwt jwt
+    ){
+        String authentikUserId = jwt.getSubject();
+        return ResponseEntity.ok(vehicleService.listVehicles(authentikUserId));
     }
 }
