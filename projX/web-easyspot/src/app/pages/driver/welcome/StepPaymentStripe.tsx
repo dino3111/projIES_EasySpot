@@ -124,6 +124,12 @@ export function StepPaymentStripe({ onReady }: { onReady: (confirmed: boolean) =
   }), [clientSecret, theme]);
 
   useEffect(() => {
+    const token = sessionStorage.getItem('es_access_token');
+    if (!token) {
+      setLoadError('Sessão expirada. Inicie sessão novamente para configurar o pagamento.');
+      return;
+    }
+
     if (!stripePublishableKey || stripePublishableKey.includes('REPLACE_WITH_YOUR_STRIPE_PUBLISHABLE_KEY')) {
       const message = 'A chave pública do Stripe não está configurada no frontend.';
       console.error(`[Stripe onboarding] ${message}`);

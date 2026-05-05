@@ -216,6 +216,7 @@ services:
     volumes:
       - timescaledb-data:/var/lib/postgresql/data
       - ./init-timescale.sh:/docker-entrypoint-initdb.d/init-timescale.sh:ro
+      - ./api-easyspot/src/main/resources/seed/parking_seed.sql:/docker-entrypoint-initdb.d/02-parking_seed.sql:ro
     environment:
       POSTGRES_PASSWORD: ${APP_DB_PASS}
       POSTGRES_USER: ${APP_DB_USER}

@@ -1,4 +1,5 @@
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '';
+const AUTH_STORAGE_KEYS = ['es_access_token', 'es_id_token', 'es_refresh_token', 'es_pkce_verifier', 'es_pkce_state'] as const;
 
 function getAccessToken(): string | null {
   return sessionStorage.getItem('es_access_token');
@@ -14,6 +15,14 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
 
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
   if (!res.ok) {
+    if (res.status === 401) {
+      for (const key of AUTH_STORAGE_KEYS) sessionStorage.removeItem(key);
+      if (typeof window !== 'undefined' && window.location.pathname !== '/welcome') {
+        window.location.href = '/welcome?session=expired';
+      }
+      throw new Error('Sessão expirada. Inicie sessão novamente.');
+    }
+
     const text = await res.text().catch(() => '');
     let errorMessage = `HTTP ${res.status}`;
     const isHtmlError = text.trim().startsWith('<!DOCTYPE html') || text.trim().startsWith('<html');

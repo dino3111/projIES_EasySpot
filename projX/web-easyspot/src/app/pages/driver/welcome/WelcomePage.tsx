@@ -1,3 +1,5 @@
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import logo from '../../../../assets/logo.svg';
 import logoWhite from '../../../../assets/logo-white.svg';
@@ -24,11 +26,52 @@ const steps = [
   { n: '3', icon: 'fa-credit-card', title: 'Configure o pagamento',  desc: 'Ligue o seu Stripe, cartão ou MB Way. Cobrança automática à saída.' },
 ];
 
+function SessionExpiredModal({ onLogin, onClose }: { onLogin: () => void; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-card border border-border rounded-2xl p-8 max-w-sm w-full mx-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex flex-col items-center text-center gap-4">
+          <div className="w-14 h-14 rounded-full bg-amber-500/10 flex items-center justify-center">
+            <i className="fas fa-clock text-amber-500" style={{ fontSize: '1.5rem' }} />
+          </div>
+          <div>
+            <h2 className="text-foreground font-bold text-lg mb-1">Sessão expirada</h2>
+            <p className="text-muted-foreground text-sm">A sua sessão terminou. Inicie sessão novamente para continuar.</p>
+          </div>
+          <div className="flex gap-3 w-full">
+            <button onClick={onClose} className="flex-1 px-4 py-2.5 rounded-full border border-border text-foreground font-semibold hover:bg-muted transition-colors text-sm">
+              Fechar
+            </button>
+            <button onClick={onLogin} className="flex-1 px-4 py-2.5 rounded-full bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity shadow-md shadow-primary/25 text-sm">
+              <i className="fas fa-sign-in-alt mr-2" />Entrar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function WelcomePage() {
   const { login, register } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [showExpiredModal, setShowExpiredModal] = useState(searchParams.get('session') === 'expired');
+
+  useEffect(() => {
+    if (searchParams.get('session') === 'expired') {
+      setShowExpiredModal(true);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
+  const handleLogin = () => {
+    setShowExpiredModal(false);
+    login();
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+      {showExpiredModal && <SessionExpiredModal onLogin={handleLogin} onClose={() => setShowExpiredModal(false)} />}
 
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
