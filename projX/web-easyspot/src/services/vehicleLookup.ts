@@ -1,4 +1,4 @@
-import { getAppCheckToken, getFirebaseIdToken } from './firebaseAppCheck';
+import { API_BASE } from './apiBase';
 
 export interface VehicleData {
   plate?: string;
@@ -7,9 +7,14 @@ export interface VehicleData {
   model?: string;
   version?: string;
   plateDate?: string;
+  yearFrom?: number;
+  yearTo?: number;
   color?: string;
   fuelType?: string;
+  displacementCc?: number;
   cubicCap?: string;
+  powerCv?: number;
+  powerKw?: number;
   powercv?: string;
   powerkw?: string;
   co2?: string;
@@ -33,40 +38,16 @@ export interface InsuranceData {
   logo?: string;
 }
 
-const IMT_PROXY_BASE = '/infomatricula';
-const RETRYABLE_STATUSES = new Set([502, 503, 504]);
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const LOOKUP_ENDPOINT = `${API_BASE}/api/vehicles/lookup`;
 
-async function imtHeaders(): Promise<Record<string, string>> {
-  const idToken = await getFirebaseIdToken();
-  const appCheckToken = await getAppCheckToken();
-
-  console.debug('[InfoMatricula][Lookup] auth headers ready', {
-    appCheckLength: appCheckToken.length,
-    idTokenLength: idToken.length,
-  });
-
+function buildAuthHeaders(): Record<string, string> {
+  const accessToken = sessionStorage.getItem('es_access_token');
+  if (!accessToken) throw new Error('Sessão expirada. Inicie sessão novamente.');
   return {
     Accept: 'application/json',
     'Content-Type': 'application/json',
-    Authorization: `Bearer ${idToken}`,
-    'X-Firebase-AppCheck': appCheckToken,
+    Authorization: `Bearer ${accessToken}`,
   };
-}
-
-async function fetchWithAuth(endpoint: string): Promise<Response> {
-  console.info('[InfoMatricula][Lookup] request start', { endpoint });
-  const headers = await imtHeaders();
-  const response = await fetch(endpoint, { headers });
-
-  console.info('[InfoMatricula][Lookup] response', {
-    endpoint,
-    status: response.status,
-    contentType: response.headers.get('content-type'),
-    rateLimitRemaining: response.headers.get('ratelimit-remaining'),
-  });
-
-  return response;
 }
 
 async function errorFromResponse(response: Response): Promise<Error> {
@@ -85,57 +66,13 @@ async function errorFromResponse(response: Response): Promise<Error> {
 }
 
 export async function lookupVehicleData(plate: string): Promise<VehicleData> {
-  const endpoint = `${IMT_PROXY_BASE}/informacao/fetch?plate=${encodeURIComponent(plate.toUpperCase())}`;
-
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    console.info('[InfoMatricula][Vehicle] lookup attempt', { plate, attempt: attempt + 1 });
-    const response = await fetchWithAuth(endpoint);
-
-    if (response.ok) {
-      const contentType = response.headers.get('content-type') ?? '';
-      if (!contentType.includes('application/json')) {
-        throw new Error('Resposta invalida da API (esperado JSON).');
-      }
-      const data = await response.json() as VehicleData;
-      console.info('[InfoMatricula][Vehicle] lookup success', {
-        plate,
-        hasPlate: Boolean(data.plate),
-        make: data.make,
-        model: data.model,
-      });
-      return data;
-    }
-
-    if (RETRYABLE_STATUSES.has(response.status) && attempt < 2) {
-      await delay((attempt + 1) * 700);
-      continue;
-    }
-
-    throw await errorFromResponse(response);
-  }
-
-  throw new Error('Servico de matriculas indisponivel de momento.');
+  const endpoint = `${LOOKUP_ENDPOINT}?plate=${encodeURIComponent(plate.toUpperCase())}`;
+  const response = await fetch(endpoint, { headers: buildAuthHeaders() });
+  if (!response.ok) throw await errorFromResponse(response);
+  return await response.json() as VehicleData;
 }
 
 export async function lookupInsuranceData(plate: string): Promise<InsuranceData | null> {
-  try {
-    const endpoint = `${IMT_PROXY_BASE}/seguro/fetch?plate=${encodeURIComponent(plate.toUpperCase())}`;
-    const response = await fetchWithAuth(endpoint);
-    if (!response.ok) {
-      console.warn('[InfoMatricula][Insurance] lookup failed', {
-        plate,
-        status: response.status,
-      });
-      return null;
-    }
-    const data = await response.json() as InsuranceData;
-    console.info('[InfoMatricula][Insurance] lookup success', {
-      plate,
-      hasEntity: Boolean(data.entity),
-    });
-    return data;
-  } catch (error) {
-    console.warn('[InfoMatricula][Insurance] lookup error', error);
-    return null;
-  }
+  void plate;
+  return null;
 }

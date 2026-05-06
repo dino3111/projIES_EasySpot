@@ -1,6 +1,5 @@
 package pt.ua.deti.apieasyspot.vehicle.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -35,10 +34,10 @@ public class VehicleLookupClient {
     public VehicleData lookup(String plate) {
         log.info("Scraper lookup plate={}", plate);
         try {
-            JsonNode payload = restClient.get()
+            ScraperLookupPayload payload = restClient.get()
                 .uri(uriBuilder -> uriBuilder.path("/lookup").queryParam("plate", plate).build())
                 .retrieve()
-                .body(JsonNode.class);
+                .body(ScraperLookupPayload.class);
             if (payload == null) {
                 throw new ExternalServiceException("Empty response from scraper service");
             }
@@ -61,46 +60,51 @@ public class VehicleLookupClient {
         }
     }
 
-    private VehicleData mapToVehicleData(String plate, JsonNode node) {
+    private VehicleData mapToVehicleData(String plate, ScraperLookupPayload payload) {
         return new VehicleData(
             plate,
-            text(node, "vin"),
-            text(node, "make"),
-            text(node, "model"),
-            text(node, "version"),
-            integer(node, "yearFrom"),
-            integer(node, "yearTo"),
-            text(node, "fuelType"),
-            number(node, "powerKw"),
-            number(node, "powerCv"),
-            integer(node, "displacementCc"),
-            integer(node, "cylinders"),
-            text(node, "bodyType"),
-            text(node, "driveType"),
-            text(node, "engineCode"),
-            text(node, "engineType"),
-            text(node, "imageRelativeUrl"),
-            text(node, "sourceCarId"),
-            text(node, "canonicalUrl")
+            payload.vin(),
+            payload.make(),
+            payload.model(),
+            payload.version(),
+            payload.yearFrom(),
+            payload.yearTo(),
+            payload.fuelType(),
+            payload.powerKw(),
+            payload.powerCv(),
+            payload.displacementCc(),
+            payload.cylinders(),
+            payload.bodyType(),
+            payload.driveType(),
+            payload.engineCode(),
+            payload.engineType(),
+            payload.imageRelativeUrl(),
+            payload.sourceCarId() != null ? String.valueOf(payload.sourceCarId()) : null,
+            payload.canonicalUrl()
         );
     }
 
-    private static String text(JsonNode node, String field) {
-        JsonNode value = node.get(field);
-        if (value == null || value.isNull()) return null;
-        if (value.isNumber()) return value.asText();
-        return value.asText().isBlank() ? null : value.asText();
-    }
-
-    private static Integer integer(JsonNode node, String field) {
-        JsonNode value = node.get(field);
-        if (value == null || value.isNull() || !value.canConvertToInt()) return null;
-        return value.asInt();
-    }
-
-    private static Double number(JsonNode node, String field) {
-        JsonNode value = node.get(field);
-        if (value == null || value.isNull() || !value.isNumber()) return null;
-        return value.asDouble();
-    }
+    private record ScraperLookupPayload(
+        String plate,
+        String make,
+        String model,
+        String version,
+        Integer sourceCarId,
+        Integer sourceMakerId,
+        Integer sourceModelId,
+        String canonicalUrl,
+        String vin,
+        String engineType,
+        Integer yearFrom,
+        Integer yearTo,
+        String bodyType,
+        String driveType,
+        Double powerKw,
+        Double powerCv,
+        Integer displacementCc,
+        Integer cylinders,
+        String fuelType,
+        String engineCode,
+        String imageRelativeUrl
+    ) {}
 }

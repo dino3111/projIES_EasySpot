@@ -1,7 +1,6 @@
 import { getAccessToken } from './authToken';
 import type { Vehicle } from '../context/ProfileContext';
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+import { API_BASE } from '../../services/apiBase';
 
 type VehicleResponse = {
   id: string;
@@ -44,4 +43,3 @@ export async function fetchVehicles(): Promise<Vehicle[]> {
     chargerTypes: v.isEv ? ['Type 2', 'CCS'] : [],
   }));
 }
-

@@ -56,14 +56,15 @@ class ParkServiceTest {
     @Test
     void searchParks_returnsItemsFromJdbc() {
         ParkingLotSummaryResponse.ParkingLotSummary summary = new ParkingLotSummaryResponse.ParkingLotSummary(
-            lotId, "Test Park", "Test Address", BigDecimal.valueOf(1.5), 100, 20,
+            lotId, "Test Park", "Aveiro", "Test Address", 40.6405, -8.6538, "24h",
+            BigDecimal.valueOf(1.5), 100, 20,
             new ParkingLotSummaryResponse.CountInfo(5, 10),
             new ParkingLotSummaryResponse.CountInfo(2, 5),
             "AVAILABLE"
         );
         when(jdbc.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of(summary));
 
-        ParkingLotSummaryResponse response = parkService.searchParks("Test", 10, List.of("EV"), 1, 10);
+        ParkingLotSummaryResponse response = parkService.searchParks("Test", 10, null, List.of("EV"), 1, 10);
 
         assertThat(response.items()).hasSize(1);
         assertThat(response.items().get(0).name()).isEqualTo("Test Park");
@@ -76,7 +77,7 @@ class ParkServiceTest {
     void searchParks_noFilters_callsJdbc() {
         when(jdbc.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
 
-        ParkingLotSummaryResponse response = parkService.searchParks(null, null, null, 1, 20);
+        ParkingLotSummaryResponse response = parkService.searchParks(null, null, null, null, 1, 20);
 
         assertThat(response.items()).isEmpty();
         assertThat(response.pagination().totalItems()).isEqualTo(0);
@@ -87,7 +88,7 @@ class ParkServiceTest {
     void searchParks_page2_usesCorrectOffset() {
         when(jdbc.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
 
-        ParkingLotSummaryResponse response = parkService.searchParks(null, null, null, 2, 10);
+        ParkingLotSummaryResponse response = parkService.searchParks(null, null, null, null, 2, 10);
 
         assertThat(response.pagination().page()).isEqualTo(2);
         assertThat(response.pagination().pageSize()).isEqualTo(10);

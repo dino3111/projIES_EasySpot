@@ -218,12 +218,21 @@ export function Step1Form({ form, onChange, onSubmit, onCancel }: Props) {
                 {lookingUp ? <i className="fas fa-spinner fa-spin" /> : 'Verificar'}
               </button>
             </div>
-            {plateInfo && (plateInfo.make || plateInfo.model || plateInfo.color) && (
-              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 px-3 py-2 rounded-xl bg-primary/6 border border-primary/20">
+            {plateInfo && (plateInfo.make || plateInfo.model || plateInfo.color || plateInfo.imageUrl) && (
+              <div className="mt-2 px-3 py-2 rounded-xl bg-primary/6 border border-primary/20">
+                {plateInfo.imageUrl && (
+                  <img src={plateInfo.imageUrl} alt="Veículo identificado" className="w-full h-24 object-cover rounded-lg border border-border mb-2" />
+                )}
+                <div className="flex flex-wrap gap-x-4 gap-y-1">
                 {plateInfo.make && <span className="text-foreground font-semibold" style={{ fontSize: '0.78rem' }}><span className="text-muted-foreground">Marca: </span>{plateInfo.make}</span>}
                 {plateInfo.model && <span className="text-foreground font-semibold" style={{ fontSize: '0.78rem' }}><span className="text-muted-foreground">Modelo: </span>{plateInfo.model}</span>}
-                {plateInfo.plateDate && <span className="text-foreground font-semibold" style={{ fontSize: '0.78rem' }}><span className="text-muted-foreground">Ano: </span>{plateInfo.plateDate.slice(0, 4)}</span>}
+                {(plateInfo.yearFrom || plateInfo.plateDate) && <span className="text-foreground font-semibold" style={{ fontSize: '0.78rem' }}><span className="text-muted-foreground">Ano: </span>{plateInfo.yearFrom ?? plateInfo.plateDate?.slice(0, 4)}</span>}
+                {plateInfo.yearTo && <span className="text-foreground font-semibold" style={{ fontSize: '0.78rem' }}><span className="text-muted-foreground">Até: </span>{plateInfo.yearTo}</span>}
+                {plateInfo.bodyType && <span className="text-foreground font-semibold" style={{ fontSize: '0.78rem' }}><span className="text-muted-foreground">Carroceria: </span>{plateInfo.bodyType}</span>}
+                {plateInfo.powerKw && <span className="text-foreground font-semibold" style={{ fontSize: '0.78rem' }}><span className="text-muted-foreground">Potência: </span>{plateInfo.powerKw} kW</span>}
+                {plateInfo.displacementCc && <span className="text-foreground font-semibold" style={{ fontSize: '0.78rem' }}><span className="text-muted-foreground">Cilindrada: </span>{plateInfo.displacementCc} cc</span>}
                 {plateInfo.color && <span className="text-foreground font-semibold" style={{ fontSize: '0.78rem' }}><span className="text-muted-foreground">Cor: </span>{plateInfo.color}</span>}
+                </div>
               </div>
             )}
             <p className="text-muted-foreground mt-1.5" style={{ fontSize: '0.75rem' }}>Se conseguir visualizar a matrícula, por favor indique-a.</p>

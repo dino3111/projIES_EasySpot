@@ -1,6 +1,6 @@
 package pt.ua.deti.apieasyspot.vehicle.controller;
 
-import tools.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -79,10 +79,10 @@ class VehicleControllerIT {
             "BB-00-BB", "VIN123", "Tesla", "Model 3",
             null, null, null, "Elétrico",
             null, null, null, null, null, null,
-            null, null, null, null, null, null
+            null, null, null, null, null
         );
 
-        when(vehicleLookupClient.lookup("BB-00-BB", null)).thenReturn(data);
+        when(vehicleLookupClient.lookup("BB-00-BB")).thenReturn(data);
 
         mockMvc.perform(post("/api/vehicles")
                 .with(jwtWithRole("auth-sub-123", "DRIVER"))
@@ -101,7 +101,7 @@ class VehicleControllerIT {
     void createVehicle_imtNotFound_noManualData_returns422() throws Exception {
         VehicleCreateRequest request = new VehicleCreateRequest("CC-00-CC", null, null, null, null, null);
 
-        when(vehicleLookupClient.lookup("CC-00-CC", null)).thenThrow(new PlateNotFoundException("Not found"));
+        when(vehicleLookupClient.lookup("CC-00-CC")).thenThrow(new PlateNotFoundException("Not found"));
 
         mockMvc.perform(post("/api/vehicles")
                 .with(jwtWithRole("auth-sub-123", "DRIVER"))
@@ -116,7 +116,7 @@ class VehicleControllerIT {
     void createVehicle_imtUnavailable_noManualData_returns503() throws Exception {
         VehicleCreateRequest request = new VehicleCreateRequest("DD-00-DD", null, null, null, null, null);
 
-        when(vehicleLookupClient.lookup("DD-00-DD", null)).thenThrow(new ExternalServiceException("Service down"));
+        when(vehicleLookupClient.lookup("DD-00-DD")).thenThrow(new ExternalServiceException("Service down"));
 
         mockMvc.perform(post("/api/vehicles")
                 .with(jwtWithRole("auth-sub-123", "DRIVER"))

@@ -1,6 +1,6 @@
 package pt.ua.deti.apieasyspot.vehicle.service;
 
-import tools.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import java.util.UUID;
 import org.slf4j.Logger;

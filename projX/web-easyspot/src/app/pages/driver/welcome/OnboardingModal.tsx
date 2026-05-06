@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { profileApi, vehicleApi, type VehicleResponse } from '../../../../services/apiService';
 import { lookupVehicleData } from '../../../../services/vehicleLookup';
+import type { VehicleData as LookupVehicleData } from '../../../../services/vehicleLookup';
 import { useProfile, type DriverType } from '../../../context/ProfileContext';
 import {
   StepVehicle, StepDriverType, StepPreferences, StepFinished,
@@ -32,6 +33,7 @@ export function OnboardingModal({
   const [plateLoading, setPlateLoading] = useState(false);
   const [plateError, setPlateError]     = useState<string | null>(null);
   const [vehicleResult, setVehicleResult] = useState<VehicleResponse | null>(null);
+  const [lookupVehicleResult, setLookupVehicleResult] = useState<LookupVehicleData | null>(null);
   const [manualData, setManualData] = useState<{ make?: string; model?: string; fuelType?: string; year?: string }>({});
   const [showManualForm, setShowManualForm] = useState(false);
   const [savingVehicle, setSavingVehicle] = useState(false);
@@ -63,19 +65,21 @@ export function OnboardingModal({
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (!PT_PLATE_REGEX.test(plate)) {
       setVehicleResult(null); setPlateError(null);
+      setLookupVehicleResult(null);
       setShowManualForm(false); setManualData({});
       return;
     }
     setPlateLoading(true);
-    setVehicleResult(null); setPlateError(null); setShowManualForm(false);
+    setVehicleResult(null); setLookupVehicleResult(null); setPlateError(null); setShowManualForm(false);
     debounceRef.current = setTimeout(async () => {
       try {
         const data = await lookupVehicleData(plate);
+        setLookupVehicleResult(data);
         setManualData({
           make: data.make,
           model: data.model,
           fuelType: data.fuelType,
-          year: data.plateDate ? data.plateDate.slice(0, 4) : undefined,
+          year: data.yearFrom ? String(data.yearFrom) : data.plateDate ? data.plateDate.slice(0, 4) : undefined,
         });
         setVehicleResult({
           id: '',
@@ -84,9 +88,9 @@ export function OnboardingModal({
           model: data.model ?? null,
           version: data.version ?? null,
           color: data.color ?? null,
-          year: data.plateDate ? parseInt(data.plateDate.slice(0, 4), 10) : 0,
+          year: data.yearFrom ?? (data.plateDate ? parseInt(data.plateDate.slice(0, 4), 10) : 0),
           fuelType: data.fuelType ?? null,
-          powerKW: null,
+          powerKW: data.powerKw ?? null,
           nickname: null,
           isEv: false,
           isAccessible: false,
@@ -97,6 +101,7 @@ export function OnboardingModal({
         });
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Erro ao registar veículo.';
+        setLookupVehicleResult(null);
         if (msg.includes('already exists')) {
           setPlateError('Esta matrícula já está registada na sua conta.');
         } else {
@@ -229,9 +234,16 @@ export function OnboardingModal({
         vehicleData={vehicleResult ? {
           make: vehicleResult.make ?? undefined,
           model: vehicleResult.model ?? undefined,
+          version: vehicleResult.version ?? undefined,
           color: vehicleResult.color ?? undefined,
-          fuelType: vehicleResult.fuelType ?? undefined,
+          fuelType: vehicleResult.fuelType ?? lookupVehicleResult?.fuelType,
           plateDate: vehicleResult.year ? String(vehicleResult.year) : undefined,
+          yearFrom: lookupVehicleResult?.yearFrom ?? vehicleResult.year ?? undefined,
+          yearTo: lookupVehicleResult?.yearTo,
+          powerKw: lookupVehicleResult?.powerKw ?? vehicleResult.powerKW ?? undefined,
+          bodyType: lookupVehicleResult?.bodyType,
+          displacementCc: lookupVehicleResult?.displacementCc,
+          imageUrl: lookupVehicleResult?.imageUrl,
         } : null}
         insuranceData={null}
         plateError={plateError}

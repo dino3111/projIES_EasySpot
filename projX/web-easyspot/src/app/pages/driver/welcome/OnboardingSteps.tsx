@@ -9,6 +9,12 @@ export interface VehicleData {
   plateDate?: string;
   color?: string;
   fuelType?: string;
+  yearFrom?: number;
+  yearTo?: number;
+  bodyType?: string;
+  powerKw?: number;
+  displacementCc?: number;
+  imageUrl?: string;
   [key: string]: unknown;
 }
 
@@ -112,10 +118,17 @@ export function StepVehicle(props: {
             <i className="fas fa-circle-check text-success" style={{ fontSize: '0.85rem' }} />
             <p className="font-bold" style={{ fontSize: '0.82rem', color: '#22c55e' }}>Veículo identificado automaticamente</p>
           </div>
+          {vehicleData.imageUrl && (
+            <img src={vehicleData.imageUrl} alt="Veículo identificado" className="w-full h-32 object-cover rounded-lg border border-border" />
+          )}
           <VehicleFieldGroup fields={[
             { label: 'Marca', value: vehicleData.make }, { label: 'Modelo', value: vehicleData.model },
-            { label: 'Ano', value: vehicleData.plateDate?.split('/')[1] }, { label: 'Cor', value: vehicleData.color },
-            { label: 'Combustível', value: vehicleData.fuelType }, { label: 'Categoria', value: vehicleData.categoryType },
+            { label: 'Versão', value: vehicleData.version }, { label: 'Cor', value: vehicleData.color },
+            { label: 'Ano', value: vehicleData.yearFrom ? String(vehicleData.yearFrom) : vehicleData.plateDate?.split('/')[1] },
+            { label: 'Até', value: vehicleData.yearTo ? String(vehicleData.yearTo) : undefined },
+            { label: 'Combustível', value: vehicleData.fuelType }, { label: 'Carroceria', value: vehicleData.bodyType },
+            { label: 'Potência (kW)', value: vehicleData.powerKw ? String(vehicleData.powerKw) : undefined },
+            { label: 'Cilindrada (cc)', value: vehicleData.displacementCc ? String(vehicleData.displacementCc) : undefined },
           ]} />
           {insuranceData && (
             <VehicleFieldGroup label="Seguro" fields={[

@@ -46,17 +46,19 @@ class PostmanConfig {
     @Bean
     @Primary
     VehicleLookupClient stubVehicleLookupClient(
-        @Value("${infomatricula.base-url}") String baseUrl,
-        @Value("${infomatricula.firebase-api-key}") String apiKey
+        @Value("${scraper.base-url}") String baseUrl,
+        @Value("${scraper.api-key}") String apiKey
     ) {
         return new VehicleLookupClient(baseUrl, apiKey) {
             @Override
-            public VehicleData lookup(String plate, String appCheckToken) {
+            public VehicleData lookup(String plate) {
                 return new VehicleData(
-                    plate, null, "TestMake", "TestModel",
-                    "1.0 TSI", "2020-01-01", "Branco", "Gasolina",
-                    null, null, null, null, null, null,
-                    null, null, null, null, null, null
+                    plate, "WVWZZZ1KZAM000001",
+                    "TestMake", "TestModel", "1.0 TSI",
+                    2020, 2024, "Gasolina",
+                    85.0, 115.0, 999, 3,
+                    "Hatchback", "FWD", "EA211",
+                    "Otto", null, null, null
                 );
             }
         };

@@ -70,12 +70,18 @@ export function VehicleDataCard({ vehicleData, insuranceData }: { vehicleData: V
         </p>
         {vehicleData.make && <div className="w-8 h-8"><BrandLogo make={vehicleData.make} /></div>}
       </div>
+      {vehicleData.imageUrl && (
+        <img src={vehicleData.imageUrl} alt="Veículo identificado" className="w-full h-28 object-cover rounded-lg border border-border mb-2" />
+      )}
       {[
         vehicleData.make && vehicleData.model ? { label: 'Marca/Modelo', value: `${vehicleData.make} ${vehicleData.model}` } : null,
         vehicleData.version ? { label: 'Versão', value: vehicleData.version } : null,
-        vehicleData.plateDate ? { label: 'Ano', value: vehicleData.plateDate.slice(0, 4) } : null,
+        vehicleData.yearFrom ? { label: 'Ano (de)', value: String(vehicleData.yearFrom) } : vehicleData.plateDate ? { label: 'Ano', value: vehicleData.plateDate.slice(0, 4) } : null,
+        vehicleData.yearTo ? { label: 'Ano (até)', value: String(vehicleData.yearTo) } : null,
         vehicleData.fuelType ? { label: 'Combustível', value: vehicleData.fuelType } : null,
-        vehicleData.powerkw ? { label: 'Potência', value: `${vehicleData.powerkw} kW` } : null,
+        vehicleData.bodyType ? { label: 'Carroceria', value: vehicleData.bodyType } : null,
+        vehicleData.powerKw ? { label: 'Potência', value: `${vehicleData.powerKw} kW` } : vehicleData.powerkw ? { label: 'Potência', value: `${vehicleData.powerkw} kW` } : null,
+        vehicleData.displacementCc ? { label: 'Cilindrada', value: `${vehicleData.displacementCc} cc` } : null,
         vehicleData.color ? { label: 'Cor', value: vehicleData.color } : null,
       ].filter(Boolean).map((item) => (
         <div key={item!.label} className="flex justify-between text-sm">

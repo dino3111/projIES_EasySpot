@@ -37,10 +37,29 @@ public class TimescaleHypertableInitializer implements ApplicationRunner {
     }
 
     private void createHypertables() {
-        jdbc.execute("select create_hypertable('occupancy_snapshots', 'recorded_at', if_not_exists => true, migrate_data => true)");
-        jdbc.execute("select create_hypertable('parking_sessions', 'entry_time', if_not_exists => true, migrate_data => true)");
-        jdbc.execute("select create_hypertable('alerts', 'created_at', if_not_exists => true, migrate_data => true)");
+        createHypertable("occupancy_snapshots", "recorded_at");
+        createHypertable("parking_sessions", "entry_time");
+        createHypertable("alerts", "created_at");
         log.info("TimescaleDB hypertables ready.");
+    }
+
+    private void createHypertable(String tableName, String timeColumn) {
+        try {
+            jdbc.execute(
+                "select create_hypertable('%s', '%s', if_not_exists => true, migrate_data => true)"
+                    .formatted(tableName, timeColumn)
+            );
+        } catch (Exception exception) {
+            String message = exception.getMessage();
+            if (message != null && message.contains("TS103")) {
+                log.info(
+                    "Skipping hypertable conversion for {} because its unique key does not include {}.",
+                    tableName, timeColumn
+                );
+                return;
+            }
+            throw exception;
+        }
     }
 
     private void createUdfs() {

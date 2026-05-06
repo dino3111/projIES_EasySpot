@@ -88,7 +88,7 @@ export function AddVehicleModal({ onClose, onAdd }: Readonly<{ onClose: () => vo
             make: vData.make ?? '',
             model: vData.model ?? '',
             fuelType: vData.fuelType ?? '',
-            year: vData.plateDate ? vData.plateDate.slice(0, 4) : '',
+            year: vData.yearFrom ? String(vData.yearFrom) : vData.plateDate ? vData.plateDate.slice(0, 4) : '',
           });
           const ev = isEVFuelType(vData.fuelType);
           setIsEV(ev);
@@ -109,7 +109,7 @@ export function AddVehicleModal({ onClose, onAdd }: Readonly<{ onClose: () => vo
 
   const handleAdd = async () => {
     if (!PT_PLATE_REGEX.test(plate)) { toast.error('Matrícula inválida'); return; }
-    const yearFromLookup = vehicleData?.plateDate ? parseInt(vehicleData.plateDate.slice(0, 4), 10) : undefined;
+    const yearFromLookup = vehicleData?.yearFrom ?? (vehicleData?.plateDate ? parseInt(vehicleData.plateDate.slice(0, 4), 10) : undefined);
     const hasValidManualData =
       manualData.make.trim().length > 0 &&
       manualData.model.trim().length > 0 &&

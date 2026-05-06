@@ -1,7 +1,6 @@
 import type { AccessibleSpot, EVCharger, ParkingFloor, ParkingLot, ParkingSpot, ParkingZone } from '../data/parkingTypes';
 import { getAccessToken } from './authToken';
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+import { API_BASE } from '../../services/apiBase';
 
 type ParkListResponse = {
   items: Array<{

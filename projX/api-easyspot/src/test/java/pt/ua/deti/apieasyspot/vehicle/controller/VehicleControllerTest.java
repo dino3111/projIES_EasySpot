@@ -35,7 +35,7 @@ class VehicleControllerTest {
     void setUp() {
         vehicleId = UUID.randomUUID();
         vehicleResponse = new VehicleResponse(
-            vehicleId, "AA-00-AA", "Opel", "Corsa", null, null, 2021, "Gasolina", null, "my car", false, false, true
+            vehicleId, "AA-00-AA", "Opel", "Corsa", null, null, 2021, null, "Gasolina", null, null, null, null, null, null, null, "my car", false, false, true
         );
         
         when(jwt.getSubject()).thenReturn("auth-sub-123");
@@ -45,13 +45,13 @@ class VehicleControllerTest {
     @DisplayName("createVehicle - calls service and returns 200")
     void createVehicle_success() {
         VehicleCreateRequest request = new VehicleCreateRequest("BB-00-BB", "RFID-1", null, null, null, null);
-        when(vehicleService.createVehicle("auth-sub-123", request, null)).thenReturn(vehicleResponse);
+        when(vehicleService.createVehicle("auth-sub-123", request)).thenReturn(vehicleResponse);
 
-        ResponseEntity<VehicleResponse> response = vehicleController.createVehicle(request, null, jwt);
+        ResponseEntity<VehicleResponse> response = vehicleController.createVehicle(request, jwt);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isEqualTo(vehicleResponse);
-        verify(vehicleService).createVehicle("auth-sub-123", request, null);
+        verify(vehicleService).createVehicle("auth-sub-123", request);
     }
 
     @Test

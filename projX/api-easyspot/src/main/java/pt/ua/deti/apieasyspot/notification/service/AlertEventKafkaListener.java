@@ -6,7 +6,7 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 import pt.ua.deti.apieasyspot.notification.dto.AlertTriggerEvent;
 import pt.ua.deti.apieasyspot.notification.model.AlertSubscriptionType;
-import tools.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
