@@ -1,6 +1,7 @@
 package pt.ua.deti.apieasyspot.analytics.repository;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import pt.ua.deti.apieasyspot.analytics.dto.*;
@@ -13,14 +14,17 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.format.TextStyle;
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Repository
 @RequiredArgsConstructor
 public class AnalyticsRepository {
 
-    private final JdbcTemplate jdbc;
+    private final @Qualifier("jdbcTemplate") JdbcTemplate jdbc;
+    private final @Qualifier("timescaleJdbcTemplate") JdbcTemplate timescaleJdbc;
 
     public long countEntriesToday() {
         Long result = jdbc.queryForObject(
@@ -67,7 +71,7 @@ public class AnalyticsRepository {
     }
 
     public int[] currentOccupancy() {
-        Integer[] result = jdbc.queryForObject(
+        Integer[] result = timescaleJdbc.queryForObject(
             "select coalesce(sum(occupied_count), 0), coalesce(sum(total_count), 0) from v_latest_occupancy",
             (rs, rowNum) -> new Integer[]{rs.getObject(1, Integer.class), rs.getObject(2, Integer.class)});
         if (result == null || result[0] == null) return new int[]{0, 0};
@@ -96,7 +100,7 @@ public class AnalyticsRepository {
     }
 
     public List<ZoneOccupancyDto> zoneOccupancy() {
-        return jdbc.query(
+        return timescaleJdbc.query(
             """
             select zone_type, sum(occupied_count) as occupied, sum(total_count) as total
             from v_latest_occupancy
@@ -110,7 +114,7 @@ public class AnalyticsRepository {
     }
 
     public List<HourlyOccupancyDto> hourlyOccupancy() {
-        return jdbc.query(
+        return timescaleJdbc.query(
             """
             select date_trunc('hour', recorded_at) as hour_bucket,
                    avg(fn_occupancy_pct(occupied_count, total_count)) as occupancy_pct
@@ -153,34 +157,50 @@ public class AnalyticsRepository {
     }
 
     public List<ParkSummary> parkPerformance() {
-        return jdbc.query(
+        List<ParkRevenueRow> revenueRows = jdbc.query(
             """
-            select pl.name, pl.city,
+            select pl.id, pl.name, pl.city,
                    count(ps.id) as entries,
-                   coalesce(sum(ps.revenue_euros), 0) as revenue,
-                   coalesce(round(avg(fn_occupancy_pct(snap.occupied::int, snap.total_spots::int))), 0) as occ_pct
+                   coalesce(sum(ps.revenue_euros), 0) as revenue
             from parking_lots pl
             left join parking_sessions ps
                 on ps.parking_lot_id = pl.id
                 and ps.entry_time >= current_date
                 and ps.entry_time < current_date + interval '1 day'
-            left join (
-                select parking_lot_id,
-                       sum(occupied_count) as occupied,
-                       sum(total_count) as total_spots
-                from v_latest_occupancy
-                group by parking_lot_id
-            ) snap on snap.parking_lot_id = pl.id
             group by pl.id, pl.name, pl.city
             order by revenue desc
             """,
-            (rs, rowNum) -> new ParkSummary(
+            (rs, rowNum) -> new ParkRevenueRow(
+                UUID.fromString(rs.getString("id")),
                 rs.getString("name"),
                 rs.getString("city"),
                 rs.getLong("entries"),
-                rs.getInt("occ_pct"),
-                rs.getBigDecimal("revenue")));
+                rs.getBigDecimal("revenue")
+            )
+        );
+
+        Map<UUID, Integer> occupancyByParkId = timescaleJdbc.query(
+            """
+            select parking_lot_id,
+                   coalesce(round(avg(fn_occupancy_pct(occupied_count::int, total_count::int))), 0) as occ_pct
+            from v_latest_occupancy
+            group by parking_lot_id
+            """,
+            (rs, rowNum) -> Map.entry(UUID.fromString(rs.getString("parking_lot_id")), rs.getInt("occ_pct"))
+        ).stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+        return revenueRows.stream()
+            .map(row -> new ParkSummary(
+                row.name(),
+                row.city(),
+                row.entries(),
+                occupancyByParkId.getOrDefault(row.parkId(), 0),
+                row.revenue()
+            ))
+            .toList();
     }
+
+    private record ParkRevenueRow(UUID parkId, String name, String city, long entries, BigDecimal revenue) {}
 
     private String zoneLabel(String zoneType) {
         return switch (zoneType) {

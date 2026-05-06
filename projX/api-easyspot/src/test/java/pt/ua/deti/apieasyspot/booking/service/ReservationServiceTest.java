@@ -26,10 +26,10 @@ import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingSpot;
 import pt.ua.deti.apieasyspot.occupancy.model.Tariff;
 import pt.ua.deti.apieasyspot.occupancy.model.ZoneType;
-import pt.ua.deti.apieasyspot.occupancy.repository.OccupancySnapshotRepository;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingLotRepository;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingSpotRepository;
 import pt.ua.deti.apieasyspot.occupancy.repository.TariffRepository;
+import pt.ua.deti.apieasyspot.occupancy.repository.TimescaleOccupancySnapshotRepository;
 import pt.ua.deti.apieasyspot.vehicle.model.Vehicle;
 import pt.ua.deti.apieasyspot.vehicle.repository.VehicleRepository;
 
@@ -56,7 +56,7 @@ class ReservationServiceTest {
     @Mock private ParkingSpotRepository parkingSpotRepository;
     @Mock private VehicleRepository vehicleRepository;
     @Mock private TariffRepository tariffRepository;
-    @Mock private OccupancySnapshotRepository occupancySnapshotRepository;
+    @Mock private TimescaleOccupancySnapshotRepository occupancySnapshotRepository;
     @Mock private BillingService billingService;
     @Mock private BookingConfirmationMailService confirmationMailService;
     @Mock private ReservationEventPublisher eventPublisher;

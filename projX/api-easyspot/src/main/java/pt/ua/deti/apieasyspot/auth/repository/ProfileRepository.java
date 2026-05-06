@@ -1,6 +1,7 @@
 package pt.ua.deti.apieasyspot.auth.repository;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import pt.ua.deti.apieasyspot.auth.dto.SpendingSummary;
@@ -13,7 +14,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ProfileRepository {
 
-    private final JdbcTemplate jdbc;
+    private final @Qualifier("jdbcTemplate") JdbcTemplate jdbc;
 
     public SpendingSummary spendingSummary(UUID userId) {
         return jdbc.queryForObject(

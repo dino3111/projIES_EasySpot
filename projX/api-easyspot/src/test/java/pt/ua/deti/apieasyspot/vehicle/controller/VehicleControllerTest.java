@@ -44,7 +44,7 @@ class VehicleControllerTest {
     @Test
     @DisplayName("createVehicle - calls service and returns 200")
     void createVehicle_success() {
-        VehicleCreateRequest request = new VehicleCreateRequest("BB-00-BB", "RFID-1", null, null, null, null);
+        VehicleCreateRequest request = new VehicleCreateRequest("BB-00-BB", "RFID-1", null, null, null, null, null, null, null, null);
         when(vehicleService.createVehicle("auth-sub-123", request)).thenReturn(vehicleResponse);
 
         ResponseEntity<VehicleResponse> response = vehicleController.createVehicle(request, jwt);

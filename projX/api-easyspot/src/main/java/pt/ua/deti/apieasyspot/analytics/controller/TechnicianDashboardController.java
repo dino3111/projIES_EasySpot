@@ -2,7 +2,6 @@ package pt.ua.deti.apieasyspot.analytics.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -22,11 +21,9 @@ public class TechnicianDashboardController {
     private final TechnicianService technicianService;
 
     @Operation(summary = "Technician KPI dashboard")
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Dashboard data"),
-        @ApiResponse(responseCode = "401", description = "Not authenticated"),
-        @ApiResponse(responseCode = "403", description = "Not a technician")
-    })
+    @ApiResponse(responseCode = "200", description = "Dashboard data")
+    @ApiResponse(responseCode = "401", description = "Not authenticated")
+    @ApiResponse(responseCode = "403", description = "Not a technician")
     @GetMapping("/dashboard")
     @PreAuthorize("hasRole('TECHNICAL')")
     public ResponseEntity<TechnicianDashboardResponse> getDashboard() {

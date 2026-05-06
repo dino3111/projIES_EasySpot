@@ -1,9 +1,9 @@
 package pt.ua.deti.apieasyspot.infrastructure;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.annotation.Order;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -11,10 +11,13 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 @Order(1)
-@RequiredArgsConstructor
 public class TimescaleHypertableInitializer implements ApplicationRunner {
 
     private final JdbcTemplate jdbc;
+
+    public TimescaleHypertableInitializer(@Qualifier("timescaleJdbcTemplate") JdbcTemplate jdbc) {
+        this.jdbc = jdbc;
+    }
 
     @Override
     public void run(ApplicationArguments args) {

@@ -125,6 +125,9 @@ export function OnboardingModal({
       const created = await vehicleApi.create({
         licensePlate: plate,
         externalIdentifier: rfid || undefined,
+        isAccessible: false,
+        isPrimary: false,
+        chargerTypes: [],
         make: manualData.make,
         model: manualData.model,
         fuelType: manualData.fuelType,
@@ -167,10 +170,13 @@ export function OnboardingModal({
           const created = await vehicleApi.create({
             licensePlate: plate,
             externalIdentifier: rfid || undefined,
-            make: manualData.make,
-            model: manualData.model,
-            fuelType: manualData.fuelType,
-            year: manualData.year ? parseInt(manualData.year, 10) : undefined,
+            isAccessible: false,
+            isPrimary: false,
+            chargerTypes: [],
+            make: showManualForm ? manualData.make : undefined,
+            model: showManualForm ? manualData.model : undefined,
+            fuelType: showManualForm ? manualData.fuelType : undefined,
+            year: showManualForm && manualData.year ? parseInt(manualData.year, 10) : undefined,
           });
           setVehicleResult(created);
           addVehicle({

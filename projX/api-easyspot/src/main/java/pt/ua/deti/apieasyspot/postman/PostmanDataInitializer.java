@@ -16,7 +16,12 @@ import pt.ua.deti.apieasyspot.notification.model.SeverityAlert;
 import pt.ua.deti.apieasyspot.notification.model.AlertType;
 import pt.ua.deti.apieasyspot.notification.repository.AlertRepository;
 import pt.ua.deti.apieasyspot.occupancy.model.*;
-import pt.ua.deti.apieasyspot.occupancy.repository.*;
+import pt.ua.deti.apieasyspot.occupancy.repository.AccessibleSpotRepository;
+import pt.ua.deti.apieasyspot.occupancy.repository.EVChargerRepository;
+import pt.ua.deti.apieasyspot.occupancy.repository.ParkingLotRepository;
+import pt.ua.deti.apieasyspot.occupancy.repository.ParkingSpotRepository;
+import pt.ua.deti.apieasyspot.occupancy.repository.TariffRepository;
+import pt.ua.deti.apieasyspot.occupancy.repository.TimescaleOccupancySnapshotRepository;
 import pt.ua.deti.apieasyspot.vehicle.model.Vehicle;
 import pt.ua.deti.apieasyspot.vehicle.repository.VehicleRepository;
 
@@ -38,7 +43,7 @@ class PostmanDataInitializer implements ApplicationRunner {
     private final ParkingLotRepository parkingLotRepository;
     private final ParkingSessionRepository parkingSessionRepository;
     private final AlertRepository alertRepository;
-    private final OccupancySnapshotRepository occupancySnapshotRepository;
+    private final TimescaleOccupancySnapshotRepository occupancySnapshotRepository;
     private final TariffRepository tariffRepository;
     private final EVChargerRepository evChargerRepository;
     private final AccessibleSpotRepository accessibleSpotRepository;
@@ -62,7 +67,7 @@ class PostmanDataInitializer implements ApplicationRunner {
         ParkingLotRepository parkingLotRepository,
         ParkingSessionRepository parkingSessionRepository,
         AlertRepository alertRepository,
-        OccupancySnapshotRepository occupancySnapshotRepository,
+        TimescaleOccupancySnapshotRepository occupancySnapshotRepository,
         TariffRepository tariffRepository,
         EVChargerRepository evChargerRepository,
         AccessibleSpotRepository accessibleSpotRepository,
@@ -225,10 +230,10 @@ class PostmanDataInitializer implements ApplicationRunner {
             Instant recordedAt = startOfDay.plus(h + 7, ChronoUnit.HOURS);
             int pct = occupancyByHour[h];
             for (ParkingLot lot : lots) {
-                occupancySnapshotRepository.save(snapshot(lot, ZoneType.STANDARD, pct, 200, recordedAt));
-                occupancySnapshotRepository.save(snapshot(lot, ZoneType.EV, Math.min(pct + 5, 100), 30, recordedAt));
-                occupancySnapshotRepository.save(snapshot(lot, ZoneType.ACCESSIBLE, Math.max(pct - 20, 0), 15, recordedAt));
-                occupancySnapshotRepository.save(snapshot(lot, ZoneType.RESERVED, pct + 10 > 100 ? 95 : pct + 10, 20, recordedAt));
+                insertSnapshot(lot, ZoneType.STANDARD, pct, 200, recordedAt);
+                insertSnapshot(lot, ZoneType.EV, Math.min(pct + 5, 100), 30, recordedAt);
+                insertSnapshot(lot, ZoneType.ACCESSIBLE, Math.max(pct - 20, 0), 15, recordedAt);
+                insertSnapshot(lot, ZoneType.RESERVED, pct + 10 > 100 ? 95 : pct + 10, 20, recordedAt);
             }
         }
     }
@@ -276,13 +281,14 @@ class PostmanDataInitializer implements ApplicationRunner {
         return a;
     }
 
-    private OccupancySnapshot snapshot(ParkingLot lot, ZoneType zone, int pct, int total, Instant at) {
-        OccupancySnapshot s = new OccupancySnapshot();
-        s.setParkingLot(lot);
-        s.setZoneType(zone);
-        s.setTotalCount(total);
-        s.setOccupiedCount((int) Math.round(total * pct / 100.0));
-        s.setRecordedAt(at);
-        return s;
+    private void insertSnapshot(ParkingLot lot, ZoneType zone, int pct, int total, Instant at) {
+        occupancySnapshotRepository.insert(
+            UUID.randomUUID(),
+            lot.getId(),
+            zone,
+            (int) Math.round(total * pct / 100.0),
+            total,
+            at
+        );
     }
 }

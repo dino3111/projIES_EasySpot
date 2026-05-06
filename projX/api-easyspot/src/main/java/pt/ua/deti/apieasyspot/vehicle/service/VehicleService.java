@@ -23,6 +23,7 @@ import pt.ua.deti.apieasyspot.vehicle.repository.VehicleRepository;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -46,6 +47,10 @@ public class VehicleService {
         vehicle.setUser(user);
         vehicle.setPlate(plate);
         vehicle.setRfid(request.externalIdentifier());
+        vehicle.setNickname(request.nickname());
+        vehicle.setAccessible(Boolean.TRUE.equals(request.isAccessible()));
+        vehicle.setPrimary(resolvePrimaryFlag(user.getId(), request.isPrimary()));
+        vehicle.setChargerTypesJson(serialiseSafely(request.chargerTypes()));
 
         log.info(
             "Creating vehicle plate={} hasManualData={}",
@@ -155,6 +160,11 @@ public class VehicleService {
         vehicle.setEv(isElectric(request.fuelType()));
     }
 
+    private boolean resolvePrimaryFlag(UUID userId, Boolean requestedPrimary) {
+        if (Boolean.TRUE.equals(requestedPrimary)) return true;
+        return vehicleRepository.findByUserId(userId).isEmpty();
+    }
+
     public VehicleLookupResponse lookupPlate(String plate) {
         VehicleData data = vehicleLookupClient.lookup(plate.toUpperCase());
         return new VehicleLookupResponse(
@@ -216,6 +226,16 @@ public class VehicleService {
             return objectMapper.writeValueAsString(data);
         } catch (Exception ex) {
             log.warn("Could not serialise VehicleData plate={}", data.plate(), ex);
+            return null;
+        }
+    }
+
+    private String serialiseSafely(List<String> values) {
+        if (values == null || values.isEmpty()) return null;
+        try {
+            return objectMapper.writeValueAsString(values);
+        } catch (Exception ex) {
+            log.warn("Could not serialise charger types {}", values, ex);
             return null;
         }
     }

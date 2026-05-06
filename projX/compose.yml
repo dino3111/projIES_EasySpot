@@ -151,9 +151,12 @@ services:
       AUTHENTIK_JWK_SET_URI: ${AUTHENTIK_JWK_SET_URI:-http://authentik-server:9000/authentik/application/o/easyspot/jwks/}
       AUTHENTIK_ISSUER_URI: ${AUTHENTIK_ISSUER_URI:-http://localhost:9000/authentik/}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173}
-      DB_URL: jdbc:postgresql://timescaledb:5432/${TS_DB}
+      DB_URL: jdbc:postgresql://postgres:5432/${APP_DB}
       DB_USERNAME: ${APP_DB_USER}
       DB_PASSWORD: ${APP_DB_PASS}
+      TIMESCALE_DB_URL: jdbc:postgresql://timescaledb:5432/${TS_DB}
+      TIMESCALE_DB_USERNAME: ${APP_DB_USER}
+      TIMESCALE_DB_PASSWORD: ${APP_DB_PASS}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       SCRAPER_API_KEY: ${SCRAPER_API_KEY:-}
       SCRAPER_BASE_URL: http://scraper-vehicle:4100

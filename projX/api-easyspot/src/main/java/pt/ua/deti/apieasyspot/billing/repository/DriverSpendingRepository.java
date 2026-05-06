@@ -1,6 +1,7 @@
 package pt.ua.deti.apieasyspot.billing.repository;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -18,7 +19,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class DriverSpendingRepository {
 
-    private final NamedParameterJdbcTemplate jdbc;
+    private final @Qualifier("namedParameterJdbcTemplate") NamedParameterJdbcTemplate jdbc;
 
     public TotalsRow totals(UUID userId, UUID vehicleId, OffsetDateTime fromInclusive, OffsetDateTime toExclusive) {
         return jdbc.queryForObject(

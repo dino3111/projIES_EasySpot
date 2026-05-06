@@ -1,6 +1,7 @@
 package pt.ua.deti.apieasyspot.analytics.repository;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import pt.ua.deti.apieasyspot.analytics.dto.DailyUptimeDto;
@@ -19,7 +20,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class TechnicianRepository {
 
-    private final JdbcTemplate jdbc;
+    private final @Qualifier("jdbcTemplate") JdbcTemplate jdbc;
 
     public int countTotalSensors() {
         Long result = jdbc.queryForObject("select count(*) from sensor_registry", Long.class);

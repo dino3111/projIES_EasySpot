@@ -19,10 +19,10 @@ import pt.ua.deti.apieasyspot.common.exception.UnprocessableEntityException;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingSpot;
 import pt.ua.deti.apieasyspot.occupancy.model.Tariff;
-import pt.ua.deti.apieasyspot.occupancy.repository.OccupancySnapshotRepository;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingLotRepository;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingSpotRepository;
 import pt.ua.deti.apieasyspot.occupancy.repository.TariffRepository;
+import pt.ua.deti.apieasyspot.occupancy.repository.TimescaleOccupancySnapshotRepository;
 import pt.ua.deti.apieasyspot.vehicle.model.Vehicle;
 import pt.ua.deti.apieasyspot.vehicle.repository.VehicleRepository;
 
@@ -51,7 +51,7 @@ public class ReservationService {
     private final ParkingSpotRepository parkingSpotRepository;
     private final VehicleRepository vehicleRepository;
     private final TariffRepository tariffRepository;
-    private final OccupancySnapshotRepository occupancySnapshotRepository;
+    private final TimescaleOccupancySnapshotRepository occupancySnapshotRepository;
     private final BillingService billingService;
     private final BookingConfirmationMailService confirmationMailService;
     private final ReservationEventPublisher eventPublisher;

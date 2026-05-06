@@ -109,7 +109,6 @@ export function AddVehicleModal({ onClose, onAdd }: Readonly<{ onClose: () => vo
 
   const handleAdd = async () => {
     if (!PT_PLATE_REGEX.test(plate)) { toast.error('Matrícula inválida'); return; }
-    const yearFromLookup = vehicleData?.yearFrom ?? (vehicleData?.plateDate ? parseInt(vehicleData.plateDate.slice(0, 4), 10) : undefined);
     const hasValidManualData =
       manualData.make.trim().length > 0 &&
       manualData.model.trim().length > 0 &&
@@ -127,10 +126,14 @@ export function AddVehicleModal({ onClose, onAdd }: Readonly<{ onClose: () => vo
       const created = await vehicleApi.create({
         licensePlate: plate,
         externalIdentifier: rfid.trim() || undefined,
-        make: vehicleData?.make ?? (manualData.make.trim() || undefined),
-        model: vehicleData?.model ?? (manualData.model.trim() || undefined),
-        fuelType: vehicleData?.fuelType ?? (manualData.fuelType.trim() || undefined),
-        year: yearFromLookup ?? (parseInt(manualData.year, 10) || undefined),
+        nickname: nickname.trim() || undefined,
+        isAccessible,
+        isPrimary: false,
+        chargerTypes: isEV ? chargerTypes : [],
+        make: vehicleData ? undefined : (manualData.make.trim() || undefined),
+        model: vehicleData ? undefined : (manualData.model.trim() || undefined),
+        fuelType: vehicleData ? undefined : (manualData.fuelType.trim() || undefined),
+        year: vehicleData ? undefined : (parseInt(manualData.year, 10) || undefined),
       });
       onAdd({
         id: created.id,

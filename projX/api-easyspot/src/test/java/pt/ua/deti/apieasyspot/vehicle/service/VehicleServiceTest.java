@@ -66,7 +66,7 @@ public class VehicleServiceTest {
     @Test
     @DisplayName("createVehicle - success - calls lookup and saves")
     void createVehicle_success_callsLookup() {
-        VehicleCreateRequest request = new VehicleCreateRequest("CC-00-CC", "rfid-123", null, null, null, null);
+        VehicleCreateRequest request = new VehicleCreateRequest("CC-00-CC", "rfid-123", null, null, null, null, null, null, null, null);
         VehicleData data = new VehicleData("CC-00-CC", "VIN123", "Tesla", "Model 3", null, null, null, "Elétrico", null, null, null, null, null, null, null, null, null, null, null);
 
         when(userRepository.findByAuthentikUserId("auth-sub-123")).thenReturn(Optional.of(user));
@@ -87,7 +87,7 @@ public class VehicleServiceTest {
     @Test
     @DisplayName("createVehicle - existing plate - throws ConflictException")
     void createVehicle_existingPlate_throwsConflict() {
-        VehicleCreateRequest request = new VehicleCreateRequest("AA-00-AA", null, null, null, null, null);
+        VehicleCreateRequest request = new VehicleCreateRequest("AA-00-AA", null, null, null, null, null, null, null, null, null);
 
         when(userRepository.findByAuthentikUserId("auth-sub-123")).thenReturn(Optional.of(user));
         when(vehicleRepository.findByPlate("AA-00-AA")).thenReturn(Optional.of(vehicle));
@@ -100,7 +100,7 @@ public class VehicleServiceTest {
     @Test
     @DisplayName("createVehicle - plate not found, no manual data - throws UnprocessableEntityException")
     void createVehicle_lookupFailure_noManualData_throws() {
-        VehicleCreateRequest request = new VehicleCreateRequest("DD-00-DD", null, null, null, null, null);
+        VehicleCreateRequest request = new VehicleCreateRequest("DD-00-DD", null, null, null, null, null, null, null, null, null);
 
         when(userRepository.findByAuthentikUserId("auth-sub-123")).thenReturn(Optional.of(user));
         when(vehicleRepository.findByPlate("DD-00-DD")).thenReturn(Optional.empty());
@@ -114,7 +114,7 @@ public class VehicleServiceTest {
     @Test
     @DisplayName("createVehicle - external lookup failure, no manual data - propagates ExternalServiceException")
     void createVehicle_externalLookupFailure_noManualData_throwsExternal() {
-        VehicleCreateRequest request = new VehicleCreateRequest("EE-00-EE", null, null, null, null, null);
+        VehicleCreateRequest request = new VehicleCreateRequest("EE-00-EE", null, null, null, null, null, null, null, null, null);
 
         when(userRepository.findByAuthentikUserId("auth-sub-123")).thenReturn(Optional.of(user));
         when(vehicleRepository.findByPlate("EE-00-EE")).thenReturn(Optional.empty());
@@ -128,7 +128,7 @@ public class VehicleServiceTest {
     @Test
     @DisplayName("createVehicle - manual data provided - saves without calling lookup")
     void createVehicle_manualData_savesWithoutLookup() {
-        VehicleCreateRequest request = new VehicleCreateRequest("FR-123-AB", null, "Renault", "Megane", "Gasolina", 2019);
+        VehicleCreateRequest request = new VehicleCreateRequest("FR-123-AB", null, null, null, null, null, "Renault", "Megane", "Gasolina", 2019);
 
         when(userRepository.findByAuthentikUserId("auth-sub-123")).thenReturn(Optional.of(user));
         when(vehicleRepository.findByPlate("FR-123-AB")).thenReturn(Optional.empty());
