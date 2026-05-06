@@ -1,4 +1,4 @@
-import type { ParkingLot, ParkingSpot } from '../../../data/parkingData';
+import type { ParkingLot, ParkingSpot } from '../../../data/parkingTypes';
 
 export type ReservationStep = 1 | 2 | 3 | 4;
 export type SpotFilter = 'todos' | 'standard' | 'ev' | 'accessible';

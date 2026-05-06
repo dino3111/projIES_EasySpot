@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import type { ParkingLot, ParkingSpot } from '../../../data/parkingData';
+import type { ParkingLot, ParkingSpot } from '../../../data/parkingTypes';
 import type { Vehicle } from '../../../context/ProfileContext';
 import { calcHours, fmtDateTime, fmtDuration, fmtCountdown } from './reservationHelpers';
 

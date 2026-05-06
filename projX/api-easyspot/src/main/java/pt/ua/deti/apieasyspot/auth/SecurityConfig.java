@@ -54,6 +54,7 @@ public class SecurityConfig {
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                 .requestMatchers("/api/test/token").permitAll()
                 .requestMatchers("/api/stripe/webhook").permitAll()
+                .requestMatchers("/api/parks/list", "/api/parks/*/details", "/api/parks/cities").permitAll()
                 .requestMatchers("/api/test/**").authenticated()
                 .anyRequest().authenticated());
 

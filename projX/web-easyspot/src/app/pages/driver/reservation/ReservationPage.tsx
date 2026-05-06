@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router';
-import { mockParkingLots } from '../../../data/parkingData';
+import type { ParkingLot } from '../../../data/parkingTypes';
 import { useProfile } from '../../../context/ProfileContext';
 import {
   calcHours, calcCost, getMinArrivalTime, getDefaultExitTime, genBookingCode,
@@ -13,6 +13,7 @@ import { Step2SpotChoice } from './Step2SpotChoice';
 import { Step3Confirmation } from './Step3Confirmation';
 import { Step4Reserved } from './Step4Reserved';
 import { createReservation, lockedUntilCountdownSeconds } from '../../../../services/reservationService';
+import { fetchAllParksSummary, fetchParkDetailsById } from '../../../services/parksCatalog';
 
 // Reads the Authentik OIDC access token from localStorage.
 // TODO: replace with useAuth().accessToken once OIDC client is fully integrated.
@@ -66,11 +67,16 @@ export function ReservationPage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [reservationError, setReservationError] = useState<string | null>(null);
+  const [parks, setParks] = useState<ParkingLot[]>([]);
+  const [selectedLot, setSelectedLot] = useState<ParkingLot | null>(null);
 
-  const selectedLot = useMemo(
-    () => mockParkingLots.find(l => l.id === selectedParkId) || null,
-    [selectedParkId]
-  );
+  useEffect(() => {
+    fetchAllParksSummary().then(setParks).catch(() => setParks([]));
+  }, []);
+  useEffect(() => {
+    if (!selectedParkId) return void setSelectedLot(null);
+    fetchParkDetailsById(selectedParkId).then(setSelectedLot).catch(() => setSelectedLot(null));
+  }, [selectedParkId]);
   const estimatedCost = calcCost(selectedLot, calcHours(arrivalTime, exitTime));
 
   const selectedFloor = useMemo(
@@ -185,6 +191,7 @@ export function ReservationPage() {
                 arrivalTime={arrivalTime} setArrivalTime={setArrivalTime}
                 exitTime={exitTime} setExitTime={setExitTime}
                 vehicles={vehicles} selectedVehicleId={selectedVehicleId} setSelectedVehicleId={setSelectedVehicleId}
+                parks={parks}
                 onNext={() => setStep(2)}
               />
             )}

@@ -1,9 +1,10 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { mockParkingLots, simulateRealTimeUpdate, type ParkingLot } from '../../data/parkingData';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import type { ParkingLot } from '../../data/parkingTypes';
 import { LeafletMap } from '../../components/parking/LeafletMap';
 import { VehiclePicker } from '../../components/shared/VehiclePicker';
 import { useProfile } from '../../context/ProfileContext';
 import { ParkPanel } from './components/ParkPanel';
+import { fetchParksList } from '../../services/parksApi';
 
 type FilterType = 'all' | 'ev' | 'accessible' | 'available';
 
@@ -25,8 +26,9 @@ export function MapPage() {
   const { vehicles } = useProfile();
   const primaryVehicle = vehicles.find((v) => v.isPrimary) ?? vehicles[0] ?? null;
 
-  const [parkingLots, setParkingLots] = useState<ParkingLot[]>(mockParkingLots);
+  const [parkingLots, setParkingLots] = useState<ParkingLot[]>([]);
   const [selectedLotId, setSelectedLotId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(primaryVehicle?.id ?? null);
@@ -40,37 +42,31 @@ export function MapPage() {
   }, [selectedVehicleId, vehicles]);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setParkingLots((current) =>
-        current.map((lot) => (Math.random() > 0.7 ? simulateRealTimeUpdate(lot) : lot))
-      );
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const selectedVehicle = useMemo(
-    () => vehicles.find((v) => v.id === selectedVehicleId) ?? null,
-    [vehicles, selectedVehicleId],
-  );
-
-  const filteredLots = useMemo(() => {
-    return parkingLots.filter((lot) => {
-      if (activeFilter === 'ev') {
-        if (!lot.hasEVCharger || !lot.evChargers?.length) return false;
-        if (selectedVehicle?.isEV && selectedVehicle.chargerTypes?.length) {
-          const hasCompatible = lot.evChargers.some((c) => selectedVehicle.chargerTypes!.includes(c.type));
-          if (!hasCompatible) return false;
-        }
+    let mounted = true;
+    const load = async () => {
+      try {
+        setLoading(true);
+        const data = await fetchParksList({
+          page: 1,
+          pageSize: 200,
+          textQuery: searchQuery || undefined,
+          vehicleId: selectedVehicleId,
+          evOnly: activeFilter === 'ev',
+          accessibleOnly: activeFilter === 'accessible',
+          availableOnly: activeFilter === 'available',
+        });
+        if (mounted) setParkingLots(data.items);
+      } finally {
+        if (mounted) setLoading(false);
       }
-      if (activeFilter === 'accessible' && (!lot.hasAccessible || !lot.accessibleSpots?.length)) return false;
-      if (activeFilter === 'available' && lot.availableSpots === 0) return false;
-      if (searchQuery) {
-        const q = searchQuery.toLowerCase();
-        if (!lot.name.toLowerCase().includes(q) && !lot.address.toLowerCase().includes(q)) return false;
-      }
-      return true;
-    });
-  }, [parkingLots, activeFilter, searchQuery, selectedVehicle]);
+    };
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, [searchQuery, activeFilter, selectedVehicleId]);
+
+  const filteredLots = parkingLots;
 
   const selectedLot = parkingLots.find((l) => l.id === selectedLotId) ?? null;
   const handleSelectLot = useCallback((id: string) => setSelectedLotId(id), []);
@@ -90,7 +86,7 @@ export function MapPage() {
         onVehicleSelect={setSelectedVehicleId}
         activeFilter={activeFilter}
         onFilterChange={setActiveFilter}
-        filteredCount={filteredLots.length}
+        filteredCount={loading ? 0 : filteredLots.length}
       />
 
       {selectedLot ? (

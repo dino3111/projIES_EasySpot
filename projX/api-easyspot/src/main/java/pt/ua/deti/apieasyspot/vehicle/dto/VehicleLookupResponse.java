@@ -2,12 +2,18 @@ package pt.ua.deti.apieasyspot.vehicle.dto;
 
 public record VehicleLookupResponse(
     String plate,
+    String vin,
     String make,
     String model,
     String version,
-    String color,
+    Integer yearFrom,
+    Integer yearTo,
     String fuelType,
-    String plateDate,
-    String categoryType,
-    String vin
+    Double powerKw,
+    Double powerCv,
+    Integer displacementCc,
+    String bodyType,
+    String driveType,
+    String engineCode,
+    String imageUrl
 ) {}

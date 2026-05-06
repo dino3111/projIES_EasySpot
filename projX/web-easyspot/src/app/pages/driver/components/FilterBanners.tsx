@@ -1,4 +1,4 @@
-import { getDistanceColor } from '../../../data/parkingData';
+import { getDistanceColor } from '../../../data/parkingTypes';
 import type { FilterMode } from '../../../components/parking/ParkingCard';
 
 interface FilterBannersProps {

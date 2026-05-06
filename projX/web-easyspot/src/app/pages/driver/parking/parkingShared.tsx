@@ -1,4 +1,4 @@
-import type { ParkingSpot, SpotStatus } from '../../../data/parkingData';
+import type { ParkingSpot, SpotStatus } from '../../../data/parkingTypes';
 
 export function InfoBox({ icon, label, value, color }: { icon: string; label: string; value: string; color: string }) {
   return (

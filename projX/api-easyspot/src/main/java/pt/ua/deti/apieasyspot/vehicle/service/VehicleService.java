@@ -12,7 +12,6 @@ import pt.ua.deti.apieasyspot.common.exception.ConflictException;
 import pt.ua.deti.apieasyspot.common.exception.PlateNotFoundException;
 import pt.ua.deti.apieasyspot.common.exception.ResourceNotFoundException;
 import pt.ua.deti.apieasyspot.common.exception.UnprocessableEntityException;
-import pt.ua.deti.apieasyspot.vehicle.dto.InsuranceData;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleCapabilities;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleLookupResponse;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleCreateRequest;
@@ -33,9 +32,10 @@ public class VehicleService {
     private final VehicleRepository vehicleRepository;
     private final UserRepository userRepository;
     private final VehicleLookupClient vehicleLookupClient;
+    private final VehiclePhotoStorage vehiclePhotoStorage;
     private final ObjectMapper objectMapper;
 
-    public VehicleResponse createVehicle(String authentikUserId, VehicleCreateRequest request, String appCheckToken) {
+    public VehicleResponse createVehicle(String authentikUserId, VehicleCreateRequest request) {
         User user = findUser(authentikUserId);
         String plate = request.licensePlate().toUpperCase();
 
@@ -48,22 +48,15 @@ public class VehicleService {
         vehicle.setRfid(request.externalIdentifier());
 
         log.info(
-            "Creating vehicle plate={} hasManualData={} makePresent={} modelPresent={} fuelTypePresent={} yearPresent={}",
-            plate,
-            request.hasManualData(),
-            request.make() != null && !request.make().isBlank(),
-            request.model() != null && !request.model().isBlank(),
-            request.fuelType() != null && !request.fuelType().isBlank(),
-            request.year() != null
+            "Creating vehicle plate={} hasManualData={}",
+            plate, request.hasManualData()
         );
 
         if (request.hasManualData()) {
-            log.info("Persisting vehicle plate={} with client-provided data, skipping InfoMatricula backend lookup", plate);
             applyManualData(vehicle, request);
         } else {
             try {
-                log.info("No complete client-provided data for plate={}, attempting InfoMatricula backend lookup", plate);
-                applyLookupData(vehicle, vehicleLookupClient.lookup(plate, appCheckToken));
+                applyLookupData(vehicle, vehicleLookupClient.lookup(plate));
             } catch (PlateNotFoundException ex) {
                 throw new UnprocessableEntityException(
                     "Plate not found in the registry. Please provide: make, model, fuelType, year."
@@ -74,12 +67,12 @@ public class VehicleService {
         return toResponse(vehicleRepository.save(vehicle));
     }
 
-    public VehicleResponse updateVehicle(String authentikUserId, UUID vehicleId, VehicleUpdateRequest request, String appCheckToken){
+    public VehicleResponse updateVehicle(String authentikUserId, UUID vehicleId, VehicleUpdateRequest request) {
         User user = findUser(authentikUserId);
         Vehicle vehicle = findVehicle(vehicleId, user.getId());
 
-        if(!vehicle.getPlate().equalsIgnoreCase(request.plate())){
-            VehicleData data = vehicleLookupClient.lookup(request.plate(), appCheckToken);
+        if (!vehicle.getPlate().equalsIgnoreCase(request.plate())) {
+            VehicleData data = vehicleLookupClient.lookup(request.plate());
             applyLookupData(vehicle, data);
         }
 
@@ -97,31 +90,61 @@ public class VehicleService {
             .toList();
     }
 
-    public void deleteVehicle(String authentikUserId, UUID vehicleId){
+    public void deleteVehicle(String authentikUserId, UUID vehicleId) {
         User user = findUser(authentikUserId);
         Vehicle vehicle = findVehicle(vehicleId, user.getId());
         vehicleRepository.delete(vehicle);
     }
 
-    private User findUser(String authentikUserId){
-        return userRepository.findByAuthentikUserId(authentikUserId).orElseThrow(() -> new ResourceNotFoundException("User not found: " + authentikUserId));
+    private User findUser(String authentikUserId) {
+        return userRepository.findByAuthentikUserId(authentikUserId)
+            .orElseThrow(() -> new ResourceNotFoundException("User not found: " + authentikUserId));
     }
 
-    private Vehicle findVehicle(UUID vehicleId, UUID userId){
-        return vehicleRepository.findByIdAndUserId(vehicleId, userId).orElseThrow(() -> new ResourceNotFoundException("Vehicle not found: " + vehicleId));
+    private Vehicle findVehicle(UUID vehicleId, UUID userId) {
+        return vehicleRepository.findByIdAndUserId(vehicleId, userId)
+            .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found: " + vehicleId));
     }
 
     private void applyLookupData(Vehicle vehicle, VehicleData data) {
-        vehicle.setMake(data.make());
-        vehicle.setModel(data.model());
+        vehicle.setMake(nullSafe(data.make(), "DESCONHECIDO"));
+        vehicle.setModel(nullSafe(data.model(), "DESCONHECIDO"));
         vehicle.setVersion(data.version());
-        vehicle.setColor(data.color());
-        vehicle.setFuelType(data.fuelType());
+        vehicle.setFuelType(nullSafe(data.fuelType(), "DESCONHECIDO"));
         vehicle.setVin(data.vin());
-        vehicle.setEv("Elétrico".equalsIgnoreCase(data.fuelType()));
-        vehicle.setYear(parseYear(data.plateDate()));
+        vehicle.setEv(isElectric(data.fuelType()));
+        vehicle.setYear(resolveYear(data.yearFrom()));
+        vehicle.setYearTo(data.yearTo());
+        vehicle.setPowerKW(data.powerKw());
+        vehicle.setPowerCV(data.powerCv());
+        vehicle.setDisplacementCc(data.displacementCc());
+        vehicle.setCylinders(data.cylinders());
+        vehicle.setBodyType(data.bodyType());
+        vehicle.setDriveType(data.driveType());
+        vehicle.setEngineCode(data.engineCode());
+        vehicle.setEngineType(data.engineType());
+        vehicle.setExternalSourceId(data.externalSourceId());
         vehicle.setLastSyncedAt(LocalDateTime.now());
-        vehicle.setSyncedDataJson(objectMapper.writeValueAsString(data));
+        vehicle.setSyncedDataJson(serialiseSafely(data));
+        vehicle.setImageUrl(mirrorPhoto(data));
+    }
+
+    private String mirrorPhoto(VehicleData data) {
+        if (data.externalSourceId() == null && data.imageUrl() == null) return null;
+        return vehiclePhotoStorage.mirror(data.externalSourceId(), data.imageUrl());
+    }
+
+    private boolean isElectric(String fuelType) {
+        if (fuelType == null) return false;
+        String normalised = fuelType.toLowerCase();
+        return normalised.contains("eléct") || normalised.contains("elect")
+            || normalised.contains("elétr") || normalised.contains("eletr")
+            || normalised.contains("ev");
+    }
+
+    private int resolveYear(Integer yearFrom) {
+        if (yearFrom != null && yearFrom >= 1900 && yearFrom <= 2100) return yearFrom;
+        return LocalDate.now().getYear();
     }
 
     private void applyManualData(Vehicle vehicle, VehicleCreateRequest request) {
@@ -129,39 +152,28 @@ public class VehicleService {
         vehicle.setModel(request.model());
         vehicle.setFuelType(request.fuelType());
         vehicle.setYear(request.year());
-        vehicle.setEv("Elétrico".equalsIgnoreCase(request.fuelType()));
+        vehicle.setEv(isElectric(request.fuelType()));
     }
 
-    private int parseYear(String plateDate) {
-        if (plateDate == null || plateDate.isBlank()) return LocalDate.now().getYear();
-        try {
-            int year = Integer.parseInt(plateDate.substring(0, 4));
-            if (year >= 1900 && year <= 2100) return year;
-        } catch (NumberFormatException ignored) {}
-        try {
-            int year = Integer.parseInt(plateDate.substring(plateDate.length() - 4));
-            if (year >= 1900 && year <= 2100) return year;
-        } catch (NumberFormatException ignored) {}
-        return LocalDate.now().getYear();
-    }
-
-    public VehicleLookupResponse lookupPlate(String plate, String appCheckToken) {
-        VehicleData data = vehicleLookupClient.lookup(plate.toUpperCase(), appCheckToken);
+    public VehicleLookupResponse lookupPlate(String plate) {
+        VehicleData data = vehicleLookupClient.lookup(plate.toUpperCase());
         return new VehicleLookupResponse(
             plate.toUpperCase(),
+            data.vin(),
             data.make(),
             data.model(),
             data.version(),
-            data.color(),
+            data.yearFrom(),
+            data.yearTo(),
             data.fuelType(),
-            data.plateDate(),
-            data.categoryType(),
-            data.vin()
+            data.powerKw(),
+            data.powerCv(),
+            data.displacementCc(),
+            data.bodyType(),
+            data.driveType(),
+            data.engineCode(),
+            data.imageUrl()
         );
-    }
-
-    public InsuranceData lookupInsurance(String plate, String appCheckToken) {
-        return vehicleLookupClient.lookupInsurance(plate.toUpperCase(), appCheckToken);
     }
 
     public VehicleCapabilities getCapabilities(UUID vehicleId) {
@@ -179,12 +191,32 @@ public class VehicleService {
             vehicle.getVersion(),
             vehicle.getColor(),
             vehicle.getYear(),
+            vehicle.getYearTo(),
             vehicle.getFuelType(),
             vehicle.getPowerKW(),
+            vehicle.getPowerCV(),
+            vehicle.getDisplacementCc(),
+            vehicle.getBodyType(),
+            vehicle.getDriveType(),
+            vehicle.getEngineCode(),
+            vehicle.getImageUrl(),
             vehicle.getNickname(),
             vehicle.isEv(),
             vehicle.isAccessible(),
             vehicle.isPrimary()
         );
+    }
+
+    private static String nullSafe(String value, String fallback) {
+        return (value == null || value.isBlank()) ? fallback : value;
+    }
+
+    private String serialiseSafely(VehicleData data) {
+        try {
+            return objectMapper.writeValueAsString(data);
+        } catch (Exception ex) {
+            log.warn("Could not serialise VehicleData plate={}", data.plate(), ex);
+            return null;
+        }
     }
 }

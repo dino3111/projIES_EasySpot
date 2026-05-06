@@ -1,7 +1,7 @@
 import { Link } from 'react-router';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
-import type { ParkingLot } from '../../data/parkingData';
-import { getSpotDimCategory, getDistanceColor } from '../../data/parkingData';
+import type { ParkingLot } from '../../data/parkingTypes';
+import { getSpotDimCategory, getDistanceColor } from '../../data/parkingTypes';
 
 export type FilterMode = 'ev' | 'accessible' | 'both' | null;
 

@@ -1,4 +1,4 @@
-import type { ParkingLot } from '../../../data/parkingData';
+import type { ParkingLot } from '../../../data/parkingTypes';
 import { MapLegend, SpotCell } from './parkingShared';
 
 export function TabMap({

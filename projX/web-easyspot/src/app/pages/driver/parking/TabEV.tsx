@@ -1,4 +1,4 @@
-import type { ParkingLot } from '../../../data/parkingData';
+import type { ParkingLot } from '../../../data/parkingTypes';
 import type { Vehicle } from '../../../context/ProfileContext';
 
 export function TabEV({ lot, myVehicle }: { lot: ParkingLot; myVehicle: Vehicle | null }) {

@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { mockParkingLots } from '../../../data/parkingData';
+import { useEffect, useState } from 'react';
 import { lookupVehicleData, type VehicleData } from '../../../../services/vehicleLookup';
 import { violationTypes, inputBase, inputError, type ReportForm } from './reportTypes';
+import type { ParkingLot } from '../../../data/parkingTypes';
+import { fetchAllParksSummary } from '../../../services/parksCatalog';
 
 interface Props {
   form: ReportForm;
@@ -14,6 +15,11 @@ export function Step1Form({ form, onChange, onSubmit, onCancel }: Props) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [plateInfo, setPlateInfo] = useState<VehicleData | null>(null);
   const [lookingUp, setLookingUp] = useState(false);
+  const [parks, setParks] = useState<ParkingLot[]>([]);
+
+  useEffect(() => {
+    fetchAllParksSummary().then(setParks).catch(() => setParks([]));
+  }, []);
 
   const lookupPlate = async () => {
     if (!form.vehiclePlate.trim()) return;
@@ -94,7 +100,7 @@ export function Step1Form({ form, onChange, onSubmit, onCancel }: Props) {
                 aria-invalid={!!errors.parkingLotId}
               >
                 <option value="">Selecione o parque...</option>
-                {mockParkingLots.map((lot) => (
+                {parks.map((lot) => (
                   <option key={lot.id} value={lot.id}>{lot.name} — {lot.localidade}</option>
                 ))}
               </select>

@@ -11,7 +11,11 @@ public record ParkingLotSummaryResponse(
     public record ParkingLotSummary(
         UUID id,
         String name,
+        String city,
         String address,
+        Double latitude,
+        Double longitude,
+        String openingHours,
         BigDecimal pricePerHour,
         int totalSpaces,
         int freeSpaces,

@@ -1,6 +1,7 @@
-import type { ReactNode } from 'react';
-import { mockParkingLots } from '../../../data/parkingData';
+import { useEffect, useState, type ReactNode } from 'react';
 import { violationTypes, type ReportForm } from './reportTypes';
+import type { ParkingLot } from '../../../data/parkingTypes';
+import { fetchAllParksSummary } from '../../../services/parksCatalog';
 
 function DetailRow({ icon, label, children }: { icon: string; label: string; children: ReactNode }) {
   return (
@@ -23,7 +24,11 @@ interface Props {
 }
 
 export function Step2Confirmation({ reportId, form, onViewReports, onNewReport, onGoHome }: Props) {
-  const selectedLot = mockParkingLots.find((p) => p.id === form.parkingLotId);
+  const [parks, setParks] = useState<ParkingLot[]>([]);
+  useEffect(() => {
+    fetchAllParksSummary().then(setParks).catch(() => setParks([]));
+  }, []);
+  const selectedLot = parks.find((p) => p.id === form.parkingLotId);
   const violationType = violationTypes.find((v) => v.id === form.violationType);
 
   return (

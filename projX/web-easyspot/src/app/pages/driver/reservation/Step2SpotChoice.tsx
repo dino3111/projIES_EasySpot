@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { ParkingLot, ParkingSpot } from '../../../data/parkingData';
+import type { ParkingLot, ParkingSpot } from '../../../data/parkingTypes';
 import { SPOT_FILTER_OPTIONS, isSpotSelectable, spotColorClasses, type SpotFilter } from './reservationHelpers';
 
 export function Step2SpotChoice({

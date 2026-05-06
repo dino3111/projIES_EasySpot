@@ -50,6 +50,8 @@ public class ParkController {
         @RequestParam(required = false) String textQuery,
         @Parameter(description = "Optional minimum number of available spaces", example = "5")
         @RequestParam(required = false) Integer minAvailableSpaces,
+        @Parameter(description = "Optional city filter", example = "Aveiro")
+        @RequestParam(required = false) String city,
         @Parameter(
             description = "Optional feature filters",
             schema = @Schema(type = "array", allowableValues = {"EV", "ACCESSIBLE", "COVERED", "SECURITY"})
@@ -68,7 +70,13 @@ public class ParkController {
             if (caps.ev() && !activeFilters.contains("EV")) activeFilters.add("EV");
             if (caps.accessible() && !activeFilters.contains("ACCESSIBLE")) activeFilters.add("ACCESSIBLE");
         }
-        return ResponseEntity.ok(parkService.searchParks(textQuery, minAvailableSpaces, activeFilters, page, pageSize));
+        return ResponseEntity.ok(parkService.searchParks(textQuery, minAvailableSpaces, city, activeFilters, page, pageSize));
+    }
+
+    @Operation(summary = "List available cities")
+    @GetMapping("/cities")
+    public ResponseEntity<List<String>> listCities() {
+        return ResponseEntity.ok(parkService.listCities());
     }
 
     @Operation(summary = "Get parking lot details")

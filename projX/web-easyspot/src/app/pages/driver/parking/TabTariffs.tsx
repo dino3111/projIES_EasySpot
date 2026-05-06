@@ -1,4 +1,4 @@
-import type { ParkingLot } from '../../../data/parkingData';
+import type { ParkingLot } from '../../../data/parkingTypes';
 
 export function TabTariffs({ lot }: { lot: ParkingLot }) {
   return (

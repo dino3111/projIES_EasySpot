@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { mockParkingLots } from '../../../data/parkingData';
+import type { ParkingLot } from '../../../data/parkingTypes';
 import type { Vehicle } from '../../../context/ProfileContext';
 import { getBrandLogoUrl } from '../../../utils/brandLogo';
 import { getMinArrivalTime, getDefaultExitTime, calcHours, fmtDateTime, fmtDuration } from './reservationHelpers';
@@ -64,12 +64,14 @@ export function Step1ParkHorario({
   arrivalTime, setArrivalTime,
   exitTime, setExitTime,
   vehicles, selectedVehicleId, setSelectedVehicleId,
+  parks,
   onNext,
 }: {
   selectedParkId: string; setSelectedParkId: (id: string) => void;
   arrivalTime: string; setArrivalTime: (t: string) => void;
   exitTime: string; setExitTime: (t: string) => void;
   vehicles: Vehicle[]; selectedVehicleId: string; setSelectedVehicleId: (id: string) => void;
+  parks: ParkingLot[];
   onNext: () => void;
 }) {
   const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId) ?? null;
@@ -86,13 +88,13 @@ export function Step1ParkHorario({
   const minTime = getMinArrivalTime();
 
   const filtered = useMemo(() =>
-    mockParkingLots.filter(l => {
+    parks.filter(l => {
       if (filterEV && !l.hasEVCharger) return false;
       if (filterAccessible && !l.hasAccessible) return false;
       const q = search.toLowerCase();
       return !q || l.name.toLowerCase().includes(q) || l.address.toLowerCase().includes(q);
     }),
-    [search, filterEV, filterAccessible]
+    [search, filterEV, filterAccessible, parks]
   );
 
   const hours = calcHours(arrivalTime, exitTime);
@@ -140,7 +142,7 @@ export function Step1ParkHorario({
           </div>
 
           {selectedParkId && (() => {
-            const lot = mockParkingLots.find(l => l.id === selectedParkId)!;
+            const lot = parks.find(l => l.id === selectedParkId)!;
             if (!lot) return null;
             return (
               <div className="flex items-center gap-4 bg-base-100 border border-primary/20 rounded-2xl p-4">

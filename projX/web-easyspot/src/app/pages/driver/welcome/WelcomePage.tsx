@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router';
 import { useAuth } from '../../../context/AuthContext';
 import logo from '../../../../assets/logo.svg';
 import logoWhite from '../../../../assets/logo-white.svg';

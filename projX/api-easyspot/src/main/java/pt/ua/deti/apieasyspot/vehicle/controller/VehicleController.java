@@ -11,7 +11,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
-import pt.ua.deti.apieasyspot.vehicle.dto.InsuranceData;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleCreateRequest;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleLookupResponse;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleResponse;
@@ -28,33 +27,16 @@ import java.util.UUID;
 public class VehicleController {
     private final VehicleService vehicleService;
 
-    @Operation(summary = "Lookup plate data", description = "Fetches vehicle data from the IMT registry without persisting it.")
+    @Operation(summary = "Lookup plate data", description = "Fetches vehicle data for a Portuguese plate via the EasySpot scraper service.")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Vehicle data found"),
         @ApiResponse(responseCode = "404", description = "Plate not found in registry"),
-        @ApiResponse(responseCode = "503", description = "IMT service unavailable")
+        @ApiResponse(responseCode = "503", description = "Vehicle lookup service unavailable")
     })
     @GetMapping("/lookup")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<VehicleLookupResponse> lookupPlate(
-        @RequestParam String plate,
-        @RequestHeader(value = "X-App-Check-Token", required = false) String appCheckToken
-    ) {
-        return ResponseEntity.ok(vehicleService.lookupPlate(plate, appCheckToken));
-    }
-
-    @Operation(summary = "Lookup insurance data", description = "Fetches insurance data for a plate from the InfoMatrícula registry.")
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Insurance data found"),
-        @ApiResponse(responseCode = "503", description = "InfoMatrícula service unavailable")
-    })
-    @GetMapping("/insurance")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<InsuranceData> lookupInsurance(
-        @RequestParam String plate,
-        @RequestHeader(value = "X-App-Check-Token", required = false) String appCheckToken
-    ) {
-        return ResponseEntity.ok(vehicleService.lookupInsurance(plate, appCheckToken));
+    public ResponseEntity<VehicleLookupResponse> lookupPlate(@RequestParam String plate) {
+        return ResponseEntity.ok(vehicleService.lookupPlate(plate));
     }
 
     @Operation(summary = "Add a vehicle", description = "Adds a vehicle to the authenticated driver's profile.")
@@ -67,31 +49,29 @@ public class VehicleController {
     @PreAuthorize("hasRole('DRIVER')")
     public ResponseEntity<VehicleResponse> createVehicle(
         @RequestBody @Valid VehicleCreateRequest request,
-        @RequestHeader(value = "X-App-Check-Token", required = false) String appCheckToken,
         @AuthenticationPrincipal Jwt jwt
     ) {
-        return ResponseEntity.ok(vehicleService.createVehicle(jwt.getSubject(), request, appCheckToken));
+        return ResponseEntity.ok(vehicleService.createVehicle(jwt.getSubject(), request));
     }
 
-    @Operation(summary = "Update a vehicle", description = "Updates a vehicle belonging to the authenticated driver. If the plate changes, data is re-fetched from IMT")
+    @Operation(summary = "Update a vehicle", description = "Updates a vehicle belonging to the authenticated driver. Re-runs lookup if the plate changes.")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Vehicle updated successfully"),
         @ApiResponse(responseCode = "404", description = "Vehicle not found"),
         @ApiResponse(responseCode = "403", description = "Vehicle doesn't belong to this driver"),
-        @ApiResponse(responseCode = "503", description = "IMT API service unavailable")
+        @ApiResponse(responseCode = "503", description = "Vehicle lookup service unavailable")
     })
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('DRIVER')")
     public ResponseEntity<VehicleResponse> updateVehicle(
         @PathVariable UUID id,
         @RequestBody @Valid VehicleUpdateRequest request,
-        @RequestHeader(value = "X-App-Check-Token", required = false) String appCheckToken,
         @AuthenticationPrincipal Jwt jwt
     ) {
-        return ResponseEntity.ok(vehicleService.updateVehicle(jwt.getSubject(), id, request, appCheckToken));
+        return ResponseEntity.ok(vehicleService.updateVehicle(jwt.getSubject(), id, request));
     }
 
-    @Operation(summary = "Delete a Vehicle", description = "Removes a vehicle belonging to the authenticated driver.")
+    @Operation(summary = "Delete a vehicle", description = "Removes a vehicle belonging to the authenticated driver.")
     @ApiResponses({
         @ApiResponse(responseCode = "204", description = "Vehicle deleted"),
         @ApiResponse(responseCode = "404", description = "Vehicle not found")

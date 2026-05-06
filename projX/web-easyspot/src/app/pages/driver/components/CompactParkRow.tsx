@@ -1,5 +1,5 @@
 import { Link } from 'react-router';
-import { getSpotDimCategory, getDistanceColor, type ParkingLot } from '../../../data/parkingData';
+import { getSpotDimCategory, getDistanceColor, type ParkingLot } from '../../../data/parkingTypes';
 import type { FilterMode } from '../../../components/parking/ParkingCard';
 
 interface CompactParkRowProps {

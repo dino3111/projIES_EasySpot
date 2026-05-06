@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
 import { useProfile } from '../../../context/ProfileContext';
-import { mockParkingLots, simulateRealTimeUpdate, type ParkingLot } from '../../../data/parkingData';
+import type { ParkingLot } from '../../../data/parkingTypes';
 import { LeafletMap } from '../../../components/parking/LeafletMap';
 import { InfoBox, amenityIcon, amenityLabel } from './parkingShared';
 import { TabGeneral } from './TabGeneral';
@@ -9,6 +9,7 @@ import { TabMap } from './TabMap';
 import { TabEV } from './TabEV';
 import { TabAccessibility } from './TabAccessibility';
 import { TabTariffs } from './TabTariffs';
+import { fetchParkDetails } from '../../../services/parksApi';
 
 type Tab = 'general' | 'map' | 'ev' | 'accessibility' | 'tariffs';
 
@@ -18,9 +19,8 @@ export function ParkingDetail() {
   const { vehicles } = useProfile();
   const myVehicle = useMemo(() => vehicles.find((v) => v.isPrimary) ?? vehicles[0] ?? null, [vehicles]);
 
-  const [lot, setLot] = useState<ParkingLot | null>(
-    () => mockParkingLots.find((l) => l.id === id) ?? null
-  );
+  const [lot, setLot] = useState<ParkingLot | null>(null);
+  const [loading, setLoading] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false);
   const [activeFloorIdx, setActiveFloorIdx] = useState(0);
 
@@ -37,10 +37,28 @@ export function ParkingDetail() {
   const [activeTab, setActiveTab] = useState<Tab>(initialTab);
 
   useEffect(() => {
-    if (!lot) return;
-    const interval = setInterval(() => setLot((prev) => (prev ? simulateRealTimeUpdate(prev) : prev)), 5000);
-    return () => clearInterval(interval);
-  }, [lot?.id]);
+    if (!id) return;
+    let mounted = true;
+    const load = async () => {
+      try {
+        setLoading(true);
+        const details = await fetchParkDetails(id);
+        if (mounted) setLot(details);
+      } catch {
+        if (mounted) setLot(null);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, [id]);
+
+  if (loading) {
+    return <div className="p-6 text-muted-foreground">A carregar parque...</div>;
+  }
 
   if (!lot) {
     return (

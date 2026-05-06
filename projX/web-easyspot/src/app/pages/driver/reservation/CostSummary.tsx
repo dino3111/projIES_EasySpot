@@ -1,4 +1,4 @@
-import type { ParkingLot } from '../../../data/parkingData';
+import type { ParkingLot } from '../../../data/parkingTypes';
 import { calcHours, fmtDateTime, fmtDuration, type ReservationStep } from './reservationHelpers';
 
 export function CostSummary({

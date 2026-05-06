@@ -1,5 +1,5 @@
 import { Link } from 'react-router';
-import type { ParkingLot } from '../../../data/parkingData';
+import type { ParkingLot } from '../../../data/parkingTypes';
 
 export interface StatusInfo {
   label: string;

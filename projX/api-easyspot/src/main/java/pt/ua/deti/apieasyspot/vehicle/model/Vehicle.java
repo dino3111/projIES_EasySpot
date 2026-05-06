@@ -41,10 +41,10 @@ public class Vehicle {
     @Column(nullable = false, length = 50) @NotBlank
     private String make;
 
-    @Column(nullable = false, length = 50) @NotBlank
+    @Column(nullable = false, length = 80) @NotBlank
     private String model;
 
-    @Column(length = 50)
+    @Column(length = 80)
     private String version;
 
     @Column(length = 50)
@@ -53,11 +53,41 @@ public class Vehicle {
     @Column(nullable = false) @Min(1900) @Max(2100)
     private int year;
 
+    @Column
+    private Integer yearTo;
+
     @Column(nullable = false, length = 30) @NotBlank
     private String fuelType;
 
     @Column @Positive
     private Double powerKW;
+
+    @Column @Positive
+    private Double powerCV;
+
+    @Column @Positive
+    private Integer displacementCc;
+
+    @Column @Positive
+    private Integer cylinders;
+
+    @Column(length = 80)
+    private String bodyType;
+
+    @Column(length = 80)
+    private String driveType;
+
+    @Column(length = 120)
+    private String engineCode;
+
+    @Column(length = 80)
+    private String engineType;
+
+    @Column(length = 500)
+    private String imageUrl;
+
+    @Column(length = 80)
+    private String externalSourceId;
 
     @Column(length = 50)
     private String nickname;

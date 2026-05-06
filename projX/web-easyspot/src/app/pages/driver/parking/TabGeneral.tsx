@@ -1,5 +1,5 @@
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
-import type { ParkingLot } from '../../../data/parkingData';
+import type { ParkingLot } from '../../../data/parkingTypes';
 import { ZoneTypeBadge } from './parkingShared';
 
 export function TabGeneral({

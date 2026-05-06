@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ParkingLot } from '../../data/parkingData';
+import type { ParkingLot } from '../../data/parkingTypes';
 
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';

@@ -1,4 +1,4 @@
-import type { EVCharger } from '../../data/parkingData';
+import type { EVCharger } from '../../data/parkingTypes';
 
 interface EVChargerCardProps {
   charger: EVCharger;

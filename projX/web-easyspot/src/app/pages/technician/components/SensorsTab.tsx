@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { mockSensors, computeTechKPIs, type SensorDevice } from '../../../data/technicianData';
-import { mockParkingLots } from '../../../data/parkingData';
 import { STATUS_COLOR, STATUS_LABEL, TIPO_ICON, type StatusFil } from './maintenanceTypes';
 import { EmptyState, StatBadge, TechMapLegend } from './shared';
 
@@ -162,7 +161,7 @@ function ParkSensorMapView({
   const [activeFloorIdx, setActiveFloorIdx] = useState(0);
   const [localFilter, setLocalFilter] = useState<StatusFil>(statusFilter);
   const [visibleCount, setVisibleCount] = useState(5);
-  const lot = mockParkingLots.find(l => l.id === parkId) ?? null;
+  const lot = null;
   const activeFloor = lot?.floors?.[activeFloorIdx];
   const parkName = allSensors[0]?.parqueNome ?? parkId;
 

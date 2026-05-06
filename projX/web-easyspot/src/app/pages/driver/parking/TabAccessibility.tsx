@@ -1,5 +1,5 @@
 import { Link } from 'react-router';
-import { getDistanceColor, getSpotDimCategory, type ParkingLot } from '../../../data/parkingData';
+import { getDistanceColor, getSpotDimCategory, type ParkingLot } from '../../../data/parkingTypes';
 
 export function TabAccessibility({ lot }: { lot: ParkingLot }) {
   if (!lot.accessibleSpots) return null;

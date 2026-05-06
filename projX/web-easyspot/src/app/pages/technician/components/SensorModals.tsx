@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { type SensorDevice, type SensorStatus } from '../../../data/technicianData';
-import { mockParkingLots } from '../../../data/parkingData';
 import { STATUS_COLOR, STATUS_LABEL, STATUS_ICON, TIPO_ICON } from './maintenanceTypes';
 import { MetaRow, TechMapLegend } from './shared';
 
@@ -13,7 +12,7 @@ export function SensorDiagPanel({
 }) {
   const [activeFloorIdx, setActiveFloorIdx] = useState(0);
   const color = STATUS_COLOR[sensor.status];
-  const lot = mockParkingLots.find(l => l.id === sensor.parqueId) ?? null;
+  const lot = null;
   const activeFloor = lot?.floors?.[activeFloorIdx];
 
   return (

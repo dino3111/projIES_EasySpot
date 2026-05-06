@@ -26,14 +26,14 @@ public class ParkService {
     private final ParkingSpotRepository parkingSpotRepository;
     private final JdbcTemplate jdbc;
 
-    public ParkingLotSummaryResponse searchParks(String textQuery, Integer minAvailableSpaces, List<String> filters, int page, int pageSize) {
+    public ParkingLotSummaryResponse searchParks(String textQuery, Integer minAvailableSpaces, String city, List<String> filters, int page, int pageSize) {
         boolean filterEV = filters != null && filters.contains("EV");
         boolean filterAcc = filters != null && filters.contains("ACCESSIBLE");
         int offset = (page - 1) * pageSize;
 
         StringBuilder sql = buildBaseSql();
         List<Object> params = new ArrayList<>();
-        appendFilters(sql, params, textQuery, minAvailableSpaces, filterEV, filterAcc);
+        appendFilters(sql, params, textQuery, minAvailableSpaces, city, filterEV, filterAcc);
         sql.append(" GROUP BY p.id, pa.total_spaces, pa.free_spaces, pa.ev_free, pa.ev_total, pa.acc_free, pa.acc_total");
         sql.append(" ORDER BY p.name ASC LIMIT ? OFFSET ?");
         params.add(pageSize);
@@ -71,7 +71,7 @@ public class ParkService {
                     SUM(CASE WHEN zone_type = 'ACCESSIBLE' THEN total_count - occupied_count ELSE 0 END) as acc_free
                 FROM latest_only GROUP BY parking_lot_id
             )
-            SELECT p.id, p.name, p.address, MIN(t.price_per_hour) as price,
+            SELECT p.id, p.name, p.city, p.address, p.latitude, p.longitude, p.opening_hours, MIN(t.price_per_hour) as price,
                    COALESCE(pa.total_spaces, p.total_spaces) as total_spaces,
                    COALESCE(pa.free_spaces, p.total_spaces) as free_spaces,
                    COALESCE(pa.ev_free, 0) as ev_free, COALESCE(pa.ev_total, 0) as ev_total,
@@ -84,7 +84,7 @@ public class ParkService {
             """);
     }
 
-    private void appendFilters(StringBuilder sql, List<Object> params, String textQuery, Integer minAvailableSpaces, boolean filterEV, boolean filterAcc) {
+    private void appendFilters(StringBuilder sql, List<Object> params, String textQuery, Integer minAvailableSpaces, String city, boolean filterEV, boolean filterAcc) {
         if (textQuery != null && !textQuery.isBlank()) {
             sql.append(" AND (p.name ILIKE ? OR p.city ILIKE ? OR p.address ILIKE ?)");
             String q = "%" + textQuery + "%";
@@ -96,8 +96,19 @@ public class ParkService {
             sql.append(" AND COALESCE(pa.free_spaces, p.total_spaces) >= ?");
             params.add(minAvailableSpaces);
         }
+        if (city != null && !city.isBlank()) {
+            sql.append(" AND p.city = ?");
+            params.add(city.trim());
+        }
         if (filterEV) sql.append(" AND COALESCE(pa.ev_total, 0) > 0");
         if (filterAcc) sql.append(" AND COALESCE(pa.acc_total, 0) > 0");
+    }
+
+    public List<String> listCities() {
+        return jdbc.query(
+            "SELECT DISTINCT city FROM parking_lots WHERE city IS NOT NULL AND city <> '' ORDER BY city ASC",
+            (rs, rowNum) -> rs.getString("city")
+        );
     }
 
     private ParkingLotSummaryResponse.ParkingLotSummary mapRow(ResultSet rs, long[] totalItems) throws SQLException {
@@ -107,7 +118,11 @@ public class ParkService {
         return new ParkingLotSummaryResponse.ParkingLotSummary(
             UUID.fromString(rs.getString("id")),
             rs.getString("name"),
+            rs.getString("city"),
             rs.getString("address"),
+            rs.getDouble("latitude"),
+            rs.getDouble("longitude"),
+            rs.getString("opening_hours"),
             rs.getBigDecimal("price"),
             total,
             free,

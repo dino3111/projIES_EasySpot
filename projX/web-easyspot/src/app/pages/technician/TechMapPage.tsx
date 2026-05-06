@@ -1,7 +1,8 @@
-import { useState, useMemo, useRef, useCallback } from 'react';
-import { mockParkingLots, type ParkingLot } from '../../data/parkingData';
+import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
+import type { ParkingLot } from '../../data/parkingTypes';
 import { mockSensors } from '../../data/technicianData';
 import { LeafletMap } from '../../components/parking/LeafletMap';
+import { fetchAllParksSummary } from '../../services/parksCatalog';
 
 type FilterType = 'todos' | 'problemas' | 'operacionais';
 
@@ -9,9 +10,12 @@ export function TechMapPage() {
   const [selectedLotId, setSelectedLotId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterType>('todos');
+  const [parkingLots, setParkingLots] = useState<ParkingLot[]>([]);
   const searchRef = useRef<HTMLInputElement>(null);
 
-  const parkingLots = mockParkingLots;
+  useEffect(() => {
+    fetchAllParksSummary().then(setParkingLots).catch(() => setParkingLots([]));
+  }, []);
 
   const filteredLots = useMemo(() => {
     return parkingLots.filter((lot) => {

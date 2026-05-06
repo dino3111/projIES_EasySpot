@@ -2,16 +2,19 @@ import { useState, useEffect, useMemo } from 'react';
 import { FilterBar } from '../../components/parking/FilterBar';
 import { ParkingCard, type FilterMode } from '../../components/parking/ParkingCard';
 import { VehiclePicker } from '../../components/shared/VehiclePicker';
-import { mockParkingLots, simulateRealTimeUpdate, type ParkingLot } from '../../data/parkingData';
+import type { ParkingLot } from '../../data/parkingTypes';
 import { useProfile } from '../../context/ProfileContext';
 import { CompactParkRow } from './components/CompactParkRow';
 import { FilterBanners } from './components/FilterBanners';
+import { fetchParkCities, fetchParksList } from '../../services/parksApi';
 
 export function ParkingListPage() {
   const { vehicles } = useProfile();
   const primaryVehicle = vehicles.find((v) => v.isPrimary) ?? vehicles[0] ?? null;
 
-  const [parkingLots, setParkingLots] = useState<ParkingLot[]>(mockParkingLots);
+  const [parkingLots, setParkingLots] = useState<ParkingLot[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [showEVOnly, setShowEVOnly] = useState(false);
   const [showAccessibleOnly, setShowAccessibleOnly] = useState(false);
   const [showAvailableOnly, setShowAvailableOnly] = useState(false);
@@ -19,6 +22,9 @@ export function ParkingListPage() {
   const [selectedDistrict, setSelectedDistrict] = useState('');
   const [mobileView, setMobileView] = useState<'list' | 'grid'>('list');
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(primaryVehicle?.id ?? null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [districts, setDistricts] = useState<string[]>([]);
 
   useEffect(() => {
     const vehicle = vehicles.find((v) => v.id === selectedVehicleId) ?? null;
@@ -27,13 +33,45 @@ export function ParkingListPage() {
   }, [selectedVehicleId, vehicles]);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setParkingLots((current) =>
-        current.map((lot) => (Math.random() > 0.5 ? simulateRealTimeUpdate(lot) : lot))
-      );
-    }, 5000);
-    return () => clearInterval(interval);
+    let mounted = true;
+    fetchParkCities().then((cities) => {
+      if (mounted) setDistricts(cities);
+    });
+    return () => { mounted = false; };
   }, []);
+
+  useEffect(() => {
+    setPage(1);
+  }, [showEVOnly, showAccessibleOnly, showAvailableOnly, searchQuery, selectedDistrict, selectedVehicleId]);
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        setLoading(true);
+        setLoadError(null);
+        const data = await fetchParksList({
+          page,
+          pageSize: 20,
+          textQuery: searchQuery || undefined,
+          city: selectedDistrict || undefined,
+          vehicleId: selectedVehicleId,
+          evOnly: showEVOnly,
+          accessibleOnly: showAccessibleOnly,
+          availableOnly: showAvailableOnly,
+        });
+        if (!mounted) return;
+        setParkingLots(data.items);
+        setTotalPages(data.pagination.totalPages);
+      } catch {
+        if (mounted) setLoadError('Não foi possível carregar parques do backend.');
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+    load();
+    return () => { mounted = false; };
+  }, [page, showEVOnly, showAccessibleOnly, showAvailableOnly, searchQuery, selectedDistrict, selectedVehicleId]);
 
   const filterMode: FilterMode =
     showAccessibleOnly && showEVOnly ? 'both'
@@ -41,35 +79,13 @@ export function ParkingListPage() {
     : showEVOnly ? 'ev'
     : null;
 
-  const districts = useMemo(() => {
-    const set = new Set(mockParkingLots.map((l) => l.localidade));
-    return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt'));
-  }, []);
+  const filtered = parkingLots;
 
   const selectedVehicle = useMemo(
     () => vehicles.find((v) => v.id === selectedVehicleId) ?? null,
     [vehicles, selectedVehicleId],
   );
 
-  const filtered = useMemo(() => {
-    return parkingLots.filter((lot) => {
-      if (showEVOnly) {
-        if (!lot.hasEVCharger || !lot.evChargers?.length) return false;
-        if (selectedVehicle?.isEV && selectedVehicle.chargerTypes?.length) {
-          const hasCompatible = lot.evChargers.some((c) => selectedVehicle.chargerTypes!.includes(c.type));
-          if (!hasCompatible) return false;
-        }
-      }
-      if (showAccessibleOnly && (!lot.hasAccessible || !lot.accessibleSpots?.length)) return false;
-      if (showAvailableOnly && lot.availableSpots === 0) return false;
-      if (selectedDistrict && lot.localidade !== selectedDistrict) return false;
-      if (searchQuery) {
-        const q = searchQuery.toLowerCase();
-        if (!lot.name.toLowerCase().includes(q) && !lot.address.toLowerCase().includes(q)) return false;
-      }
-      return true;
-    });
-  }, [parkingLots, showEVOnly, showAccessibleOnly, showAvailableOnly, selectedDistrict, searchQuery, selectedVehicle]);
 
   const totalAccessible = filtered.reduce(
     (s, l) => s + (l.accessibleSpots?.filter((a) => a.available).length ?? 0), 0
@@ -115,6 +131,9 @@ export function ParkingListPage() {
         filteredCount={filtered.length}
       />
 
+      {loading && <p className="text-muted-foreground text-sm mb-3">A carregar parques...</p>}
+      {loadError && <p className="text-error text-sm mb-3">{loadError}</p>}
+
       {filtered.length > 0 ? (
         <ParkingResults
           filtered={filtered}
@@ -127,6 +146,11 @@ export function ParkingListPage() {
       ) : (
         <EmptyState />
       )}
+      <div className="mt-4 flex items-center justify-between">
+        <button className="btn btn-sm" disabled={page <= 1 || loading} onClick={() => setPage((p) => Math.max(1, p - 1))}>Anterior</button>
+        <span className="text-sm text-muted-foreground">Página {page} / {Math.max(totalPages, 1)}</span>
+        <button className="btn btn-sm" disabled={loading || (totalPages > 0 && page >= totalPages)} onClick={() => setPage((p) => p + 1)}>Seguinte</button>
+      </div>
     </div>
   );
 }

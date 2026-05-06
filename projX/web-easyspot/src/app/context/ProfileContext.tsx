@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { fetchVehicles } from '../services/vehiclesApi';
 
 export type AppProfile = 'DRIVER' | 'MANAGER' | 'TECHNICAL';
 export type AccountType = AppProfile;
@@ -82,6 +83,20 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const [vehicles, setVehicles] = useState<Vehicle[]>(() =>
     readJSON<Vehicle[]>(STORAGE_KEYS.vehicles, [])
   );
+
+  useEffect(() => {
+    let mounted = true;
+    fetchVehicles().then((list) => {
+      if (!mounted || list.length === 0) return;
+      setVehicles(list);
+      localStorage.setItem(STORAGE_KEYS.vehicles, JSON.stringify(list));
+    }).catch(() => {
+      // Keep local fallback when backend/auth is unavailable.
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const [managerParks, setManagerParksState] = useState<string[]>(() => {
     const stored = readJSON<string[]>(STORAGE_KEYS.managerParks, []);

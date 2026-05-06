@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useProfile } from '../../context/ProfileContext';
-import { mockParkingLots } from '../../data/parkingData';
+import type { ParkingLot } from '../../data/parkingTypes';
 import {
   mockTariffs,
   mockIssues,
@@ -14,6 +14,7 @@ import { BillingTab } from './components/BillingTab';
 import { IssueModal }   from './components/IssueModal';
 import { TariffModal }  from './components/TariffModal';
 import { TabBtn }       from './components/shared';
+import { fetchAllParksSummary } from '../../services/parksCatalog';
 
 type PageTab    = 'tarifas' | 'ocorrencias' | 'faturacao';
 type IssueFilter = 'todos' | 'aberto' | 'em-progresso' | 'resolvido';
@@ -27,6 +28,11 @@ export function TariffsIncidentsPage() {
   const [selectedIssue, setSelectedIssue] = useState<IssueReport | null>(null);
   const [editTariff, setEditTariff] = useState<TariffEntry | null>(null);
   const [parkSearch, setParkSearch] = useState('');
+  const [parks, setParks] = useState<ParkingLot[]>([]);
+
+  useEffect(() => {
+    fetchAllParksSummary().then(setParks).catch(() => setParks([]));
+  }, []);
 
   const gestorTariffs       = mockTariffs.filter(t => managerParks.includes(t.parqueId));
   const gestorIssues        = mockIssues.filter(i => gestorTariffs.some(t => t.parqueNome === i.parque));
@@ -116,7 +122,7 @@ export function TariffsIncidentsPage() {
           />
         </div>
         <div className="flex flex-wrap gap-2">
-          {mockParkingLots
+          {parks
             .filter(p => managerParks.includes(p.id))
             .filter(p => p.name.toLowerCase().includes(parkSearch.toLowerCase()))
             .slice(0, 5)
@@ -131,7 +137,7 @@ export function TariffsIncidentsPage() {
               </div>
             ))}
           {managerParks.filter(id =>
-            mockParkingLots.find(p => p.id === id && p.name.toLowerCase().includes(parkSearch.toLowerCase()))
+            parks.find(p => p.id === id && p.name.toLowerCase().includes(parkSearch.toLowerCase()))
           ).length === 0 && (
             <p className="text-muted-foreground w-full text-center py-2" style={{ fontSize: '0.875rem' }}>
               Nenhum parque encontrado
