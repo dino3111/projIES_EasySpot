@@ -14,7 +14,14 @@ export function DriverProfile({ profileData, onProfileUpdate }: Readonly<{ profi
   const [loadingPayments, setLoadingPayments] = useState(false);
   const [paymentsError, setPaymentsError] = useState<string | null>(null);
   const [showAddPaymentModal, setShowAddPaymentModal] = useState(false);
+  const [showNotificationsModal, setShowNotificationsModal] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
+
+  const persistProfile = async (payload: { notificationsEnabled?: boolean; driverType?: 'regular' | 'ev' | 'reduced_mobility' | null }) => {
+    const updated = await profileApi.update(payload);
+    onProfileUpdate(updated);
+  };
 
   useEffect(() => {
     if (!profileData) return;
@@ -120,9 +127,9 @@ export function DriverProfile({ profileData, onProfileUpdate }: Readonly<{ profi
 
       <SectionHeader icon="fa-gear" title="Conta" />
       <div className="rounded-2xl overflow-hidden mb-5 bg-card border border-border">
-        <AccountRow icon="fa-bell"          label="Gerir Notificacoes" />
+        <AccountRow icon="fa-bell"          label="Gerir Notificacoes" onClick={() => setShowNotificationsModal(true)} />
         <div className="h-px bg-border mx-4" />
-        <AccountRow icon="fa-shield-halved" label="Privacidade e Seguranca" />
+        <AccountRow icon="fa-shield-halved" label="Privacidade e Seguranca" onClick={() => setShowPrivacyModal(true)} />
         <div className="h-px bg-border mx-4" />
         <AccountRow to="/report" icon="fa-flag" label="Reportar Problema" accent />
       </div>
@@ -222,6 +229,18 @@ export function DriverProfile({ profileData, onProfileUpdate }: Readonly<{ profi
           </div>
         </div>
       )}
+
+      {showNotificationsModal && (
+        <SimpleModal title="Gerir Notificações" onClose={() => setShowNotificationsModal(false)}>
+          <p className="text-muted-foreground" style={{ fontSize: '0.82rem' }}>Pode gerir notificações no bloco de Preferências deste perfil.</p>
+        </SimpleModal>
+      )}
+
+      {showPrivacyModal && (
+        <SimpleModal title="Privacidade e Segurança" onClose={() => setShowPrivacyModal(false)}>
+          <p className="text-muted-foreground" style={{ fontSize: '0.82rem' }}>Esta secção será expandida com opções de privacidade. Para já, os dados sensíveis são geridos no backend autenticado.</p>
+        </SimpleModal>
+      )}
     </>
   );
 }
@@ -289,7 +308,19 @@ export function TechnicianProfile({ profileData }: Readonly<{ profileData: Techn
     </>
   );
 }
-  const persistProfile = async (payload: { notificationsEnabled?: boolean; driverType?: 'regular' | 'ev' | 'reduced_mobility' | null }) => {
-    const updated = await profileApi.update(payload);
-    onProfileUpdate(updated);
-  };
+
+function SimpleModal({ title, onClose, children }: Readonly<{ title: string; onClose: () => void; children: React.ReactNode }>) {
+  return (
+    <div className="fixed inset-0 z-[220] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }}>
+      <div className="w-full max-w-md rounded-2xl border border-border bg-card p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-foreground font-bold" style={{ fontSize: '0.95rem' }}>{title}</h3>
+          <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground">
+            <i className="fas fa-times" />
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}

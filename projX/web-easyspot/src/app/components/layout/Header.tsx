@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router';
 import { ThemeToggle } from './ThemeToggle';
 import { useAuth } from '../../context/AuthContext';
 import type { AppProfile } from '../../context/ProfileContext';
+import { profileApi } from '../../../services/apiService';
 
 const ROLE_META: Record<AppProfile, { icon: string; label: string; color: string }> = {
   DRIVER:    { icon: 'fa-car',               label: 'Condutor',  color: '#22c55e' },
@@ -109,7 +110,12 @@ interface UserDropdownProps {
 
 function UserMenu({ user, meta, onLogout }: UserMenuProps) {
   const [open, setOpen] = useState(false);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    profileApi.get().then((data) => setPhotoUrl(data.photoUrl)).catch(() => setPhotoUrl(null));
+  }, []);
 
   useEffect(() => {
     function handleOutside(e: MouseEvent) {
@@ -128,7 +134,11 @@ function UserMenu({ user, meta, onLogout }: UserMenuProps) {
         aria-expanded={open}
         aria-haspopup="true"
       >
-        <i className={`fas ${meta.icon} text-white text-lg`} aria-hidden="true" />
+        {photoUrl ? (
+          <img src={photoUrl} alt="Foto de perfil" className="w-9 h-9 rounded-full object-cover" />
+        ) : (
+          <i className={`fas ${meta.icon} text-white text-lg`} aria-hidden="true" />
+        )}
         <span
           className="absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white"
           style={{ background: meta.color }}
