@@ -269,13 +269,38 @@ export async function fetchParkDetails(parkId: string): Promise<ParkingLot> {
 }
 
 export async function toggleParkFavorite(parkId: string): Promise<FavoriteToggleResponse> {
-  const resp = await withGlobalLoading(() => fetch());
+  const token = getAccessToken();
+  const resp = await withGlobalLoading(() => fetch(`${API_BASE}/api/parks/${parkId}/favorite`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  }));
   if (!resp.ok) throw new Error(`Failed to toggle favorite (${resp.status})`);
   return (await resp.json()) as FavoriteToggleResponse;
 }
 
 export async function fetchParkFavoriteStatus(parkId: string): Promise<FavoriteToggleResponse> {
-  const resp = await withGlobalLoading(() => fetch());
+  const token = getAccessToken();
+  const resp = await withGlobalLoading(() => fetch(`${API_BASE}/api/parks/${parkId}/favorite`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  }));
   if (!resp.ok) throw new Error(`Failed to fetch favorite status (${resp.status})`);
   return (await resp.json()) as FavoriteToggleResponse;
+}
+
+export async function fetchFavoriteParks(): Promise<ParkingLot[]> {
+  const firstPage = await fetchParksList({ page: 1, pageSize: 200 });
+  if (firstPage.items.length === 0) return [];
+
+  const checks = await Promise.all(
+    firstPage.items.map(async (park) => {
+      try {
+        const status = await fetchParkFavoriteStatus(park.id);
+        return status.isFavorite ? park : null;
+      } catch {
+        return null;
+      }
+    }),
+  );
+
+  return checks.filter((park): park is ParkingLot => park !== null);
 }

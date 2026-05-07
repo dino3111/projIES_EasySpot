@@ -18,10 +18,26 @@ const ROLE_ICON: Record<string, string> = {
 export function ProfilePage() {
   const { profile } = useProfile();
   const [profileData, setProfileData] = useState<ProfileResponse | null>(null);
+  const [loadingProfile, setLoadingProfile] = useState(true);
 
   useEffect(() => {
-    profileApi.get().then(setProfileData).catch(() => undefined);
+    setLoadingProfile(true);
+    profileApi.get()
+      .then(setProfileData)
+      .catch(() => setProfileData(null))
+      .finally(() => setLoadingProfile(false));
   }, []);
+
+  if (loadingProfile) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-5">
+        <div className="mb-5">
+          <h1 className="text-foreground" style={{ fontSize: '1.5rem', fontWeight: 800, lineHeight: 1.2 }}>Perfil</h1>
+          <p className="text-muted-foreground mt-1" style={{ fontSize: '0.875rem' }}>A carregar dados...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-5">
@@ -32,9 +48,9 @@ export function ProfilePage() {
 
       <UserCard accountType={profile} profileData={profileData} onProfileUpdate={setProfileData} />
 
-      {profile === 'DRIVER'    && <DriverProfile profileData={profileData?.role === 'DRIVER' ? profileData : null} onProfileUpdate={setProfileData} />}
-      {profile === 'MANAGER'   && <ManagerProfile profileData={profileData?.role === 'MANAGER' ? profileData : null} />}
-      {profile === 'TECHNICAL' && <TechnicianProfile profileData={profileData?.role === 'TECHNICAL' ? profileData : null} />}
+      {(profileData?.role ?? profile) === 'DRIVER'    && <DriverProfile profileData={profileData?.role === 'DRIVER' ? profileData : null} onProfileUpdate={setProfileData} />}
+      {(profileData?.role ?? profile) === 'MANAGER'   && <ManagerProfile profileData={profileData?.role === 'MANAGER' ? profileData : null} />}
+      {(profileData?.role ?? profile) === 'TECHNICAL' && <TechnicianProfile profileData={profileData?.role === 'TECHNICAL' ? profileData : null} />}
 
       <div className="text-center pb-4 mt-2">
         <div className="flex items-center justify-center gap-2 mb-1">

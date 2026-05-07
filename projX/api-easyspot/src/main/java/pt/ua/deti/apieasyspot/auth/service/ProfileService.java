@@ -1,6 +1,7 @@
 package pt.ua.deti.apieasyspot.auth.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pt.ua.deti.apieasyspot.analytics.repository.AnalyticsRepository;
@@ -16,6 +17,7 @@ import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ProfileService {
 
     private static final Set<String> VALID_ROLES = Set.of("DRIVER", "MANAGER", "TECHNICAL");
@@ -85,10 +87,17 @@ public class ProfileService {
     }
 
     private DriverProfileResponse buildDriverProfile(User user, boolean includeStats) {
-        SpendingSummary spending = includeStats
-            ? profileRepository.spendingSummary(user.getId())
-            : new SpendingSummary(java.math.BigDecimal.ZERO, 0L, java.math.BigDecimal.ZERO);
-        long favorites = includeStats ? userFavoriteRepository.countByUserId(user.getId()) : 0L;
+        SpendingSummary spending = new SpendingSummary(java.math.BigDecimal.ZERO, 0L, java.math.BigDecimal.ZERO);
+        long favorites = 0L;
+        if (includeStats) {
+            try {
+                SpendingSummary dbSpending = profileRepository.spendingSummary(user.getId());
+                if (dbSpending != null) spending = dbSpending;
+                favorites = userFavoriteRepository.countByUserId(user.getId());
+            } catch (RuntimeException ex) {
+                log.warn("Failed to load DRIVER profile stats for userId={}", user.getId(), ex);
+            }
+        }
         return new DriverProfileResponse(
             user.getName(), user.getEmail(), user.getRole(), user.getPhotoUrl(),
             user.getDriverType(), user.isNotificationsEnabled(),
@@ -106,6 +115,7 @@ public class ProfileService {
                 user.getName(), user.getEmail(), user.getRole(), user.getPhotoUrl(),
                 user.isNotificationsEnabled(), 0, java.math.BigDecimal.ZERO, 0L, 0L);
         }
+        try {
         return new ManagerProfileResponse(
             user.getName(), user.getEmail(), user.getRole(), user.getPhotoUrl(),
             user.isNotificationsEnabled(),
@@ -113,6 +123,12 @@ public class ProfileService {
             analyticsRepository.revenueToday(),
             analyticsRepository.countEntriesToday(),
             analyticsRepository.countOpenAlerts());
+        } catch (RuntimeException ex) {
+            log.warn("Failed to load MANAGER profile stats for userId={}", user.getId(), ex);
+            return new ManagerProfileResponse(
+                user.getName(), user.getEmail(), user.getRole(), user.getPhotoUrl(),
+                user.isNotificationsEnabled(), 0, java.math.BigDecimal.ZERO, 0L, 0L);
+        }
     }
 
     private TechnicianProfileResponse buildTechnicianProfile(User user, boolean includeStats, String authentikUserId) {
@@ -124,15 +140,25 @@ public class ProfileService {
                 new SensorSummary(0, 0, 0.0),
                 0L);
         }
-        int total = technicianRepository.countTotalSensors();
-        int operational = technicianRepository.countOperationalSensors();
-        double uptimePct = total > 0 ? Math.round(operational * 1000.0 / total) / 10.0 : 0.0;
-        return new TechnicianProfileResponse(
-            user.getName(), user.getEmail(), user.getRole(), user.getPhotoUrl(),
-            user.isNotificationsEnabled(),
-            profileRepository.countAssignedTasks(authentikUserId),
-            new SensorSummary(total, operational, uptimePct),
-            technicianRepository.countFailuresToday());
+        try {
+            int total = technicianRepository.countTotalSensors();
+            int operational = technicianRepository.countOperationalSensors();
+            double uptimePct = total > 0 ? Math.round(operational * 1000.0 / total) / 10.0 : 0.0;
+            return new TechnicianProfileResponse(
+                user.getName(), user.getEmail(), user.getRole(), user.getPhotoUrl(),
+                user.isNotificationsEnabled(),
+                profileRepository.countAssignedTasks(authentikUserId),
+                new SensorSummary(total, operational, uptimePct),
+                technicianRepository.countFailuresToday());
+        } catch (RuntimeException ex) {
+            log.warn("Failed to load TECHNICAL profile stats for userId={} subject={}", user.getId(), authentikUserId, ex);
+            return new TechnicianProfileResponse(
+                user.getName(), user.getEmail(), user.getRole(), user.getPhotoUrl(),
+                user.isNotificationsEnabled(),
+                0L,
+                new SensorSummary(0, 0, 0.0),
+                0L);
+        }
     }
 
     private User findUser(String authentikUserId) {
