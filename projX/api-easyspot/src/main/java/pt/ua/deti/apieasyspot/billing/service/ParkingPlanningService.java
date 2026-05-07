@@ -1,8 +1,6 @@
 package pt.ua.deti.apieasyspot.billing.service;
 
 import java.math.BigDecimal;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.Comparator;
