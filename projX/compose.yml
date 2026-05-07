@@ -170,6 +170,8 @@ services:
       STRIPE_API_KEY: ${STRIPE_API_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
     depends_on:
+      postgres:
+        condition: service_healthy
       scraper-vehicle:
         condition: service_healthy
       timescaledb:
