@@ -227,4 +227,20 @@ export const profileApi = {
       method: 'PUT',
       body: JSON.stringify(body),
     }),
+  uploadPhoto: async (file: File): Promise<ProfileResponse> => {
+    const token = getAccessToken();
+    const formData = new FormData();
+    formData.append('photo', file);
+    const res = await withGlobalLoading(() => fetch(`${API_BASE}/api/profile/photo`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      body: formData,
+    }));
+    if (!res.ok) {
+      if (res.status === Number(401)) throwUnauthorizedError();
+      const errorText = await readErrorBody(res);
+      throwHttpError(res.status, errorText);
+    }
+    return await res.json() as ProfileResponse;
+  },
 };

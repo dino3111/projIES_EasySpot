@@ -30,7 +30,7 @@ export function ProfilePage() {
         <p className="text-muted-foreground mt-1" style={{ fontSize: '0.875rem' }}>A sua conta EasySpot</p>
       </div>
 
-      <UserCard accountType={profile} profileData={profileData} />
+      <UserCard accountType={profile} profileData={profileData} onProfileUpdate={setProfileData} />
 
       {profile === 'DRIVER'    && <DriverProfile profileData={profileData?.role === 'DRIVER' ? profileData : null} onProfileUpdate={setProfileData} />}
       {profile === 'MANAGER'   && <ManagerProfile profileData={profileData?.role === 'MANAGER' ? profileData : null} />}
@@ -47,7 +47,7 @@ export function ProfilePage() {
   );
 }
 
-function UserCard({ accountType, profileData }: Readonly<{ accountType: string; profileData: ProfileResponse | null }>) {
+function UserCard({ accountType, profileData, onProfileUpdate }: Readonly<{ accountType: string; profileData: ProfileResponse | null; onProfileUpdate: (profile: ProfileResponse) => void }>) {
   const hasPhoto = Boolean(profileData?.photoUrl);
   return (
     <div className="flex items-center gap-4 rounded-2xl p-5 mb-5 bg-primary shadow-lg shadow-primary/20">
@@ -65,6 +65,20 @@ function UserCard({ accountType, profileData }: Readonly<{ accountType: string; 
           <i className={`fas ${ROLE_ICON[accountType]} text-white/70`} style={{ fontSize: '0.7rem' }} />
           <span className="text-white/70 font-medium" style={{ fontSize: '0.72rem' }}>{ROLE_LABEL[accountType]}</span>
         </div>
+        <label className="mt-2 inline-flex items-center gap-1.5 text-white/85 cursor-pointer" style={{ fontSize: '0.74rem' }}>
+          <i className="fas fa-camera" />
+          Alterar foto
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (!file) return;
+              void profileApi.uploadPhoto(file).then(onProfileUpdate).catch(() => undefined);
+            }}
+          />
+        </label>
       </div>
     </div>
   );

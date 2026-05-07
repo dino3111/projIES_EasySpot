@@ -7,8 +7,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.*;
 import pt.ua.deti.apieasyspot.auth.dto.ProfileUpdateRequest;
+import pt.ua.deti.apieasyspot.auth.service.ProfilePhotoService;
 import pt.ua.deti.apieasyspot.auth.service.ProfileService;
 
 import java.util.List;
@@ -20,6 +22,7 @@ import java.util.List;
 public class ProfileController {
 
     private final ProfileService profileService;
+    private final ProfilePhotoService profilePhotoService;
 
     @Operation(summary = "Get authenticated user profile (role-aware)")
     @ApiResponse(responseCode = "200", description = "Authenticated profile retrieved successfully")
@@ -40,6 +43,22 @@ public class ProfileController {
     ) {
         return ResponseEntity.ok(
             profileService.updateProfile(jwt.getSubject(), request, extractRole(jwt)));
+    }
+
+    @Operation(summary = "Upload authenticated user profile photo")
+    @ApiResponse(responseCode = "200", description = "Profile photo uploaded successfully")
+    @ApiResponse(responseCode = "400", description = "Invalid or unsupported image file")
+    @PostMapping("/photo")
+    public ResponseEntity<Object> uploadPhoto(
+        @RequestPart("photo") MultipartFile photo,
+        @AuthenticationPrincipal Jwt jwt
+    ) {
+        String photoUrl = profilePhotoService.upload(jwt.getSubject(), photo);
+        return ResponseEntity.ok(profileService.updateProfile(
+            jwt.getSubject(),
+            new ProfileUpdateRequest(null, null, null, null, photoUrl),
+            extractRole(jwt)
+        ));
     }
 
     private String extractRole(Jwt jwt) {

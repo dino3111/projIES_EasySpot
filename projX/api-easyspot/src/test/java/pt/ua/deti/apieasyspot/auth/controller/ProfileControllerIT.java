@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -15,13 +16,19 @@ import org.springframework.web.context.WebApplicationContext;
 import pt.ua.deti.apieasyspot.TestcontainersConfiguration;
 import pt.ua.deti.apieasyspot.auth.model.User;
 import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
+import pt.ua.deti.apieasyspot.infrastructure.R2StorageService;
 
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -37,6 +44,7 @@ class ProfileControllerIT {
     @Autowired WebApplicationContext wac;
     @Autowired UserRepository userRepository;
     @MockitoBean JwtDecoder jwtDecoder;
+    @MockitoBean R2StorageService r2StorageService;
 
     MockMvc mockMvc;
 
@@ -227,6 +235,34 @@ class ProfileControllerIT {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.email").value("driver@test.com"))
             .andExpect(jsonPath("$.role").value("DRIVER"));
+    }
+
+    @Test
+    @DisplayName("POST /api/profile/photo - authenticated - uploads and persists photoUrl")
+    void uploadPhoto_authenticated_persistsPhotoUrl() throws Exception {
+        when(r2StorageService.upload(anyString(), any(byte[].class), eq("image/png")))
+            .thenReturn("https://cdn.example/profiles/driver.png");
+        MockMultipartFile photo = new MockMultipartFile("photo", "driver.png", "image/png", new byte[]{1, 2, 3});
+
+        mockMvc.perform(multipart("/api/profile/photo")
+                .file(photo)
+                .with(jwt().jwt(j -> j.subject(DRIVER_SUBJECT).claim("groups", List.of("DRIVER")))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.photoUrl").value("https://cdn.example/profiles/driver.png"));
+
+        User updated = userRepository.findByAuthentikUserId(DRIVER_SUBJECT).orElseThrow();
+        assertThat(updated.getPhotoUrl()).isEqualTo("https://cdn.example/profiles/driver.png");
+    }
+
+    @Test
+    @DisplayName("POST /api/profile/photo - invalid file type - returns 400")
+    void uploadPhoto_invalidType_returns400() throws Exception {
+        MockMultipartFile photo = new MockMultipartFile("photo", "driver.gif", "image/gif", new byte[]{1});
+
+        mockMvc.perform(multipart("/api/profile/photo")
+                .file(photo)
+                .with(jwt().jwt(j -> j.subject(DRIVER_SUBJECT).claim("groups", List.of("DRIVER")))))
+            .andExpect(status().isBadRequest());
     }
 
     private User buildUser(String authentikId, String email, String role) {
