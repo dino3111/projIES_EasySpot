@@ -1,20 +1,26 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { useProfile } from '../../../context/ProfileContext';
-import { paymentApi, type PaymentMethodSummaryResponse } from '../../../../services/apiService';
+import { paymentApi, profileApi, type DriverProfileResponse, type ManagerProfileResponse, type PaymentMethodSummaryResponse, type ProfileResponse, type TechnicianProfileResponse } from '../../../../services/apiService';
 import { SectionHeader, UserTypeOption, ToggleRow, StatCard, AccountRow, AccountRowWithBadge } from './ProfilePrimitives';
 import { StepPaymentStripe } from '../welcome/StepPaymentStripe';
 
-export function DriverProfile() {
+export function DriverProfile({ profileData, onProfileUpdate }: Readonly<{ profileData: DriverProfileResponse | null; onProfileUpdate: (profile: ProfileResponse) => void }>) {
   const { driverType, setDriverType, vehicles } = useProfile();
   const [activeTab, setActiveTab] = useState<'profile' | 'payments'>('profile');
-  const [notifications, setNotifications] = useState(true);
+  const [notifications, setNotifications] = useState(profileData?.notificationsEnabled ?? true);
   const [realtime, setRealtime] = useState(true);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodSummaryResponse[]>([]);
   const [loadingPayments, setLoadingPayments] = useState(false);
   const [paymentsError, setPaymentsError] = useState<string | null>(null);
   const [showAddPaymentModal, setShowAddPaymentModal] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!profileData) return;
+    setNotifications(profileData.notificationsEnabled);
+    setDriverType(profileData.driverType);
+  }, [profileData, setDriverType]);
 
   const loadPaymentMethods = async () => {
     setLoadingPayments(true);
@@ -90,15 +96,15 @@ export function DriverProfile() {
           Selecione o seu perfil para personalizar os filtros e recomendações.
         </p>
         <div className="space-y-2.5">
-          <UserTypeOption id="condutor"  icon="fa-car"              label="Condutor Regular"          desc="Estacionamento convencional, precos e distancia"      selected={driverType === 'regular' || driverType === null} onChange={() => setDriverType('regular')} />
-          <UserTypeOption id="ev"        icon="fa-charging-station" label="Condutor Veiculo Eletrico"  desc="Prioridade a lugares com carregadores EV"             selected={driverType === 'ev'}                             onChange={() => setDriverType('ev')} />
-          <UserTypeOption id="acessivel" icon="fa-wheelchair"       label="Mobilidade Reduzida"        desc="Filtros para lugares acessiveis e monitorizados"      selected={driverType === 'reduced_mobility'}               onChange={() => setDriverType('reduced_mobility')} />
+          <UserTypeOption id="condutor"  icon="fa-car"              label="Condutor Regular"          desc="Estacionamento convencional, precos e distancia"      selected={driverType === 'regular' || driverType === null} onChange={() => { setDriverType('regular'); void persistProfile({ driverType: 'regular' }); }} />
+          <UserTypeOption id="ev"        icon="fa-charging-station" label="Condutor Veiculo Eletrico"  desc="Prioridade a lugares com carregadores EV"             selected={driverType === 'ev'}                             onChange={() => { setDriverType('ev'); void persistProfile({ driverType: 'ev' }); }} />
+          <UserTypeOption id="acessivel" icon="fa-wheelchair"       label="Mobilidade Reduzida"        desc="Filtros para lugares acessiveis e monitorizados"      selected={driverType === 'reduced_mobility'}               onChange={() => { setDriverType('reduced_mobility'); void persistProfile({ driverType: 'reduced_mobility' }); }} />
         </div>
       </div>
 
       <SectionHeader icon="fa-sliders" title="Preferencias" />
       <div className="rounded-2xl overflow-hidden mb-5 bg-card border border-border">
-        <ToggleRow icon="fa-bell"   label="Notificacoes"          desc="Alertas de disponibilidade e reservas"        value={notifications} onChange={setNotifications} id="notif-toggle" />
+        <ToggleRow icon="fa-bell"   label="Notificacoes"          desc="Alertas de disponibilidade e reservas"        value={notifications} onChange={(value) => { setNotifications(value); void persistProfile({ notificationsEnabled: value }); }} id="notif-toggle" />
         <div className="h-px bg-border mx-4" />
         <ToggleRow icon="fa-rotate" label="Atualizacao Automatica" desc="Atualizar disponibilidade em tempo real"       value={realtime}      onChange={setRealtime}      id="realtime-toggle" />
       </div>
@@ -106,9 +112,9 @@ export function DriverProfile() {
       <SectionHeader icon="fa-chart-bar" title="As Minhas Estatisticas" />
       <div className="grid grid-cols-3 gap-3 mb-5">
         <Link to="/costs" className="contents">
-          <StatCard icon="fa-receipt" value="€31.55" label="Gastos"    color="var(--color-primary)" />
+          <StatCard icon="fa-receipt" value={`€${Number(profileData?.spending?.totalEuros ?? 0).toFixed(2)}`} label="Gastos"    color="var(--color-primary)" />
         </Link>
-        <StatCard icon="fa-star"  value="0"    label="Favoritos" color="#f59e0b" />
+        <StatCard icon="fa-star"  value={String(profileData?.favoritesCount ?? 0)}    label="Favoritos" color="#f59e0b" />
         <StatCard icon="fa-route" value="0 km" label="Poupados"  color="#22c55e" />
       </div>
 
@@ -220,14 +226,14 @@ export function DriverProfile() {
   );
 }
 
-export function ManagerProfile() {
+export function ManagerProfile({ profileData }: Readonly<{ profileData: ManagerProfileResponse | null }>) {
   return (
     <>
       <SectionHeader icon="fa-chart-pie" title="Resumo Operacional" />
       <div className="grid grid-cols-3 gap-3 mb-5">
-        <StatCard icon="fa-car"                value="142"  label="Veiculos hoje" color="var(--color-primary)" />
-        <StatCard icon="fa-euro-sign"          value="€984" label="Receita hoje"  color="#22c55e" />
-        <StatCard icon="fa-circle-exclamation" value="2"    label="Alertas"       color="#f59e0b" />
+        <StatCard icon="fa-car"                value={String(profileData?.todayVehicles ?? 0)}  label="Veiculos hoje" color="var(--color-primary)" />
+        <StatCard icon="fa-euro-sign"          value={`€${Number(profileData?.todayRevenue ?? 0).toFixed(2)}`} label="Receita hoje"  color="#22c55e" />
+        <StatCard icon="fa-circle-exclamation" value={String(profileData?.openAlerts ?? 0)}    label="Alertas"       color="#f59e0b" />
       </div>
 
       <SectionHeader icon="fa-building" title="Parques Geridos" />
@@ -253,14 +259,14 @@ export function ManagerProfile() {
   );
 }
 
-export function TechnicianProfile() {
+export function TechnicianProfile({ profileData }: Readonly<{ profileData: TechnicianProfileResponse | null }>) {
   return (
     <>
       <SectionHeader icon="fa-wrench" title="Estado dos Sensores" />
       <div className="grid grid-cols-3 gap-3 mb-5">
-        <StatCard icon="fa-circle-check"         value="187" label="Operacionais" color="#22c55e" />
-        <StatCard icon="fa-triangle-exclamation" value="5"   label="Em alerta"    color="#f59e0b" />
-        <StatCard icon="fa-circle-xmark"         value="2"   label="Falha"        color="#ef4444" />
+        <StatCard icon="fa-circle-check"         value={String(profileData?.sensorSummary?.operational ?? 0)} label="Operacionais" color="#22c55e" />
+        <StatCard icon="fa-triangle-exclamation" value={String((profileData?.sensorSummary?.total ?? 0) - (profileData?.sensorSummary?.operational ?? 0))}   label="Em alerta"    color="#f59e0b" />
+        <StatCard icon="fa-circle-xmark"         value={String(profileData?.openFaults ?? 0)}   label="Falha"        color="#ef4444" />
       </div>
 
       <SectionHeader icon="fa-building" title="Parque Atribuido" />
@@ -283,3 +289,7 @@ export function TechnicianProfile() {
     </>
   );
 }
+  const persistProfile = async (payload: { notificationsEnabled?: boolean; driverType?: 'regular' | 'ev' | 'reduced_mobility' | null }) => {
+    const updated = await profileApi.update(payload);
+    onProfileUpdate(updated);
+  };

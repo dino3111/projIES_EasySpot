@@ -127,18 +127,49 @@ export interface PaymentMethodSummaryResponse {
   isDefault: boolean;
 }
 
-export interface DriverProfileResponse {
+export interface SpendingSummaryResponse {
+  totalEuros: number;
+  sessionCount: number;
+  avgEuros: number;
+}
+
+interface BaseProfileResponse {
   name: string;
   email: string;
-  role: string;
+  role: 'DRIVER' | 'MANAGER' | 'TECHNICAL';
   photoUrl: string | null;
-  driverType: 'regular' | 'ev' | 'reduced_mobility' | null;
   notificationsEnabled: boolean;
+}
+
+export interface DriverProfileResponse extends BaseProfileResponse {
+  role: 'DRIVER';
+  driverType: 'regular' | 'ev' | 'reduced_mobility' | null;
   pushNotificationsEnabled: boolean;
   emailNotificationsEnabled: boolean;
-  spending: unknown;
+  spending: SpendingSummaryResponse;
   favoritesCount: number;
 }
+
+export interface ManagerProfileResponse extends BaseProfileResponse {
+  role: 'MANAGER';
+  managedParks: number;
+  todayRevenue: number;
+  todayVehicles: number;
+  openAlerts: number;
+}
+
+export interface TechnicianProfileResponse extends BaseProfileResponse {
+  role: 'TECHNICAL';
+  assignedTasks: number;
+  sensorSummary: {
+    total: number;
+    operational: number;
+    uptimePct: number;
+  };
+  openFaults: number;
+}
+
+export type ProfileResponse = DriverProfileResponse | ManagerProfileResponse | TechnicianProfileResponse;
 
 export interface ProfileUpdateRequest {
   driverType?: 'regular' | 'ev' | 'reduced_mobility' | null;
@@ -190,9 +221,9 @@ export const paymentApi = {
 };
 
 export const profileApi = {
-  get: () => request<DriverProfileResponse>('/api/profile'),
+  get: () => request<ProfileResponse>('/api/profile'),
   update: (body: ProfileUpdateRequest) =>
-    request<DriverProfileResponse>('/api/profile', {
+    request<ProfileResponse>('/api/profile', {
       method: 'PUT',
       body: JSON.stringify(body),
     }),
