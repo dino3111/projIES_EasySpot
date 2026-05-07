@@ -132,21 +132,21 @@ TEST_USERS = [
         "username": "test_driver",
         "email": "driver@easyspot.local",
         "name": "Test Driver",
-        "password": "Driver123!",
+        "password": os.environ.get("EASYSPOT_TEST_DRIVER_PASSWORD", "change-me-driver"),
         "role": "DRIVER",
     },
     {
         "username": "test_manager",
         "email": "manager@easyspot.local",
         "name": "Test Manager",
-        "password": "Manager123!",
+        "password": os.environ.get("EASYSPOT_TEST_MANAGER_PASSWORD", "change-me-manager"),
         "role": "MANAGER",
     },
     {
         "username": "test_technical",
         "email": "technical@easyspot.local",
         "name": "Test Technical",
-        "password": "Technical123!",
+        "password": os.environ.get("EASYSPOT_TEST_TECHNICAL_PASSWORD", "change-me-technical"),
         "role": "TECHNICAL",
     },
 ]
@@ -278,7 +278,7 @@ def setup_akadmin_if_needed() -> str:
             "username": "akadmin",
             "email": "admin@easyspot.local",
             "name": "EasySpot Admin",
-            "password": "EasySpot123!Admin",
+            "password": os.environ.get("EASYSPOT_AKADMIN_PASSWORD", "change-me-akadmin"),
         }
         resp = requests.post(
             f"{BASE_URL}/api/v3/core/install/",
@@ -292,7 +292,7 @@ def setup_akadmin_if_needed() -> str:
                 print("  ✓ akadmin created with auto-generated token")
                 return token
     except Exception as e:
-        print(f"  Install endpoint failed: {e}")
+        print(f"  Install endpoint failed: {type(e).__name__}")
 
     print("  Skipping setup (may already be configured)")
     return TOKEN
@@ -599,7 +599,7 @@ def print_summary(provider_pk: str) -> None:
     for u in TEST_USERS:
         print(
             f"  {u['role']:<12} {u['username']:<18}"
-            f" password: {u['password']}"
+            " password: [configured via environment]"
         )
     print()
     print("Add to your .env:")

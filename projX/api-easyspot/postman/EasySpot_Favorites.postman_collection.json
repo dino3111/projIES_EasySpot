@@ -6,7 +6,7 @@
   "variable": [
     { "key": "base_url",       "value": "http://localhost:8080" },
     { "key": "authentik_url",  "value": "http://localhost:9000" },
-    { "key": "client_id",      "value": "ofKD7SBGMHydVs5ydIQlOPZgakHJ3ExfGPPkxN11" },
+    { "key": "client_id",      "value": "replace-with-your-authentik-client-id" },
     { "key": "driver_user",    "value": "postman-driver@easyspot.test" },
     { "key": "driver_pass",    "value": "postman-driver-pass" },
     { "key": "manager_user",   "value": "postman-manager@easyspot.test" },

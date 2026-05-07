@@ -44,7 +44,7 @@ public class VehicleLookupClient {
             return mapToVehicleData(plate, payload);
         } catch (RestClientResponseException ex) {
             HttpStatusCode status = ex.getStatusCode();
-            log.error("Scraper lookup failed plate={} status={} body={}", plate, status, ex.getResponseBodyAsString());
+            log.error("Scraper lookup failed plate={} status={}", plate, status);
             if (status.value() == 404) {
                 throw new PlateNotFoundException("Plate not found in scraper registry: " + plate, ex);
             }
