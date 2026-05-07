@@ -4,7 +4,7 @@ import { LeafletMap } from '../../components/parking/LeafletMap';
 import { VehiclePicker } from '../../components/shared/VehiclePicker';
 import { useProfile } from '../../context/ProfileContext';
 import { ParkPanel } from './components/ParkPanel';
-import { fetchParksList } from '../../services/parksApi';
+import { fetchParkDetails, fetchParksList } from '../../services/parksApi';
 
 type FilterType = 'all' | 'ev' | 'accessible' | 'available';
 
@@ -28,6 +28,7 @@ export function MapPage() {
 
   const [parkingLots, setParkingLots] = useState<ParkingLot[]>([]);
   const [selectedLotId, setSelectedLotId] = useState<string | null>(null);
+  const [selectedLotDetails, setSelectedLotDetails] = useState<ParkingLot | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
@@ -66,9 +67,38 @@ export function MapPage() {
     };
   }, [searchQuery, activeFilter, selectedVehicleId]);
 
+  useEffect(() => {
+    if (!selectedLotId) {
+      setSelectedLotDetails(null);
+      return;
+    }
+    let active = true;
+    fetchParkDetails(selectedLotId)
+      .then((details) => {
+        if (!active) return;
+        setSelectedLotDetails(details);
+      })
+      .catch(() => {
+        if (!active) return;
+        setSelectedLotDetails(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [selectedLotId]);
+
+  useEffect(() => {
+    if (!selectedLotId) return;
+    const hasSelectedLot = parkingLots.some((lot) => lot.id === selectedLotId);
+    if (!hasSelectedLot) {
+      setSelectedLotId(null);
+      setSelectedLotDetails(null);
+    }
+  }, [parkingLots, selectedLotId]);
+
   const filteredLots = parkingLots;
 
-  const selectedLot = parkingLots.find((l) => l.id === selectedLotId) ?? null;
+  const selectedLot = selectedLotDetails ?? (parkingLots.find((l) => l.id === selectedLotId) ?? null);
   const handleSelectLot = useCallback((id: string) => setSelectedLotId(id), []);
 
   return (

@@ -1,6 +1,7 @@
 import type { AccessibleSpot, EVCharger, ParkingFloor, ParkingLot, ParkingSpot, ParkingZone } from '../data/parkingTypes';
 import { getAccessToken } from './authToken';
 import { API_BASE } from '../../services/apiBase';
+import { withGlobalLoading } from '../context/LoadingContext';
 
 type ParkListResponse = {
   items: Array<{
@@ -39,6 +40,11 @@ type ParkDetailsResponse = {
   accessibility: Array<{ location: string; availability: boolean; distanceToEntranceMeters: number; baySize: string }>;
   tariffs: Array<{ pricePerHour: number | null; maxDaily: number | null; monthly: number | null }>;
   amenities: string[];
+};
+
+type FavoriteToggleResponse = {
+  parkId: string;
+  isFavorite: boolean;
 };
 
 function is24Hours(openingHours: string): boolean {
@@ -147,9 +153,9 @@ export async function fetchParksList(query: FetchParksQuery = {}): Promise<Paged
   if (query.accessibleOnly) filters.push('ACCESSIBLE');
   for (const f of filters) params.append('filters', f);
   const token = getAccessToken();
-  const resp = await fetch(`${API_BASE}/api/parks/list?${params.toString()}`, {
+  const resp = await withGlobalLoading(() => fetch(`${API_BASE}/api/parks/list?${params.toString()}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-  });
+  }));
   if (!resp.ok) throw new Error(`Failed to fetch parks list (${resp.status})`);
   const data = (await resp.json()) as ParkListResponse;
 
@@ -188,18 +194,18 @@ export async function fetchParksList(query: FetchParksQuery = {}): Promise<Paged
 
 export async function fetchParkCities(): Promise<string[]> {
   const token = getAccessToken();
-  const resp = await fetch(`${API_BASE}/api/parks/cities`, {
+  const resp = await withGlobalLoading(() => fetch(`${API_BASE}/api/parks/cities`, {
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-  });
+  }));
   if (!resp.ok) return [];
   return (await resp.json()) as string[];
 }
 
 export async function fetchParkDetails(parkId: string): Promise<ParkingLot> {
   const token = getAccessToken();
-  const resp = await fetch(`${API_BASE}/api/parks/${parkId}/details`, {
+  const resp = await withGlobalLoading(() => fetch(`${API_BASE}/api/parks/${parkId}/details`, {
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-  });
+  }));
   if (!resp.ok) throw new Error(`Failed to fetch park details (${resp.status})`);
   const data = (await resp.json()) as ParkDetailsResponse;
 
@@ -260,4 +266,18 @@ export async function fetchParkDetails(parkId: string): Promise<ParkingLot> {
     phone: 'N/D',
     techFeatures: { hasOCR: false, hasRFID: false, hasIRSensors: false, hasLEDs: false },
   };
+}
+
+export async function toggleParkFavorite(parkId: string): Promise<FavoriteToggleResponse> {
+  const token = getAccessToken();
+  const resp = await withGlobalLoading(() => fetch());
+  if (!resp.ok) throw new Error(`Failed to toggle favorite (${resp.status})`);
+  return (await resp.json()) as FavoriteToggleResponse;
+}
+
+export async function fetchParkFavoriteStatus(parkId: string): Promise<FavoriteToggleResponse> {
+  const token = getAccessToken();
+  const resp = await withGlobalLoading(() => fetch());
+  if (!resp.ok) throw new Error(`Failed to fetch favorite status (${resp.status})`);
+  return (await resp.json()) as FavoriteToggleResponse;
 }

@@ -9,7 +9,7 @@ import { TabMap } from './TabMap';
 import { TabEV } from './TabEV';
 import { TabAccessibility } from './TabAccessibility';
 import { TabTariffs } from './TabTariffs';
-import { fetchParkDetails } from '../../../services/parksApi';
+import { fetchParkDetails, fetchParkFavoriteStatus, toggleParkFavorite } from '../../../services/parksApi';
 
 type Tab = 'general' | 'map' | 'ev' | 'accessibility' | 'tariffs';
 
@@ -22,6 +22,7 @@ export function ParkingDetail() {
   const [lot, setLot] = useState<ParkingLot | null>(null);
   const [loading, setLoading] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false);
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
   const [activeFloorIdx, setActiveFloorIdx] = useState(0);
 
   const totalEV  = lot?.evChargers?.length ?? 0;
@@ -43,7 +44,14 @@ export function ParkingDetail() {
       try {
         setLoading(true);
         const details = await fetchParkDetails(id);
-        if (mounted) setLot(details);
+        if (!mounted) return;
+        setLot(details);
+        try {
+          const favoriteStatus = await fetchParkFavoriteStatus(id);
+          if (mounted) setIsFavorite(favoriteStatus.isFavorite);
+        } catch {
+          if (mounted) setIsFavorite(false);
+        }
       } catch {
         if (mounted) setLot(null);
       } finally {
@@ -108,9 +116,21 @@ export function ParkingDetail() {
               </button>
               <button
                 type="button"
-                onClick={() => setIsFavorite((v) => !v)}
+                onClick={async () => {
+                  if (!lot || favoriteLoading) return;
+                  try {
+                    setFavoriteLoading(true);
+                    const result = await toggleParkFavorite(lot.id);
+                    setIsFavorite(result.isFavorite);
+                  } catch {
+                    // Keep current state when request fails.
+                  } finally {
+                    setFavoriteLoading(false);
+                  }
+                }}
+                disabled={favoriteLoading}
                 aria-label={isFavorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
-                className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
+                className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${
                   isFavorite ? 'bg-warning text-white shadow-md shadow-warning/30' : 'bg-white/10 text-white/80 hover:bg-white/20 hover:text-white'
                 }`}
               >

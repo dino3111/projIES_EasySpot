@@ -1,6 +1,7 @@
 import { getAccessToken } from './authToken';
 import type { Vehicle } from '../context/ProfileContext';
 import { API_BASE } from '../../services/apiBase';
+import { withGlobalLoading } from '../context/LoadingContext';
 
 type VehicleResponse = {
   id: string;
@@ -21,9 +22,9 @@ type VehicleResponse = {
 export async function fetchVehicles(): Promise<Vehicle[]> {
   const token = getAccessToken();
   if (!token) return [];
-  const resp = await fetch(`${API_BASE}/api/vehicles`, {
+  const resp = await withGlobalLoading(() => fetch(`${API_BASE}/api/vehicles`, {
     headers: { Authorization: `Bearer ${token}` },
-  });
+  }));
   if (!resp.ok) return [];
   const data = (await resp.json()) as VehicleResponse[];
   return data.map((v) => ({

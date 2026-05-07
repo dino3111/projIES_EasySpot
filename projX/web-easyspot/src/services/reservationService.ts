@@ -1,3 +1,5 @@
+import { withGlobalLoading } from '../app/context/LoadingContext';
+
 const API_BASE = '/api/reservations';
 
 export interface CreateReservationRequest {
@@ -37,7 +39,7 @@ export async function createReservation(
     headers['Idempotency-Key'] = idempotencyKey;
   }
 
-  const res = await fetch(API_BASE, {
+  const res = await withGlobalLoading(() => fetch(API_BASE, {
     method: 'POST',
     headers,
     body: JSON.stringify({
@@ -47,7 +49,7 @@ export async function createReservation(
       departureDateTime: request.departureDateTime,
       selectedSpotId: request.selectedSpotId ?? null,
     }),
-  });
+  }));
 
   if (!res.ok) {
     const detail = await res.json().catch(() => ({})) as { detail?: string; title?: string };

@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from 'react';
+import { withGlobalLoading } from './LoadingContext';
 import type { AppProfile } from './ProfileContext';
 
 const AUTHENTIK_BASE = (import.meta.env.VITE_AUTHENTIK_URL ?? 'http://localhost:9000/authentik').replace(/\/$/, '');
@@ -140,11 +141,11 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
       code_verifier: codeVerifier,
     });
 
-    const resp = await fetch(TOKEN_URL, {
+    const resp = await withGlobalLoading(() => fetch(TOKEN_URL, {
       method:  'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body:    body.toString(),
-    });
+    }));
 
     if (!resp.ok) {
       const text = await resp.text();

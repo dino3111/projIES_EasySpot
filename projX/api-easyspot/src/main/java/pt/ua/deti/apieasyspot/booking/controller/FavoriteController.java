@@ -8,10 +8,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import pt.ua.deti.apieasyspot.booking.dto.FavoriteStatusResponse;
 import pt.ua.deti.apieasyspot.booking.dto.FavoriteToggleResponse;
 import pt.ua.deti.apieasyspot.booking.service.FavoriteService;
 
@@ -30,6 +32,20 @@ public class FavoriteController {
         summary = "Toggle favorite parking lot",
         description = "Adds or removes a parking lot from the authenticated driver's favorites"
     )
+    @ApiResponse(responseCode = "200", description = "Favorite toggled")
+    @ApiResponse(responseCode = "401", description = "Unauthenticated")
+    @ApiResponse(responseCode = "403", description = "Not a driver")
+    @ApiResponse(responseCode = "404", description = "Park not found")
+    @GetMapping("/{id}/favorite")
+    @PreAuthorize("hasRole('DRIVER')")
+    public ResponseEntity<FavoriteStatusResponse> getFavoriteStatus(
+        @PathVariable UUID id,
+        @AuthenticationPrincipal Jwt jwt
+    ) {
+        String authentikUserId = jwt.getSubject();
+        return ResponseEntity.ok(favoriteService.getStatus(authentikUserId, id));
+    }
+
     @ApiResponse(responseCode = "200", description = "Favorite toggled")
     @ApiResponse(responseCode = "401", description = "Unauthenticated")
     @ApiResponse(responseCode = "403", description = "Not a driver")

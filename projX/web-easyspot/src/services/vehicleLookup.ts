@@ -1,4 +1,5 @@
 import { API_BASE } from './apiBase';
+import { withGlobalLoading } from '../app/context/LoadingContext';
 
 export interface VehicleData {
   plate?: string;
@@ -67,7 +68,7 @@ async function errorFromResponse(response: Response): Promise<Error> {
 
 export async function lookupVehicleData(plate: string): Promise<VehicleData> {
   const endpoint = `${LOOKUP_ENDPOINT}?plate=${encodeURIComponent(plate.toUpperCase())}`;
-  const response = await fetch(endpoint, { headers: buildAuthHeaders() });
+  const response = await withGlobalLoading(() => fetch(endpoint, { headers: buildAuthHeaders() }));
   if (!response.ok) throw await errorFromResponse(response);
   return await response.json() as VehicleData;
 }

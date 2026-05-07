@@ -1,4 +1,5 @@
 import { API_BASE } from './apiBase';
+import { withGlobalLoading } from '../app/context/LoadingContext';
 const AUTH_STORAGE_KEYS = ['es_access_token', 'es_id_token', 'es_refresh_token', 'es_pkce_verifier', 'es_pkce_state'] as const;
 
 function getAccessToken(): string | null {
@@ -13,7 +14,7 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
   };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  const res = await withGlobalLoading(() => fetch(`${API_BASE}${path}`, { ...options, headers }));
   if (!res.ok) {
     if (res.status === 401) {
       for (const key of AUTH_STORAGE_KEYS) sessionStorage.removeItem(key);
