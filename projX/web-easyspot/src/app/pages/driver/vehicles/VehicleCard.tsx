@@ -9,7 +9,7 @@ export function VehicleCard({
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3 flex-1">
           <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center flex-shrink-0">
-            <BrandLogo make={vehicle.make} />
+            <BrandLogo make={vehicle.make} logoUrl={vehicle.brandLogoUrl} />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-0.5 flex-wrap">

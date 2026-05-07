@@ -22,6 +22,12 @@
               "pm.test('Vehicle created with correct plate', function () {",
               "  pm.expect(body.plate).to.eql('CC-00-CC');",
               "});",
+              "pm.test('Response contains brandLogoUrl field', function () {",
+              "  pm.expect(body).to.have.property('brandLogoUrl');",
+              "});",
+              "pm.test('brandLogoUrl is string or null', function () {",
+              "  pm.expect(body.brandLogoUrl === null || typeof body.brandLogoUrl === 'string').to.be.true;",
+              "});",
               "pm.collectionVariables.set('newVehicleId', body.id);"
             ]
           }
@@ -110,6 +116,12 @@
               "  pm.expect(body.make).to.eql('Renault');",
               "  pm.expect(body.model).to.eql('Megane');",
               "  pm.expect(body.fuelType).to.eql('Gasolina');",
+              "});",
+              "pm.test('brandLogoUrl present for known brand', function () {",
+              "  pm.expect(body).to.have.property('brandLogoUrl');",
+              "  if (body.brandLogoUrl) {",
+              "    pm.expect(body.brandLogoUrl).to.include('renault');",
+              "  }",
               "});"
             ]
           }
@@ -222,12 +234,13 @@
               "  pm.expect(body.nickname).to.eql('My Corsa');",
               "  pm.expect(body.isPrimary).to.eql(true);",
               "});",
-              "pm.test('Response has expected fields', function () {",
+              "pm.test('Response has expected fields including brandLogoUrl', function () {",
               "  var body = pm.response.json();",
               "  pm.expect(body).to.have.property('id');",
               "  pm.expect(body).to.have.property('make');",
               "  pm.expect(body).to.have.property('model');",
               "  pm.expect(body).to.have.property('fuelType');",
+              "  pm.expect(body).to.have.property('brandLogoUrl');",
               "});"
             ]
           }
@@ -262,6 +275,10 @@
               "  pm.expect(body.make).to.eql('TestMake');",
               "  pm.expect(body.model).to.eql('TestModel');",
               "  pm.expect(body.fuelType).to.eql('Gasolina');",
+              "});",
+              "pm.test('brandLogoUrl field present after plate change', function () {",
+              "  var body = pm.response.json();",
+              "  pm.expect(body).to.have.property('brandLogoUrl');",
               "});"
             ]
           }
@@ -431,6 +448,12 @@
               "});",
               "pm.test('Response is an array', function () {",
               "  pm.expect(pm.response.json()).to.be.an('array');",
+              "});",
+              "pm.test('Each vehicle has brandLogoUrl field', function () {",
+              "  var body = pm.response.json();",
+              "  if (body.length > 0) {",
+              "    pm.expect(body[0]).to.have.property('brandLogoUrl');",
+              "  }",
               "});"
             ]
           }
@@ -476,6 +499,17 @@
               "});",
               "pm.test('Response has plate field', function () {",
               "  pm.expect(pm.response.json()).to.have.property('plate');",
+              "});",
+              "pm.test('Response has brandLogoUrl field', function () {",
+              "  var body = pm.response.json();",
+              "  pm.expect(body).to.have.property('brandLogoUrl');",
+              "});",
+              "pm.test('brandLogoUrl is R2 URL or null', function () {",
+              "  var body = pm.response.json();",
+              "  if (body.brandLogoUrl) {",
+              "    pm.expect(body.brandLogoUrl).to.be.a('string');",
+              "    pm.expect(body.brandLogoUrl).to.match(/^https?:\\/\\//);",
+              "  }",
               "});"
             ]
           }

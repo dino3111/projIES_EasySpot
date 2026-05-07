@@ -27,6 +27,8 @@ export interface VehicleData {
   categoryIUC?: string;
   isImported?: string;
   IUC?: string;
+  imageUrl?: string;
+  brandLogoUrl?: string;
   [key: string]: unknown;
 }
 
@@ -74,6 +76,5 @@ export async function lookupVehicleData(plate: string): Promise<VehicleData> {
 }
 
 export async function lookupInsuranceData(plate: string): Promise<InsuranceData | null> {
-  void plate;
   return null;
 }

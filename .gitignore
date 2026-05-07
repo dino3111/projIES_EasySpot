@@ -256,3 +256,4 @@ crash.log
 /.claude
 package-lock.json
 CLAUDE.md
+pnpm-lock.yaml

@@ -21,6 +21,8 @@ export interface Vehicle {
   isAccessible: boolean;
   isPrimary: boolean;
   rfid?: string;
+  imageUrl?: string;
+  brandLogoUrl?: string;
 }
 
 interface ProfileContextType {

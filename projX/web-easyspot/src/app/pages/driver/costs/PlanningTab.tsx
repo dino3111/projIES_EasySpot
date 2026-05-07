@@ -115,7 +115,7 @@ export function PlanningTab() {
           />
           {planVehicleId && (
             <p className="text-muted-foreground mt-2" style={{ fontSize: '0.72rem' }}>
-              <i className="fas fa-circle-info mr-1" aria-hidden="true" />
+              <i className="fas fa-circle-info mr-1" aria-hidden="true" />{' '}
               Os filtros EV e Acessível foram ajustados automaticamente.
             </p>
           )}
@@ -124,7 +124,8 @@ export function PlanningTab() {
 
       <div className="bg-card rounded-2xl border border-border/40 shadow-sm p-4 mb-4">
         <p className="text-foreground font-semibold mb-2" style={{ fontSize: '0.8rem' }}>
-          <i className="fas fa-city text-primary mr-1.5" aria-hidden="true" />Cidade
+          <i className="fas fa-city text-primary mr-1.5" aria-hidden="true" />{' '}
+          Cidade
         </p>
         <select
           value={selectedCity ?? ''}
@@ -139,7 +140,8 @@ export function PlanningTab() {
 
       <div className="bg-card rounded-2xl border border-border/40 shadow-sm p-4 mb-5">
         <p className="text-foreground font-semibold mb-2" style={{ fontSize: '0.8rem' }}>
-          <i className="fas fa-clock text-primary mr-1.5" aria-hidden="true" />Duração estimada
+          <i className="fas fa-clock text-primary mr-1.5" aria-hidden="true" />{' '}
+          Duração estimada
         </p>
         <div className="flex items-center gap-3 mb-4">
           {[
@@ -163,7 +165,8 @@ export function PlanningTab() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p className="text-muted-foreground mb-2" style={{ fontSize: '0.75rem' }}>
-              <i className="fas fa-sliders mr-1.5" aria-hidden="true" />Filtros
+              <i className="fas fa-sliders mr-1.5" aria-hidden="true" />{' '}
+              Filtros
             </p>
             <div className="flex flex-wrap gap-2">
               <Chip active={filterEV}         icon="fa-charging-station" label="Carregador EV"
@@ -178,7 +181,8 @@ export function PlanningTab() {
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-dashed border-error/60 text-error hover:bg-error/5 transition-all"
                   style={{ fontSize: '0.75rem' }} aria-label="Limpar filtros"
                 >
-                  <i className="fas fa-xmark" aria-hidden="true" />Limpar ({activeFilters})
+                  <i className="fas fa-xmark" aria-hidden="true" />{' '}
+                  Limpar ({activeFilters})
                 </button>
               )}
             </div>
@@ -186,7 +190,8 @@ export function PlanningTab() {
 
           <div>
             <p className="text-muted-foreground mb-2" style={{ fontSize: '0.75rem' }}>
-              <i className="fas fa-arrow-up-wide-short mr-1.5" aria-hidden="true" />Ordenar por
+              <i className="fas fa-arrow-up-wide-short mr-1.5" aria-hidden="true" />{' '}
+              Ordenar por
             </p>
             <div className="flex flex-wrap gap-2">
               <Chip active={sortBy === 'ratio'}    label="Melhor relação"   icon="fa-arrow-trend-up" onClick={() => setSortBy('ratio')}    />
@@ -200,7 +205,8 @@ export function PlanningTab() {
 
         <div className="flex items-center justify-between mb-1.5">
           <p className="text-foreground font-semibold" style={{ fontSize: '0.8rem' }}>
-            <i className="fas fa-location-dot text-primary mr-1.5" aria-hidden="true" />Distância máxima
+            <i className="fas fa-location-dot text-primary mr-1.5" aria-hidden="true" />{' '}
+            Distância máxima
           </p>
           <span className="text-primary font-bold" style={{ fontSize: '0.8rem' }}>{maxDistance} km</span>
         </div>
@@ -252,17 +258,20 @@ export function PlanningTab() {
                         </span>
                         {index === 0 && sortBy === 'ratio' && (
                           <span className="px-2 py-0.5 rounded-full text-[0.65rem] font-bold uppercase bg-primary/10 text-primary">
-                            <i className="fas fa-trophy mr-1" aria-hidden="true" />Melhor opção
+                            <i className="fas fa-trophy mr-1" aria-hidden="true" />{' '}
+                            Melhor opção
                           </span>
                         )}
                         {park.hasEVCharger && (
                           <span className="px-2 py-0.5 rounded-full text-[0.65rem] font-bold uppercase bg-warning/10 text-warning">
-                            <i className="fas fa-bolt mr-1" aria-hidden="true" />EV
+                            <i className="fas fa-bolt mr-1" aria-hidden="true" />{' '}
+                            EV
                           </span>
                         )}
                         {park.hasAccessible && (
                           <span className="px-2 py-0.5 rounded-full text-[0.65rem] font-bold uppercase bg-info/10 text-info">
-                            <i className="fas fa-wheelchair mr-1" aria-hidden="true" />Acessível
+                          <i className="fas fa-wheelchair mr-1" aria-hidden="true" />{' '}
+                          Acessível
                           </span>
                         )}
                         {park.is24h && (
@@ -345,7 +354,8 @@ export function PlanningTab() {
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border text-muted-foreground hover:border-primary/40 hover:text-primary transition-all font-medium"
                         style={{ fontSize: '0.78rem' }} aria-label={`Ver detalhes de ${park.name}`}
                       >
-                        <i className="fas fa-circle-info" aria-hidden="true" style={{ fontSize: '0.7rem' }} />Detalhes
+                        <i className="fas fa-circle-info" aria-hidden="true" style={{ fontSize: '0.7rem' }} />{' '}
+                        Detalhes
                       </button>
                       {park.availableSpots > 0 && (
                         <button
@@ -353,7 +363,8 @@ export function PlanningTab() {
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-primary text-primary hover:bg-primary hover:text-white transition-all font-medium"
                           style={{ fontSize: '0.78rem' }} aria-label={`Reservar lugar em ${park.name}`}
                         >
-                          <i className="fas fa-bookmark" aria-hidden="true" style={{ fontSize: '0.7rem' }} />Reservar
+                          <i className="fas fa-bookmark" aria-hidden="true" style={{ fontSize: '0.7rem' }} />{' '}
+                          Reservar
                         </button>
                       )}
                     </div>

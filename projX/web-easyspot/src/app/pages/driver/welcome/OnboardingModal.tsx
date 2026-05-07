@@ -250,6 +250,7 @@ export function OnboardingModal({
           bodyType: lookupVehicleResult?.bodyType,
           displacementCc: lookupVehicleResult?.displacementCc,
           imageUrl: lookupVehicleResult?.imageUrl,
+          brandLogoUrl: lookupVehicleResult?.brandLogoUrl,
         } : null}
         insuranceData={null}
         plateError={plateError}

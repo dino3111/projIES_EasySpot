@@ -86,6 +86,9 @@ public class Vehicle {
     @Column(length = 500)
     private String imageUrl;
 
+    @Column(length = 500)
+    private String brandLogoUrl;
+
     @Column(length = 80)
     private String externalSourceId;
 

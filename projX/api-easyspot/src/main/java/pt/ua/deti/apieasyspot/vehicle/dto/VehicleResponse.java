@@ -19,6 +19,7 @@ public record VehicleResponse(
     String driveType,
     String engineCode,
     String imageUrl,
+    String brandLogoUrl,
     String nickname,
     boolean isEv,
     boolean isAccessible,

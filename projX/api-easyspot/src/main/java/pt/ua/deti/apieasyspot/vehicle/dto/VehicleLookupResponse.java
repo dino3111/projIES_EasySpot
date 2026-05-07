@@ -15,5 +15,6 @@ public record VehicleLookupResponse(
     String bodyType,
     String driveType,
     String engineCode,
-    String imageUrl
+    String imageUrl,
+    String brandLogoUrl
 ) {}

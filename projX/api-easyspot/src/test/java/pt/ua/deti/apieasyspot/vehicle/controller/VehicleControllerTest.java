@@ -37,9 +37,11 @@ class VehicleControllerTest {
     void setUp() {
         vehicleId = UUID.randomUUID();
         vehicleResponse = new VehicleResponse(
-            vehicleId, "AA-00-AA", "Opel", "Corsa", null, null, 2021, null, "Gasolina", null, null, null, null, null, null, null, "my car", false, false, true
+            vehicleId, "AA-00-AA", "Opel", "Corsa", null, null, 2021, null,
+            "Gasolina", null, null, null, null, null, null,
+            null, "https://r2.example.com/brand-logos/opel.png",
+            "my car", false, false, true
         );
-        
         when(jwt.getSubject()).thenReturn("auth-sub-123");
     }
 
@@ -57,6 +59,18 @@ class VehicleControllerTest {
     }
 
     @Test
+    @DisplayName("createVehicle - response includes brandLogoUrl")
+    void createVehicle_responseIncludesBrandLogoUrl() {
+        VehicleCreateRequest request = new VehicleCreateRequest("BB-00-BB", null, null, null, null, null, null, null, null, null);
+        when(vehicleService.createVehicle("auth-sub-123", request)).thenReturn(vehicleResponse);
+
+        ResponseEntity<VehicleResponse> response = vehicleController.createVehicle(request, jwt);
+
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().brandLogoUrl()).isEqualTo("https://r2.example.com/brand-logos/opel.png");
+    }
+
+    @Test
     @DisplayName("deleteVehicle - calls service and returns 204")
     void deleteVehicle_success() {
         ResponseEntity<Void> response = vehicleController.deleteVehicle(vehicleId, jwt);
@@ -66,22 +80,40 @@ class VehicleControllerTest {
     }
 
     @Test
-    @DisplayName("lookupPlate - calls service and returns 200")
-    void lookupPlate_success() {
+    @DisplayName("lookupPlate - calls service and returns 200 with brandLogoUrl")
+    void lookupPlate_success_includesBrandLogoUrl() {
         VehicleLookupResponse lookup = new VehicleLookupResponse(
-            "AA-00-AA", null, "Opel", "Corsa", null, 2021, null, "Gasolina", null, null, null, null, null, null, null
+            "AA-00-AA", null, "Opel", "Corsa", null, 2021, null, "Gasolina",
+            null, null, null, null, null, null, null,
+            "https://r2.example.com/brand-logos/opel.png"
         );
         when(vehicleService.lookupPlate("AA-00-AA")).thenReturn(lookup);
 
         ResponseEntity<VehicleLookupResponse> response = vehicleController.lookupPlate("AA-00-AA");
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).isEqualTo(lookup);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().brandLogoUrl()).isEqualTo("https://r2.example.com/brand-logos/opel.png");
         verify(vehicleService).lookupPlate("AA-00-AA");
     }
 
     @Test
-    @DisplayName("listVehicles - calls service and returns 200 with list")
+    @DisplayName("lookupPlate - unknown brand - brandLogoUrl is null")
+    void lookupPlate_unknownBrand_brandLogoUrlNull() {
+        VehicleLookupResponse lookup = new VehicleLookupResponse(
+            "AA-00-AA", null, "Lada", "Niva", null, null, null, "Gasolina",
+            null, null, null, null, null, null, null, null
+        );
+        when(vehicleService.lookupPlate("AA-00-AA")).thenReturn(lookup);
+
+        ResponseEntity<VehicleLookupResponse> response = vehicleController.lookupPlate("AA-00-AA");
+
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().brandLogoUrl()).isNull();
+    }
+
+    @Test
+    @DisplayName("listVehicles - calls service and returns 200 with list including brandLogoUrl")
     void listVehicles_success() {
         when(vehicleService.listVehicles("auth-sub-123")).thenReturn(List.of(vehicleResponse));
 
@@ -89,6 +121,7 @@ class VehicleControllerTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).containsExactly(vehicleResponse);
+        assertThat(response.getBody().get(0).brandLogoUrl()).isEqualTo("https://r2.example.com/brand-logos/opel.png");
         verify(vehicleService).listVehicles("auth-sub-123");
     }
 }

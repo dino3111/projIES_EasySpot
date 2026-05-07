@@ -222,7 +222,11 @@ export function AddVehicleModal({ onClose, onAdd }: Readonly<{ onClose: () => vo
         <div className="sticky bottom-0 bg-background border-t border-border px-5 py-4 flex items-center gap-3 rounded-b-3xl">
           <button onClick={onClose} className="btn btn-ghost flex-1 rounded-full" style={{ fontSize: '0.875rem' }}>Cancelar</button>
           <button onClick={handleAdd} disabled={!PT_PLATE_REGEX.test(plate) || saving} className="btn btn-primary flex-1 rounded-full" style={{ fontSize: '0.875rem' }}>
-            {saving ? <i className="fas fa-spinner fa-spin mr-2" style={{ fontSize: '0.8rem' }} /> : <i className="fas fa-plus mr-2" style={{ fontSize: '0.8rem' }} />}
+            {saving ? (
+              <i className="fas fa-spinner fa-spin mr-2" style={{ fontSize: '0.8rem' }} />
+            ) : (
+              <i className="fas fa-plus mr-2" style={{ fontSize: '0.8rem' }} />
+            )}
             Adicionar
           </button>
         </div>

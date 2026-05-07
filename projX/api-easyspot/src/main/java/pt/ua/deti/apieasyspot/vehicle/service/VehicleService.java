@@ -35,6 +35,7 @@ public class VehicleService {
     private final UserRepository userRepository;
     private final VehicleLookupClient vehicleLookupClient;
     private final VehiclePhotoStorage vehiclePhotoStorage;
+    private final BrandLogoStorage brandLogoStorage;
     private final ObjectMapper objectMapper;
 
     public VehicleResponse createVehicle(String authentikUserId, VehicleCreateRequest request) {
@@ -113,7 +114,8 @@ public class VehicleService {
     }
 
     private void applyLookupData(Vehicle vehicle, VehicleData data) {
-        vehicle.setMake(nullSafe(data.make(), UNKNOWN));
+        String make = nullSafe(data.make(), UNKNOWN);
+        vehicle.setMake(make);
         vehicle.setModel(nullSafe(data.model(), UNKNOWN));
         vehicle.setVersion(data.version());
         vehicle.setFuelType(nullSafe(data.fuelType(), UNKNOWN));
@@ -133,6 +135,7 @@ public class VehicleService {
         vehicle.setLastSyncedAt(LocalDateTime.now());
         vehicle.setSyncedDataJson(serialiseSafely(data));
         vehicle.setImageUrl(mirrorPhoto(data));
+        vehicle.setBrandLogoUrl(brandLogoStorage.mirror(make));
     }
 
     private String mirrorPhoto(VehicleData data) {
@@ -159,6 +162,7 @@ public class VehicleService {
         vehicle.setFuelType(request.fuelType());
         vehicle.setYear(request.year());
         vehicle.setEv(isElectric(request.fuelType()));
+        vehicle.setBrandLogoUrl(brandLogoStorage.mirror(request.make()));
     }
 
     private boolean resolvePrimaryFlag(UUID userId, Boolean requestedPrimary) {
@@ -183,7 +187,8 @@ public class VehicleService {
             data.bodyType(),
             data.driveType(),
             data.engineCode(),
-            data.imageUrl()
+            data.imageUrl(),
+            brandLogoStorage.mirror(data.make())
         );
     }
 
@@ -211,6 +216,7 @@ public class VehicleService {
             vehicle.getDriveType(),
             vehicle.getEngineCode(),
             vehicle.getImageUrl(),
+            vehicle.getBrandLogoUrl(),
             vehicle.getNickname(),
             vehicle.isEv(),
             vehicle.isAccessible(),

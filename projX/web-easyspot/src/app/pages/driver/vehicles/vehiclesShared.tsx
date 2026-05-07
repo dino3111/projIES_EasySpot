@@ -11,11 +11,19 @@ export const CHARGER_ICONS: Record<string, string> = {
   'Tesla Supercharger': 'fa-bolt-lightning',
 };
 
-export function BrandLogo({ make }: Readonly<{ make?: string }>) {
-  const url = getBrandLogoUrl(make);
-  const [failed, setFailed] = useState(false);
-  if (!url || failed) return <i className="fas fa-car text-muted-foreground" style={{ fontSize: '1.4rem' }} />;
-  return <img src={url} alt={make} className="w-10 h-10 object-contain" onError={() => setFailed(true)} />;
+export function BrandLogo({ make, logoUrl }: Readonly<{ make?: string; logoUrl?: string }>) {
+  const cdnUrl = getBrandLogoUrl(make);
+  const primary = logoUrl ?? cdnUrl;
+  const [primaryFailed, setPrimaryFailed] = useState(false);
+  const [fallbackFailed, setFallbackFailed] = useState(false);
+
+  if (!primary || (primaryFailed && (!cdnUrl || fallbackFailed))) {
+    return <i className="fas fa-car text-muted-foreground" style={{ fontSize: '1.4rem' }} />;
+  }
+  if (primaryFailed && cdnUrl) {
+    return <img src={cdnUrl} alt={make} className="w-10 h-10 object-contain" onError={() => setFallbackFailed(true)} />;
+  }
+  return <img src={primary} alt={make} className="w-10 h-10 object-contain" onError={() => setPrimaryFailed(true)} />;
 }
 
 export function NicknameInput({ nickname, setNickname }: Readonly<{ nickname: string; setNickname: (v: string) => void }>) {
@@ -63,10 +71,14 @@ export function RfidInput({ rfid, setRfid }: Readonly<{ rfid: string; setRfid: (
 export function VehicleDataCard({ vehicleData, insuranceData }: Readonly<{ vehicleData: VehicleData; insuranceData: InsuranceData | null }>) {
   const vehicleYear = vehicleData.yearFrom
     ? { label: 'Ano (de)', value: String(vehicleData.yearFrom) }
-    : (vehicleData.plateDate ? { label: 'Ano', value: vehicleData.plateDate.slice(0, 4) } : null);
+    : vehicleData.plateDate
+      ? { label: 'Ano', value: vehicleData.plateDate.slice(0, 4) }
+      : null;
   const vehiclePower = vehicleData.powerKw
     ? { label: 'Potência', value: `${vehicleData.powerKw} kW` }
-    : (vehicleData.powerkw ? { label: 'Potência', value: `${vehicleData.powerkw} kW` } : null);
+    : vehicleData.powerkw
+      ? { label: 'Potência', value: `${vehicleData.powerkw} kW` }
+      : null;
   const details = [
     vehicleData.make && vehicleData.model ? { label: 'Marca/Modelo', value: `${vehicleData.make} ${vehicleData.model}` } : null,
     vehicleData.version ? { label: 'Versão', value: vehicleData.version } : null,
@@ -83,10 +95,10 @@ export function VehicleDataCard({ vehicleData, insuranceData }: Readonly<{ vehic
     <div className="rounded-xl bg-muted p-4 space-y-2">
       <div className="flex items-center justify-between mb-2">
         <p className="text-foreground font-bold" style={{ fontSize: '0.875rem' }}>
-          <i className="fas fa-check-circle text-success mr-2" style={{ fontSize: '0.85rem' }} />
+          <i className="fas fa-check-circle text-success mr-2" aria-hidden="true" style={{ fontSize: '0.85rem' }} />{' '}
           Dados encontrados
         </p>
-        {vehicleData.make && <div className="w-8 h-8"><BrandLogo make={vehicleData.make} /></div>}
+        {vehicleData.make && <div className="w-8 h-8"><BrandLogo make={vehicleData.make} logoUrl={vehicleData.brandLogoUrl} /></div>}
       </div>
       {vehicleData.imageUrl && (
         <img src={vehicleData.imageUrl} alt="Veículo identificado" className="w-full h-28 object-cover rounded-lg border border-border mb-2" />
@@ -100,7 +112,8 @@ export function VehicleDataCard({ vehicleData, insuranceData }: Readonly<{ vehic
       {insuranceData && (
         <div className="mt-3 pt-3 border-t border-border space-y-1.5">
           <p className="text-foreground font-bold" style={{ fontSize: '0.8rem' }}>
-            <i className="fas fa-shield-halved text-primary mr-2" style={{ fontSize: '0.78rem' }} />Seguro
+            <i className="fas fa-shield-halved text-primary mr-2" aria-hidden="true" style={{ fontSize: '0.78rem' }} />{' '}
+            Seguro
           </p>
           {insuranceData.entity && (
             <div className="flex justify-between text-sm">
@@ -136,8 +149,13 @@ export function EVOptions({
 }>) {
   const allChargerTypes = ['Type 2', 'CCS', 'CHAdeMO', 'Tesla Supercharger'];
 
-  const toggleCharger = (type: string) =>
-    setChargerTypes(chargerTypes.includes(type) ? chargerTypes.filter((t) => t !== type) : [...chargerTypes, type]);
+  const toggleCharger = (type: string) => {
+    if (chargerTypes.includes(type)) {
+      setChargerTypes(chargerTypes.filter((t) => t !== type));
+      return;
+    }
+    setChargerTypes([...chargerTypes, type]);
+  };
 
   const handleIsEVChange = (checked: boolean) => {
     setIsEV(checked);
@@ -151,7 +169,8 @@ export function EVOptions({
         <input id="vehicle-is-ev" type="checkbox" checked={isEV} onChange={(e) => handleIsEVChange(e.target.checked)} className="checkbox checkbox-primary checkbox-sm" />
         <div className="flex-1">
           <p className="text-foreground font-semibold" style={{ fontSize: '0.875rem' }}>
-            <i className="fas fa-bolt text-green-500 mr-2" style={{ fontSize: '0.8rem' }} /> Veículo Elétrico
+            <i className="fas fa-bolt text-green-500 mr-2" aria-hidden="true" style={{ fontSize: '0.8rem' }} />{' '}
+            Veículo Elétrico
           </p>
           <p className="text-muted-foreground" style={{ fontSize: '0.72rem' }}>Priorizar lugares com carregadores EV</p>
         </div>
@@ -184,7 +203,8 @@ export function EVOptions({
         <input id="vehicle-is-accessible" type="checkbox" checked={isAccessible} onChange={(e) => setIsAccessible(e.target.checked)} className="checkbox checkbox-primary checkbox-sm" />
         <div className="flex-1">
           <p className="text-foreground font-semibold" style={{ fontSize: '0.875rem' }}>
-            <i className="fas fa-wheelchair text-blue-500 mr-2" style={{ fontSize: '0.8rem' }} /> Veículo Acessível
+            <i className="fas fa-wheelchair text-blue-500 mr-2" aria-hidden="true" style={{ fontSize: '0.8rem' }} />{' '}
+            Veículo Acessível
           </p>
           <p className="text-muted-foreground" style={{ fontSize: '0.72rem' }}>Necessita de lugares para mobilidade reduzida</p>
         </div>

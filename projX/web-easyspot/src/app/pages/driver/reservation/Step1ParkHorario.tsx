@@ -21,7 +21,7 @@ function VehiclePicker({
         </h2>
         <div className="space-y-2">
           {vehicles.map((v) => {
-            const logoUrl = getBrandLogoUrl(v.make);
+            const logoUrl = v.brandLogoUrl ?? getBrandLogoUrl(v.make);
             const selected = v.id === selectedVehicleId;
             return (
               <button
@@ -41,7 +41,7 @@ function VehiclePicker({
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-mono font-bold text-sm text-base-content">{v.plate}</span>
                     {v.nickname && <span className="text-xs text-base-content/60">{v.nickname}</span>}
-                    {v.isEV && <span className="badge badge-success badge-xs gap-0.5"><i className="fa-solid fa-bolt text-[7px]" />EV</span>}
+                    {v.isEV && <span className="badge badge-success badge-xs gap-0.5"><i className="fa-solid fa-bolt text-[7px]" />{' '}EV</span>}
                     {v.isAccessible && <span className="badge badge-info badge-xs"><i className="fa-solid fa-wheelchair text-[7px]" /></span>}
                     {v.isPrimary && <span className="badge badge-primary badge-xs">Principal</span>}
                   </div>
@@ -137,7 +137,7 @@ export function Step1ParkHorario({
         <div className="card-body p-4">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-semibold text-base-content text-lg">
-              <i className="fa-solid fa-square-parking text-primary mr-2" />
+              <i className="fa-solid fa-square-parking text-primary mr-2" />{' '}
               {selectedParkId ? 'Parque Selecionado' : 'Escolher Parque'}
             </h2>
             {selectedParkId && (
@@ -146,7 +146,8 @@ export function Step1ParkHorario({
                 className="btn btn-xs btn-ghost rounded-full text-primary border border-primary/30 gap-1"
                 aria-label="Mudar parque"
               >
-                <i className="fa-solid fa-pen-to-square text-xs" /> Mudar
+                <i className="fa-solid fa-pen-to-square text-xs" />{' '}
+                Mudar
               </button>
             )}
           </div>
@@ -161,8 +162,8 @@ export function Step1ParkHorario({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-semibold text-base-content truncate">{lot.name}</span>
-                    {lot.hasEVCharger && <span className="badge badge-warning badge-xs"><i className="fa-solid fa-bolt mr-0.5 text-[8px]" />EV</span>}
-                    {lot.hasAccessible && <span className="badge badge-info badge-xs"><i className="fa-solid fa-wheelchair mr-0.5 text-[8px]" />Acess.</span>}
+                    {lot.hasEVCharger && <span className="badge badge-warning badge-xs"><i className="fa-solid fa-bolt mr-0.5 text-[8px]" />{' '}EV</span>}
+                    {lot.hasAccessible && <span className="badge badge-info badge-xs"><i className="fa-solid fa-wheelchair mr-0.5 text-[8px]" />{' '}Acess.</span>}
                     {lot.is24h && <span className="badge badge-ghost badge-xs">24h</span>}
                   </div>
                   <p className="text-xs text-base-content/50 mt-0.5 truncate">
@@ -232,8 +233,8 @@ export function Step1ParkHorario({
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-semibold text-sm text-base-content truncate">{lot.name}</span>
-                            {lot.hasEVCharger && <span className="badge badge-warning badge-xs gap-1"><i className="fa-solid fa-bolt text-[8px]" />EV</span>}
-                            {lot.hasAccessible && <span className="badge badge-info badge-xs gap-1"><i className="fa-solid fa-wheelchair text-[8px]" />Acessível</span>}
+                            {lot.hasEVCharger && <span className="badge badge-warning badge-xs gap-1"><i className="fa-solid fa-bolt text-[8px]" />{' '}EV</span>}
+                            {lot.hasAccessible && <span className="badge badge-info badge-xs gap-1"><i className="fa-solid fa-wheelchair text-[8px]" />{' '}Acessível</span>}
                             {lot.is24h && <span className="badge badge-primary badge-xs">24h</span>}
                           </div>
                           <p className="text-xs text-base-content/60 mt-0.5 truncate">

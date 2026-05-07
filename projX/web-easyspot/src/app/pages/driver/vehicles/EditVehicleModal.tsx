@@ -46,7 +46,7 @@ export function EditVehicleModal({
           {(vehicle.make || vehicle.model || vehicle.fuelType) && (
             <div className="rounded-xl bg-muted p-4 space-y-1.5">
               <div className="flex items-center gap-3 mb-2">
-                <BrandLogo make={vehicle.make} />
+                <BrandLogo make={vehicle.make} logoUrl={vehicle.brandLogoUrl} />
                 <p className="text-foreground font-bold" style={{ fontSize: '0.875rem' }}>Informações do Veículo</p>
               </div>
               {vehicle.make && vehicle.model && (

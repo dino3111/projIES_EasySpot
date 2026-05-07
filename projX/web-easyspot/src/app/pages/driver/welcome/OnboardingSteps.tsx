@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { AppProfile, DriverType } from '../../../context/ProfileContext';
+import { getBrandLogoUrl } from '../../../utils/brandLogo';
 
 export interface VehicleData {
   plate?: string;
@@ -15,6 +16,7 @@ export interface VehicleData {
   powerKw?: number;
   displacementCc?: number;
   imageUrl?: string;
+  brandLogoUrl?: string;
   [key: string]: unknown;
 }
 
@@ -27,6 +29,13 @@ export interface InsuranceData {
 export const INPUT_CLS = 'w-full rounded-xl px-4 py-3 bg-muted/50 border border-border text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all';
 
 const PT_PLATE_REGEX = /^[A-Z0-9]{2}-[A-Z0-9]{2}-[A-Z0-9]{2}$/;
+
+function VehicleBrandLogo({ make, logoUrl }: Readonly<{ make?: string; logoUrl?: string }>) {
+  const url = logoUrl ?? getBrandLogoUrl(make);
+  const [failed, setFailed] = useState(false);
+  if (!url || failed) return null;
+  return <img src={url} alt={make} className="w-8 h-8 object-contain" onError={() => setFailed(true)} />;
+}
 
 export function VehicleFieldGroup({ label, fields }: { label?: string; fields: { label: string; value: string | undefined }[] }) {
   const visible = fields.filter((f) => f.value?.trim());
@@ -118,6 +127,7 @@ export function StepVehicle(props: {
             <i className="fas fa-circle-check text-success" style={{ fontSize: '0.85rem' }} />
             <p className="font-bold" style={{ fontSize: '0.82rem', color: '#22c55e' }}>Veículo identificado automaticamente</p>
           </div>
+          <VehicleBrandLogo make={vehicleData.make} logoUrl={vehicleData.brandLogoUrl} />
           {vehicleData.imageUrl && (
             <img src={vehicleData.imageUrl} alt="Veículo identificado" className="w-full h-32 object-cover rounded-lg border border-border" />
           )}

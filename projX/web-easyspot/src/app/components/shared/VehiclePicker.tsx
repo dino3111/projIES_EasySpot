@@ -1,6 +1,7 @@
 import { getBrandLogoUrl } from '../../utils/brandLogo';
 import type { Vehicle } from '../../context/ProfileContext';
 
+
 interface VehiclePickerProps {
   readonly vehicles: readonly Vehicle[];
   readonly selectedId: string | null;
@@ -27,7 +28,7 @@ export function VehiclePicker({
   if (vehicles.length === 0) return null;
 
   const selected = vehicles.find((v) => v.id === selectedId) ?? null;
-  const logoUrl = selected ? getBrandLogoUrl(selected.make) : null;
+  const logoUrl = selected ? (selected.brandLogoUrl ?? getBrandLogoUrl(selected.make)) : null;
 
   return (
     <div className={`flex items-center gap-2 ${className}`}>

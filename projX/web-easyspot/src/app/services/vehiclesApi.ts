@@ -17,6 +17,8 @@ type VehicleResponse = {
   isEv: boolean;
   isAccessible: boolean;
   isPrimary: boolean;
+  imageUrl?: string;
+  brandLogoUrl?: string;
 };
 
 export async function fetchVehicles(): Promise<Vehicle[]> {
@@ -42,5 +44,7 @@ export async function fetchVehicles(): Promise<Vehicle[]> {
     isAccessible: v.isAccessible,
     isPrimary: v.isPrimary,
     chargerTypes: v.isEv ? ['Type 2', 'CCS'] : [],
+    imageUrl: v.imageUrl,
+    brandLogoUrl: v.brandLogoUrl,
   }));
 }
