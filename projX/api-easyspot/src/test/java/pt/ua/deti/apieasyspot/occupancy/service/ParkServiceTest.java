@@ -32,6 +32,7 @@ class ParkServiceTest {
     @Mock private EVChargerRepository evChargerRepository;
     @Mock private AccessibleSpotRepository accessibleSpotRepository;
     @Mock private ParkingSpotRepository parkingSpotRepository;
+    @Mock private TimescaleOccupancySnapshotRepository timescaleOccupancySnapshotRepository;
     @Mock private JdbcTemplate jdbc;
 
     @InjectMocks private ParkService parkService;

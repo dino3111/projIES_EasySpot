@@ -76,7 +76,6 @@ class VehicleServiceTest {
         when(vehicleRepository.findByPlate("CC-00-CC")).thenReturn(Optional.empty());
         when(vehicleLookupClient.lookup("CC-00-CC")).thenReturn(data);
         when(brandLogoStorage.mirror("Tesla")).thenReturn("https://r2.example.com/brand-logos/tesla.png");
-        when(vehiclePhotoStorage.mirror(any(), any())).thenReturn("https://r2.example.com/vehicles/123.jpg");
         when(vehicleRepository.save(any())).thenReturn(vehicle);
 
         vehicleService.createVehicle("auth-sub-123", request);

@@ -13,6 +13,8 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import pt.ua.deti.apieasyspot.billing.dto.ParkingPlanningRequest;
 import pt.ua.deti.apieasyspot.billing.dto.ParkingPlanningRequest.LocationRequest;
 import pt.ua.deti.apieasyspot.billing.dto.ParkingPlanningRequest.OrderBy;
+import pt.ua.deti.apieasyspot.occupancy.repository.ParkingLotRepository;
+import pt.ua.deti.apieasyspot.occupancy.repository.TimescaleOccupancySnapshotRepository;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -29,6 +31,8 @@ class ParkingPlanningServiceTest {
 
     @Mock private JdbcTemplate jdbc;
     @Mock private NamedParameterJdbcTemplate namedJdbc;
+    @Mock private ParkingLotRepository parkingLotRepository;
+    @Mock private TimescaleOccupancySnapshotRepository occupancyRepository;
     @InjectMocks private ParkingPlanningService service;
 
     private ParkingPlanningService.LotCandidate availableLot;

@@ -42,12 +42,12 @@ class VehicleControllerTest {
             null, "https://r2.example.com/brand-logos/opel.png",
             "my car", false, false, true
         );
-        when(jwt.getSubject()).thenReturn("auth-sub-123");
     }
 
     @Test
     @DisplayName("createVehicle - calls service and returns 200")
     void createVehicle_success() {
+        when(jwt.getSubject()).thenReturn("auth-sub-123");
         VehicleCreateRequest request = new VehicleCreateRequest("BB-00-BB", "RFID-1", null, null, null, null, null, null, null, null);
         when(vehicleService.createVehicle("auth-sub-123", request)).thenReturn(vehicleResponse);
 
@@ -61,6 +61,7 @@ class VehicleControllerTest {
     @Test
     @DisplayName("createVehicle - response includes brandLogoUrl")
     void createVehicle_responseIncludesBrandLogoUrl() {
+        when(jwt.getSubject()).thenReturn("auth-sub-123");
         VehicleCreateRequest request = new VehicleCreateRequest("BB-00-BB", null, null, null, null, null, null, null, null, null);
         when(vehicleService.createVehicle("auth-sub-123", request)).thenReturn(vehicleResponse);
 
@@ -73,6 +74,7 @@ class VehicleControllerTest {
     @Test
     @DisplayName("deleteVehicle - calls service and returns 204")
     void deleteVehicle_success() {
+        when(jwt.getSubject()).thenReturn("auth-sub-123");
         ResponseEntity<Void> response = vehicleController.deleteVehicle(vehicleId, jwt);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
@@ -115,6 +117,7 @@ class VehicleControllerTest {
     @Test
     @DisplayName("listVehicles - calls service and returns 200 with list including brandLogoUrl")
     void listVehicles_success() {
+        when(jwt.getSubject()).thenReturn("auth-sub-123");
         when(vehicleService.listVehicles("auth-sub-123")).thenReturn(List.of(vehicleResponse));
 
         ResponseEntity<List<VehicleResponse>> response = vehicleController.listVehicles(jwt);
