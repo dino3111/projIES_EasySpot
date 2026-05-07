@@ -14,7 +14,6 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -48,11 +47,8 @@ public class SecurityConfig {
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.ignoringRequestMatchers(
-                new AntPathRequestMatcher("/api/**"),
-                new AntPathRequestMatcher("/actuator/**"),
-                new AntPathRequestMatcher("/v3/api-docs/**"),
-                new AntPathRequestMatcher("/swagger-ui/**"),
-                new AntPathRequestMatcher("/swagger-ui.html")
+                "/api/**", "/actuator/**", "/v3/api-docs/**",
+                "/swagger-ui/**", "/swagger-ui.html"
             ))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(customJwtAuthenticationConverter)))
