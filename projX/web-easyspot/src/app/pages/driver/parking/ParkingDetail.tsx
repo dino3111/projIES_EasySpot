@@ -13,6 +13,23 @@ import { fetchParkDetails, fetchParkFavoriteStatus, toggleParkFavorite } from '.
 
 type Tab = 'general' | 'map' | 'ev' | 'accessibility' | 'tariffs';
 
+function getOccupancyStatus(availableSpots: number, totalSpots: number) {
+  const isFull = availableSpots === 0;
+  const isAlmostFull = !isFull && availableSpots <= Math.ceil(totalSpots * 0.2);
+
+  let statusHex = '#22c55e';
+  let statusLabel = 'Disponível';
+  if (isFull) {
+    statusHex = '#ef4444';
+    statusLabel = 'Lotado';
+  } else if (isAlmostFull) {
+    statusHex = '#f59e0b';
+    statusLabel = 'Quase cheio';
+  }
+
+  return { isFull, isAlmostFull, statusHex, statusLabel };
+}
+
 export function ParkingDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -83,10 +100,7 @@ export function ParkingDetail() {
 
   const occupied = lot.totalSpots - lot.availableSpots;
   const occupancyPct = lot.totalSpots > 0 ? Math.round((occupied / lot.totalSpots) * 100) : 0;
-  const isFull = lot.availableSpots === 0;
-  const isAlmostFull = !isFull && lot.availableSpots <= Math.ceil(lot.totalSpots * 0.2);
-  const statusHex   = isFull ? '#ef4444' : isAlmostFull ? '#f59e0b' : '#22c55e';
-  const statusLabel = isFull ? 'Lotado' : isAlmostFull ? 'Quase cheio' : 'Disponível';
+  const { isFull, isAlmostFull, statusHex, statusLabel } = getOccupancyStatus(lot.availableSpots, lot.totalSpots);
   const availableEV  = lot.evChargers?.filter((c) => c.available).length ?? 0;
   const availableAcc = lot.accessibleSpots?.filter((s) => s.available).length ?? 0;
 

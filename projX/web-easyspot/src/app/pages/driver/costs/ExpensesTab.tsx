@@ -33,7 +33,7 @@ export function ExpensesTab() {
   const [selectedVehicleFilter, setSelectedVehicleFilter] = useState<string | null>(null);
 
   const vehicleNames = useMemo(
-    () => [...new Set(allExpenses.map((e) => e.vehicle ?? 'Seat Ibiza'))].sort(),
+    () => [...new Set(allExpenses.map((e) => e.vehicle ?? 'Seat Ibiza'))].sort((a, b) => a.localeCompare(b)),
     [],
   );
 
@@ -144,8 +144,13 @@ export function ExpensesTab() {
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.4} />
-              <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
-                interval={period === '7d' ? 0 : period === '30d' ? 5 : 14} tickLine={false} axisLine={false} />
+              <XAxis
+                dataKey="date"
+                tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
+                interval={period === '7d' ? 0 : period === '30d' ? 5 : 14}
+                tickLine={false}
+                axisLine={false}
+              />
               <YAxis tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} tickFormatter={(v) => `€${v}`} tickLine={false} axisLine={false} />
               <Tooltip content={<SpendTooltip />} />
               <Area type="monotone" dataKey="total" stroke="#7357ec" strokeWidth={2.5}
@@ -215,7 +220,8 @@ export function ExpensesTab() {
           .slice()
           .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
           .map((expense, idx) => {
-            const hasEV = !!expense.evCharging;
+            const evCharging = expense.evCharging;
+            const hasEV = Boolean(evCharging);
             const totalAmount = expense.amount + (expense.evCharging?.chargingAmount ?? 0);
             return (
               <div key={expense.id} className={`px-4 py-3.5 ${idx < filtered.length - 1 ? 'border-b border-border/40' : ''}`}>
@@ -245,7 +251,7 @@ export function ExpensesTab() {
                             <span className="text-muted-foreground/30">•</span>
                             <span className="flex items-center gap-1 text-success text-xs font-semibold">
                               <i className="fas fa-bolt" aria-hidden="true" />
-                              {expense.evCharging!.kWh} kWh · {expense.evCharging!.chargerType}
+                              {evCharging?.kWh} kWh · {evCharging?.chargerType}
                             </span>
                           </>
                         )}
@@ -258,7 +264,7 @@ export function ExpensesTab() {
                     </p>
                     {hasEV ? (
                       <span className="text-muted-foreground font-medium text-[0.6rem] block">
-                        Park €{expense.amount.toFixed(2)} + EV €{expense.evCharging!.chargingAmount.toFixed(2)}
+                        Park €{expense.amount.toFixed(2)} + EV €{evCharging?.chargingAmount?.toFixed(2)}
                       </span>
                     ) : (
                       <span className="text-muted-foreground font-medium uppercase text-[0.6rem]">Via RFID</span>

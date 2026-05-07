@@ -109,6 +109,94 @@
 				}
 			},
 			"response": []
+		},
+		{
+			"name": "GET /api/parks/cities - 200 returns list",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Returns 200', function () {",
+							"  pm.response.to.have.status(200);",
+							"});",
+							"pm.test('Response is an array', function () {",
+							"  pm.expect(pm.response.json()).to.be.an('array');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/parks/cities",
+					"host": ["{{base_url}}"],
+					"path": ["api", "parks", "cities"]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "GET /api/parks/{id}/favorite - 401 unauthenticated",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Returns 401', function () {",
+							"  pm.response.to.have.status(401);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/parks/{{parkId}}/favorite",
+					"host": ["{{base_url}}"],
+					"path": ["api", "parks", "{{parkId}}", "favorite"]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "GET /api/parks/{id}/favorite - 200 status",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test('Returns 200', function () {",
+							"  pm.response.to.have.status(200);",
+							"});",
+							"pm.test('Response has isFavorite field', function () {",
+							"  var body = pm.response.json();",
+							"  pm.expect(body).to.have.property('parkId');",
+							"  pm.expect(body).to.have.property('isFavorite');",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{ "key": "Authorization", "value": "Bearer {{driverToken}}" }
+				],
+				"url": {
+					"raw": "{{base_url}}/api/parks/{{parkId}}/favorite",
+					"host": ["{{base_url}}"],
+					"path": ["api", "parks", "{{parkId}}", "favorite"]
+				}
+			},
+			"response": []
 		}
 	]
 }

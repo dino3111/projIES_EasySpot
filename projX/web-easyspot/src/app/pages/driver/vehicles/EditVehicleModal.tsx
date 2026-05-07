@@ -38,7 +38,7 @@ export function EditVehicleModal({
         </div>
         <div className="px-5 py-5 space-y-4">
           <div>
-            <label className="block text-muted-foreground font-bold mb-2" style={{ fontSize: '0.875rem' }}>Matrícula</label>
+            <p className="block text-muted-foreground font-bold mb-2" style={{ fontSize: '0.875rem' }}>Matrícula</p>
             <div className="input input-bordered w-full rounded-xl bg-muted cursor-not-allowed font-mono flex items-center" style={{ fontSize: '0.95rem', letterSpacing: '0.1em' }}>
               {vehicle.plate}
             </div>

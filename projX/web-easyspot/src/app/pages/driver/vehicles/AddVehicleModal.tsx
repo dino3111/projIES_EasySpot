@@ -8,7 +8,7 @@ import { PT_PLATE_REGEX, NicknameInput, RfidInput, VehicleDataCard, EVOptions } 
 
 function PlateInput({
   plate, setPlate, loading, inputRef,
-}: { plate: string; setPlate: (v: string) => void; loading: boolean; inputRef: React.RefObject<HTMLInputElement | null> }) {
+}: Readonly<{ plate: string; setPlate: (v: string) => void; loading: boolean; inputRef: React.RefObject<HTMLInputElement | null> }>) {
   return (
     <div>
       <label htmlFor="plate-input" className="block text-foreground font-bold mb-2" style={{ fontSize: '0.875rem' }}>
@@ -62,7 +62,7 @@ export function AddVehicleModal({ onClose, onAdd }: Readonly<{ onClose: () => vo
   useEffect(() => { if (inputRef.current) inputRef.current.focus(); }, []);
 
   useEffect(() => {
-    const normalized = plate.toUpperCase().replace(/[^A-Z0-9-]/g, '');
+    const normalized = plate.toUpperCase().replaceAll(/[^A-Z0-9-]/g, '');
     if (normalized !== plate) setPlate(normalized);
   }, [plate]);
 
@@ -84,11 +84,14 @@ export function AddVehicleModal({ onClose, onAdd }: Readonly<{ onClose: () => vo
         .then(([vData, iData]) => {
           setVehicleData(vData);
           setInsuranceData(iData);
+          const vehicleYear = vData.yearFrom
+            ? String(vData.yearFrom)
+            : (vData.plateDate ? vData.plateDate.slice(0, 4) : '');
           setManualData({
             make: vData.make ?? '',
             model: vData.model ?? '',
             fuelType: vData.fuelType ?? '',
-            year: vData.yearFrom ? String(vData.yearFrom) : vData.plateDate ? vData.plateDate.slice(0, 4) : '',
+            year: vehicleYear,
           });
           const ev = isEVFuelType(vData.fuelType);
           setIsEV(ev);
@@ -113,7 +116,7 @@ export function AddVehicleModal({ onClose, onAdd }: Readonly<{ onClose: () => vo
       manualData.make.trim().length > 0 &&
       manualData.model.trim().length > 0 &&
       manualData.fuelType.trim().length > 0 &&
-      Number.isInteger(parseInt(manualData.year, 10));
+      Number.isInteger(Number.parseInt(manualData.year, 10));
 
     if (!vehicleData && !hasValidManualData) {
       setShowManualForm(true);
@@ -133,7 +136,7 @@ export function AddVehicleModal({ onClose, onAdd }: Readonly<{ onClose: () => vo
         make: vehicleData ? undefined : (manualData.make.trim() || undefined),
         model: vehicleData ? undefined : (manualData.model.trim() || undefined),
         fuelType: vehicleData ? undefined : (manualData.fuelType.trim() || undefined),
-        year: vehicleData ? undefined : (parseInt(manualData.year, 10) || undefined),
+        year: vehicleData ? undefined : (Number.parseInt(manualData.year, 10) || undefined),
       });
       onAdd({
         id: created.id,

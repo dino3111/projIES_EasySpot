@@ -1,11 +1,11 @@
 import type { FilterMode } from '../../../components/parking/ParkingCard';
 
 interface FilterBannersProps {
-  filterMode: FilterMode;
-  totalAccessible: number;
-  totalEV: number;
-  closestAccDistance: number | null;
-  filteredCount: number;
+  readonly filterMode: FilterMode;
+  readonly totalAccessible: number;
+  readonly totalEV: number;
+  readonly closestAccDistance: number | null;
+  readonly filteredCount: number;
 }
 
 export function FilterBanners({ filterMode, totalAccessible, totalEV, closestAccDistance, filteredCount }: Readonly<FilterBannersProps>) {
@@ -75,13 +75,15 @@ function StatTile({ icon, label, value, color, bg, border, valueColor, greenStyl
 }
 
 function AccessibleBanner({ totalAccessible, closestAccDistance, filteredCount }: Readonly<{ totalAccessible: number; closestAccDistance: number | null; filteredCount: number }>) {
-  let message = 'Sem lugares acessíveis disponíveis de momento.';
+  let message: string;
   if (totalAccessible > 0) {
     const spotsPlural = totalAccessible === 1 ? '' : 'es';
     const freePlural = totalAccessible === 1 ? '' : 's';
     const parksPlural = filteredCount === 1 ? '' : 's';
     const distanceInfo = closestAccDistance !== null ? ` Mais próximo: ${closestAccDistance}m da entrada.` : '';
     message = `${totalAccessible} lugar${spotsPlural} livre${freePlural} nos ${filteredCount} parque${parksPlural} filtrados.${distanceInfo}`;
+  } else {
+    message = 'Sem lugares acessíveis disponíveis de momento.';
   }
 
   return (
@@ -95,8 +97,8 @@ function AccessibleBanner({ totalAccessible, closestAccDistance, filteredCount }
       </div>
       <div className="flex items-center gap-3 flex-wrap">
         <span className="text-foreground/60 font-semibold" style={{ fontSize: '0.68rem' }}>Distância à entrada:</span>
-        {[{ color: '#22c55e', label: '≤ 20m' }, { color: '#f59e0b', label: '20–40m' }, { color: '#ef4444', label: '> 40m' }].map((item) => (
-          <span key={item.label} className="flex items-center gap-1" style={{ fontSize: '0.68rem' }}>
+        {[{ id: 'near', color: '#22c55e', label: '≤ 20m' }, { id: 'mid', color: '#f59e0b', label: '20–40m' }, { id: 'far', color: '#ef4444', label: '> 40m' }].map((item) => (
+          <span key={item.id} className="flex items-center gap-1" style={{ fontSize: '0.68rem' }}>
             <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: item.color }} />
             <span className="text-foreground">{item.label}</span>
           </span>
@@ -116,12 +118,14 @@ function AccessibleBanner({ totalAccessible, closestAccDistance, filteredCount }
 }
 
 function EVBanner({ totalEV, filteredCount }: Readonly<{ totalEV: number; filteredCount: number }>) {
-  let message = 'Sem carregadores EV disponíveis de momento.';
+  let message: string;
   if (totalEV > 0) {
     const chargersPlural = totalEV === 1 ? '' : 'es';
     const freePlural = totalEV === 1 ? '' : 's';
     const parksPlural = filteredCount === 1 ? '' : 's';
     message = `${totalEV} carregador${chargersPlural} livre${freePlural} nos ${filteredCount} parque${parksPlural} filtrados.`;
+  } else {
+    message = 'Sem carregadores EV disponíveis de momento.';
   }
 
   return (

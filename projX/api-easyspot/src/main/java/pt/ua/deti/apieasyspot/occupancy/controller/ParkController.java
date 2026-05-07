@@ -70,7 +70,8 @@ public class ParkController {
         return ResponseEntity.ok(parkService.searchParks(textQuery, minAvailableSpaces, city, activeFilters, page, pageSize));
     }
 
-    @Operation(summary = "List available cities")
+    @Operation(summary = "List available cities", description = "Returns a distinct list of cities with at least one parking lot")
+    @ApiResponse(responseCode = "200", description = "City list retrieved successfully")
     @GetMapping("/cities")
     public ResponseEntity<List<String>> listCities() {
         return ResponseEntity.ok(parkService.listCities());

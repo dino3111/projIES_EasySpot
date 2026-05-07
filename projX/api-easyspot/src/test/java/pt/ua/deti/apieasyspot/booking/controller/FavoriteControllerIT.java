@@ -18,12 +18,12 @@ import pt.ua.deti.apieasyspot.booking.repository.UserFavoriteRepository;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingLotRepository;
 
-import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static pt.ua.deti.apieasyspot.support.TestJwtRequests.jwtWithRole;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -112,5 +112,50 @@ class FavoriteControllerIT {
 
         assertThat(userFavoriteRepository
             .existsByUserIdAndParkingLotId(user.getId(), parkingLot.getId())).isFalse();
+    }
+
+    @Test
+    @DisplayName("GET /api/parks/{id}/favorite - unauthenticated - returns 401")
+    void getFavoriteStatus_unauthenticated_returns401() throws Exception {
+        mockMvc.perform(get("/api/parks/{id}/favorite", parkingLot.getId()))
+            .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("GET /api/parks/{id}/favorite - wrong role - returns 403")
+    void getFavoriteStatus_wrongRole_returns403() throws Exception {
+        mockMvc.perform(get("/api/parks/{id}/favorite", parkingLot.getId())
+                .with(jwtWithRole("auth-sub-123", "MANAGER")))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("GET /api/parks/{id}/favorite - park not found - returns 404")
+    void getFavoriteStatus_parkNotFound_returns404() throws Exception {
+        mockMvc.perform(get("/api/parks/{id}/favorite", UUID.randomUUID())
+                .with(jwtWithRole("auth-sub-123", "DRIVER")))
+            .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("GET /api/parks/{id}/favorite - not favorited - returns isFavorite false")
+    void getFavoriteStatus_notFavorited_returnsFalse() throws Exception {
+        mockMvc.perform(get("/api/parks/{id}/favorite", parkingLot.getId())
+                .with(jwtWithRole("auth-sub-123", "DRIVER")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.parkId").value(parkingLot.getId().toString()))
+            .andExpect(jsonPath("$.isFavorite").value(false));
+    }
+
+    @Test
+    @DisplayName("GET /api/parks/{id}/favorite - favorited - returns isFavorite true")
+    void getFavoriteStatus_favorited_returnsTrue() throws Exception {
+        mockMvc.perform(post("/api/parks/{id}/favorite", parkingLot.getId())
+                .with(jwtWithRole("auth-sub-123", "DRIVER")));
+
+        mockMvc.perform(get("/api/parks/{id}/favorite", parkingLot.getId())
+                .with(jwtWithRole("auth-sub-123", "DRIVER")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.isFavorite").value(true));
     }
 }

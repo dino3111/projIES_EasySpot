@@ -1,6 +1,6 @@
 import type { ParkingLot } from '../../../data/parkingTypes';
 
-export function TabTariffs({ lot }: { lot: ParkingLot }) {
+export function TabTariffs({ lot }: Readonly<{ lot: ParkingLot }>) {
   return (
     <div className="animate-in fade-in duration-200">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

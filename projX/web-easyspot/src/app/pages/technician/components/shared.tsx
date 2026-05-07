@@ -1,9 +1,14 @@
 export function KpiCard({ icon, label, value, subValue, trend, color }: {
-  icon: string; label: string; value: string; subValue: string;
-  trend: 'up' | 'down' | 'warn' | 'neutral'; color: string;
+  readonly icon: string; readonly label: string; readonly value: string; readonly subValue: string;
+  readonly trend: 'up' | 'down' | 'warn' | 'neutral'; readonly color: string;
 }) {
-  const trendColor = trend === 'up' ? '#22c55e' : trend === 'down' ? '#ef4444' : trend === 'warn' ? '#f59e0b' : 'var(--color-muted-foreground)';
-  const trendIcon  = trend === 'up' ? 'fa-arrow-trend-up' : trend === 'down' ? 'fa-arrow-trend-down' : trend === 'warn' ? 'fa-triangle-exclamation' : 'fa-minus';
+  const trendMap = {
+    up: { color: '#22c55e', icon: 'fa-arrow-trend-up' },
+    down: { color: '#ef4444', icon: 'fa-arrow-trend-down' },
+    warn: { color: '#f59e0b', icon: 'fa-triangle-exclamation' },
+    neutral: { color: 'var(--color-muted-foreground)', icon: 'fa-minus' },
+  };
+  const trendInfo = trendMap[trend];
   return (
     <div className="bg-card border border-border rounded-2xl p-4">
       <div className="flex items-start justify-between mb-2">
@@ -14,8 +19,8 @@ export function KpiCard({ icon, label, value, subValue, trend, color }: {
       <p className="text-foreground" style={{ fontSize: '1.4rem', fontWeight: 800, lineHeight: 1.1, marginTop: '0.25rem' }}>{value}</p>
       <p className="text-muted-foreground mt-0.5" style={{ fontSize: '0.72rem', fontWeight: 600 }}>{label}</p>
       <div className="flex items-center gap-1 mt-1.5">
-        <i className={`fas ${trendIcon}`} style={{ color: trendColor, fontSize: '0.65rem' }} aria-hidden="true"></i>
-        <span style={{ fontSize: '0.7rem', color: trendColor }}>{subValue}</span>
+        <i className={`fas ${trendInfo.icon}`} style={{ color: trendInfo.color, fontSize: '0.65rem' }} aria-hidden="true"></i>
+        <span style={{ fontSize: '0.7rem', color: trendInfo.color }}>{subValue}</span>
       </div>
     </div>
   );
@@ -24,7 +29,7 @@ export function KpiCard({ icon, label, value, subValue, trend, color }: {
 export function TabBtn({
   active, onClick, icon, label, badge,
 }: {
-  active: boolean; onClick: () => void; icon: string; label: string; badge?: number;
+  readonly active: boolean; readonly onClick: () => void; readonly icon: string; readonly label: string; readonly badge?: number;
 }) {
   return (
     <button
@@ -46,7 +51,7 @@ export function TabBtn({
 }
 
 export function QuickStat({ label, value, color, icon, active }: {
-  label: string; value: number; color: string; icon: string; active?: boolean;
+  readonly label: string; readonly value: number; readonly color: string; readonly icon: string; readonly active?: boolean;
 }) {
   return (
     <div
@@ -65,7 +70,7 @@ export function QuickStat({ label, value, color, icon, active }: {
   );
 }
 
-export function EmptyState({ icon, title, desc }: { icon: string; title: string; desc: string }) {
+export function EmptyState({ icon, title, desc }: { readonly icon: string; readonly title: string; readonly desc: string }) {
   return (
     <div className="bg-card border border-border rounded-2xl p-8 text-center">
       <i className={`fas ${icon} text-green-500 mb-2`} style={{ fontSize: '2rem' }} aria-hidden="true"></i>
@@ -75,7 +80,7 @@ export function EmptyState({ icon, title, desc }: { icon: string; title: string;
   );
 }
 
-export function MetaRow({ label, value, mono, color }: { label: string; value: string; mono?: boolean; color?: string }) {
+export function MetaRow({ label, value, mono, color }: { readonly label: string; readonly value: string; readonly mono?: boolean; readonly color?: string }) {
   return (
     <div>
       <p className="text-muted-foreground" style={{ fontSize: '0.68rem', fontWeight: 500 }}>{label}</p>
@@ -84,7 +89,7 @@ export function MetaRow({ label, value, mono, color }: { label: string; value: s
   );
 }
 
-export function StatBadge({ label, value, color, icon }: { label: string; value: number; color: string; icon: string }) {
+export function StatBadge({ label, value, color, icon }: { readonly label: string; readonly value: number; readonly color: string; readonly icon: string }) {
   return (
     <div className="rounded-lg p-2 flex flex-col items-center justify-center" style={{ background: `${color}15` }}>
       <i className={`fas ${icon}`} style={{ color, fontSize: '0.85rem' }} aria-hidden="true"></i>
@@ -94,7 +99,7 @@ export function StatBadge({ label, value, color, icon }: { label: string; value:
   );
 }
 
-export function TechMapLegend({ color, label }: { color: string; label: string }) {
+export function TechMapLegend({ color, label }: { readonly color: string; readonly label: string }) {
   return (
     <div className="flex items-center gap-1">
       <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: color }} aria-hidden="true" />

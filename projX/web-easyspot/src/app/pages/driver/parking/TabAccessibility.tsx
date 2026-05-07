@@ -1,14 +1,16 @@
 import { Link } from 'react-router';
 import { getDistanceColor, getSpotDimCategory, type ParkingLot } from '../../../data/parkingTypes';
 
-export function TabAccessibility({ lot }: { lot: ParkingLot }) {
+export function TabAccessibility({ lot }: Readonly<{ lot: ParkingLot }>) {
   if (!lot.accessibleSpots) return null;
+
+  const compareAvailability = (available: boolean) => (available ? -1 : 1);
 
   return (
     <div className="animate-in fade-in duration-200">
       <div className="grid grid-cols-1 gap-2.5">
         {[...lot.accessibleSpots]
-          .sort((a, b) => (a.available === b.available ? 0 : a.available ? -1 : 1) || a.distanceToEntrance - b.distanceToEntrance)
+          .sort((a, b) => (a.available === b.available ? 0 : compareAvailability(a.available)) || a.distanceToEntrance - b.distanceToEntrance)
           .map(spot => {
             const dist = getDistanceColor(spot.distanceToEntrance);
             const dim  = getSpotDimCategory(spot.dimensions);

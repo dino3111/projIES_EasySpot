@@ -269,14 +269,12 @@ export async function fetchParkDetails(parkId: string): Promise<ParkingLot> {
 }
 
 export async function toggleParkFavorite(parkId: string): Promise<FavoriteToggleResponse> {
-  const token = getAccessToken();
   const resp = await withGlobalLoading(() => fetch());
   if (!resp.ok) throw new Error(`Failed to toggle favorite (${resp.status})`);
   return (await resp.json()) as FavoriteToggleResponse;
 }
 
 export async function fetchParkFavoriteStatus(parkId: string): Promise<FavoriteToggleResponse> {
-  const token = getAccessToken();
   const resp = await withGlobalLoading(() => fetch());
   if (!resp.ok) throw new Error(`Failed to fetch favorite status (${resp.status})`);
   return (await resp.json()) as FavoriteToggleResponse;

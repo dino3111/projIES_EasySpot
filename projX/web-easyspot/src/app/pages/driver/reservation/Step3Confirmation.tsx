@@ -6,15 +6,18 @@ export function Step3Confirmation({
   lot, floor, spot, arrivalTime, exitTime, cost,
   vehicle, agreeTerms, setAgreeTerms,
   onConfirm, onBack, isSubmitting = false,
-}: {
+}: Readonly<{
   lot: ParkingLot; floor: string; spot: ParkingSpot | null;
   arrivalTime: string; exitTime: string; cost: number;
   vehicle: Vehicle | null;
   agreeTerms: boolean; setAgreeTerms: (b: boolean) => void;
   onConfirm: () => void; onBack: () => void;
   isSubmitting?: boolean;
-}) {
+}>) {
   const hours = calcHours(arrivalTime, exitTime);
+  const vehicleValue = vehicle
+    ? `${vehicle.plate}${vehicle.make ? ` · ${vehicle.make}` : ''}`
+    : null;
 
   return (
     <div className="space-y-4">
@@ -32,7 +35,7 @@ export function Step3Confirmation({
               { icon: 'fa-flag-checkered',    label: 'Saída',   value: `${fmtDateTime(exitTime)} (${fmtDuration(hours)})` },
               { icon: 'fa-layer-group',       label: 'Piso',    value: floor },
               { icon: 'fa-car',               label: 'Lugar',   value: spot?.label || '—' },
-              ...(vehicle ? [{ icon: 'fa-id-card', label: 'Veículo', value: `${vehicle.plate}${vehicle.make ? ` · ${vehicle.make}` : ''}` }] : []),
+              ...(vehicleValue ? [{ icon: 'fa-id-card', label: 'Veículo', value: vehicleValue }] : []),
             ].map(({ icon, label, value }) => (
               <div key={label} className="flex items-start gap-2">
                 <i className={`fa-solid ${icon} text-primary mt-0.5 w-4 shrink-0`} />
@@ -63,7 +66,7 @@ export function Step3Confirmation({
             </div>
             {lot.hourlyRate * hours > lot.dailyMax && (
               <div className="flex justify-between text-success text-xs">
-                <span><i className="fa-solid fa-tag mr-1" />Desconto máximo diário</span>
+                <span><i className="fa-solid fa-tag mr-1" /> Desconto máximo diário</span>
                 <span>−€{(lot.hourlyRate * hours - lot.dailyMax).toFixed(2)}</span>
               </div>
             )}

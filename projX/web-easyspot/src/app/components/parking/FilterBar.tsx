@@ -1,17 +1,17 @@
 import { useState } from 'react';
 
 interface FilterBarProps {
-  showEVOnly: boolean;
-  showAccessibleOnly: boolean;
-  showAvailableOnly: boolean;
-  searchQuery: string;
-  selectedDistrict: string;
-  districts: string[];
-  onEVFilterChange: (value: boolean) => void;
-  onAccessibleFilterChange: (value: boolean) => void;
-  onAvailableFilterChange: (value: boolean) => void;
-  onSearchChange: (value: string) => void;
-  onDistrictChange: (value: string) => void;
+  readonly showEVOnly: boolean;
+  readonly showAccessibleOnly: boolean;
+  readonly showAvailableOnly: boolean;
+  readonly searchQuery: string;
+  readonly selectedDistrict: string;
+  readonly districts: string[];
+  readonly onEVFilterChange: (value: boolean) => void;
+  readonly onAccessibleFilterChange: (value: boolean) => void;
+  readonly onAvailableFilterChange: (value: boolean) => void;
+  readonly onSearchChange: (value: string) => void;
+  readonly onDistrictChange: (value: string) => void;
 }
 
 export function FilterBar({
@@ -110,11 +110,10 @@ export function FilterBar({
         </button>
       </div>
 
-      <div
+      <fieldset
         className={`flex flex-wrap gap-2 transition-all duration-200 ${
           filtersVisible ? 'flex' : 'hidden sm:flex'
         }`}
-        role="group"
         aria-label="Filtros activos"
       >
         <FilterChip
@@ -183,7 +182,7 @@ export function FilterBar({
             Limpar ({activeCount})
           </button>
         )}
-      </div>
+      </fieldset>
     </section>
   );
 }

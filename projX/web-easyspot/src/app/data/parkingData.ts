@@ -37,6 +37,17 @@ export interface ParkingFloor {
   spots: ParkingSpot[];
 }
 
+interface ParkingFloorConfig {
+  id: string;
+  name: string;
+  rows: number;
+  cols: number;
+  occupied: number[];
+  reserved: number[];
+  evSpots: number[];
+  accessibleSpots: number[];
+}
+
 export interface ParkingLot {
   id: string;
   name: string;
@@ -101,9 +112,9 @@ export function getSpotDimCategory(dimensions: string): {
   textClass: string;
   icon: string;
 } {
-  const match = dimensions.match(/^([\d.]+)/);
-  const width = match ? parseFloat(match[1]) : 0;
-  if (width >= 4.0)
+  const match = /^([\d.]+)/.exec(dimensions);
+  const width = match ? Number.parseFloat(match[1]) : 0;
+  if (width >= 4)
     return { label: 'Amplo', bgClass: 'bg-success/15', textClass: 'text-success', icon: 'fa-expand' };
   if (width >= 3.5)
     return { label: 'Standard', bgClass: 'bg-info/15', textClass: 'text-info', icon: 'fa-arrows-left-right' };
@@ -118,16 +129,16 @@ export function getDistanceColor(meters: number): { bg: string; label: string } 
 }
 
 // ── Helper: generate a floor grid ─────────────────────────────────────────────
-function makeFloor(
-  id: string,
-  name: string,
-  rows: number,
-  cols: number,
-  occupied: number[],
-  reserved: number[],
-  evSpots: number[],
-  accessibleSpots: number[],
-): ParkingFloor {
+function makeFloor({
+  id,
+  name,
+  rows,
+  cols,
+  occupied,
+  reserved,
+  evSpots,
+  accessibleSpots,
+}: ParkingFloorConfig): ParkingFloor {
   const spots: ParkingSpot[] = [];
   const total = rows * cols;
   const rowLabel = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -159,9 +170,9 @@ export const mockParkingLots: ParkingLot[] = [
     localidade: 'Coimbra',
     availableSpots: 48,
     totalSpots: 120,
-    hourlyRate: 1.80,
-    dailyMax: 14.00,
-    monthlyRate: 140.00,
+    hourlyRate: 1.8,
+    dailyMax: 14,
+    monthlyRate: 140,
     distance: '0.7 km',
     walkingTime: '9 min',
     hasEVCharger: true,
@@ -177,7 +188,7 @@ export const mockParkingLots: ParkingLot[] = [
     techFeatures: { hasOCR: true, hasRFID: true, hasIRSensors: true, hasLEDs: true },
     evChargers: [
       { id: 'ev-c1-1', type: 'Type 2',  speed: 'Rápida (22kW)',       speedKW: 22,  available: true,  price: 0.32 },
-      { id: 'ev-c1-2', type: 'CCS',     speed: 'Ultra-rápida (50kW)', speedKW: 50,  available: false, price: 0.40 },
+      { id: 'ev-c1-2', type: 'CCS',     speed: 'Ultra-rápida (50kW)', speedKW: 50,  available: false, price: 0.4 },
     ],
     accessibleSpots: [
       { id: 'ac-c1-1', zone: 'Piso 0 — Entrada Norte', available: true,  monitored: true,  distanceToEntrance: 12, hasRampSpace: true,  dimensions: '4.0m x 5.5m', sensorStatus: 'online', ledStatus: 'green' },
@@ -191,8 +202,8 @@ export const mockParkingLots: ParkingLot[] = [
       { id: 'z4', name: 'Mobilidade Reduzida',    type: 'accessible', totalSpots: 5,  availableSpots: 2,  floor: 'Piso 0' },
     ],
     floors: [
-      makeFloor('f-c1-p0', 'Piso 0', 6, 10, [1,3,5,7,9,11], [], [50,51], [0]),
-      makeFloor('f-c1-p-1', 'Piso -1', 6, 10, [2,4,6], [12,13], [], []),
+      makeFloor({ id: 'f-c1-p0', name: 'Piso 0', rows: 6, cols: 10, occupied: [1,3,5,7,9,11], reserved: [], evSpots: [50,51], accessibleSpots: [0] }),
+      makeFloor({ id: 'f-c1-p-1', name: 'Piso -1', rows: 6, cols: 10, occupied: [2,4,6], reserved: [12,13], evSpots: [], accessibleSpots: [] }),
     ],
   },
   {
@@ -202,9 +213,9 @@ export const mockParkingLots: ParkingLot[] = [
     localidade: 'Coimbra',
     availableSpots: 15,
     totalSpots: 60,
-    hourlyRate: 1.50,
-    dailyMax: 12.00,
-    monthlyRate: 110.00,
+    hourlyRate: 1.5,
+    dailyMax: 12,
+    monthlyRate: 110,
     distance: '2.5 km',
     walkingTime: '30 min',
     hasEVCharger: false,
@@ -228,8 +239,8 @@ export const mockParkingLots: ParkingLot[] = [
       { id: 'z4', name: 'Mobilidade Reduzida',    type: 'accessible', totalSpots: 5,  availableSpots: 2,  floor: 'Piso 0' },
     ],
     floors: [
-      makeFloor('f-c2-p0',  'Piso 0',  5, 12, [2,5,8,12,15], [], [], [1]),
-      makeFloor('f-c2-p-1', 'Piso -1', 5, 12, [1,3,10], [], [], []),
+      makeFloor({ id: 'f-c2-p0', name: 'Piso 0', rows: 5, cols: 12, occupied: [2,5,8,12,15], reserved: [], evSpots: [], accessibleSpots: [1] }),
+      makeFloor({ id: 'f-c2-p-1', name: 'Piso -1', rows: 5, cols: 12, occupied: [1,3,10], reserved: [], evSpots: [], accessibleSpots: [] }),
     ],
   },
 
@@ -241,9 +252,9 @@ export const mockParkingLots: ParkingLot[] = [
     localidade: 'Aveiro',
     availableSpots: 22,
     totalSpots: 85,
-    hourlyRate: 1.50,
-    dailyMax: 12.00,
-    monthlyRate: 120.00,
+    hourlyRate: 1.5,
+    dailyMax: 12,
+    monthlyRate: 120,
     distance: '0.4 km',
     walkingTime: '5 min',
     hasEVCharger: true,
@@ -273,8 +284,8 @@ export const mockParkingLots: ParkingLot[] = [
       { id: 'z4', name: 'Mobilidade Reduzida',   type: 'accessible', totalSpots: 5,  availableSpots: 2,  floor: 'Piso 0' },
     ],
     floors: [
-      makeFloor('f-a1-p0', 'Piso 0', 5, 17, [1,4,7,10,13], [], [80], [0]),
-      makeFloor('f-a1-p-1', 'Piso -1', 5, 17, [2,5,11], [20,21], [], []),
+      makeFloor({ id: 'f-a1-p0', name: 'Piso 0', rows: 5, cols: 17, occupied: [1,4,7,10,13], reserved: [], evSpots: [80], accessibleSpots: [0] }),
+      makeFloor({ id: 'f-a1-p-1', name: 'Piso -1', rows: 5, cols: 17, occupied: [2,5,11], reserved: [20,21], evSpots: [], accessibleSpots: [] }),
     ],
   },
   {
@@ -284,9 +295,9 @@ export const mockParkingLots: ParkingLot[] = [
     localidade: 'Aveiro',
     availableSpots: 50,
     totalSpots: 150,
-    hourlyRate: 1.00,
-    dailyMax: 8.00,
-    monthlyRate: 80.00,
+    hourlyRate: 1,
+    dailyMax: 8,
+    monthlyRate: 80,
     distance: '1.8 km',
     walkingTime: '22 min',
     hasEVCharger: true,
@@ -316,9 +327,9 @@ export const mockParkingLots: ParkingLot[] = [
       { id: 'z4', name: 'Mobilidade Reduzida',   type: 'accessible', totalSpots: 5,  availableSpots: 2,  floor: 'Piso 0' },
     ],
     floors: [
-      makeFloor('f-a2-p0',  'Piso 0',  10, 15, [10,20,30,40,50], [], [140], [0]),
-      makeFloor('f-a2-p-1', 'Piso -1', 10, 15, [5,15,25], [], [], []),
-      makeFloor('f-a2-p-2', 'Piso -2', 10, 15, [2,8], [], [], []),
+      makeFloor({ id: 'f-a2-p0', name: 'Piso 0', rows: 10, cols: 15, occupied: [10,20,30,40,50], reserved: [], evSpots: [140], accessibleSpots: [0] }),
+      makeFloor({ id: 'f-a2-p-1', name: 'Piso -1', rows: 10, cols: 15, occupied: [5,15,25], reserved: [], evSpots: [], accessibleSpots: [] }),
+      makeFloor({ id: 'f-a2-p-2', name: 'Piso -2', rows: 10, cols: 15, occupied: [2,8], reserved: [], evSpots: [], accessibleSpots: [] }),
     ],
   },
 
@@ -330,9 +341,9 @@ export const mockParkingLots: ParkingLot[] = [
     localidade: 'Leiria',
     availableSpots: 10,
     totalSpots: 90,
-    hourlyRate: 1.60,
-    dailyMax: 13.00,
-    monthlyRate: 130.00,
+    hourlyRate: 1.6,
+    dailyMax: 13,
+    monthlyRate: 130,
     distance: '0.6 km',
     walkingTime: '8 min',
     hasEVCharger: false,
@@ -356,8 +367,8 @@ export const mockParkingLots: ParkingLot[] = [
       { id: 'z4', name: 'Mobilidade Reduzida',   type: 'accessible', totalSpots: 5,  availableSpots: 2,  floor: 'Piso 0' },
     ],
     floors: [
-      makeFloor('f-l1-p0', 'Piso 0', 6, 15, [5,10,15,20], [], [], [0]),
-      makeFloor('f-l1-p1', 'Piso 1', 6, 15, [1,6,11], [], [], []),
+      makeFloor({ id: 'f-l1-p0', name: 'Piso 0', rows: 6, cols: 15, occupied: [5,10,15,20], reserved: [], evSpots: [], accessibleSpots: [0] }),
+      makeFloor({ id: 'f-l1-p1', name: 'Piso 1', rows: 6, cols: 15, occupied: [1,6,11], reserved: [], evSpots: [], accessibleSpots: [] }),
     ],
   },
   {
@@ -367,16 +378,16 @@ export const mockParkingLots: ParkingLot[] = [
     localidade: 'Leiria',
     availableSpots: 120,
     totalSpots: 300,
-    hourlyRate: 0.80,
-    dailyMax: 6.00,
-    monthlyRate: 50.00,
+    hourlyRate: 0.8,
+    dailyMax: 6,
+    monthlyRate: 50,
     distance: '1.5 km',
     walkingTime: '18 min',
     hasEVCharger: true,
     hasAccessible: true,
     latitude: 39.748730,
     longitude: -8.812917,
-    rating: 4.0,
+    rating: 4,
     reviewCount: 210,
     openingHours: 'Aberto 24h',
     is24h: true,
@@ -384,7 +395,7 @@ export const mockParkingLots: ParkingLot[] = [
     amenities: ['wc'],
     techFeatures: { hasOCR: true, hasRFID: false, hasIRSensors: false, hasLEDs: false },
     evChargers: [
-      { id: 'ev-l2-1', type: 'Type 2', speed: 'Rápida (22kW)',       speedKW: 22, available: true,  price: 0.30 },
+      { id: 'ev-l2-1', type: 'Type 2', speed: 'Rápida (22kW)',       speedKW: 22, available: true,  price: 0.3 },
       { id: 'ev-l2-2', type: 'CCS',   speed: 'Ultra-rápida (50kW)', speedKW: 50, available: true,  price: 0.38 },
       { id: 'ev-l2-3', type: 'Type 2', speed: 'Lenta (7kW)',         speedKW: 7,  available: false, price: 0.25 },
     ],
@@ -401,8 +412,8 @@ export const mockParkingLots: ParkingLot[] = [
       { id: 'z4', name: 'Mobilidade Reduzida',   type: 'accessible', totalSpots: 5,  availableSpots: 2,  floor: 'Piso 0' },
     ],
     floors: [
-      makeFloor('f-l2-p0',  'Piso 0',  15, 20, [1,2,3,4,5], [], [290], [0]),
-      makeFloor('f-l2-p-1', 'Piso -1', 15, 20, [10,20,30], [], [], []),
+      makeFloor({ id: 'f-l2-p0', name: 'Piso 0', rows: 15, cols: 20, occupied: [1,2,3,4,5], reserved: [], evSpots: [290], accessibleSpots: [0] }),
+      makeFloor({ id: 'f-l2-p-1', name: 'Piso -1', rows: 15, cols: 20, occupied: [10,20,30], reserved: [], evSpots: [], accessibleSpots: [] }),
     ],
   },
 
@@ -414,16 +425,16 @@ export const mockParkingLots: ParkingLot[] = [
     localidade: 'Figueira da Foz',
     availableSpots: 30,
     totalSpots: 70,
-    hourlyRate: 1.00,
-    dailyMax: 8.00,
-    monthlyRate: 70.00,
+    hourlyRate: 1,
+    dailyMax: 8,
+    monthlyRate: 70,
     distance: '0.8 km',
     walkingTime: '10 min',
     hasEVCharger: false,
     hasAccessible: true,
     latitude: 40.150000,
     longitude: -8.868000,
-    rating: 4.0,
+    rating: 4,
     reviewCount: 50,
     openingHours: 'Aberto 24h',
     is24h: true,
@@ -440,8 +451,8 @@ export const mockParkingLots: ParkingLot[] = [
       { id: 'z4', name: 'Mobilidade Reduzida',   type: 'accessible', totalSpots: 5,  availableSpots: 2,  floor: 'Piso 0' },
     ],
     floors: [
-      makeFloor('f-f1-p0', 'Piso 0', 7, 10, [1,10,20], [], [], [0]),
-      makeFloor('f-f1-p1', 'Piso 1', 7, 10, [5,15], [30], [], []),
+      makeFloor({ id: 'f-f1-p0', name: 'Piso 0', rows: 7, cols: 10, occupied: [1,10,20], reserved: [], evSpots: [], accessibleSpots: [0] }),
+      makeFloor({ id: 'f-f1-p1', name: 'Piso 1', rows: 7, cols: 10, occupied: [5,15], reserved: [30], evSpots: [], accessibleSpots: [] }),
     ],
   },
   {
@@ -451,9 +462,9 @@ export const mockParkingLots: ParkingLot[] = [
     localidade: 'Figueira da Foz',
     availableSpots: 80,
     totalSpots: 250,
-    hourlyRate: 1.20,
-    dailyMax: 10.00,
-    monthlyRate: 90.00,
+    hourlyRate: 1.2,
+    dailyMax: 10,
+    monthlyRate: 90,
     distance: '2.2 km',
     walkingTime: '28 min',
     hasEVCharger: true,
@@ -484,8 +495,8 @@ export const mockParkingLots: ParkingLot[] = [
       { id: 'z4', name: 'Mobilidade Reduzida',   type: 'accessible', totalSpots: 5,  availableSpots: 2,  floor: 'Piso 0' },
     ],
     floors: [
-      makeFloor('f-f2-p0',  'Piso 0',  10, 25, [1,2,3,4,5], [], [240], [0]),
-      makeFloor('f-f2-p-1', 'Piso -1', 10, 25, [10,15], [], [], []),
+      makeFloor({ id: 'f-f2-p0', name: 'Piso 0', rows: 10, cols: 25, occupied: [1,2,3,4,5], reserved: [], evSpots: [240], accessibleSpots: [0] }),
+      makeFloor({ id: 'f-f2-p-1', name: 'Piso -1', rows: 10, cols: 25, occupied: [10,15], reserved: [], evSpots: [], accessibleSpots: [] }),
     ],
   },
 
@@ -497,9 +508,9 @@ export const mockParkingLots: ParkingLot[] = [
     localidade: 'Ovar',
     availableSpots: 10,
     totalSpots: 48,
-    hourlyRate: 0.80,
-    dailyMax: 6.00,
-    monthlyRate: 60.00,
+    hourlyRate: 0.8,
+    dailyMax: 6,
+    monthlyRate: 60,
     distance: '0.3 km',
     walkingTime: '4 min',
     hasEVCharger: false,
@@ -518,8 +529,8 @@ export const mockParkingLots: ParkingLot[] = [
       { id: 'z2', name: 'Zona Azul (Comercial)', type: 'standard', totalSpots: 30, availableSpots: 5,  floor: 'Piso 0' },
     ],
     floors: [
-      makeFloor('f-o1-p0',  'Piso 0',  6, 8, [1,2,3], [], [], []),
-      makeFloor('f-o1-p-1', 'Piso -1', 6, 8, [4,5], [], [], []),
+      makeFloor({ id: 'f-o1-p0', name: 'Piso 0', rows: 6, cols: 8, occupied: [1,2,3], reserved: [], evSpots: [], accessibleSpots: [] }),
+      makeFloor({ id: 'f-o1-p-1', name: 'Piso -1', rows: 6, cols: 8, occupied: [4,5], reserved: [], evSpots: [], accessibleSpots: [] }),
     ],
   },
   {
@@ -529,9 +540,9 @@ export const mockParkingLots: ParkingLot[] = [
     localidade: 'Ovar',
     availableSpots: 100,
     totalSpots: 120,
-    hourlyRate: 0.40,
-    dailyMax: 3.00,
-    monthlyRate: 30.00,
+    hourlyRate: 0.4,
+    dailyMax: 3,
+    monthlyRate: 30,
     distance: '1.4 km',
     walkingTime: '17 min',
     hasEVCharger: true,
@@ -546,7 +557,7 @@ export const mockParkingLots: ParkingLot[] = [
     amenities: [],
     techFeatures: { hasOCR: true, hasRFID: false, hasIRSensors: false, hasLEDs: false },
     evChargers: [
-      { id: 'ev-o2-1', type: 'Type 2', speed: 'Rápida (22kW)', speedKW: 22, available: true,  price: 0.30 },
+      { id: 'ev-o2-1', type: 'Type 2', speed: 'Rápida (22kW)', speedKW: 22, available: true,  price: 0.3 },
     ],
     accessibleSpots: [
       { id: 'ac-o2-1', zone: 'Piso 0 — Frente à Praia', available: true,  monitored: false, distanceToEntrance: 25, hasRampSpace: true,  dimensions: '3.8m x 5.0m', sensorStatus: 'online', ledStatus: 'green' },
@@ -559,8 +570,8 @@ export const mockParkingLots: ParkingLot[] = [
       { id: 'z4', name: 'Mobilidade Reduzida',   type: 'accessible', totalSpots: 5,  availableSpots: 2,  floor: 'Piso 0' },
     ],
     floors: [
-      makeFloor('f-o2-p0', 'Piso 0', 10, 12, [1,4,7], [], [115], [0]),
-      makeFloor('f-o2-p1', 'Piso 1', 10, 12, [2,5], [20,21], [], []),
+      makeFloor({ id: 'f-o2-p0', name: 'Piso 0', rows: 10, cols: 12, occupied: [1,4,7], reserved: [], evSpots: [115], accessibleSpots: [0] }),
+      makeFloor({ id: 'f-o2-p1', name: 'Piso 1', rows: 10, cols: 12, occupied: [2,5], reserved: [20,21], evSpots: [], accessibleSpots: [] }),
     ],
   },
 
@@ -572,9 +583,9 @@ export const mockParkingLots: ParkingLot[] = [
     localidade: 'Arganil',
     availableSpots: 20,
     totalSpots: 60,
-    hourlyRate: 0.60,
-    dailyMax: 4.50,
-    monthlyRate: 45.00,
+    hourlyRate: 0.6,
+    dailyMax: 4.5,
+    monthlyRate: 45,
     distance: '0.2 km',
     walkingTime: '3 min',
     hasEVCharger: true,
@@ -590,7 +601,7 @@ export const mockParkingLots: ParkingLot[] = [
     techFeatures: { hasOCR: true, hasRFID: true, hasIRSensors: true, hasLEDs: true },
     evChargers: [
       { id: 'ev-ar1-1', type: 'Type 2', speed: 'Rápida (22kW)', speedKW: 22, available: true,  price: 0.32 },
-      { id: 'ev-ar1-2', type: 'CCS',   speed: 'Ultra-rápida (50kW)', speedKW: 50, available: false, price: 0.40 },
+      { id: 'ev-ar1-2', type: 'CCS',   speed: 'Ultra-rápida (50kW)', speedKW: 50, available: false, price: 0.4 },
     ],
     accessibleSpots: [
       { id: 'ac-ar1-1', zone: 'Piso 0 — Entrada Mercado',  available: true,  monitored: true,  distanceToEntrance: 5,  hasRampSpace: true,  dimensions: '4.5m x 5.5m', sensorStatus: 'online', ledStatus: 'green' },
@@ -604,8 +615,8 @@ export const mockParkingLots: ParkingLot[] = [
       { id: 'z4', name: 'Mobilidade Reduzida',   type: 'accessible', totalSpots: 5,  availableSpots: 2,  floor: 'Piso 0' },
     ],
     floors: [
-      makeFloor('f-ar1-p0', 'Piso 0', 6, 10, [1,4,7], [], [58], [0]),
-      makeFloor('f-ar1-p1', 'Piso 1', 6, 10, [2,5], [], [], []),
+      makeFloor({ id: 'f-ar1-p0', name: 'Piso 0', rows: 6, cols: 10, occupied: [1,4,7], reserved: [], evSpots: [58], accessibleSpots: [0] }),
+      makeFloor({ id: 'f-ar1-p1', name: 'Piso 1', rows: 6, cols: 10, occupied: [2,5], reserved: [], evSpots: [], accessibleSpots: [] }),
     ],
   },
   {
@@ -615,9 +626,9 @@ export const mockParkingLots: ParkingLot[] = [
     localidade: 'Arganil',
     availableSpots: 95,
     totalSpots: 100,
-    hourlyRate: 0.30,
-    dailyMax: 2.50,
-    monthlyRate: 20.00,
+    hourlyRate: 0.3,
+    dailyMax: 2.5,
+    monthlyRate: 20,
     distance: '2.5 km',
     walkingTime: '32 min',
     hasEVCharger: false,
@@ -641,8 +652,8 @@ export const mockParkingLots: ParkingLot[] = [
       { id: 'z4', name: 'Mobilidade Reduzida',   type: 'accessible', totalSpots: 5,  availableSpots: 2,  floor: 'Piso 0' },
     ],
     floors: [
-      makeFloor('f-ar2-p0',  'Piso 0',  10, 10, [1,2,3], [], [], [0]),
-      makeFloor('f-ar2-p-1', 'Piso -1', 10, 10, [4,5], [], [], []),
+      makeFloor({ id: 'f-ar2-p0', name: 'Piso 0', rows: 10, cols: 10, occupied: [1,2,3], reserved: [], evSpots: [], accessibleSpots: [0] }),
+      makeFloor({ id: 'f-ar2-p-1', name: 'Piso -1', rows: 10, cols: 10, occupied: [4,5], reserved: [], evSpots: [], accessibleSpots: [] }),
     ],
   },
 ];

@@ -6,11 +6,11 @@ import { getMinArrivalTime, getDefaultExitTime, calcHours, fmtDateTime, fmtDurat
 
 function VehiclePicker({
   vehicles, selectedVehicleId, setSelectedVehicleId,
-}: {
+}: Readonly<{
   vehicles: Vehicle[];
   selectedVehicleId: string;
   setSelectedVehicleId: (id: string) => void;
-}) {
+}>) {
   if (vehicles.length === 0) return null;
   return (
     <div className="card bg-base-200 shadow-md">
@@ -66,14 +66,14 @@ export function Step1ParkHorario({
   vehicles, selectedVehicleId, setSelectedVehicleId,
   parks,
   onNext,
-}: {
+}: Readonly<{
   selectedParkId: string; setSelectedParkId: (id: string) => void;
   arrivalTime: string; setArrivalTime: (t: string) => void;
   exitTime: string; setExitTime: (t: string) => void;
   vehicles: Vehicle[]; selectedVehicleId: string; setSelectedVehicleId: (id: string) => void;
   parks: ParkingLot[];
   onNext: () => void;
-}) {
+}>) {
   const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId) ?? null;
   const [search, setSearch] = useState('');
   const [filterEV, setFilterEV] = useState(!!selectedVehicle?.isEV);
@@ -106,6 +106,16 @@ export function Step1ParkHorario({
     setArrivalTime(val);
     if (exitTime && exitTime <= val) setExitTime(getDefaultExitTime(val));
   }
+
+  const availabilityClass = (availableSpots: number) => {
+    if (availableSpots > 10) return 'text-success';
+    return availableSpots > 0 ? 'text-warning' : 'text-error';
+  };
+  const occupancyClass = (pct: number) => {
+    if (pct > 80) return 'bg-error';
+    return pct > 50 ? 'bg-warning' : 'bg-success';
+  };
+  const selectedLot = parks.find(l => l.id === selectedParkId);
 
   return (
     <div className="space-y-6">
@@ -141,9 +151,8 @@ export function Step1ParkHorario({
             )}
           </div>
 
-          {selectedParkId && (() => {
-            const lot = parks.find(l => l.id === selectedParkId)!;
-            if (!lot) return null;
+          {selectedLot && (() => {
+            const lot = selectedLot;
             return (
               <div className="flex items-center gap-4 bg-base-100 border border-primary/20 rounded-2xl p-4">
                 <div className="shrink-0 w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center">
@@ -157,14 +166,16 @@ export function Step1ParkHorario({
                     {lot.is24h && <span className="badge badge-ghost badge-xs">24h</span>}
                   </div>
                   <p className="text-xs text-base-content/50 mt-0.5 truncate">
-                    <i className="fa-solid fa-location-dot mr-1" />{lot.address}
+                    <i className="fa-solid fa-location-dot mr-1" />
+                    {lot.address}
                   </p>
                   <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                    <span className={`text-xs font-medium ${lot.availableSpots > 10 ? 'text-success' : lot.availableSpots > 0 ? 'text-warning' : 'text-error'}`}>
-                      <i className="fa-solid fa-car-side mr-1" />{lot.availableSpots} livres
+                    <span className={`text-xs font-medium ${availabilityClass(lot.availableSpots)}`}>
+                      <i className="fa-solid fa-car-side mr-1" />
+                      {lot.availableSpots} livres
                     </span>
                     <span className="text-xs text-base-content/30">·</span>
-                    <span className="text-xs text-base-content/50"><i className="fa-solid fa-person-walking mr-1" />{lot.walkingTime}</span>
+                    <span className="text-xs text-base-content/50"><i className="fa-solid fa-person-walking mr-1" /> {lot.walkingTime}</span>
                     <span className="text-xs text-base-content/30">·</span>
                     <span className="text-xs font-semibold text-primary">€{lot.hourlyRate.toFixed(2)}/h</span>
                   </div>
@@ -213,8 +224,7 @@ export function Step1ParkHorario({
                   return (
                     <button
                       key={lot.id}
-                      role="radio"
-                      aria-checked={false}
+                      aria-pressed={false}
                       onClick={() => setSelectedParkId(lot.id)}
                       className="w-full text-left rounded-2xl p-3 border-2 border-base-300 bg-base-100 hover:border-primary/40 transition-all duration-200 hover:shadow-md"
                     >
@@ -227,18 +237,20 @@ export function Step1ParkHorario({
                             {lot.is24h && <span className="badge badge-primary badge-xs">24h</span>}
                           </div>
                           <p className="text-xs text-base-content/60 mt-0.5 truncate">
-                            <i className="fa-solid fa-location-dot mr-1" />{lot.address}
+                            <i className="fa-solid fa-location-dot mr-1" />
+                            {lot.address}
                           </p>
                           <div className="flex items-center gap-3 mt-1.5">
-                            <span className={`text-xs font-semibold ${lot.availableSpots > 10 ? 'text-success' : lot.availableSpots > 0 ? 'text-warning' : 'text-error'}`}>
-                              <i className="fa-solid fa-circle text-[6px] mr-1 align-middle" />{lot.availableSpots} livres
+                            <span className={`text-xs font-semibold ${availabilityClass(lot.availableSpots)}`}>
+                              <i className="fa-solid fa-circle text-[6px] mr-1 align-middle" />
+                              {lot.availableSpots} livres
                             </span>
                             <span className="text-xs text-base-content/50">{lot.distance}</span>
-                            <span className="text-xs text-base-content/50"><i className="fa-solid fa-person-walking mr-0.5" />{lot.walkingTime}</span>
+                            <span className="text-xs text-base-content/50"><i className="fa-solid fa-person-walking mr-0.5" /> {lot.walkingTime}</span>
                           </div>
                           <div className="w-full bg-base-300 rounded-full h-1 mt-2">
                             <div
-                              className={`h-1 rounded-full transition-all ${pct > 80 ? 'bg-error' : pct > 50 ? 'bg-warning' : 'bg-success'}`}
+                              className={`h-1 rounded-full transition-all ${occupancyClass(pct)}`}
                               style={{ width: `${pct}%` }}
                             />
                           </div>
@@ -265,13 +277,14 @@ export function Step1ParkHorario({
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div className="form-control">
-              <label className="label pb-1">
+              <label className="label pb-1" htmlFor="arrival-input">
                 <span className="label-text font-medium text-base-content text-sm">
                   <i className="fa-solid fa-calendar-day mr-1.5 text-primary" />
                   Data e hora de chegada
                 </span>
               </label>
               <input
+                id="arrival-input"
                 type="datetime-local"
                 className="input input-sm rounded-xl bg-base-100 border-base-300 text-base-content w-full"
                 value={arrivalTime}
@@ -287,7 +300,8 @@ export function Step1ParkHorario({
               )}
               {isArrivalValid && (
                 <p className="text-success text-xs mt-1">
-                  <i className="fa-solid fa-check mr-1" />{fmtDateTime(arrivalTime)}
+                  <i className="fa-solid fa-check mr-1" />
+                  {fmtDateTime(arrivalTime)}
                 </p>
               )}
             </div>
@@ -315,7 +329,8 @@ export function Step1ParkHorario({
               )}
               {exitValid && (
                 <p className="text-success text-xs mt-1">
-                  <i className="fa-solid fa-check mr-1" />{fmtDateTime(exitTime)}
+                  <i className="fa-solid fa-check mr-1" />
+                  {fmtDateTime(exitTime)}
                   <span className="text-base-content/50 ml-1">· {fmtDuration(hours)}</span>
                 </p>
               )}

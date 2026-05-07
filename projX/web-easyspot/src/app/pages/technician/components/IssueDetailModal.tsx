@@ -3,19 +3,33 @@ import { type SensorDevice } from '../../../data/technicianData';
 import { STATUS_COLOR, STATUS_LABEL } from './maintenanceTypes';
 import { MetaRow } from './shared';
 
+type IssueDetailModalProps = Readonly<{
+  issue: IssueReport;
+  sensor: SensorDevice | null;
+  onClose: () => void;
+  onUpdateSensor: (s: SensorDevice) => void;
+}>;
+
+const SEVERITY_COLOR: Record<IssueReport['severidade'], string> = {
+  critica: '#d4183d',
+  aviso: '#f59e0b',
+  info: '#3b82f6',
+};
+
+const TYPE_ICON: Record<IssueReport['tipo'], string> = {
+  sensor: 'fa-microchip',
+  cliente: 'fa-user-circle',
+  sistema: 'fa-server',
+};
+
 export function IssueDetailModal({
   issue,
   sensor,
   onClose,
   onUpdateSensor,
-}: {
-  issue: IssueReport;
-  sensor: SensorDevice | null;
-  onClose: () => void;
-  onUpdateSensor: (s: SensorDevice) => void;
-}) {
-  const sevColor = issue.severidade === 'critica' ? '#d4183d' : issue.severidade === 'aviso' ? '#f59e0b' : '#3b82f6';
-  const tipoIcon = issue.tipo === 'sensor' ? 'fa-microchip' : issue.tipo === 'cliente' ? 'fa-user-circle' : 'fa-server';
+}: IssueDetailModalProps) {
+  const sevColor = SEVERITY_COLOR[issue.severidade];
+  const tipoIcon = TYPE_ICON[issue.tipo];
   const reportadorInfo =
     issue.tipo === 'cliente' && issue.matricula
       ? { label: 'Matrícula do Veículo', value: issue.matricula, icon: 'fa-car' }
@@ -52,12 +66,12 @@ export function IssueDetailModal({
     link.download = `ocorrencia-${issue.id}-${new Date().toISOString().split('T')[0]}.json`;
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
+    link.remove();
     URL.revokeObjectURL(url);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={`Detalhe: ${issue.parque}`}>
+    <dialog open className="fixed inset-0 z-50 flex items-center justify-center bg-transparent p-4" aria-label={`Detalhe: ${issue.parque}`}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
       <div className="relative bg-card border border-border rounded-2xl p-5 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
 
@@ -168,6 +182,6 @@ export function IssueDetailModal({
           </button>
         </div>
       </div>
-    </div>
+    </dialog>
   );
 }

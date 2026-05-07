@@ -4,21 +4,38 @@ import { type IssueReport } from '../../../data/gestorData';
 import { STATUS_LABEL, PRIO_COLOR, PRIO_LABEL } from './maintenanceTypes';
 import { MetaRow } from './shared';
 
-export function NewOrderModal({
-  sensors, onClose, onCreate,
-}: {
+type Priority = MaintenanceOrder['prioridade'];
+
+type NewOrderModalProps = Readonly<{
   sensors: SensorDevice[];
   onClose: () => void;
   onCreate: (order: MaintenanceOrder) => void;
-}) {
+}>;
+
+type QuickTaskFromIssueModalProps = Readonly<{
+  issue: IssueReport;
+  sensors: SensorDevice[];
+  onClose: () => void;
+  onCreate: (order: MaintenanceOrder) => void;
+}>;
+
+type PrioritySelectorProps = Readonly<{
+  value: Priority;
+  onChange: (v: Priority) => void;
+}>;
+
+export function NewOrderModal({
+  sensors, onClose, onCreate,
+}: NewOrderModalProps) {
   const [sensorId, setSensorId]     = useState(sensors[0]?.id ?? '');
   const [titulo, setTitulo]         = useState('');
   const [descricao, setDescricao]   = useState('');
-  const [prioridade, setPrioridade] = useState<'critica' | 'alta' | 'media' | 'baixa'>('media');
+  const [prioridade, setPrioridade] = useState<Priority>('media');
 
   const handleSubmit = () => {
     if (!titulo.trim() || !sensorId) return;
-    const sensor = sensors.find(s => s.id === sensorId)!;
+    const sensor = sensors.find(s => s.id === sensorId);
+    if (!sensor) return;
     onCreate({
       id: `ORD-${Date.now()}`,
       sensorId,
@@ -34,7 +51,7 @@ export function NewOrderModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Nova ordem de manutenção">
+    <dialog open className="fixed inset-0 z-50 flex items-center justify-center bg-transparent p-4" aria-label="Nova ordem de manutenção">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
       <div className="relative bg-card border border-border rounded-2xl p-5 w-full max-w-md shadow-2xl">
         <div className="flex items-center gap-2 mb-4">
@@ -103,21 +120,16 @@ export function NewOrderModal({
           </button>
         </div>
       </div>
-    </div>
+    </dialog>
   );
 }
 
 export function QuickTaskFromIssueModal({
   issue, sensors, onClose, onCreate,
-}: {
-  issue: IssueReport;
-  sensors: SensorDevice[];
-  onClose: () => void;
-  onCreate: (order: MaintenanceOrder) => void;
-}) {
+}: QuickTaskFromIssueModalProps) {
   const [titulo, setTitulo]         = useState('');
   const [descricao, setDescricao]   = useState(issue.descricao);
-  const [prioridade, setPrioridade] = useState<'critica' | 'alta' | 'media' | 'baixa'>(
+  const [prioridade, setPrioridade] = useState<Priority>(
     issue.severidade === 'critica' ? 'critica' : 'alta'
   );
 
@@ -141,7 +153,7 @@ export function QuickTaskFromIssueModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Criar tarefa de manutenção">
+    <dialog open className="fixed inset-0 z-50 flex items-center justify-center bg-transparent p-4" aria-label="Criar tarefa de manutenção">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
       <div className="relative bg-card border border-border rounded-2xl p-5 w-full max-w-md shadow-2xl">
         <div className="flex items-center gap-2 mb-4">
@@ -203,16 +215,13 @@ export function QuickTaskFromIssueModal({
           </button>
         </div>
       </div>
-    </div>
+    </dialog>
   );
 }
 
 function PrioritySelector({
   value, onChange,
-}: {
-  value: 'critica' | 'alta' | 'media' | 'baixa';
-  onChange: (v: 'critica' | 'alta' | 'media' | 'baixa') => void;
-}) {
+}: PrioritySelectorProps) {
   return (
     <div>
       <p className="text-foreground mb-1.5" style={{ fontSize: '0.8rem', fontWeight: 600 }}>Prioridade</p>

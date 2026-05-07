@@ -4,20 +4,50 @@ import { type IssueReport } from '../../../data/gestorData';
 import { parkManagers, techIssues, parkCityMapFromSensors, type ParkManager } from './maintenanceTypes';
 import { QuickStat, EmptyState } from './shared';
 
+type IncidentStatusFilter = 'todos' | 'aberto' | 'em-progresso' | 'resolvido';
+type IncidentSeverityFilter = 'todos' | 'critica' | 'aviso';
+
+type IncidentsTabProps = Readonly<{
+  sensors: SensorDevice[];
+  onSelectIssue: (i: IssueReport) => void;
+  onUpdateSensor: (s: SensorDevice) => void;
+  onCreateTaskFromIssue: (i: IssueReport) => void;
+}>;
+
+type ParkOcorrenciasViewProps = Readonly<{
+  parkName: string;
+  manager?: ParkManager;
+  issues: IssueReport[];
+  onBack: () => void;
+  onSelectIssue: (i: IssueReport) => void;
+  onUpdateSensor: (s: SensorDevice) => void;
+  onCreateTaskFromIssue: (i: IssueReport) => void;
+  sensors: SensorDevice[];
+}>;
+
+type IssueCardProps = Readonly<{
+  issue: IssueReport;
+  sensor?: SensorDevice;
+  onClick: () => void;
+  onUpdate?: () => void;
+  onCreateTask?: () => void;
+}>;
+
+const ISSUE_STATUS_BADGES: Record<IssueReport['estado'], { label: string; color: string; bg: string }> = {
+  aberto: { label: 'Aberto', color: '#d4183d', bg: '#d4183d20' },
+  'em-progresso': { label: 'Em progresso', color: '#f59e0b', bg: '#f59e0b20' },
+  resolvido: { label: 'Resolvido', color: '#22c55e', bg: '#22c55e20' },
+};
+
 export function IncidentsTab({
   sensors,
   onSelectIssue,
   onUpdateSensor,
   onCreateTaskFromIssue,
-}: {
-  sensors: SensorDevice[];
-  onSelectIssue: (i: IssueReport) => void;
-  onUpdateSensor: (s: SensorDevice) => void;
-  onCreateTaskFromIssue: (i: IssueReport) => void;
-}) {
-  const [estFilter, setEstFilter] = useState<'todos' | 'aberto' | 'em-progresso' | 'resolvido'>('todos');
-  const [sevFilter, setSevFilter] = useState<'todos' | 'critica' | 'aviso'>('todos');
-  const [cidadeFilter, setCidadeFilter] = useState<'todas' | string>('todas');
+}: IncidentsTabProps) {
+  const [estFilter, setEstFilter] = useState<IncidentStatusFilter>('todos');
+  const [sevFilter, setSevFilter] = useState<IncidentSeverityFilter>('todos');
+  const [cidadeFilter, setCidadeFilter] = useState('todas');
   const [selectedPark, setSelectedPark] = useState<string | null>(null);
 
   const parkCityMap = parkCityMapFromSensors();
@@ -27,7 +57,7 @@ export function IncidentsTab({
 
   const uniqueCities = Array.from(new Set(
     parkNames.map(n => parkCityMap.get(n)).filter((c): c is string => c !== undefined)
-  )).sort();
+  )).sort((a, b) => a.localeCompare(b, 'pt-PT'));
 
   if (selectedPark) {
     const manager = parkManagers.find(m => m.parkName === selectedPark);
@@ -96,7 +126,7 @@ export function IncidentsTab({
               className={`px-3 py-1.5 transition-colors ${estFilter === f ? 'bg-primary text-white' : 'bg-card text-muted-foreground hover:bg-muted'}`}
               style={{ fontSize: '0.75rem', fontWeight: 600 }}
             >
-              {f === 'todos' ? 'Todos' : f === 'aberto' ? 'Abertos' : f === 'em-progresso' ? 'Em Progresso' : 'Resolvidos'}
+              {{ todos: 'Todos', aberto: 'Abertos', 'em-progresso': 'Em Progresso', resolvido: 'Resolvidos' }[f]}
             </button>
           ))}
         </div>
@@ -108,7 +138,7 @@ export function IncidentsTab({
               className={`px-3 py-1.5 transition-colors ${sevFilter === f ? 'bg-primary text-white' : 'bg-card text-muted-foreground hover:bg-muted'}`}
               style={{ fontSize: '0.75rem', fontWeight: 600 }}
             >
-              {f === 'todos' ? 'Todas' : f === 'critica' ? 'Crítica' : 'Aviso'}
+              {{ todos: 'Todas', critica: 'Crítica', aviso: 'Aviso' }[f]}
             </button>
           ))}
         </div>
@@ -166,16 +196,7 @@ export function IncidentsTab({
 
 function ParkOcorrenciasView({
   parkName, manager, issues, onBack, onSelectIssue, onUpdateSensor, onCreateTaskFromIssue, sensors,
-}: {
-  parkName: string;
-  manager?: ParkManager;
-  issues: IssueReport[];
-  onBack: () => void;
-  onSelectIssue: (i: IssueReport) => void;
-  onUpdateSensor: (s: SensorDevice) => void;
-  onCreateTaskFromIssue: (i: IssueReport) => void;
-  sensors: SensorDevice[];
-}) {
+}: ParkOcorrenciasViewProps) {
   return (
     <div className="space-y-4">
       <div className="flex items-start justify-between p-4 bg-card border border-border rounded-2xl">
@@ -201,15 +222,24 @@ function ParkOcorrenciasView({
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="bg-card rounded-xl p-3 border border-border">
-              <p className="text-muted-foreground text-xs mb-1"><i className="fas fa-user text-primary mr-1.5" aria-hidden="true"></i>Nome</p>
+              <p className="text-muted-foreground text-xs mb-1">
+                <i className="fas fa-user text-primary mr-1.5" aria-hidden="true"></i>
+                Nome
+              </p>
               <p className="text-foreground font-semibold" style={{ fontSize: '0.9rem' }}>{manager.managerName}</p>
             </div>
             <div className="bg-card rounded-xl p-3 border border-border">
-              <p className="text-muted-foreground text-xs mb-1"><i className="fas fa-phone text-primary mr-1.5" aria-hidden="true"></i>Telemóvel</p>
+              <p className="text-muted-foreground text-xs mb-1">
+                <i className="fas fa-phone text-primary mr-1.5" aria-hidden="true"></i>
+                Telemóvel
+              </p>
               <a href={`tel:${manager.phone}`} className="text-primary font-semibold hover:underline" style={{ fontSize: '0.9rem' }}>{manager.phone}</a>
             </div>
             <div className="bg-card rounded-xl p-3 border border-border">
-              <p className="text-muted-foreground text-xs mb-1"><i className="fas fa-envelope text-primary mr-1.5" aria-hidden="true"></i>Email</p>
+              <p className="text-muted-foreground text-xs mb-1">
+                <i className="fas fa-envelope text-primary mr-1.5" aria-hidden="true"></i>
+                Email
+              </p>
               <a href={`mailto:${manager.email}`} className="text-primary font-semibold hover:underline truncate" style={{ fontSize: '0.9rem' }}>{manager.email}</a>
             </div>
           </div>
@@ -247,27 +277,22 @@ function ParkOcorrenciasView({
 
 function IssueCard({
   issue, sensor, onClick, onUpdate, onCreateTask,
-}: {
-  issue: IssueReport;
-  sensor?: SensorDevice;
-  onClick: () => void;
-  onUpdate?: () => void;
-  onCreateTask?: () => void;
-}) {
-  const sevColor = issue.severidade === 'critica' ? '#d4183d' : issue.severidade === 'aviso' ? '#f59e0b' : '#3b82f6';
-  const sevLabel = issue.severidade === 'critica' ? 'Crítico' : issue.severidade === 'aviso' ? 'Aviso' : 'Info';
+}: IssueCardProps) {
+  const severityMap = {
+    critica: { color: '#d4183d', label: 'Crítico' },
+    aviso: { color: '#f59e0b', label: 'Aviso' },
+    info: { color: '#3b82f6', label: 'Info' },
+  };
+  const severityInfo = severityMap[issue.severidade];
   const tipoIcon = issue.tipo === 'sensor' ? 'fa-microchip' : 'fa-server';
-  const estadoBadge =
-    issue.estado === 'aberto'       ? { label: 'Aberto',       color: '#d4183d', bg: '#d4183d20' } :
-    issue.estado === 'em-progresso' ? { label: 'Em progresso', color: '#f59e0b', bg: '#f59e0b20' } :
-                                      { label: 'Resolvido',    color: '#22c55e', bg: '#22c55e20' };
+  const estadoBadge = ISSUE_STATUS_BADGES[issue.estado];
 
   return (
     <div className="bg-card border border-border rounded-2xl p-4 hover:border-primary/30 hover:shadow-sm transition-all">
       <div className="flex items-start gap-3">
         <button onClick={onClick} className="flex-1 text-left flex items-start gap-3" aria-label={`Ver ocorrência: ${issue.parque}`}>
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: `${sevColor}15` }} aria-hidden="true">
-            <i className={`fas ${tipoIcon}`} style={{ color: sevColor, fontSize: '0.9rem' }}></i>
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: `${severityInfo.color}15` }} aria-hidden="true">
+            <i className={`fas ${tipoIcon}`} style={{ color: severityInfo.color, fontSize: '0.9rem' }}></i>
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-1.5 mb-1">
@@ -278,12 +303,13 @@ function IssueCard({
             {issue.sensorId && (
               <p className="text-muted-foreground mt-1" style={{ fontSize: '0.7rem' }}>
                 <i className="fas fa-tag mr-1" aria-hidden="true"></i>
-                Sensor: <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{issue.sensorId}</span>
+                Sensor:{' '}
+                <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{issue.sensorId}</span>
                 {sensor && ` · Uptime: ${sensor.uptimePercent}% · Tx.FP: ${sensor.taxaFalsosPositivos}%`}
               </p>
             )}
             <div className="flex flex-wrap items-center gap-2 mt-2">
-              <span className="px-1.5 py-0.5 rounded-full" style={{ fontSize: '0.65rem', fontWeight: 700, background: `${sevColor}20`, color: sevColor }}>{sevLabel}</span>
+              <span className="px-1.5 py-0.5 rounded-full" style={{ fontSize: '0.65rem', fontWeight: 700, background: `${severityInfo.color}20`, color: severityInfo.color }}>{severityInfo.label}</span>
               <span className="px-1.5 py-0.5 rounded-full" style={{ fontSize: '0.65rem', fontWeight: 700, background: estadoBadge.bg, color: estadoBadge.color }}>{estadoBadge.label}</span>
               <span className="text-muted-foreground/70 ml-auto" style={{ fontSize: '0.65rem' }}>
                 {new Date(issue.criadoEm).toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}

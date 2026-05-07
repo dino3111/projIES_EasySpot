@@ -11,9 +11,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.jwt.Jwt;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleCreateRequest;
+import pt.ua.deti.apieasyspot.vehicle.dto.VehicleLookupResponse;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleResponse;
 import pt.ua.deti.apieasyspot.vehicle.service.VehicleService;
 
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -61,5 +63,32 @@ class VehicleControllerTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
         verify(vehicleService).deleteVehicle("auth-sub-123", vehicleId);
+    }
+
+    @Test
+    @DisplayName("lookupPlate - calls service and returns 200")
+    void lookupPlate_success() {
+        VehicleLookupResponse lookup = new VehicleLookupResponse(
+            "AA-00-AA", null, "Opel", "Corsa", null, 2021, null, "Gasolina", null, null, null, null, null, null, null
+        );
+        when(vehicleService.lookupPlate("AA-00-AA")).thenReturn(lookup);
+
+        ResponseEntity<VehicleLookupResponse> response = vehicleController.lookupPlate("AA-00-AA");
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isEqualTo(lookup);
+        verify(vehicleService).lookupPlate("AA-00-AA");
+    }
+
+    @Test
+    @DisplayName("listVehicles - calls service and returns 200 with list")
+    void listVehicles_success() {
+        when(vehicleService.listVehicles("auth-sub-123")).thenReturn(List.of(vehicleResponse));
+
+        ResponseEntity<List<VehicleResponse>> response = vehicleController.listVehicles(jwt);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).containsExactly(vehicleResponse);
+        verify(vehicleService).listVehicles("auth-sub-123");
     }
 }

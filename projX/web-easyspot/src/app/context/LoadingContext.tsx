@@ -46,10 +46,10 @@ export function useLoading() {
 }
 
 export function withGlobalLoading<T>(promiseFactory: () => Promise<T>): Promise<T> {
-  if (typeof window === 'undefined') return promiseFactory();
+  if (typeof globalThis === 'undefined') return promiseFactory();
 
-  window.dispatchEvent(new CustomEvent('easyspot:loading-start'));
+  globalThis.dispatchEvent(new CustomEvent('easyspot:loading-start'));
   return promiseFactory().finally(() => {
-    window.dispatchEvent(new CustomEvent('easyspot:loading-stop'));
+    globalThis.dispatchEvent(new CustomEvent('easyspot:loading-stop'));
   });
 }

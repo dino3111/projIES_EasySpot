@@ -8,12 +8,12 @@ export function GlobalLoadingOverlay() {
     const onStart = () => startLoading();
     const onStop = () => stopLoading();
 
-    window.addEventListener('easyspot:loading-start', onStart);
-    window.addEventListener('easyspot:loading-stop', onStop);
+    globalThis.addEventListener('easyspot:loading-start', onStart);
+    globalThis.addEventListener('easyspot:loading-stop', onStop);
 
     return () => {
-      window.removeEventListener('easyspot:loading-start', onStart);
-      window.removeEventListener('easyspot:loading-stop', onStop);
+      globalThis.removeEventListener('easyspot:loading-start', onStart);
+      globalThis.removeEventListener('easyspot:loading-stop', onStop);
     };
   }, [startLoading, stopLoading]);
 

@@ -6,45 +6,74 @@ function getAccessToken(): string | null {
   return sessionStorage.getItem('es_access_token');
 }
 
+function clearAuthStorage() {
+  for (const key of AUTH_STORAGE_KEYS) sessionStorage.removeItem(key);
+}
+
+function redirectToWelcomeIfNeeded() {
+  if (typeof globalThis === 'undefined') return;
+  const maybeLocation = (globalThis as { location?: Location }).location;
+  if (!maybeLocation || maybeLocation.pathname === '/welcome') return;
+  maybeLocation.href = '/welcome?session=expired';
+}
+
+function parseErrorMessage(text: string, status: number): string {
+  const trimmed = text.trim();
+  const isHtmlError = trimmed.startsWith('<!DOCTYPE html') || trimmed.startsWith('<html');
+
+  if (isHtmlError) {
+    if (status === 502) {
+      return 'Serviço de pagamentos temporariamente indisponível (502). Tente novamente em alguns segundos.';
+    }
+    return `Erro de servidor (${status}).`;
+  }
+
+  try {
+    const json = JSON.parse(text) as { detail?: string; message?: string };
+    return json.detail ?? json.message ?? text;
+  } catch (error: unknown) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    return `${text} (detalhe: ${errMsg})`;
+  }
+}
+
+async function readErrorBody(res: Response): Promise<string> {
+  try {
+    return await res.text();
+  } catch (error: unknown) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    return `Não foi possível ler o corpo da resposta (${errMsg}).`;
+  }
+}
+
+function throwUnauthorizedError(): never {
+  clearAuthStorage();
+  redirectToWelcomeIfNeeded();
+  throw new Error('Sessão expirada. Inicie sessão novamente.');
+}
+
+function throwHttpError(status: number, text: string): never {
+  const fallbackMessage = `HTTP ${status}`;
+  const errorMessage = text ? parseErrorMessage(text, status) : fallbackMessage;
+  throw new Error(errorMessage);
+}
+
 export async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getAccessToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string>),
   };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
+  if (token) headers.Authorization = `Bearer ${token}`;
 
   const res = await withGlobalLoading(() => fetch(`${API_BASE}${path}`, { ...options, headers }));
-  if (!res.ok) {
-    if (res.status === 401) {
-      for (const key of AUTH_STORAGE_KEYS) sessionStorage.removeItem(key);
-      if (typeof window !== 'undefined' && window.location.pathname !== '/welcome') {
-        window.location.href = '/welcome?session=expired';
-      }
-      throw new Error('Sessão expirada. Inicie sessão novamente.');
-    }
 
-    const text = await res.text().catch(() => '');
-    let errorMessage = `HTTP ${res.status}`;
-    const isHtmlError = text.trim().startsWith('<!DOCTYPE html') || text.trim().startsWith('<html');
-    if (text) {
-      if (!isHtmlError) {
-        try {
-          const json = JSON.parse(text);
-          if (json.detail) errorMessage = json.detail;
-          else if (json.message) errorMessage = json.message;
-          else errorMessage = text;
-        } catch (e) {
-          errorMessage = text;
-        }
-      } else if (res.status === 502) {
-        errorMessage = 'Serviço de pagamentos temporariamente indisponível (502). Tente novamente em alguns segundos.';
-      } else {
-        errorMessage = `Erro de servidor (${res.status}).`;
-      }
-    }
-    throw new Error(errorMessage);
+  if (!res.ok) {
+    if (res.status === Number(401)) throwUnauthorizedError();
+    const errorText = await readErrorBody(res);
+    throwHttpError(res.status, errorText);
   }
+
   const text = await res.text();
   if (!text) return undefined as T;
 
@@ -148,7 +177,7 @@ export const vehicleApi = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
-  remove: (id: string) => request<void>(`/api/vehicles/${id}`, { method: 'DELETE' }),
+  remove: (id: string) => request<undefined>(`/api/vehicles/${id}`, { method: 'DELETE' }),
 };
 
 export const paymentApi = {
@@ -156,7 +185,7 @@ export const paymentApi = {
   getSetupStatus: () => request<PaymentSetupStatusResponse>('/api/payments/setup-status'),
   listMethods: () => request<PaymentMethodSummaryResponse[]>('/api/payments/methods'),
   removeMethod: (paymentMethodId: string) =>
-    request<void>(`/api/payments/methods/${paymentMethodId}`, { method: 'DELETE' }),
+    request<undefined>(`/api/payments/methods/${paymentMethodId}`, { method: 'DELETE' }),
   createCustomerPortalSession: () => request<string>('/api/payments/customer-portal'),
 };
 

@@ -3,11 +3,11 @@ import { MapLegend, SpotCell } from './parkingShared';
 
 export function TabMap({
   lot, activeFloorIdx, setActiveFloorIdx,
-}: {
+}: Readonly<{
   lot: ParkingLot;
   activeFloorIdx: number;
   setActiveFloorIdx: (idx: number) => void;
-}) {
+}>) {
   const activeFloor = lot.floors?.[activeFloorIdx];
 
   return (

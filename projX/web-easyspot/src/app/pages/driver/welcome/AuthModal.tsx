@@ -9,18 +9,27 @@ interface Props {
   onSwitchMode: (m: ModalMode) => void;
 }
 
-export function AuthModal({ mode, onClose, onSwitchMode }: Props) {
+export function AuthModal({ mode, onClose, onSwitchMode }: Readonly<Props>) {
   const { login } = useAuth();
+  const handleBackdropKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape' || event.key === 'Enter' || event.key === ' ') onClose();
+  };
 
   return (
     <div
       className="fixed inset-0 z-[200] flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)' }}
       onClick={onClose}
+      onKeyDown={handleBackdropKeyDown}
+      role="button"
+      tabIndex={0}
+      aria-label="Fechar modal"
     >
       <div
         className="w-full max-w-sm shadow-2xl overflow-hidden rounded-3xl border border-white/10"
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+        role="presentation"
       >
         <ModalHeader mode={mode} onClose={onClose} />
         <ModalBody mode={mode} onLogin={login} onSwitchMode={onSwitchMode} />
@@ -29,7 +38,7 @@ export function AuthModal({ mode, onClose, onSwitchMode }: Props) {
   );
 }
 
-function ModalHeader({ mode, onClose }: { mode: ModalMode; onClose: () => void }) {
+function ModalHeader({ mode, onClose }: Readonly<{ mode: ModalMode; onClose: () => void }>) {
   return (
     <div
       className="relative px-6 pt-8 pb-6 flex flex-col items-center gap-3"
@@ -78,11 +87,11 @@ function ModalBody({
   mode,
   onLogin,
   onSwitchMode,
-}: {
+}: Readonly<{
   mode: ModalMode;
   onLogin: () => void;
   onSwitchMode: (m: ModalMode) => void;
-}) {
+}>) {
   return (
     <div className="bg-card px-6 py-6 space-y-4">
       <SsoInfoCard />

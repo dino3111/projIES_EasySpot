@@ -28,11 +28,8 @@ public class FavoriteController {
 
     private final FavoriteService favoriteService;
 
-    @Operation(
-        summary = "Toggle favorite parking lot",
-        description = "Adds or removes a parking lot from the authenticated driver's favorites"
-    )
-    @ApiResponse(responseCode = "200", description = "Favorite toggled")
+    @Operation(summary = "Get favorite status", description = "Returns whether the authenticated driver has favorited a parking lot")
+    @ApiResponse(responseCode = "200", description = "Favorite status returned")
     @ApiResponse(responseCode = "401", description = "Unauthenticated")
     @ApiResponse(responseCode = "403", description = "Not a driver")
     @ApiResponse(responseCode = "404", description = "Park not found")
@@ -46,6 +43,7 @@ public class FavoriteController {
         return ResponseEntity.ok(favoriteService.getStatus(authentikUserId, id));
     }
 
+    @Operation(summary = "Toggle favorite parking lot", description = "Adds or removes a parking lot from the authenticated driver's favorites")
     @ApiResponse(responseCode = "200", description = "Favorite toggled")
     @ApiResponse(responseCode = "401", description = "Unauthenticated")
     @ApiResponse(responseCode = "403", description = "Not a driver")

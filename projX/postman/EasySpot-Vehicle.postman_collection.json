@@ -418,6 +418,102 @@
         ],
         "url": { "raw": "{{baseUrl}}/api/vehicles/{{vehicleId}}" }
       }
+    },
+    {
+      "name": "GET /api/vehicles - 200 list driver vehicles",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Response is an array', function () {",
+              "  pm.expect(pm.response.json()).to.be.an('array');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "url": { "raw": "{{baseUrl}}/api/vehicles" }
+      }
+    },
+    {
+      "name": "GET /api/vehicles - 401 unauthenticated",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 401', function () {",
+              "  pm.response.to.have.status(401);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/api/vehicles" }
+      }
+    },
+    {
+      "name": "GET /api/vehicles/lookup - 200 plate found",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Response has plate field', function () {",
+              "  pm.expect(pm.response.json()).to.have.property('plate');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{driverToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/vehicles/lookup?plate={{lookupPlate}}",
+          "query": [{ "key": "plate", "value": "{{lookupPlate}}" }]
+        }
+      }
+    },
+    {
+      "name": "GET /api/vehicles/lookup - 401 unauthenticated",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Returns 401', function () {",
+              "  pm.response.to.have.status(401);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/vehicles/lookup?plate=AA-00-AA",
+          "query": [{ "key": "plate", "value": "AA-00-AA" }]
+        }
+      }
     }
   ]
 }

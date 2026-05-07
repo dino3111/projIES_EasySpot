@@ -95,9 +95,16 @@ function RealtimeBadge() {
 }
 
 interface UserMenuProps {
-  user: ReturnType<typeof useAuth>['user'];
-  meta: { icon: string; label: string; color: string };
-  onLogout: () => void;
+  readonly user: ReturnType<typeof useAuth>['user'];
+  readonly meta: { icon: string; label: string; color: string };
+  readonly onLogout: () => void;
+}
+
+interface UserDropdownProps {
+  readonly user: UserMenuProps['user'];
+  readonly meta: UserMenuProps['meta'];
+  readonly onLogout: () => void;
+  readonly onClose: () => void;
 }
 
 function UserMenu({ user, meta, onLogout }: UserMenuProps) {
@@ -141,12 +148,7 @@ function UserDropdown({
   meta,
   onLogout,
   onClose,
-}: {
-  user: UserMenuProps['user'];
-  meta: UserMenuProps['meta'];
-  onLogout: () => void;
-  onClose: () => void;
-}) {
+}: UserDropdownProps) {
   return (
     <div
       className="absolute right-0 top-full mt-2 w-64 bg-card border border-border rounded-2xl shadow-2xl overflow-hidden z-50"

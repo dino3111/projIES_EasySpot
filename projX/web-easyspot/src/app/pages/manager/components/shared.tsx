@@ -1,19 +1,26 @@
 import type { IssueReport } from '../../../data/gestorData';
 
-export function KpiCard({ icon, label, value, subValue, trend, color }: {
-  icon: string; label: string; value: string; subValue: string;
-  trend: 'up' | 'down' | 'warn' | 'neutral'; color: string;
-}) {
-  const trendColor =
-    trend === 'up' ? '#22c55e' :
-    trend === 'down' ? '#ef4444' :
-    trend === 'warn' ? '#f59e0b' :
-    'var(--color-muted-foreground)';
-  const trendIcon =
-    trend === 'up' ? 'fa-arrow-trend-up' :
-    trend === 'down' ? 'fa-arrow-trend-down' :
-    trend === 'warn' ? 'fa-triangle-exclamation' :
-    'fa-minus';
+interface KpiCardProps {
+  readonly icon: string;
+  readonly label: string;
+  readonly value: string;
+  readonly subValue: string;
+  readonly trend: 'up' | 'down' | 'warn' | 'neutral';
+  readonly color: string;
+}
+
+function getTrendInfo(trend: KpiCardProps['trend']) {
+  const trendMap = {
+    up: { color: '#22c55e', icon: 'fa-arrow-trend-up' },
+    down: { color: '#ef4444', icon: 'fa-arrow-trend-down' },
+    warn: { color: '#f59e0b', icon: 'fa-triangle-exclamation' },
+    neutral: { color: 'var(--color-muted-foreground)', icon: 'fa-minus' },
+  };
+  return trendMap[trend];
+}
+
+export function KpiCard({ icon, label, value, subValue, trend, color }: KpiCardProps) {
+  const trendInfo = getTrendInfo(trend);
   return (
     <div className="bg-card border border-border rounded-2xl p-4">
       <div className="flex items-start justify-between mb-2">
@@ -24,14 +31,14 @@ export function KpiCard({ icon, label, value, subValue, trend, color }: {
       <p className="text-foreground" style={{ fontSize: '1.4rem', fontWeight: 800, lineHeight: 1.1, marginTop: '0.25rem' }}>{value}</p>
       <p className="text-muted-foreground mt-0.5" style={{ fontSize: '0.72rem' }}>{label}</p>
       <div className="flex items-center gap-1 mt-1.5">
-        <i className={`fas ${trendIcon}`} style={{ color: trendColor, fontSize: '0.65rem' }} aria-hidden="true"></i>
-        <span style={{ fontSize: '0.7rem', color: trendColor, fontWeight: 600 }}>{subValue}</span>
+        <i className={`fas ${trendInfo.icon}`} style={{ color: trendInfo.color, fontSize: '0.65rem' }} aria-hidden="true"></i>
+        <span style={{ fontSize: '0.7rem', color: trendInfo.color, fontWeight: 600 }}>{subValue}</span>
       </div>
     </div>
   );
 }
 
-export function AlertRow({ issue }: { issue: IssueReport }) {
+export function AlertRow({ issue }: { readonly issue: IssueReport }) {
   const sevColor =
     issue.severidade === 'critica' ? '#d4183d' :
     issue.severidade === 'aviso' ? '#f59e0b' : '#3b82f6';
@@ -67,8 +74,13 @@ export function AlertRow({ issue }: { issue: IssueReport }) {
   );
 }
 
-export function OccBar({ pct }: { pct: number }) {
-  const color = pct >= 85 ? '#d4183d' : pct >= 65 ? '#f59e0b' : '#22c55e';
+export function OccBar({ pct }: { readonly pct: number }) {
+  let color = '#22c55e';
+  if (pct >= 85) {
+    color = '#d4183d';
+  } else if (pct >= 65) {
+    color = '#f59e0b';
+  }
   return (
     <div className="flex items-center gap-2 justify-center">
       <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden" style={{ maxWidth: 80 }}>
@@ -82,11 +94,11 @@ export function OccBar({ pct }: { pct: number }) {
 export function TabBtn({
   active, onClick, icon, label, badge,
 }: {
-  active: boolean;
-  onClick: () => void;
-  icon: string;
-  label: string;
-  badge?: number;
+  readonly active: boolean;
+  readonly onClick: () => void;
+  readonly icon: string;
+  readonly label: string;
+  readonly badge?: number;
 }) {
   return (
     <button
@@ -117,10 +129,10 @@ export function TabBtn({
 export function QuickStat({
   label, value, color, icon,
 }: {
-  label: string;
-  value: string | number;
-  color: string;
-  icon: string;
+  readonly label: string;
+  readonly value: string | number;
+  readonly color: string;
+  readonly icon: string;
 }) {
   return (
     <div className="bg-card border border-border rounded-2xl p-3 flex items-center gap-3">
@@ -139,7 +151,7 @@ export function QuickStat({
   );
 }
 
-export function LegendBadge({ color, label }: { color: string; label: string }) {
+export function LegendBadge({ color, label }: { readonly color: string; readonly label: string }) {
   return (
     <span
       className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border"
@@ -154,10 +166,10 @@ export function LegendBadge({ color, label }: { color: string; label: string }) 
 export function InfoField({
   icon, label, value, mono = false,
 }: {
-  icon: string;
-  label: string;
-  value: string;
-  mono?: boolean;
+  readonly icon: string;
+  readonly label: string;
+  readonly value: string;
+  readonly mono?: boolean;
 }) {
   return (
     <div className="bg-muted/40 rounded-xl p-3">
@@ -178,12 +190,12 @@ export function InfoField({
 export function TariffInputRow({
   id, label, icon, value, onChange, optional = false,
 }: {
-  id: string;
-  label: string;
-  icon: string;
-  value: string;
-  onChange: (v: string) => void;
-  optional?: boolean;
+  readonly id: string;
+  readonly label: string;
+  readonly icon: string;
+  readonly value: string;
+  readonly onChange: (v: string) => void;
+  readonly optional?: boolean;
 }) {
   return (
     <div>

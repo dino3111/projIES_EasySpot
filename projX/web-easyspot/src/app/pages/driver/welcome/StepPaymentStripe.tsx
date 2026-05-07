@@ -8,10 +8,10 @@ const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : 
 
 function getCurrentTheme(): 'light' | 'dark' {
   if (typeof document === 'undefined') return 'dark';
-  return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+  return document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
 }
 
-function PaymentForm({ onReady }: { onReady: (confirmed: boolean) => void }) {
+function PaymentForm({ onReady }: Readonly<{ onReady: (confirmed: boolean) => void }>) {
   const stripe = useStripe();
   const elements = useElements();
   const [saving, setSaving] = useState(false);
@@ -25,7 +25,7 @@ function PaymentForm({ onReady }: { onReady: (confirmed: boolean) => void }) {
 
     const { error: submitError } = await stripe.confirmSetup({
       elements,
-      confirmParams: { return_url: window.location.origin + '/callback' },
+      confirmParams: { return_url: globalThis.location.origin + '/callback' },
       redirect: 'if_required',
     });
 
@@ -67,7 +67,7 @@ function PaymentForm({ onReady }: { onReady: (confirmed: boolean) => void }) {
   );
 }
 
-export function StepPaymentStripe({ onReady }: { onReady: (confirmed: boolean) => void }) {
+export function StepPaymentStripe({ onReady }: Readonly<{ onReady: (confirmed: boolean) => void }>) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => getCurrentTheme());

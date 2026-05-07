@@ -148,4 +148,23 @@ class ParkControllerIT {
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isUnauthorized());
     }
+
+    @Test
+    void listCities_returnsCityOfSavedLot() throws Exception {
+        mockMvc.perform(get("/api/parks/cities")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$[0]").value("Aveiro"));
+    }
+
+    @Test
+    void listCities_empty_returnsEmptyArray() throws Exception {
+        parkingLotRepository.deleteAll();
+        mockMvc.perform(get("/api/parks/cities")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$").isEmpty());
+    }
 }

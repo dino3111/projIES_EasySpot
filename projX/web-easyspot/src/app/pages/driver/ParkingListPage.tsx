@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { FilterBar } from '../../components/parking/FilterBar';
 import { ParkingCard, type FilterMode } from '../../components/parking/ParkingCard';
 import { VehiclePicker } from '../../components/shared/VehiclePicker';
@@ -73,19 +73,16 @@ export function ParkingListPage() {
     return () => { mounted = false; };
   }, [page, showEVOnly, showAccessibleOnly, showAvailableOnly, searchQuery, selectedDistrict, selectedVehicleId]);
 
-  const filterMode: FilterMode =
-    showAccessibleOnly && showEVOnly ? 'both'
-    : showAccessibleOnly ? 'accessible'
-    : showEVOnly ? 'ev'
-    : null;
+  let filterMode: FilterMode = null;
+  if (showAccessibleOnly && showEVOnly) {
+    filterMode = 'both';
+  } else if (showAccessibleOnly) {
+    filterMode = 'accessible';
+  } else if (showEVOnly) {
+    filterMode = 'ev';
+  }
 
   const filtered = parkingLots;
-
-  const selectedVehicle = useMemo(
-    () => vehicles.find((v) => v.id === selectedVehicleId) ?? null,
-    [vehicles, selectedVehicleId],
-  );
-
 
   const totalAccessible = filtered.reduce(
     (s, l) => s + (l.accessibleSpots?.filter((a) => a.available).length ?? 0), 0
@@ -155,7 +152,12 @@ export function ParkingListPage() {
   );
 }
 
-function PageHeader({ mobileView, setMobileView }: { mobileView: 'list' | 'grid'; setMobileView: (v: 'list' | 'grid') => void }) {
+interface PageHeaderProps {
+  readonly mobileView: 'list' | 'grid';
+  readonly setMobileView: (v: 'list' | 'grid') => void;
+}
+
+function PageHeader({ mobileView, setMobileView }: PageHeaderProps) {
   return (
     <div className="flex items-center justify-between gap-3 mb-4">
       <h1 className="text-foreground" style={{ fontSize: '1.75rem', fontWeight: 800, lineHeight: 1.2 }}>
@@ -182,18 +184,18 @@ function PageHeader({ mobileView, setMobileView }: { mobileView: 'list' | 'grid'
 }
 
 interface ParkingResultsProps {
-  filtered: ParkingLot[];
-  filterMode: FilterMode;
-  mobileView: 'list' | 'grid';
-  showAccessibleOnly: boolean;
-  totalAccessible: number;
-  totalEV: number;
+  readonly filtered: ParkingLot[];
+  readonly filterMode: FilterMode;
+  readonly mobileView: 'list' | 'grid';
+  readonly showAccessibleOnly: boolean;
+  readonly totalAccessible: number;
+  readonly totalEV: number;
 }
 
 function ParkingResults({ filtered, filterMode, mobileView, showAccessibleOnly, totalAccessible, totalEV }: ParkingResultsProps) {
   return (
     <>
-      <p className="mb-3 text-muted-foreground font-medium" style={{ fontSize: '0.8rem' }} role="status" aria-live="polite">
+      <output className="mb-3 text-muted-foreground font-medium block" style={{ fontSize: '0.8rem' }} aria-live="polite">
         {filtered.length} parque{filtered.length !== 1 ? 's' : ''} encontrado{filtered.length !== 1 ? 's' : ''}
         {filterMode === 'accessible' && (
           <span className="ml-1.5 text-primary font-semibold">
@@ -210,15 +212,15 @@ function ParkingResults({ filtered, filterMode, mobileView, showAccessibleOnly, 
             · {totalAccessible} acessível{totalAccessible !== 1 ? 'is' : ''} · {totalEV} EV
           </span>
         )}
-      </p>
+      </output>
 
-      <div className={`space-y-2 ${mobileView === 'grid' ? 'hidden' : 'flex flex-col'} sm:hidden`} role="list">
+      <ul className={`space-y-2 ${mobileView === 'grid' ? 'hidden' : 'flex flex-col'} sm:hidden`}>
         {filtered.map((lot) => (
-          <div key={lot.id} role="listitem">
+          <li key={lot.id}>
             <CompactParkRow lot={lot} filterMode={filterMode} />
-          </div>
+          </li>
         ))}
-      </div>
+      </ul>
 
       <div
         className={`grid gap-3 lg:gap-4 ${
@@ -227,10 +229,9 @@ function ParkingResults({ filtered, filterMode, mobileView, showAccessibleOnly, 
             : 'hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
         }`}
         style={{ alignItems: 'stretch' }}
-        role="list"
       >
         {filtered.map((lot) => (
-          <div key={lot.id} role="listitem" className="flex flex-col">
+          <div key={lot.id} className="flex flex-col">
             <ParkingCard lot={lot} highlightAccessible={showAccessibleOnly} filterMode={filterMode} />
           </div>
         ))}
@@ -241,10 +242,10 @@ function ParkingResults({ filtered, filterMode, mobileView, showAccessibleOnly, 
 
 function EmptyState() {
   return (
-    <div className="flex flex-col items-center justify-center text-center rounded-2xl p-10 bg-primary/5 border-2 border-dashed border-primary/30" role="status">
+    <output className="flex flex-col items-center justify-center text-center rounded-2xl p-10 bg-primary/5 border-2 border-dashed border-primary/30">
       <i className="fas fa-magnifying-glass mb-3 text-primary/50" style={{ fontSize: '2.5rem' }} aria-hidden="true" />
       <p className="text-foreground font-bold" style={{ fontSize: '1rem' }}>Nenhum parque encontrado</p>
       <p className="text-foreground/60 mt-1" style={{ fontSize: '0.85rem' }}>Tente ajustar os filtros ou a pesquisa.</p>
-    </div>
+    </output>
   );
 }

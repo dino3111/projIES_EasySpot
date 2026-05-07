@@ -5,8 +5,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
@@ -176,5 +176,68 @@ class VehicleControllerIT {
             .andExpect(status().isNoContent());
 
         assertThat(vehicleRepository.findById(vehicle.getId())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("GET /api/vehicles - returns list of driver vehicles")
+    void listVehicles_returnsVehicles() throws Exception {
+        mockMvc.perform(get("/api/vehicles")
+                .with(jwtWithRole("auth-sub-123", "DRIVER")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$").isArray())
+            .andExpect(jsonPath("$[0].plate").value("AA-00-AA"));
+    }
+
+    @Test
+    @DisplayName("GET /api/vehicles - unauthenticated - returns 401")
+    void listVehicles_unauthenticated_returns401() throws Exception {
+        mockMvc.perform(get("/api/vehicles"))
+            .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("GET /api/vehicles - wrong role - returns 403")
+    void listVehicles_wrongRole_returns403() throws Exception {
+        mockMvc.perform(get("/api/vehicles")
+                .with(jwtWithRole("auth-sub-123", "MANAGER")))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("GET /api/vehicles/lookup - plate found - returns 200 with data")
+    void lookupPlate_found_returns200() throws Exception {
+        VehicleData data = new VehicleData(
+            "AA-00-AA", "VIN123", "Opel", "Corsa",
+            null, 2021, null, "Gasolina",
+            null, null, null, null, null, null, null, null, null, null, null
+        );
+        when(vehicleLookupClient.lookup("AA-00-AA")).thenReturn(data);
+
+        mockMvc.perform(get("/api/vehicles/lookup")
+                .param("plate", "AA-00-AA")
+                .with(jwtWithRole("auth-sub-123", "DRIVER")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.plate").value("AA-00-AA"))
+            .andExpect(jsonPath("$.make").value("Opel"));
+    }
+
+    @Test
+    @DisplayName("GET /api/vehicles/lookup - plate not found - returns 404")
+    void lookupPlate_notFound_returns404() throws Exception {
+        when(vehicleLookupClient.lookup("ZZ-99-ZZ"))
+            .thenThrow(new pt.ua.deti.apieasyspot.common.exception.PlateNotFoundException("Not found"));
+
+        mockMvc.perform(get("/api/vehicles/lookup")
+                .param("plate", "ZZ-99-ZZ")
+                .with(jwtWithRole("auth-sub-123", "DRIVER")))
+            .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("GET /api/vehicles/lookup - unauthenticated - returns 401")
+    void lookupPlate_unauthenticated_returns401() throws Exception {
+        mockMvc.perform(get("/api/vehicles/lookup")
+                .param("plate", "AA-00-AA"))
+            .andExpect(status().isUnauthorized());
     }
 }

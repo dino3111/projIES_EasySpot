@@ -2,16 +2,16 @@ import { useState } from 'react';
 import type { TariffEntry } from '../../../data/gestorData';
 import { TariffInputRow } from './shared';
 
-export function TariffModal({ tariff, onClose }: { tariff: TariffEntry; onClose: () => void }) {
+export function TariffModal({ tariff, onClose }: { readonly tariff: TariffEntry; readonly onClose: () => void }) {
   const [hora,   setHora]   = useState(tariff.tarifaHora.toString());
   const [maxDia, setMaxDia] = useState(tariff.maxDiario.toString());
   const [mensal, setMensal] = useState(tariff.mensalidade.toString());
   const [ev,     setEv]     = useState(tariff.tarifaEV?.toString() || '');
 
   return (
-    <div
+    <dialog
+      open
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      role="dialog"
       aria-modal="true"
       aria-label={`Editar tarifário: ${tariff.parqueNome}`}
     >
@@ -68,6 +68,6 @@ export function TariffModal({ tariff, onClose }: { tariff: TariffEntry; onClose:
           </button>
         </div>
       </div>
-    </div>
+    </dialog>
   );
 }

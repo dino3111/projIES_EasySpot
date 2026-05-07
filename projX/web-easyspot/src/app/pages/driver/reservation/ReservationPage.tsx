@@ -15,8 +15,7 @@ import { Step4Reserved } from './Step4Reserved';
 import { createReservation, lockedUntilCountdownSeconds } from '../../../../services/reservationService';
 import { fetchAllParksSummary, fetchParkDetailsById } from '../../../services/parksCatalog';
 
-// Reads the Authentik OIDC access token from localStorage.
-// TODO: replace with useAuth().accessToken once OIDC client is fully integrated.
+// Reads the Authentik OIDC access token from localStorage until the OIDC client exposes it through context.
 function getAccessToken(): string | null {
   try {
     for (let i = 0; i < localStorage.length; i++) {
@@ -74,7 +73,10 @@ export function ReservationPage() {
     fetchAllParksSummary().then(setParks).catch(() => setParks([]));
   }, []);
   useEffect(() => {
-    if (!selectedParkId) return void setSelectedLot(null);
+    if (!selectedParkId) {
+      setSelectedLot(null);
+      return;
+    }
     fetchParkDetailsById(selectedParkId).then(setSelectedLot).catch(() => setSelectedLot(null));
   }, [selectedParkId]);
   const estimatedCost = calcCost(selectedLot, calcHours(arrivalTime, exitTime));

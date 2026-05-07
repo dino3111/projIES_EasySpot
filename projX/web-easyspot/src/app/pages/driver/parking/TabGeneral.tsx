@@ -4,14 +4,18 @@ import { ZoneTypeBadge } from './parkingShared';
 
 export function TabGeneral({
   lot, occupied, occupancyPct, isFull, isAlmostFull, statusHex,
-}: {
+}: Readonly<{
   lot: ParkingLot;
   occupied: number;
   occupancyPct: number;
   isFull: boolean;
   isAlmostFull: boolean;
   statusHex: string;
-}) {
+}>) {
+  let occupiedFill = 'var(--muted)';
+  if (isFull) occupiedFill = '#ef4444';
+  else if (isAlmostFull) occupiedFill = '#f59e0b';
+
   return (
     <div className="animate-in fade-in duration-200">
       <div className="flex flex-col sm:flex-row gap-4 items-center mb-6 bg-muted/40 p-4 rounded-xl border border-border">
@@ -27,7 +31,7 @@ export function TabGeneral({
                 isAnimationActive={false}
               >
                 <Cell fill="#22c55e" />
-                <Cell fill={isFull ? '#ef4444' : isAlmostFull ? '#f59e0b' : 'var(--muted)'} />
+                <Cell fill={occupiedFill} />
               </Pie>
             </PieChart>
           </ResponsiveContainer>
@@ -61,7 +65,9 @@ export function TabGeneral({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {lot.zones.map((zone) => {
               const zPct = Math.round(((zone.totalSpots - zone.availableSpots) / zone.totalSpots) * 100);
-              const zHex = zone.availableSpots === 0 ? '#ef4444' : zPct > 80 ? '#f59e0b' : '#22c55e';
+              let zHex = '#22c55e';
+              if (zone.availableSpots === 0) zHex = '#ef4444';
+              else if (zPct > 80) zHex = '#f59e0b';
               return (
                 <div key={zone.id} className="p-3 rounded-xl bg-card border border-border flex items-center gap-3">
                   <ZoneTypeBadge type={zone.type} />

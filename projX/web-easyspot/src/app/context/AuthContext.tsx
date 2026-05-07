@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useMemo, t
 import { withGlobalLoading } from './LoadingContext';
 import type { AppProfile } from './ProfileContext';
 
-const AUTHENTIK_BASE = (import.meta.env.VITE_AUTHENTIK_URL ?? 'http://localhost:9000/authentik').replace(/\/$/, '');
+const AUTHENTIK_BASE = (import.meta.env.VITE_AUTHENTIK_URL ?? 'http://localhost:9000/authentik').replaceAll(/\/$/g, '');
 const CLIENT_ID      = import.meta.env.VITE_AUTHENTIK_CLIENT_ID ?? '';
 const REDIRECT_URI   = import.meta.env.VITE_AUTHENTIK_REDIRECT_URI ?? 'http://localhost/callback';
 
@@ -75,10 +75,16 @@ function extractRole(claims: Record<string, unknown>): AppProfile {
 }
 
 function buildUser(claims: Record<string, unknown>): AuthUser {
+  const claimToString = (value: unknown): string => {
+    if (value == null) return '';
+    if (typeof value === 'object') return JSON.stringify(value);
+    return String(value);
+  };
+
   return {
-    sub:   String(claims['sub'] ?? ''),
-    name:  claims['name']  ? String(claims['name'])  : undefined,
-    email: claims['email'] ? String(claims['email']) : undefined,
+    sub:   claimToString(claims['sub']),
+    name:  claims['name']  ? claimToString(claims['name'])  : undefined,
+    email: claims['email'] ? claimToString(claims['email']) : undefined,
     role:  extractRole(claims),
   };
 }
@@ -116,11 +122,11 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
       code_challenge_method: 'S256',
     });
 
-    window.location.href = `${AUTHORIZE_URL}?${params.toString()}`;
+    globalThis.location.href = `${AUTHORIZE_URL}?${params.toString()}`;
   }, []);
 
   const register = useCallback(() => {
-    window.location.href = ENROLLMENT_URL;
+    globalThis.location.href = ENROLLMENT_URL;
   }, []);
 
   const handleCallback = useCallback(async (code: string, state: string) => {

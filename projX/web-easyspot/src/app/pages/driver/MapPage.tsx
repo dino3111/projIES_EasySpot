@@ -149,15 +149,15 @@ export function MapPage() {
 }
 
 interface ControlBarProps {
-  searchQuery: string;
-  onSearchChange: (q: string) => void;
-  searchRef: React.RefObject<HTMLInputElement>;
-  vehicles: ReturnType<typeof useProfile>['vehicles'];
-  selectedVehicleId: string | null;
-  onVehicleSelect: (id: string | null) => void;
-  activeFilter: FilterType;
-  onFilterChange: (f: FilterType) => void;
-  filteredCount: number;
+  readonly searchQuery: string;
+  readonly onSearchChange: (q: string) => void;
+  readonly searchRef: React.RefObject<HTMLInputElement>;
+  readonly vehicles: ReturnType<typeof useProfile>['vehicles'];
+  readonly selectedVehicleId: string | null;
+  readonly onVehicleSelect: (id: string | null) => void;
+  readonly activeFilter: FilterType;
+  readonly onFilterChange: (f: FilterType) => void;
+  readonly filteredCount: number;
 }
 
 function ControlBar({ searchQuery, onSearchChange, searchRef, vehicles, selectedVehicleId, onVehicleSelect, activeFilter, onFilterChange, filteredCount }: ControlBarProps) {
@@ -178,7 +178,13 @@ function ControlBar({ searchQuery, onSearchChange, searchRef, vehicles, selected
   );
 }
 
-function SearchBox({ searchQuery, onSearchChange, searchRef }: { searchQuery: string; onSearchChange: (q: string) => void; searchRef: React.RefObject<HTMLInputElement> }) {
+interface SearchBoxProps {
+  readonly searchQuery: string;
+  readonly onSearchChange: (q: string) => void;
+  readonly searchRef: React.RefObject<HTMLInputElement>;
+}
+
+function SearchBox({ searchQuery, onSearchChange, searchRef }: SearchBoxProps) {
   return (
     <div className="flex items-center gap-2 bg-card/95 backdrop-blur-md rounded-2xl px-4 py-2.5 shadow-xl border border-border pointer-events-auto flex-1 min-w-0">
       <i className="fas fa-magnifying-glass text-primary flex-shrink-0 text-sm" aria-hidden="true" />
@@ -200,7 +206,13 @@ function SearchBox({ searchQuery, onSearchChange, searchRef }: { searchQuery: st
   );
 }
 
-function FilterRow({ activeFilter, onFilterChange, filteredCount }: { activeFilter: FilterType; onFilterChange: (f: FilterType) => void; filteredCount: number }) {
+interface FilterRowProps {
+  readonly activeFilter: FilterType;
+  readonly onFilterChange: (f: FilterType) => void;
+  readonly filteredCount: number;
+}
+
+function FilterRow({ activeFilter, onFilterChange, filteredCount }: FilterRowProps) {
   return (
     <div className="flex gap-2 pointer-events-auto overflow-x-auto scrollbar-none overscroll-x-contain">
       {FILTERS.map((f) => (

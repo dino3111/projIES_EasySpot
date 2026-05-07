@@ -26,10 +26,26 @@ const steps = [
   { n: '3', icon: 'fa-credit-card', title: 'Configure o pagamento',  desc: 'Ligue o seu Stripe, cartão ou MB Way. Cobrança automática à saída.' },
 ];
 
-function SessionExpiredModal({ onLogin, onClose }: { onLogin: () => void; onClose: () => void }) {
+function SessionExpiredModal({ onLogin, onClose }: Readonly<{ onLogin: () => void; onClose: () => void }>) {
+  const handleBackdropKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape' || event.key === 'Enter' || event.key === ' ') onClose();
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-card border border-border rounded-2xl p-8 max-w-sm w-full mx-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+      onClick={onClose}
+      onKeyDown={handleBackdropKeyDown}
+      role="button"
+      tabIndex={0}
+      aria-label="Fechar aviso de sessão expirada"
+    >
+      <div
+        className="bg-card border border-border rounded-2xl p-8 max-w-sm w-full mx-4 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+        role="presentation"
+      >
         <div className="flex flex-col items-center text-center gap-4">
           <div className="w-14 h-14 rounded-full bg-amber-500/10 flex items-center justify-center">
             <i className="fas fa-clock text-amber-500" style={{ fontSize: '1.5rem' }} />

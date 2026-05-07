@@ -15,6 +15,8 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 import pt.ua.deti.apieasyspot.billing.dto.CheckoutSessionRequest;
 import pt.ua.deti.apieasyspot.billing.dto.CheckoutSessionResponse;
+import pt.ua.deti.apieasyspot.billing.dto.PaymentMethodSummaryResponse;
+import pt.ua.deti.apieasyspot.billing.dto.PaymentSetupStatusResponse;
 import pt.ua.deti.apieasyspot.billing.dto.PaymentStatusResponse;
 import pt.ua.deti.apieasyspot.billing.dto.RefundRequest;
 import pt.ua.deti.apieasyspot.billing.model.PaymentStatus;
@@ -231,5 +233,69 @@ class PaymentControllerIT {
                 .content("{\"id\":\"evt_test\",\"type\":\"payment_intent.succeeded\"}")
                 .contentType(MediaType.APPLICATION_JSON))
             .andExpect(status().isBadRequest());
+    }
+
+    // --- Setup Status ---
+
+    @Test
+    @DisplayName("GET /payments/setup-status authenticated returns 200 with configured=true")
+    void getSetupStatus_authenticated_returns200() throws Exception {
+        when(stripeService.getPaymentSetupStatus(eq("sub-123"), any()))
+            .thenReturn(new PaymentSetupStatusResponse(true));
+
+        mockMvc.perform(get("/api/payments/setup-status")
+                .with(jwtWithRole("sub-123", "DRIVER")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.configured").value(true));
+    }
+
+    @Test
+    @DisplayName("GET /payments/setup-status unauthenticated returns 401")
+    void getSetupStatus_unauthenticated_returns401() throws Exception {
+        mockMvc.perform(get("/api/payments/setup-status"))
+            .andExpect(status().isUnauthorized());
+    }
+
+    // --- List Payment Methods ---
+
+    @Test
+    @DisplayName("GET /payments/methods authenticated returns 200 with list")
+    void listPaymentMethods_authenticated_returns200() throws Exception {
+        PaymentMethodSummaryResponse method = new PaymentMethodSummaryResponse(
+            "pm_123", "card", "visa", "4242", 12L, 2026L, true
+        );
+        when(stripeService.listPaymentMethods(eq("sub-123"), any()))
+            .thenReturn(java.util.List.of(method));
+
+        mockMvc.perform(get("/api/payments/methods")
+                .with(jwtWithRole("sub-123", "DRIVER")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].id").value("pm_123"))
+            .andExpect(jsonPath("$[0].brand").value("visa"))
+            .andExpect(jsonPath("$[0].last4").value("4242"));
+    }
+
+    @Test
+    @DisplayName("GET /payments/methods unauthenticated returns 401")
+    void listPaymentMethods_unauthenticated_returns401() throws Exception {
+        mockMvc.perform(get("/api/payments/methods"))
+            .andExpect(status().isUnauthorized());
+    }
+
+    // --- Detach Payment Method ---
+
+    @Test
+    @DisplayName("DELETE /payments/methods/{id} authenticated returns 204")
+    void detachPaymentMethod_authenticated_returns204() throws Exception {
+        mockMvc.perform(delete("/api/payments/methods/pm_123")
+                .with(jwtWithRole("sub-123", "DRIVER")))
+            .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @DisplayName("DELETE /payments/methods/{id} unauthenticated returns 401")
+    void detachPaymentMethod_unauthenticated_returns401() throws Exception {
+        mockMvc.perform(delete("/api/payments/methods/pm_123"))
+            .andExpect(status().isUnauthorized());
     }
 }

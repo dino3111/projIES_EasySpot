@@ -1,13 +1,19 @@
 import type { IssueReport } from '../../../data/gestorData';
 import { InfoField } from './shared';
 
-export function IssueModal({ issue, onClose }: { issue: IssueReport; onClose: () => void }) {
-  const sevColor =
-    issue.severidade === 'critica' ? '#d4183d' :
-    issue.severidade === 'aviso' ? '#f59e0b' : '#3b82f6';
-  const tipoIcon =
-    issue.tipo === 'sensor' ? 'fa-microchip' :
-    issue.tipo === 'sistema' ? 'fa-server' : 'fa-user';
+export function IssueModal({ issue, onClose }: { readonly issue: IssueReport; readonly onClose: () => void }) {
+  const severityMap = {
+    critica: { color: '#d4183d', label: 'Crítico' },
+    aviso: { color: '#f59e0b', label: 'Aviso' },
+    info: { color: '#3b82f6', label: 'Info' },
+  };
+  const typeMap = {
+    sensor: { icon: 'fa-microchip', label: 'Sensor' },
+    sistema: { icon: 'fa-server', label: 'Sistema' },
+    cliente: { icon: 'fa-user', label: 'Cliente' },
+  };
+  const severityInfo = severityMap[issue.severidade];
+  const typeInfo = typeMap[issue.tipo];
 
   const estadoBadge =
     issue.estado === 'aberto' ? { label: 'Aberto', color: '#d4183d', bg: '#d4183d20' } :
@@ -15,9 +21,9 @@ export function IssueModal({ issue, onClose }: { issue: IssueReport; onClose: ()
     { label: 'Resolvido', color: '#22c55e', bg: '#22c55e20' };
 
   return (
-    <div
+    <dialog
+      open
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      role="dialog"
       aria-modal="true"
       aria-label={`Detalhe da ocorrência: ${issue.parque}`}
     >
@@ -26,10 +32,10 @@ export function IssueModal({ issue, onClose }: { issue: IssueReport; onClose: ()
         <div className="flex items-start gap-3 mb-5">
           <div
             className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: `${sevColor}15` }}
+            style={{ background: `${severityInfo.color}15` }}
             aria-hidden="true"
           >
-            <i className={`fas ${tipoIcon}`} style={{ color: sevColor, fontSize: '1rem' }}></i>
+            <i className={`fas ${typeInfo.icon}`} style={{ color: severityInfo.color, fontSize: '1rem' }}></i>
           </div>
           <div className="flex-1 min-w-0">
             <h2 className="text-foreground" style={{ fontSize: '1.05rem', fontWeight: 800 }}>
@@ -49,11 +55,11 @@ export function IssueModal({ issue, onClose }: { issue: IssueReport; onClose: ()
         </div>
 
         <div className="flex flex-wrap gap-2 mb-4">
-          <span className="px-2 py-1 rounded-full" style={{ fontSize: '0.72rem', fontWeight: 700, background: `${sevColor}20`, color: sevColor }}>
-            {issue.severidade === 'critica' ? 'Crítico' : issue.severidade === 'aviso' ? 'Aviso' : 'Info'}
+          <span className="px-2 py-1 rounded-full" style={{ fontSize: '0.72rem', fontWeight: 700, background: `${severityInfo.color}20`, color: severityInfo.color }}>
+            {severityInfo.label}
           </span>
           <span className="px-2 py-1 rounded-full bg-muted text-muted-foreground" style={{ fontSize: '0.72rem', fontWeight: 600 }}>
-            {issue.tipo === 'sensor' ? 'Sensor' : issue.tipo === 'sistema' ? 'Sistema' : 'Cliente'}
+            {typeInfo.label}
           </span>
           <span className="px-2 py-1 rounded-full bg-muted text-muted-foreground" style={{ fontSize: '0.72rem', fontWeight: 600 }}>
             {new Date(issue.criadoEm).toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
@@ -74,9 +80,9 @@ export function IssueModal({ issue, onClose }: { issue: IssueReport; onClose: ()
         )}
 
         <div className="mb-4">
-          <label className="block text-foreground mb-1.5" style={{ fontSize: '0.8rem', fontWeight: 700 }}>
+          <p className="block text-foreground mb-1.5" style={{ fontSize: '0.8rem', fontWeight: 700 }}>
             Estado da Ocorrência
-          </label>
+          </p>
           <div className="px-3 py-2 rounded-xl border border-border bg-muted/30" style={{ fontSize: '0.85rem', fontWeight: 600, color: estadoBadge.color }}>
             <span style={{ display: 'inline-block', background: estadoBadge.bg, padding: '0.25rem 0.75rem', borderRadius: '0.5rem' }}>
               {estadoBadge.label}
@@ -90,9 +96,9 @@ export function IssueModal({ issue, onClose }: { issue: IssueReport; onClose: ()
 
         {issue.atribuidoA && (
           <div className="mb-4">
-            <label className="block text-foreground mb-1.5" style={{ fontSize: '0.8rem', fontWeight: 700 }}>
+            <p className="block text-foreground mb-1.5" style={{ fontSize: '0.8rem', fontWeight: 700 }}>
               Atribuído a
-            </label>
+            </p>
             <div className="px-3 py-2 rounded-xl border border-border bg-muted/30 text-foreground" style={{ fontSize: '0.85rem' }}>
               <i className="fas fa-user-circle mr-1.5 text-primary" aria-hidden="true"></i>
               {issue.atribuidoA}
@@ -102,9 +108,9 @@ export function IssueModal({ issue, onClose }: { issue: IssueReport; onClose: ()
 
         {issue.notas && (
           <div className="mb-5">
-            <label className="block text-foreground mb-1.5" style={{ fontSize: '0.8rem', fontWeight: 700 }}>
+            <p className="block text-foreground mb-1.5" style={{ fontSize: '0.8rem', fontWeight: 700 }}>
               Notas Técnicas
-            </label>
+            </p>
             <div className="px-3 py-2 rounded-xl border border-border bg-muted/30 text-foreground" style={{ fontSize: '0.85rem', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
               {issue.notas}
             </div>
@@ -121,6 +127,6 @@ export function IssueModal({ issue, onClose }: { issue: IssueReport; onClose: ()
           </button>
         </div>
       </div>
-    </div>
+    </dialog>
   );
 }

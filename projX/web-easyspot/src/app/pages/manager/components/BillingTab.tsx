@@ -1,7 +1,7 @@
 import type { BillingRecord } from '../../../data/gestorData';
 import { QuickStat } from './shared';
 
-export function BillingTab({ billingRecords }: { billingRecords: BillingRecord[] }) {
+export function BillingTab({ billingRecords }: { readonly billingRecords: BillingRecord[] }) {
   const totalPago       = billingRecords.filter(r => r.estado === 'pago').reduce((s, r) => s + r.total, 0);
   const totalPendente   = billingRecords.filter(r => r.estado === 'pendente').reduce((s, r) => s + r.total, 0);
   const totalContestado = billingRecords.filter(r => r.estado === 'contestado').reduce((s, r) => s + r.total, 0);
@@ -48,16 +48,19 @@ export function BillingTab({ billingRecords }: { billingRecords: BillingRecord[]
   );
 }
 
-function BillingRow({ record }: { record: BillingRecord }) {
-  const estadoColor =
-    record.estado === 'pago' ? '#22c55e' :
-    record.estado === 'pendente' ? '#f59e0b' : '#d4183d';
-  const estadoLabel =
-    record.estado === 'pago' ? 'Pago' :
-    record.estado === 'pendente' ? 'Pendente' : 'Contestado';
-  const metodoIcon =
-    record.metodo === 'RFID' ? 'fa-wifi' :
-    record.metodo === 'OCR' ? 'fa-camera' : 'fa-user';
+function BillingRow({ record }: { readonly record: BillingRecord }) {
+  const estadoMap = {
+    pago: { color: '#22c55e', label: 'Pago' },
+    pendente: { color: '#f59e0b', label: 'Pendente' },
+    contestado: { color: '#d4183d', label: 'Contestado' },
+  };
+  const metodoIconMap = {
+    RFID: 'fa-wifi',
+    OCR: 'fa-camera',
+    Manual: 'fa-user',
+  };
+  const estadoInfo = estadoMap[record.estado];
+  const metodoIcon = metodoIconMap[record.metodo];
 
   return (
     <tr className="border-b border-border/50 last:border-0 hover:bg-muted/20 transition-colors">
@@ -89,8 +92,8 @@ function BillingRow({ record }: { record: BillingRecord }) {
         €{record.total.toFixed(2)}
       </td>
       <td className="px-4 py-3 text-center">
-        <span className="px-2 py-0.5 rounded-full" style={{ fontSize: '0.68rem', fontWeight: 700, background: `${estadoColor}20`, color: estadoColor }}>
-          {estadoLabel}
+        <span className="px-2 py-0.5 rounded-full" style={{ fontSize: '0.68rem', fontWeight: 700, background: `${estadoInfo.color}20`, color: estadoInfo.color }}>
+          {estadoInfo.label}
         </span>
       </td>
     </tr>

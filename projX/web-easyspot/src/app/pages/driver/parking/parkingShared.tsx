@@ -1,6 +1,6 @@
 import type { ParkingSpot, SpotStatus } from '../../../data/parkingTypes';
 
-export function InfoBox({ icon, label, value, color }: { icon: string; label: string; value: string; color: string }) {
+export function InfoBox({ icon, label, value, color }: Readonly<{ icon: string; label: string; value: string; color: string }>) {
   return (
     <div className="bg-card rounded-xl p-3 border border-border flex items-center gap-3">
       <div className={`w-8 h-8 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 ${color}`}>
@@ -14,7 +14,7 @@ export function InfoBox({ icon, label, value, color }: { icon: string; label: st
   );
 }
 
-export function MapLegend({ hex, label }: { hex: string; label: string }) {
+export function MapLegend({ hex, label }: Readonly<{ hex: string; label: string }>) {
   return (
     <div className="flex items-center gap-1">
       <span className="w-2 h-2 rounded-sm" style={{ background: hex }} />
@@ -23,22 +23,29 @@ export function MapLegend({ hex, label }: { hex: string; label: string }) {
   );
 }
 
-export function SpotCell({ spot }: { spot: ParkingSpot }) {
+export function SpotCell({ spot }: Readonly<{ spot: ParkingSpot }>) {
   const palette: Record<SpotStatus, string> = {
     free: '#22c55e', occupied: '#ef4444', reserved: '#f59e0b', ev: '#7357ec', accessible: '#0ea5e9',
+  };
+  const iconByStatus: Record<SpotStatus, string> = {
+    free: 'fa-square-parking',
+    occupied: 'fa-car',
+    reserved: 'fa-car',
+    ev: 'fa-charging-station',
+    accessible: 'fa-wheelchair',
   };
   return (
     <div
       className="flex flex-col items-center justify-center rounded-lg shadow-sm"
       style={{ width: 35, height: 45, background: palette[spot.status] }}
     >
-      <i className={`fas ${spot.status === 'free' ? 'fa-square-parking' : spot.status === 'ev' ? 'fa-charging-station' : spot.status === 'accessible' ? 'fa-wheelchair' : 'fa-car'} text-white/90 text-xs`} />
+      <i className={`fas ${iconByStatus[spot.status]} text-white/90 text-xs`} />
       {spot.label && <span className="text-white font-bold mt-0.5 text-[10px]">{spot.label}</span>}
     </div>
   );
 }
 
-export function ZoneTypeBadge({ type }: { type: string }) {
+export function ZoneTypeBadge({ type }: Readonly<{ type: string }>) {
   const cfg: Record<string, { label: string; cls: string }> = {
     ev: { label: 'EV', cls: 'bg-primary/20 text-primary' },
     accessible: { label: 'Acessível', cls: 'bg-info/20 text-info' },

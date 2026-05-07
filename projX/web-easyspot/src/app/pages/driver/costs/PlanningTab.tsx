@@ -6,7 +6,13 @@ import { useProfile } from '../../../context/ProfileContext';
 import { VehiclePicker } from '../../../components/shared/VehiclePicker';
 import { calculateCost, generateOccupancyForecast, type SortBy, type ParkingWithCost } from './costsHelpers';
 
-function OccupancyTooltip({ active, payload, label }: { active?: boolean; payload?: { value: number }[]; label?: string }) {
+interface OccupancyTooltipProps {
+  readonly active?: boolean;
+  readonly payload?: { readonly value: number }[];
+  readonly label?: string;
+}
+
+function OccupancyTooltip({ active, payload, label }: OccupancyTooltipProps) {
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-card border border-border/40 rounded-xl px-3 py-2 shadow-xl">
@@ -16,9 +22,15 @@ function OccupancyTooltip({ active, payload, label }: { active?: boolean; payloa
   );
 }
 
-function Chip({ active, icon, label, onClick, ariaLabel }: {
-  active: boolean; icon?: string; label: string; onClick: () => void; ariaLabel?: string;
-}) {
+interface ChipProps {
+  readonly active: boolean;
+  readonly icon?: string;
+  readonly label: string;
+  readonly onClick: () => void;
+  readonly ariaLabel?: string;
+}
+
+function Chip({ active, icon, label, onClick, ariaLabel }: ChipProps) {
   return (
     <button
       onClick={onClick}
@@ -58,7 +70,7 @@ export function PlanningTab() {
   }, [planVehicleId, vehicles]);
 
   const availableCities = useMemo(
-    () => [...new Set(mockParkingLots.map((lot) => lot.localidade))].sort(),
+    () => [...new Set(mockParkingLots.map((lot) => lot.localidade))].sort((a, b) => a.localeCompare(b)),
     [],
   );
 
@@ -67,21 +79,21 @@ export function PlanningTab() {
       if (selectedCity && lot.localidade !== selectedCity) return false;
       if (filterEV && !lot.hasEVCharger) return false;
       if (filterAccessible && !lot.hasAccessible) return false;
-      const distKm = parseFloat(lot.distance.replace(' km', '').replace(',', '.'));
+      const distKm = Number.parseFloat(lot.distance.replace(' km', '').replace(',', '.'));
       if (distKm > maxDistance) return false;
       return true;
     });
     const totalMinutes = durationHours * 60 + durationMinutes;
     const withCosts: ParkingWithCost[] = lots.map((lot) => {
       const cost = calculateCost(lot, totalMinutes);
-      const distKm = parseFloat(lot.distance.replace(' km', '').replace(',', '.'));
+      const distKm = Number.parseFloat(lot.distance.replace(' km', '').replace(',', '.'));
       return { ...lot, estimatedCost: cost, costPerKm: cost / distKm, occupancyForecast: generateOccupancyForecast(lot) };
     });
     withCosts.sort((a, b) => {
       if (sortBy === 'price') return a.estimatedCost - b.estimatedCost;
       if (sortBy === 'distance') {
-        return parseFloat(a.distance.replace(' km', '').replace(',', '.')) -
-               parseFloat(b.distance.replace(' km', '').replace(',', '.'));
+        return Number.parseFloat(a.distance.replace(' km', '').replace(',', '.')) -
+               Number.parseFloat(b.distance.replace(' km', '').replace(',', '.'));
       }
       return a.costPerKm - b.costPerKm;
     });
@@ -218,11 +230,12 @@ export function PlanningTab() {
             const occupancyPct = Math.round(((park.totalSpots - park.availableSpots) / park.totalSpots) * 100);
             const isFull = park.availableSpots === 0;
             const isLow  = park.availableSpots > 0 && park.availableSpots <= Math.ceil(park.totalSpots * 0.2);
-            const statusCfg = isFull
-              ? { bg: 'bg-error/10',   text: 'text-error',   label: 'Lotado'      }
-              : isLow
-              ? { bg: 'bg-warning/10', text: 'text-warning', label: 'Quase cheio' }
-              : { bg: 'bg-success/10', text: 'text-success', label: 'Disponível'  };
+            let statusCfg = { bg: 'bg-success/10', text: 'text-success', label: 'Disponível' };
+            if (isFull) {
+              statusCfg = { bg: 'bg-error/10', text: 'text-error', label: 'Lotado' };
+            } else if (isLow) {
+              statusCfg = { bg: 'bg-warning/10', text: 'text-warning', label: 'Quase cheio' };
+            }
 
             return (
               <article
@@ -284,7 +297,13 @@ export function PlanningTab() {
                       { label: 'Máx. diário', value: `€${park.dailyMax.toFixed(2)}` },
                       { label: 'Mensalidade', value: `€${park.monthlyRate.toFixed(2)}` },
                       { label: 'Disponíveis', value: `${park.availableSpots}/${park.totalSpots}`,
-                        valueClass: park.availableSpots > 20 ? 'text-success' : park.availableSpots > 5 ? 'text-warning' : 'text-error' },
+                        valueClass:
+                          park.availableSpots > 20
+                            ? 'text-success'
+                            : park.availableSpots > 5
+                              ? 'text-warning'
+                              : 'text-error',
+                      },
                     ].map((item) => (
                       <div key={item.label} className="flex flex-col">
                         <span className="text-muted-foreground" style={{ fontSize: '0.68rem' }}>{item.label}</span>
@@ -298,12 +317,13 @@ export function PlanningTab() {
                       <span>Ocupação atual</span><span>{occupancyPct}%</span>
                     </div>
                     <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
-                      <div
+                      <progress
                         className={`h-full rounded-full transition-all duration-500 ${
                           occupancyPct >= 90 ? 'bg-error' : occupancyPct >= 70 ? 'bg-warning' : 'bg-success'
                         }`}
                         style={{ width: `${occupancyPct}%` }}
-                        role="progressbar" aria-valuenow={occupancyPct} aria-valuemin={0} aria-valuemax={100}
+                        value={occupancyPct}
+                        max={100}
                         aria-label={`Ocupação: ${occupancyPct}%`}
                       />
                     </div>
@@ -374,7 +394,7 @@ export function PlanningTab() {
         </div>
       )}
 
-      <div className="flex items-start gap-3 rounded-xl p-4 mt-5 bg-card border border-border" role="note">
+      <aside className="flex items-start gap-3 rounded-xl p-4 mt-5 bg-card border border-border">
         <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
           <i className="fas fa-circle-info text-primary" style={{ fontSize: '0.85rem' }} aria-hidden="true" />
         </div>
@@ -385,7 +405,7 @@ export function PlanningTab() {
             na entrada (Via Verde RFID ou OCR de matrícula) e o pagamento processado pelo método definido no perfil.
           </p>
         </div>
-      </div>
+      </aside>
     </div>
   );
 }

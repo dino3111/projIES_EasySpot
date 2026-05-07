@@ -12,7 +12,7 @@ export function useDriverOnboarding() {
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
-    if (!user || user.role !== 'DRIVER') {
+    if (user?.role !== 'DRIVER') {
       setChecked(true);
       return;
     }

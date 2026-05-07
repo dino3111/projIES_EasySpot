@@ -20,6 +20,12 @@ type PageTab    = 'tarifas' | 'ocorrencias' | 'faturacao';
 type IssueFilter = 'todos' | 'aberto' | 'em-progresso' | 'resolvido';
 type SevFilter  = 'todos' | 'critica' | 'aviso' | 'info';
 
+const EXPORT_TITLE_BY_TAB: Record<PageTab, string> = {
+  tarifas: 'Tarifários',
+  ocorrencias: 'Ocorrências',
+  faturacao: 'Faturação',
+};
+
 export function TariffsIncidentsPage() {
   const { managerParks } = useProfile();
   const [tab, setTab]               = useState<PageTab>('tarifas');
@@ -66,7 +72,7 @@ export function TariffsIncidentsPage() {
     link.download = filename;
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
+    link.remove();
     URL.revokeObjectURL(url);
   };
 
@@ -87,7 +93,7 @@ export function TariffsIncidentsPage() {
           className="self-start sm:self-auto flex items-center gap-2 px-3 py-1.5 rounded-xl bg-card border border-border hover:bg-muted transition-colors text-foreground"
           style={{ fontSize: '0.8rem', fontWeight: 600 }}
           aria-label="Exportar dados"
-          title={`Exportar dados de ${tab === 'tarifas' ? 'Tarifários' : tab === 'ocorrencias' ? 'Ocorrências' : 'Faturação'}`}
+          title={`Exportar dados de ${EXPORT_TITLE_BY_TAB[tab]}`}
         >
           <i className="fas fa-file-export text-primary" style={{ fontSize: '0.85rem' }} aria-hidden="true"></i>
           Exportar

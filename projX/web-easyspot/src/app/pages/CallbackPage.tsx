@@ -21,7 +21,7 @@ export function CallbackPage() {
     if (processed.current) return;
     processed.current = true;
 
-    const params   = new URLSearchParams(window.location.search);
+    const params   = new URLSearchParams(globalThis.location.search);
     const code     = params.get('code');
     const state    = params.get('state');
     const errParam = params.get('error');
@@ -38,12 +38,12 @@ export function CallbackPage() {
 
     handleCallback(code, state)
       .then(() => {
-        const token  = sessionStorage.getItem('es_access_token') ?? '';
+        const token  = globalThis.sessionStorage.getItem('es_access_token') ?? '';
         const parts  = token.split('.');
         let role: AppProfile = 'DRIVER';
         if (parts.length === 3) {
           try {
-            const claims = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+            const claims = JSON.parse(globalThis.atob(parts[1].replaceAll('-', '+').replaceAll('_', '/')));
             const groups = claims['groups'];
             if (Array.isArray(groups) && groups.length > 0) {
               const r = String(groups[0]).toUpperCase();

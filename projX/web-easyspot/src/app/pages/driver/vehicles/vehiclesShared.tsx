@@ -11,14 +11,14 @@ export const CHARGER_ICONS: Record<string, string> = {
   'Tesla Supercharger': 'fa-bolt-lightning',
 };
 
-export function BrandLogo({ make }: { make?: string }) {
+export function BrandLogo({ make }: Readonly<{ make?: string }>) {
   const url = getBrandLogoUrl(make);
   const [failed, setFailed] = useState(false);
   if (!url || failed) return <i className="fas fa-car text-muted-foreground" style={{ fontSize: '1.4rem' }} />;
   return <img src={url} alt={make} className="w-10 h-10 object-contain" onError={() => setFailed(true)} />;
 }
 
-export function NicknameInput({ nickname, setNickname }: { nickname: string; setNickname: (v: string) => void }) {
+export function NicknameInput({ nickname, setNickname }: Readonly<{ nickname: string; setNickname: (v: string) => void }>) {
   return (
     <div>
       <label htmlFor="nickname-input" className="block text-foreground font-bold mb-2" style={{ fontSize: '0.875rem' }}>
@@ -37,7 +37,7 @@ export function NicknameInput({ nickname, setNickname }: { nickname: string; set
   );
 }
 
-export function RfidInput({ rfid, setRfid }: { rfid: string; setRfid: (v: string) => void }) {
+export function RfidInput({ rfid, setRfid }: Readonly<{ rfid: string; setRfid: (v: string) => void }>) {
   return (
     <div>
       <label htmlFor="rfid-input" className="block text-foreground font-bold mb-2" style={{ fontSize: '0.875rem' }}>
@@ -60,7 +60,25 @@ export function RfidInput({ rfid, setRfid }: { rfid: string; setRfid: (v: string
   );
 }
 
-export function VehicleDataCard({ vehicleData, insuranceData }: { vehicleData: VehicleData; insuranceData: InsuranceData | null }) {
+export function VehicleDataCard({ vehicleData, insuranceData }: Readonly<{ vehicleData: VehicleData; insuranceData: InsuranceData | null }>) {
+  const vehicleYear = vehicleData.yearFrom
+    ? { label: 'Ano (de)', value: String(vehicleData.yearFrom) }
+    : (vehicleData.plateDate ? { label: 'Ano', value: vehicleData.plateDate.slice(0, 4) } : null);
+  const vehiclePower = vehicleData.powerKw
+    ? { label: 'Potência', value: `${vehicleData.powerKw} kW` }
+    : (vehicleData.powerkw ? { label: 'Potência', value: `${vehicleData.powerkw} kW` } : null);
+  const details = [
+    vehicleData.make && vehicleData.model ? { label: 'Marca/Modelo', value: `${vehicleData.make} ${vehicleData.model}` } : null,
+    vehicleData.version ? { label: 'Versão', value: vehicleData.version } : null,
+    vehicleYear,
+    vehicleData.yearTo ? { label: 'Ano (até)', value: String(vehicleData.yearTo) } : null,
+    vehicleData.fuelType ? { label: 'Combustível', value: vehicleData.fuelType } : null,
+    vehicleData.bodyType ? { label: 'Carroceria', value: vehicleData.bodyType } : null,
+    vehiclePower,
+    vehicleData.displacementCc ? { label: 'Cilindrada', value: `${vehicleData.displacementCc} cc` } : null,
+    vehicleData.color ? { label: 'Cor', value: vehicleData.color } : null,
+  ].filter((item): item is { label: string; value: string } => Boolean(item));
+
   return (
     <div className="rounded-xl bg-muted p-4 space-y-2">
       <div className="flex items-center justify-between mb-2">
@@ -73,20 +91,10 @@ export function VehicleDataCard({ vehicleData, insuranceData }: { vehicleData: V
       {vehicleData.imageUrl && (
         <img src={vehicleData.imageUrl} alt="Veículo identificado" className="w-full h-28 object-cover rounded-lg border border-border mb-2" />
       )}
-      {[
-        vehicleData.make && vehicleData.model ? { label: 'Marca/Modelo', value: `${vehicleData.make} ${vehicleData.model}` } : null,
-        vehicleData.version ? { label: 'Versão', value: vehicleData.version } : null,
-        vehicleData.yearFrom ? { label: 'Ano (de)', value: String(vehicleData.yearFrom) } : vehicleData.plateDate ? { label: 'Ano', value: vehicleData.plateDate.slice(0, 4) } : null,
-        vehicleData.yearTo ? { label: 'Ano (até)', value: String(vehicleData.yearTo) } : null,
-        vehicleData.fuelType ? { label: 'Combustível', value: vehicleData.fuelType } : null,
-        vehicleData.bodyType ? { label: 'Carroceria', value: vehicleData.bodyType } : null,
-        vehicleData.powerKw ? { label: 'Potência', value: `${vehicleData.powerKw} kW` } : vehicleData.powerkw ? { label: 'Potência', value: `${vehicleData.powerkw} kW` } : null,
-        vehicleData.displacementCc ? { label: 'Cilindrada', value: `${vehicleData.displacementCc} cc` } : null,
-        vehicleData.color ? { label: 'Cor', value: vehicleData.color } : null,
-      ].filter(Boolean).map((item) => (
-        <div key={item!.label} className="flex justify-between text-sm">
-          <span className="text-muted-foreground">{item!.label}:</span>
-          <span className="text-foreground font-semibold">{item!.value}</span>
+      {details.map((item) => (
+        <div key={item.label} className="flex justify-between text-sm">
+          <span className="text-muted-foreground">{item.label}:</span>
+          <span className="text-foreground font-semibold">{item.value}</span>
         </div>
       ))}
       {insuranceData && (
@@ -120,12 +128,12 @@ export function VehicleDataCard({ vehicleData, insuranceData }: { vehicleData: V
 
 export function EVOptions({
   isEV, setIsEV, chargerTypes, setChargerTypes, isAccessible, setIsAccessible, make,
-}: {
+}: Readonly<{
   isEV: boolean; setIsEV: (v: boolean) => void;
   chargerTypes: string[]; setChargerTypes: (v: string[]) => void;
   isAccessible: boolean; setIsAccessible: (v: boolean) => void;
   make?: string;
-}) {
+}>) {
   const allChargerTypes = ['Type 2', 'CCS', 'CHAdeMO', 'Tesla Supercharger'];
 
   const toggleCharger = (type: string) =>
@@ -139,11 +147,11 @@ export function EVOptions({
 
   return (
     <div className="space-y-2">
-      <label className="flex items-center gap-3 p-3 rounded-xl border border-border hover:bg-muted/50 cursor-pointer transition-colors">
-        <input type="checkbox" checked={isEV} onChange={(e) => handleIsEVChange(e.target.checked)} className="checkbox checkbox-primary checkbox-sm" />
+      <label htmlFor="vehicle-is-ev" className="flex items-center gap-3 p-3 rounded-xl border border-border hover:bg-muted/50 cursor-pointer transition-colors">
+        <input id="vehicle-is-ev" type="checkbox" checked={isEV} onChange={(e) => handleIsEVChange(e.target.checked)} className="checkbox checkbox-primary checkbox-sm" />
         <div className="flex-1">
           <p className="text-foreground font-semibold" style={{ fontSize: '0.875rem' }}>
-            <i className="fas fa-bolt text-green-500 mr-2" style={{ fontSize: '0.8rem' }} />Veículo Elétrico
+            <i className="fas fa-bolt text-green-500 mr-2" style={{ fontSize: '0.8rem' }} /> Veículo Elétrico
           </p>
           <p className="text-muted-foreground" style={{ fontSize: '0.72rem' }}>Priorizar lugares com carregadores EV</p>
         </div>
@@ -172,11 +180,11 @@ export function EVOptions({
         </div>
       )}
 
-      <label className="flex items-center gap-3 p-3 rounded-xl border border-border hover:bg-muted/50 cursor-pointer transition-colors">
-        <input type="checkbox" checked={isAccessible} onChange={(e) => setIsAccessible(e.target.checked)} className="checkbox checkbox-primary checkbox-sm" />
+      <label htmlFor="vehicle-is-accessible" className="flex items-center gap-3 p-3 rounded-xl border border-border hover:bg-muted/50 cursor-pointer transition-colors">
+        <input id="vehicle-is-accessible" type="checkbox" checked={isAccessible} onChange={(e) => setIsAccessible(e.target.checked)} className="checkbox checkbox-primary checkbox-sm" />
         <div className="flex-1">
           <p className="text-foreground font-semibold" style={{ fontSize: '0.875rem' }}>
-            <i className="fas fa-wheelchair text-blue-500 mr-2" style={{ fontSize: '0.8rem' }} />Veículo Acessível
+            <i className="fas fa-wheelchair text-blue-500 mr-2" style={{ fontSize: '0.8rem' }} /> Veículo Acessível
           </p>
           <p className="text-muted-foreground" style={{ fontSize: '0.72rem' }}>Necessita de lugares para mobilidade reduzida</p>
         </div>
