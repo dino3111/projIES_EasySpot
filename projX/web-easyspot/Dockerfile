@@ -2,7 +2,7 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-RUN npm install -g pnpm
+RUN npm install -g pnpm@9
 
 # Copy only package files first for better caching
 COPY package.json pnpm-lock.yaml* .npmrc* ./

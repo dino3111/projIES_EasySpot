@@ -12,6 +12,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import pt.ua.deti.apieasyspot.auth.SecurityConfig;
 import pt.ua.deti.apieasyspot.auth.model.DriverType;
 import pt.ua.deti.apieasyspot.auth.model.User;
+import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
 import pt.ua.deti.apieasyspot.auth.service.UserProfileService;
 import pt.ua.deti.apieasyspot.common.exception.ResourceNotFoundException;
 
@@ -40,6 +41,9 @@ class DriverTypeControllerTest {
 
     @MockitoBean
     JwtDecoder jwtDecoder;
+
+    @MockitoBean
+    UserRepository userRepository;
 
     @Test
     @DisplayName("POST /api/driver/type - unauthenticated - returns 401")

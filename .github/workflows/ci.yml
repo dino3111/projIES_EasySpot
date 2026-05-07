@@ -149,6 +149,7 @@ jobs:
           POSTMAN_DB_URL: jdbc:postgresql://localhost:5433/easyspot_postman
           POSTMAN_DB_USER: easyspot
           POSTMAN_DB_PASS: easyspot
+          POSTMAN_TIMESCALE_DB_URL: jdbc:postgresql://localhost:5433/easyspot_postman
           POSTMAN_KAFKA_SERVERS: localhost:9093
           POSTMAN_JWT_SECRET: easyspot-postman-secret-key-change-me-2026
         run: |

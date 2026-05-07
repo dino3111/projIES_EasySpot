@@ -208,7 +208,12 @@ def _make_transparent_png() -> bytes:
     raw = b"\x00\x00\x00\x00\x00"  # filter byte + R G B A (fully transparent)
     compressed = zlib.compress(raw)
     idat_crc = zlib.crc32(b"IDAT" + compressed) & 0xFFFFFFFF
-    idat = struct.pack(">I", len(compressed)) + b"IDAT" + compressed + struct.pack(">I", idat_crc)
+    idat = (
+        struct.pack(">I", len(compressed))
+        + b"IDAT"
+        + compressed
+        + struct.pack(">I", idat_crc)
+    )
 
     iend_crc = zlib.crc32(b"IEND") & 0xFFFFFFFF
     iend = struct.pack(">I", 0) + b"IEND" + struct.pack(">I", iend_crc)
@@ -373,7 +378,9 @@ def _build_redirect_uris(primary: str) -> list[dict]:
 
 
 def _build_post_logout_redirect_uris() -> list[dict]:
-    frontend_origin = urlparse(REDIRECT_URI)._replace(path="", params="", query="", fragment="")
+    frontend_origin = urlparse(REDIRECT_URI)._replace(
+        path="", params="", query="", fragment=""
+    )
     welcome_url = frontend_origin._replace(path="/welcome").geturl()
     uris = {
         welcome_url,
@@ -540,10 +547,14 @@ def _patch_default_brand(logo_uri: str, favicon_uri: str) -> None:
     api("PUT", f"/core/brands/{brand_uuid}/", json=payload)
     if supports_branding_custom_css:
         print(
-            f"  Default brand '{default_brand.get('domain')}' patched with EasySpot branding + custom CSS"
+            f"  Default brand '{default_brand.get('domain')}'"
+            " patched with EasySpot branding + custom CSS"
         )
     else:
-        print(f"  Default brand '{default_brand.get('domain')}' patched with EasySpot branding")
+        print(
+            f"  Default brand '{default_brand.get('domain')}'"
+            " patched with EasySpot branding"
+        )
 
 
 def _patch_application_icon(app_slug: str, icon_uri: str) -> None:
@@ -700,7 +711,11 @@ def _get_or_create_enrollment_prompt_stage() -> str:
     existing = api("GET", f"/stages/prompt/stages/?name={name}")
     if existing.get("results"):
         stage = existing["results"][0]
-        api("PATCH", f"/stages/prompt/stages/{stage['pk']}/", json={"fields": field_pks})
+        api(
+            "PATCH",
+            f"/stages/prompt/stages/{stage['pk']}/",
+            json={"fields": field_pks},
+        )
         return str(stage["pk"])
 
     stage = api("POST", "/stages/prompt/stages/", json={

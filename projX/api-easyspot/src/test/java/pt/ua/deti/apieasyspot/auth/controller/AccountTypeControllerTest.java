@@ -13,6 +13,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import pt.ua.deti.apieasyspot.auth.SecurityConfig;
 import pt.ua.deti.apieasyspot.auth.model.User;
 import pt.ua.deti.apieasyspot.auth.model.UserRole;
+import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
 import pt.ua.deti.apieasyspot.auth.service.UserProfileService;
 import pt.ua.deti.apieasyspot.common.exception.ResourceNotFoundException;
 
@@ -41,6 +42,9 @@ class AccountTypeControllerTest {
 
     @MockitoBean
     JwtDecoder jwtDecoder;
+
+    @MockitoBean
+    UserRepository userRepository;
 
     @Test
     @DisplayName("POST /api/account/type - unauthenticated - returns 401")
