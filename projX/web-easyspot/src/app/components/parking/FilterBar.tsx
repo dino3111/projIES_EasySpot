@@ -34,7 +34,7 @@ export function FilterBar({
   const [filtersVisible, setFiltersVisible] = useState(false);
 
   return (
-    <div role="region" aria-label="Pesquisa e filtros">
+    <section aria-label="Pesquisa e filtros">
       <div className="flex gap-2 mb-3">
         <div className="relative flex-1">
           <i
@@ -184,16 +184,16 @@ export function FilterBar({
           </button>
         )}
       </div>
-    </div>
+    </section>
   );
 }
 
 interface FilterChipProps {
-  active: boolean;
-  icon: string;
-  label: string;
-  onClick: () => void;
-  ariaLabel: string;
+  readonly active: boolean;
+  readonly icon: string;
+  readonly label: string;
+  readonly onClick: () => void;
+  readonly ariaLabel: string;
 }
 
 function FilterChip({ active, icon, label, onClick, ariaLabel }: FilterChipProps) {

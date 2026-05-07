@@ -9,18 +9,20 @@ import pt.ua.deti.apieasyspot.analytics.dto.SensorStatusDto;
 import pt.ua.deti.apieasyspot.analytics.dto.WorkOrderSummary;
 
 import java.time.LocalDate;
-import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.TextStyle;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Repository
 @RequiredArgsConstructor
 public class TechnicianRepository {
 
     private final @Qualifier("jdbcTemplate") JdbcTemplate jdbc;
+    private final @Qualifier("timescaleJdbcTemplate") JdbcTemplate timescaleJdbc;
 
     public int countTotalSensors() {
         Long result = jdbc.queryForObject("select count(*) from sensor_registry", Long.class);
@@ -34,7 +36,7 @@ public class TechnicianRepository {
     }
 
     public long countFailuresToday() {
-        Long result = jdbc.queryForObject(
+        Long result = timescaleJdbc.queryForObject(
             """
             select count(*) from alerts
             where type in ('SENSOR', 'SYSTEM')
@@ -46,7 +48,7 @@ public class TechnicianRepository {
     }
 
     public long countFailuresYesterday() {
-        Long result = jdbc.queryForObject(
+        Long result = timescaleJdbc.queryForObject(
             """
             select count(*) from alerts
             where type in ('SENSOR', 'SYSTEM')
@@ -58,7 +60,7 @@ public class TechnicianRepository {
     }
 
     public Double avgMttrCurrentWeekMinutes() {
-        return jdbc.queryForObject(
+        return timescaleJdbc.queryForObject(
             """
             select avg(extract(epoch from (resolved_at - created_at)) / 60)
             from alerts
@@ -69,7 +71,7 @@ public class TechnicianRepository {
     }
 
     public Double avgMttrHistoricalMinutes() {
-        return jdbc.queryForObject(
+        return timescaleJdbc.queryForObject(
             """
             select avg(extract(epoch from (resolved_at - created_at)) / 60)
             from alerts
@@ -80,43 +82,39 @@ public class TechnicianRepository {
     }
 
     public List<DailyUptimeDto> uptimeLast7Days() {
+        Map<String, Long> failedByDay = timescaleJdbc.query(
+            """
+            select cast(created_at as date) as day,
+                   count(distinct sensor_id) as failed
+            from alerts
+            where type = 'SENSOR'
+              and sensor_id is not null
+              and created_at >= current_date - 6
+            group by cast(created_at as date)
+            """,
+            (rs, rowNum) -> Map.entry(rs.getString("day"), rs.getLong("failed"))
+        ).stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+        int total = countTotalSensors();
+
         return jdbc.query(
             """
-            with days as (
-                select generate_series(
-                    (current_date - 6)::timestamp,
-                    current_date::timestamp,
-                    '1 day'::interval
-                )::date as day
-            ),
-            total_sensors as (
-                select count(*) as cnt from sensor_registry
-            ),
-            daily_failures as (
-                select cast(created_at as date) as day,
-                       count(distinct sensor_id) as failed
-                from alerts
-                where type = 'SENSOR'
-                  and sensor_id is not null
-                  and created_at >= current_date - 6
-                group by cast(created_at as date)
-            )
-            select d.day,
-                   case
-                       when t.cnt = 0 then 0.0
-                       else round(greatest(t.cnt - coalesce(f.failed, 0), 0) * 100.0 / t.cnt, 1)
-                   end as uptime_pct
-            from days d
-            cross join total_sensors t
-            left join daily_failures f on f.day = d.day
-            order by d.day
+            select generate_series(
+                (current_date - 6)::timestamp,
+                current_date::timestamp,
+                '1 day'::interval
+            )::date as day
             """,
             (rs, rowNum) -> {
                 LocalDate date = rs.getDate("day").toLocalDate();
+                long failed = failedByDay.getOrDefault(date.toString(), 0L);
+                double uptime = total > 0
+                    ? Math.round(Math.max(total - failed, 0) * 1000.0 / total) / 10.0
+                    : 0.0;
                 return new DailyUptimeDto(
                     date.toString(),
                     date.getDayOfWeek().getDisplayName(TextStyle.SHORT, Locale.forLanguageTag("pt-PT")),
-                    rs.getDouble("uptime_pct"));
+                    uptime);
             });
     }
 
@@ -133,12 +131,16 @@ public class TechnicianRepository {
     }
 
     public List<WorkOrderSummary> urgentWorkOrders() {
-        return jdbc.query(
+        Map<UUID, String> parkNames = jdbc.query(
+            "select id, name from parking_lots",
+            (rs, rowNum) -> Map.entry(UUID.fromString(rs.getString("id")), rs.getString("name"))
+        ).stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+        return timescaleJdbc.query(
             """
-            select a.id, a.type, pl.name as park, a.zone, a.sensor_id,
+            select a.id, a.type, a.parking_lot_id, a.zone, a.sensor_id,
                    a.description, a.severity, a.state, a.created_at, a.attributed_to
             from alerts a
-            join parking_lots pl on pl.id = a.parking_lot_id
             where a.severity = 'CRITICAL'
               and a.type in ('SENSOR', 'SYSTEM')
               and a.state in ('OPEN', 'IN_PROGRESS')
@@ -148,7 +150,7 @@ public class TechnicianRepository {
             (rs, rowNum) -> new WorkOrderSummary(
                 UUID.fromString(rs.getString("id")),
                 rs.getString("type").toLowerCase(Locale.ROOT),
-                rs.getString("park"),
+                parkNames.getOrDefault(UUID.fromString(rs.getString("parking_lot_id")), "Unknown"),
                 rs.getString("zone"),
                 rs.getString("sensor_id"),
                 rs.getString("description"),

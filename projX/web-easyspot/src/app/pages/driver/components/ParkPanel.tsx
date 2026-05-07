@@ -159,12 +159,12 @@ function InfoTile({ icon, label, value }: { icon: string; label: string; value: 
   );
 }
 
-function RatingRow({ rating, reviewCount }: { rating: number; reviewCount: number }) {
+function RatingRow({ rating, reviewCount }: { readonly rating: number; readonly reviewCount: number }) {
   return (
     <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-warning/5 border border-warning/20">
       <div className="flex gap-0.5">
         {Array.from({ length: 5 }).map((_, i) => (
-          <i key={i} className={`fas fa-star text-[10px] ${i < Math.round(rating) ? 'text-warning' : 'text-muted'}`} aria-hidden="true" />
+          <i key={`star-${i}`} className={`fas fa-star text-[10px] ${i < Math.round(rating) ? 'text-warning' : 'text-muted'}`} aria-hidden="true" />
         ))}
       </div>
       <span className="font-bold text-foreground text-xs">{rating}</span>
@@ -204,7 +204,7 @@ function EVAccessRow({ availableEV, totalEV, availableAcc, totalAcc }: {
   );
 }
 
-function AmenitiesRow({ amenities }: { amenities: string[] }) {
+function AmenitiesRow({ amenities }: { readonly amenities: readonly string[] }) {
   return (
     <div>
       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Comodidades</p>

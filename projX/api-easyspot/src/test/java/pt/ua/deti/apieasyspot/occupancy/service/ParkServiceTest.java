@@ -80,8 +80,8 @@ class ParkServiceTest {
         ParkingLotSummaryResponse response = parkService.searchParks(null, null, null, null, 1, 20);
 
         assertThat(response.items()).isEmpty();
-        assertThat(response.pagination().totalItems()).isEqualTo(0);
-        assertThat(response.pagination().totalPages()).isEqualTo(0);
+        assertThat(response.pagination().totalItems()).isZero();
+        assertThat(response.pagination().totalPages()).isZero();
     }
 
     @Test

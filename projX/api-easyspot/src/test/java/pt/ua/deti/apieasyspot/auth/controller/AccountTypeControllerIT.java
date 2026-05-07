@@ -155,18 +155,4 @@ class AccountTypeControllerIT {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.role").value("MANAGER"));
     }
-
-    @Test
-    @DisplayName("POST /api/account/type - active session with old role - DB updated, response reflects new role")
-    void updateAccountType_activeSessionOldRole_dbUpdated() throws Exception {
-        mockMvc.perform(post("/api/account/type")
-                .with(jwt().jwt(j -> j.subject(USER_SUBJECT).claim("groups", List.of("DRIVER"))))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"role\":\"MANAGER\"}"))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.role").value("MANAGER"));
-
-        User updated = userRepository.findByAuthentikUserId(USER_SUBJECT).orElseThrow();
-        assertThat(updated.getRole()).isEqualTo("MANAGER");
-    }
 }

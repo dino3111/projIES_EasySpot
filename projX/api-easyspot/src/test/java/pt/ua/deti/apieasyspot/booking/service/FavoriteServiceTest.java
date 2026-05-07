@@ -89,7 +89,8 @@ class FavoriteServiceTest {
     void toggle_userNotFound_throws() {
         when(userRepository.findByAuthentikUserId("auth-sub-123")).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> favoriteService.toggle("auth-sub-123", parkingLot.getId()))
+        UUID parkId = parkingLot.getId();
+        assertThatThrownBy(() -> favoriteService.toggle("auth-sub-123", parkId))
             .isInstanceOf(ResourceNotFoundException.class);
 
         verifyNoInteractions(parkingLotRepository, userFavoriteRepository);
@@ -101,7 +102,8 @@ class FavoriteServiceTest {
         when(userRepository.findByAuthentikUserId("auth-sub-123")).thenReturn(Optional.of(user));
         when(parkingLotRepository.findById(parkingLot.getId())).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> favoriteService.toggle("auth-sub-123", parkingLot.getId()))
+        UUID parkId = parkingLot.getId();
+        assertThatThrownBy(() -> favoriteService.toggle("auth-sub-123", parkId))
             .isInstanceOf(ResourceNotFoundException.class);
 
         verifyNoInteractions(userFavoriteRepository);

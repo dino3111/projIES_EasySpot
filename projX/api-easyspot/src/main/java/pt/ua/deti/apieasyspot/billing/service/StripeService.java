@@ -47,6 +47,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class StripeService {
 
+    private static final String RESERVATION_ID = "reservationId";
+
     @Value("${stripe.api.key}")
     private String stripeApiKey;
 
@@ -63,10 +65,14 @@ public class StripeService {
 
     @PostConstruct
     public void init() {
-        Stripe.apiKey = stripeApiKey;
+        setStripeApiKey(stripeApiKey);
         if (!StringUtils.hasText(stripeApiKey)) {
             log.warn("Stripe API key is not configured. Stripe setup intents and customer portal will fail until STRIPE_API_KEY is provided.");
         }
+    }
+
+    private static void setStripeApiKey(String apiKey) {
+        Stripe.apiKey = apiKey;
     }
 
     public CheckoutSessionResponse createCheckoutSession(CheckoutSessionRequest request) throws StripeException {
@@ -91,9 +97,9 @@ public class StripeService {
                         .build())
                     .build())
                 .build())
-            .putMetadata("reservationId", request.reservationId().toString())
+            .putMetadata(RESERVATION_ID, request.reservationId().toString())
             .setPaymentIntentData(SessionCreateParams.PaymentIntentData.builder()
-                .putMetadata("reservationId", request.reservationId().toString())
+                .putMetadata(RESERVATION_ID, request.reservationId().toString())
                 .build())
             .build();
 
@@ -103,7 +109,7 @@ public class StripeService {
 
         Session session = Session.create(params, options);
 
-        PaymentRecord record = PaymentRecord.builder()
+        PaymentRecord paymentRecord = PaymentRecord.builder()
             .reservationId(request.reservationId())
             .stripeSessionId(session.getId())
             .amount(request.amount())
@@ -111,7 +117,7 @@ public class StripeService {
             .status(PaymentStatus.PENDING)
             .customerEmail(request.customerEmail())
             .build();
-        paymentRecordRepository.save(record);
+        paymentRecordRepository.save(paymentRecord);
 
         return new CheckoutSessionResponse(session.getId(), session.getUrl());
     }
@@ -143,83 +149,83 @@ public class StripeService {
     }
 
     private void handleCheckoutSessionCompleted(Session session) {
-        if (session.getMetadata().get("reservationId") == null) return;
+        if (session.getMetadata().get(RESERVATION_ID) == null) return;
 
-        paymentRecordRepository.findByStripeSessionId(session.getId()).ifPresent(record -> {
-            record.setPaymentIntentId(session.getPaymentIntent());
-            paymentRecordRepository.save(record);
-            log.info("Checkout session completed for reservation {}", record.getReservationId());
+        paymentRecordRepository.findByStripeSessionId(session.getId()).ifPresent(paymentRecord -> {
+            paymentRecord.setPaymentIntentId(session.getPaymentIntent());
+            paymentRecordRepository.save(paymentRecord);
+            log.info("Checkout session completed for reservation {}", paymentRecord.getReservationId());
         });
     }
 
     private void handlePaymentIntentSucceeded(PaymentIntent pi) {
         Optional<PaymentRecord> recordOpt = paymentRecordRepository.findByPaymentIntentId(pi.getId());
         if (recordOpt.isEmpty()) {
-            String reservationIdStr = pi.getMetadata().get("reservationId");
+            String reservationIdStr = pi.getMetadata().get(RESERVATION_ID);
             if (reservationIdStr != null) {
                 recordOpt = paymentRecordRepository.findTopByReservationIdOrderByCreatedAtDesc(
                     UUID.fromString(reservationIdStr));
             }
         }
 
-        recordOpt.ifPresent(record -> {
-            record.setPaymentIntentId(pi.getId());
-            record.setStatus(PaymentStatus.COMPLETED);
-            paymentRecordRepository.save(record);
-            notificationService.notifyPaymentSuccess(record);
-            log.info("Payment succeeded for reservation {}", record.getReservationId());
+        recordOpt.ifPresent(paymentRecord -> {
+            paymentRecord.setPaymentIntentId(pi.getId());
+            paymentRecord.setStatus(PaymentStatus.COMPLETED);
+            paymentRecordRepository.save(paymentRecord);
+            notificationService.notifyPaymentSuccess(paymentRecord);
+            log.info("Payment succeeded for reservation {}", paymentRecord.getReservationId());
         });
     }
 
     private void handlePaymentIntentFailed(PaymentIntent pi) {
         Optional<PaymentRecord> recordOpt = paymentRecordRepository.findByPaymentIntentId(pi.getId());
         if (recordOpt.isEmpty()) {
-            String reservationIdStr = pi.getMetadata().get("reservationId");
+            String reservationIdStr = pi.getMetadata().get(RESERVATION_ID);
             if (reservationIdStr != null) {
                 recordOpt = paymentRecordRepository.findTopByReservationIdOrderByCreatedAtDesc(
                     UUID.fromString(reservationIdStr));
             }
         }
 
-        recordOpt.ifPresent(record -> {
-            record.setStatus(PaymentStatus.FAILED);
-            paymentRecordRepository.save(record);
-            notificationService.notifyPaymentFailure(record);
-            log.warn("Payment failed for reservation {}", record.getReservationId());
+        recordOpt.ifPresent(paymentRecord -> {
+            paymentRecord.setStatus(PaymentStatus.FAILED);
+            paymentRecordRepository.save(paymentRecord);
+            notificationService.notifyPaymentFailure(paymentRecord);
+            log.warn("Payment failed for reservation {}", paymentRecord.getReservationId());
         });
     }
 
     private void handleChargeRefunded(Charge charge) {
         if (charge.getPaymentIntent() == null) return;
 
-        paymentRecordRepository.findByPaymentIntentId(charge.getPaymentIntent()).ifPresent(record -> {
+        paymentRecordRepository.findByPaymentIntentId(charge.getPaymentIntent()).ifPresent(paymentRecord -> {
             boolean fullRefund = charge.getAmountRefunded().equals(charge.getAmount());
-            record.setStatus(fullRefund ? PaymentStatus.REFUNDED : PaymentStatus.PARTIALLY_REFUNDED);
-            paymentRecordRepository.save(record);
-            log.info("Charge refunded (full={}) for reservation {}", fullRefund, record.getReservationId());
+            paymentRecord.setStatus(fullRefund ? PaymentStatus.REFUNDED : PaymentStatus.PARTIALLY_REFUNDED);
+            paymentRecordRepository.save(paymentRecord);
+            log.info("Charge refunded (full={}) for reservation {}", fullRefund, paymentRecord.getReservationId());
         });
     }
 
     public PaymentStatusResponse getPaymentStatus(UUID reservationId) {
-        PaymentRecord record = paymentRecordRepository.findTopByReservationIdOrderByCreatedAtDesc(reservationId)
+        PaymentRecord paymentRecord = paymentRecordRepository.findTopByReservationIdOrderByCreatedAtDesc(reservationId)
             .orElseThrow(() -> new ResourceNotFoundException("Payment not found for reservation: " + reservationId));
 
         return new PaymentStatusResponse(
-            record.getReservationId(),
-            record.getStatus(),
-            record.getAmount(),
-            record.getCurrency(),
-            record.getPaymentIntentId()
+            paymentRecord.getReservationId(),
+            paymentRecord.getStatus(),
+            paymentRecord.getAmount(),
+            paymentRecord.getCurrency(),
+            paymentRecord.getPaymentIntentId()
         );
     }
 
     @Transactional
     public void refundPayment(RefundRequest request) throws StripeException {
-        PaymentRecord record = paymentRecordRepository.findTopByReservationIdOrderByCreatedAtDesc(request.reservationId())
+        PaymentRecord paymentRecord = paymentRecordRepository.findTopByReservationIdOrderByCreatedAtDesc(request.reservationId())
             .orElseThrow(() -> new ResourceNotFoundException("Payment not found for reservation: " + request.reservationId()));
 
-        if (record.getStatus() != PaymentStatus.COMPLETED) {
-            throw new UnprocessableEntityException("Cannot refund a payment with status: " + record.getStatus());
+        if (paymentRecord.getStatus() != PaymentStatus.COMPLETED) {
+            throw new UnprocessableEntityException("Cannot refund a payment with status: " + paymentRecord.getStatus());
         }
 
         long amountInCents = request.amount() != null
@@ -227,7 +233,7 @@ public class StripeService {
             : 0L;
 
         RefundCreateParams.Builder paramsBuilder = RefundCreateParams.builder()
-            .setPaymentIntent(record.getPaymentIntentId());
+            .setPaymentIntent(paymentRecord.getPaymentIntentId());
         if (amountInCents > 0) {
             paramsBuilder.setAmount(amountInCents);
         }
@@ -235,9 +241,9 @@ public class StripeService {
         Refund refund = Refund.create(paramsBuilder.build());
 
         if ("succeeded".equals(refund.getStatus())) {
-            record.setStatus(request.amount() == null ? PaymentStatus.REFUNDED : PaymentStatus.PARTIALLY_REFUNDED);
-            paymentRecordRepository.save(record);
-            log.info("Refund successful for reservation {}", record.getReservationId());
+            paymentRecord.setStatus(request.amount() == null ? PaymentStatus.REFUNDED : PaymentStatus.PARTIALLY_REFUNDED);
+            paymentRecordRepository.save(paymentRecord);
+            log.info("Refund successful for reservation {}", paymentRecord.getReservationId());
         }
     }
 

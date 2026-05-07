@@ -48,7 +48,7 @@ function is24Hours(openingHours: string): boolean {
 
 function toLocalidade(address: string): string {
   const parts = address.split(',').map((p) => p.trim()).filter(Boolean);
-  return parts.length > 1 ? parts[parts.length - 1] : parts[0] || 'N/D';
+  return parts.length > 1 ? (parts.at(-1) ?? 'N/D') : (parts.at(0) ?? 'N/D');
 }
 
 function normalizeZone(zone: string): ParkingZone['type'] {
@@ -208,7 +208,7 @@ export async function fetchParkDetails(parkId: string): Promise<ParkingLot> {
     id: `${data.id}-ev-${idx + 1}`,
     type: c.type,
     speed: c.speed,
-    speedKW: Number.parseInt(c.speed.replace(/\D/g, ''), 10) || 0,
+    speedKW: Number.parseInt(c.speed.replaceAll(/\D/g, ''), 10) || 0,
     available: c.availability,
     price: c.pricePerKwh ?? 0,
   }));

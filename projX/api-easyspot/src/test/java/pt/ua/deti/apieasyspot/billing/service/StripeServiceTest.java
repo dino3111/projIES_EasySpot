@@ -61,7 +61,7 @@ class StripeServiceTest {
     @DisplayName("getPaymentStatus returns response when record found")
     void getPaymentStatus_found_returnsResponse() {
         UUID reservationId = UUID.randomUUID();
-        PaymentRecord record = PaymentRecord.builder()
+        PaymentRecord paymentRecord = PaymentRecord.builder()
             .reservationId(reservationId)
             .status(PaymentStatus.COMPLETED)
             .amount(new BigDecimal("10.00"))
@@ -70,9 +70,9 @@ class StripeServiceTest {
             .build();
 
         when(paymentRecordRepository.findTopByReservationIdOrderByCreatedAtDesc(reservationId))
-            .thenReturn(Optional.of(record));
+            .thenReturn(Optional.of(paymentRecord));
 
-        var response = stripeService.getPaymentStatus(reservationId);
+        pt.ua.deti.apieasyspot.billing.dto.PaymentStatusResponse response = stripeService.getPaymentStatus(reservationId);
 
         assertThat(response.reservationId()).isEqualTo(reservationId);
         assertThat(response.status()).isEqualTo(PaymentStatus.COMPLETED);
@@ -98,7 +98,8 @@ class StripeServiceTest {
         when(paymentRecordRepository.findTopByReservationIdOrderByCreatedAtDesc(reservationId))
             .thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> stripeService.refundPayment(new RefundRequest(reservationId, null, null)))
+        RefundRequest request = new RefundRequest(reservationId, null, null);
+        assertThatThrownBy(() -> stripeService.refundPayment(request))
             .isInstanceOf(ResourceNotFoundException.class);
     }
 
@@ -106,16 +107,17 @@ class StripeServiceTest {
     @DisplayName("refundPayment throws UnprocessableEntityException when status is not COMPLETED")
     void refundPayment_notCompleted_throwsUnprocessableEntity() {
         UUID reservationId = UUID.randomUUID();
-        PaymentRecord record = PaymentRecord.builder()
+        PaymentRecord paymentRecord = PaymentRecord.builder()
             .reservationId(reservationId)
             .status(PaymentStatus.PENDING)
             .paymentIntentId("pi_123")
             .build();
 
         when(paymentRecordRepository.findTopByReservationIdOrderByCreatedAtDesc(reservationId))
-            .thenReturn(Optional.of(record));
+            .thenReturn(Optional.of(paymentRecord));
 
-        assertThatThrownBy(() -> stripeService.refundPayment(new RefundRequest(reservationId, null, null)))
+        RefundRequest request = new RefundRequest(reservationId, null, null);
+        assertThatThrownBy(() -> stripeService.refundPayment(request))
             .isInstanceOf(UnprocessableEntityException.class)
             .hasMessageContaining("PENDING");
     }
@@ -124,16 +126,17 @@ class StripeServiceTest {
     @DisplayName("refundPayment throws UnprocessableEntityException when status is FAILED")
     void refundPayment_failed_throwsUnprocessableEntity() {
         UUID reservationId = UUID.randomUUID();
-        PaymentRecord record = PaymentRecord.builder()
+        PaymentRecord paymentRecord = PaymentRecord.builder()
             .reservationId(reservationId)
             .status(PaymentStatus.FAILED)
             .paymentIntentId("pi_123")
             .build();
 
         when(paymentRecordRepository.findTopByReservationIdOrderByCreatedAtDesc(reservationId))
-            .thenReturn(Optional.of(record));
+            .thenReturn(Optional.of(paymentRecord));
 
-        assertThatThrownBy(() -> stripeService.refundPayment(new RefundRequest(reservationId, null, null)))
+        RefundRequest request = new RefundRequest(reservationId, null, null);
+        assertThatThrownBy(() -> stripeService.refundPayment(request))
             .isInstanceOf(UnprocessableEntityException.class);
     }
 
@@ -182,7 +185,7 @@ class StripeServiceTest {
     @DisplayName("handleWebhook processes payment_intent.succeeded and marks COMPLETED")
     void handleWebhook_paymentIntentSucceeded_marksCompleted() throws Exception {
         UUID reservationId = UUID.randomUUID();
-        PaymentRecord record = PaymentRecord.builder()
+        PaymentRecord paymentRecord = PaymentRecord.builder()
             .reservationId(reservationId)
             .status(PaymentStatus.PENDING)
             .stripeSessionId("cs_test")
@@ -205,7 +208,7 @@ class StripeServiceTest {
         when(stripeEventRepository.existsById("evt_pi_succeeded")).thenReturn(false);
         when(paymentRecordRepository.findByPaymentIntentId("pi_test_123")).thenReturn(Optional.empty());
         when(paymentRecordRepository.findTopByReservationIdOrderByCreatedAtDesc(reservationId))
-            .thenReturn(Optional.of(record));
+            .thenReturn(Optional.of(paymentRecord));
         when(paymentRecordRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         try (MockedStatic<Webhook> webhookMock = mockStatic(Webhook.class)) {
@@ -214,9 +217,9 @@ class StripeServiceTest {
             stripeService.handleWebhook("{}", "t=1,v1=sig");
         }
 
-        assertThat(record.getStatus()).isEqualTo(PaymentStatus.COMPLETED);
-        assertThat(record.getPaymentIntentId()).isEqualTo("pi_test_123");
-        verify(notificationService).notifyPaymentSuccess(record);
+        assertThat(paymentRecord.getStatus()).isEqualTo(PaymentStatus.COMPLETED);
+        assertThat(paymentRecord.getPaymentIntentId()).isEqualTo("pi_test_123");
+        verify(notificationService).notifyPaymentSuccess(paymentRecord);
         verify(stripeEventRepository).save(any());
     }
 
@@ -224,7 +227,7 @@ class StripeServiceTest {
     @DisplayName("handleWebhook processes payment_intent.payment_failed and marks FAILED")
     void handleWebhook_paymentIntentFailed_marksFailed() throws Exception {
         UUID reservationId = UUID.randomUUID();
-        PaymentRecord record = PaymentRecord.builder()
+        PaymentRecord paymentRecord = PaymentRecord.builder()
             .reservationId(reservationId)
             .status(PaymentStatus.PENDING)
             .paymentIntentId("pi_failed_123")
@@ -242,7 +245,7 @@ class StripeServiceTest {
         when(event.getDataObjectDeserializer()).thenReturn(deserializer);
 
         when(stripeEventRepository.existsById("evt_pi_failed")).thenReturn(false);
-        when(paymentRecordRepository.findByPaymentIntentId("pi_failed_123")).thenReturn(Optional.of(record));
+        when(paymentRecordRepository.findByPaymentIntentId("pi_failed_123")).thenReturn(Optional.of(paymentRecord));
         when(paymentRecordRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         try (MockedStatic<Webhook> webhookMock = mockStatic(Webhook.class)) {
@@ -251,7 +254,7 @@ class StripeServiceTest {
             stripeService.handleWebhook("{}", "t=1,v1=sig");
         }
 
-        assertThat(record.getStatus()).isEqualTo(PaymentStatus.FAILED);
-        verify(notificationService).notifyPaymentFailure(record);
+        assertThat(paymentRecord.getStatus()).isEqualTo(PaymentStatus.FAILED);
+        verify(notificationService).notifyPaymentFailure(paymentRecord);
     }
 }

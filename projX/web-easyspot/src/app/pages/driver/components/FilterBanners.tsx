@@ -1,4 +1,3 @@
-import { getDistanceColor } from '../../../data/parkingTypes';
 import type { FilterMode } from '../../../components/parking/ParkingCard';
 
 interface FilterBannersProps {
@@ -9,14 +8,14 @@ interface FilterBannersProps {
   filteredCount: number;
 }
 
-export function FilterBanners({ filterMode, totalAccessible, totalEV, closestAccDistance, filteredCount }: FilterBannersProps) {
+export function FilterBanners({ filterMode, totalAccessible, totalEV, closestAccDistance, filteredCount }: Readonly<FilterBannersProps>) {
   if (filterMode === 'both') return <BothBanner totalAccessible={totalAccessible} totalEV={totalEV} closestAccDistance={closestAccDistance} />;
   if (filterMode === 'accessible') return <AccessibleBanner totalAccessible={totalAccessible} closestAccDistance={closestAccDistance} filteredCount={filteredCount} />;
   if (filterMode === 'ev') return <EVBanner totalEV={totalEV} filteredCount={filteredCount} />;
   return null;
 }
 
-function BothBanner({ totalAccessible, totalEV, closestAccDistance }: { totalAccessible: number; totalEV: number; closestAccDistance: number | null }) {
+function BothBanner({ totalAccessible, totalEV, closestAccDistance }: Readonly<{ totalAccessible: number; totalEV: number; closestAccDistance: number | null }>) {
   return (
     <div
       className="rounded-xl px-4 py-3.5 mb-4 border"
@@ -46,9 +45,9 @@ function BothBanner({ totalAccessible, totalEV, closestAccDistance }: { totalAcc
   );
 }
 
-function StatTile({ icon, label, value, color, bg, border, valueColor, greenStyle }: {
+function StatTile({ icon, label, value, color, bg, border, valueColor, greenStyle }: Readonly<{
   icon: string; label: string; value: number; color: string; bg: string; border: string; valueColor: string; greenStyle?: boolean;
-}) {
+}>) {
   if (greenStyle) {
     return (
       <div className="flex items-center gap-2.5 rounded-lg px-3 py-2 border" style={{ background: 'rgba(34,197,94,0.08)', borderColor: 'rgba(34,197,94,0.25)' }}>
@@ -75,18 +74,23 @@ function StatTile({ icon, label, value, color, bg, border, valueColor, greenStyl
   );
 }
 
-function AccessibleBanner({ totalAccessible, closestAccDistance, filteredCount }: { totalAccessible: number; closestAccDistance: number | null; filteredCount: number }) {
+function AccessibleBanner({ totalAccessible, closestAccDistance, filteredCount }: Readonly<{ totalAccessible: number; closestAccDistance: number | null; filteredCount: number }>) {
+  let message = 'Sem lugares acessíveis disponíveis de momento.';
+  if (totalAccessible > 0) {
+    const spotsPlural = totalAccessible === 1 ? '' : 'es';
+    const freePlural = totalAccessible === 1 ? '' : 's';
+    const parksPlural = filteredCount === 1 ? '' : 's';
+    const distanceInfo = closestAccDistance !== null ? ` Mais próximo: ${closestAccDistance}m da entrada.` : '';
+    message = `${totalAccessible} lugar${spotsPlural} livre${freePlural} nos ${filteredCount} parque${parksPlural} filtrados.${distanceInfo}`;
+  }
+
   return (
     <div className="rounded-xl px-4 py-3 mb-4 bg-primary/10 border border-primary/30" role="status" aria-live="polite">
       <div className="flex items-start gap-3 mb-2">
         <i className="fas fa-wheelchair-move mt-0.5 flex-shrink-0 text-primary" aria-hidden="true" />
         <div className="flex-1">
           <p className="text-foreground" style={{ fontSize: '0.8rem', fontWeight: 700 }}>Lugares Acessíveis Disponíveis</p>
-          <p className="text-foreground/70" style={{ fontSize: '0.75rem' }}>
-            {totalAccessible > 0
-              ? `${totalAccessible} lugar${totalAccessible !== 1 ? 'es' : ''} livre${totalAccessible !== 1 ? 's' : ''} nos ${filteredCount} parque${filteredCount !== 1 ? 's' : ''} filtrados.${closestAccDistance !== null ? ` Mais próximo: ${closestAccDistance}m da entrada.` : ''}`
-              : 'Sem lugares acessíveis disponíveis de momento.'}
-          </p>
+          <p className="text-foreground/70" style={{ fontSize: '0.75rem' }}>{message}</p>
         </div>
       </div>
       <div className="flex items-center gap-3 flex-wrap">
@@ -111,18 +115,22 @@ function AccessibleBanner({ totalAccessible, closestAccDistance, filteredCount }
   );
 }
 
-function EVBanner({ totalEV, filteredCount }: { totalEV: number; filteredCount: number }) {
+function EVBanner({ totalEV, filteredCount }: Readonly<{ totalEV: number; filteredCount: number }>) {
+  let message = 'Sem carregadores EV disponíveis de momento.';
+  if (totalEV > 0) {
+    const chargersPlural = totalEV === 1 ? '' : 'es';
+    const freePlural = totalEV === 1 ? '' : 's';
+    const parksPlural = filteredCount === 1 ? '' : 's';
+    message = `${totalEV} carregador${chargersPlural} livre${freePlural} nos ${filteredCount} parque${parksPlural} filtrados.`;
+  }
+
   return (
     <div className="rounded-xl px-4 py-3 mb-4 border" style={{ background: 'rgba(34,197,94,0.08)', borderColor: 'rgba(34,197,94,0.3)' }} role="status" aria-live="polite">
       <div className="flex items-center gap-3">
         <i className="fas fa-charging-station flex-shrink-0" style={{ color: '#22c55e' }} />
         <div>
           <p className="text-foreground" style={{ fontSize: '0.8rem', fontWeight: 700 }}>Carregadores EV Disponíveis</p>
-          <p className="text-foreground/60" style={{ fontSize: '0.75rem' }}>
-            {totalEV > 0
-              ? `${totalEV} carregador${totalEV !== 1 ? 'es' : ''} livre${totalEV !== 1 ? 's' : ''} nos ${filteredCount} parque${filteredCount !== 1 ? 's' : ''} filtrados.`
-              : 'Sem carregadores EV disponíveis de momento.'}
-          </p>
+          <p className="text-foreground/60" style={{ fontSize: '0.75rem' }}>{message}</p>
         </div>
       </div>
     </div>

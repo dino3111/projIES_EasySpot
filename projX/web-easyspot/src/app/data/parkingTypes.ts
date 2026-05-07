@@ -100,9 +100,9 @@ export function getSpotDimCategory(dimensions: string): {
   textClass: string;
   icon: string;
 } {
-  const match = dimensions.match(/^([\d.]+)/);
-  const width = match ? parseFloat(match[1]) : 0;
-  if (width >= 4.0) return { label: 'Amplo', bgClass: 'bg-success/15', textClass: 'text-success', icon: 'fa-expand' };
+  const match = /^([\d.]+)/.exec(dimensions);
+  const width = match ? Number.parseFloat(match[1]) : 0;
+  if (width >= 4) return { label: 'Amplo', bgClass: 'bg-success/15', textClass: 'text-success', icon: 'fa-expand' };
   if (width >= 3.5) return { label: 'Standard', bgClass: 'bg-info/15', textClass: 'text-info', icon: 'fa-arrows-left-right' };
   return { label: 'Compacto', bgClass: 'bg-warning/15', textClass: 'text-warning', icon: 'fa-compress' };
 }

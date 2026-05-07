@@ -18,7 +18,6 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -26,7 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class DriverSpendingRepositoryIT {
 
     @Autowired private DriverSpendingRepository repository;
-    @Autowired private ParkingSessionRepository parkingSessionRepository;
+    @Autowired private TimescaleParkingSessionRepository parkingSessionRepository;
     @Autowired private UserRepository userRepository;
     @Autowired private VehicleRepository vehicleRepository;
     @Autowired private ParkingLotRepository parkingLotRepository;
@@ -139,9 +138,9 @@ class DriverSpendingRepositoryIT {
 
     private ParkingSession session(ParkingLot lot, Vehicle vehicle, ZoneType zoneType, OffsetDateTime entry, long durationMinutes, String revenue) {
         ParkingSession session = new ParkingSession();
-        session.setUser(driver);
-        session.setVehicle(vehicle);
-        session.setParkingLot(lot);
+        session.setUserId(driver.getId());
+        session.setVehicleId(vehicle.getId());
+        session.setParkingLotId(lot.getId());
         session.setZoneType(zoneType);
         session.setEntryTime(entry);
         session.setExitTime(entry.plusMinutes(durationMinutes));

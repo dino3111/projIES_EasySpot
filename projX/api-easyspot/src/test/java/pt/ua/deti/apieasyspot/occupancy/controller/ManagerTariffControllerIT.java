@@ -22,7 +22,7 @@ import pt.ua.deti.apieasyspot.occupancy.repository.ParkingLotRepository;
 import pt.ua.deti.apieasyspot.occupancy.repository.TariffAuditRepository;
 import pt.ua.deti.apieasyspot.occupancy.repository.TariffRepository;
 import pt.ua.deti.apieasyspot.billing.model.ParkingSession;
-import pt.ua.deti.apieasyspot.billing.repository.ParkingSessionRepository;
+import pt.ua.deti.apieasyspot.billing.repository.TimescaleParkingSessionRepository;
 import pt.ua.deti.apieasyspot.occupancy.model.ZoneType;
 
 import java.math.BigDecimal;
@@ -46,7 +46,7 @@ class ManagerTariffControllerIT {
     @Autowired ParkingLotRepository parkingLotRepository;
     @Autowired TariffRepository tariffRepository;
     @Autowired TariffAuditRepository tariffAuditRepository;
-    @Autowired private pt.ua.deti.apieasyspot.billing.repository.ParkingSessionRepository parkingSessionRepository;
+    @Autowired private TimescaleParkingSessionRepository parkingSessionRepository;
 
     @MockitoBean JwtDecoder jwtDecoder;
 
@@ -344,7 +344,7 @@ class ManagerTariffControllerIT {
     void updateTariff_ActiveSessions_Conflict() throws Exception {
         // Create active parking session
         ParkingSession session = new ParkingSession();
-        session.setParkingLot(lot);
+        session.setParkingLotId(lot.getId());
         session.setZoneType(ZoneType.STANDARD);
         session.setEntryTime(OffsetDateTime.now().minusHours(1));
         session.setExitTime(OffsetDateTime.now().plusHours(2)); // Still active
@@ -371,7 +371,7 @@ class ManagerTariffControllerIT {
     void updateTariff_NoActiveSessions_Success() throws Exception {
         // Create expired parking session (should not block)
         ParkingSession expiredSession = new ParkingSession();
-        expiredSession.setParkingLot(lot);
+        expiredSession.setParkingLotId(lot.getId());
         expiredSession.setZoneType(ZoneType.STANDARD);
         expiredSession.setEntryTime(OffsetDateTime.now().minusHours(3));
         expiredSession.setExitTime(OffsetDateTime.now().minusHours(1)); // Already ended

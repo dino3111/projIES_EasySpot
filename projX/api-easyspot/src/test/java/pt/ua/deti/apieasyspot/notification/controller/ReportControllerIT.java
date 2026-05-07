@@ -19,7 +19,7 @@ import pt.ua.deti.apieasyspot.infrastructure.R2StorageService;
 import pt.ua.deti.apieasyspot.notification.model.AlertType;
 import pt.ua.deti.apieasyspot.notification.model.SeverityAlert;
 import pt.ua.deti.apieasyspot.notification.model.StateAlert;
-import pt.ua.deti.apieasyspot.notification.repository.AlertRepository;
+import pt.ua.deti.apieasyspot.notification.repository.TimescaleAlertRepository;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingLotRepository;
 
@@ -41,7 +41,7 @@ class ReportControllerIT {
     @Autowired WebApplicationContext wac;
     @Autowired UserRepository userRepository;
     @Autowired ParkingLotRepository parkingLotRepository;
-    @Autowired AlertRepository alertRepository;
+    @Autowired TimescaleAlertRepository alertRepository;
     @MockitoBean JwtDecoder jwtDecoder;
     @MockitoBean R2StorageService r2StorageService;
 

@@ -2,7 +2,6 @@ package pt.ua.deti.apieasyspot.vehicle.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -28,11 +27,9 @@ public class VehicleController {
     private final VehicleService vehicleService;
 
     @Operation(summary = "Lookup plate data", description = "Fetches vehicle data for a Portuguese plate via the EasySpot scraper service.")
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Vehicle data found"),
-        @ApiResponse(responseCode = "404", description = "Plate not found in registry"),
-        @ApiResponse(responseCode = "503", description = "Vehicle lookup service unavailable")
-    })
+    @ApiResponse(responseCode = "200", description = "Vehicle data found")
+    @ApiResponse(responseCode = "404", description = "Plate not found in registry")
+    @ApiResponse(responseCode = "503", description = "Vehicle lookup service unavailable")
     @GetMapping("/lookup")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<VehicleLookupResponse> lookupPlate(@RequestParam String plate) {
@@ -40,11 +37,9 @@ public class VehicleController {
     }
 
     @Operation(summary = "Add a vehicle", description = "Adds a vehicle to the authenticated driver's profile.")
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Vehicle added successfully"),
-        @ApiResponse(responseCode = "400", description = "Invalid request or plate format"),
-        @ApiResponse(responseCode = "409", description = "Vehicle with this plate already exists")
-    })
+    @ApiResponse(responseCode = "200", description = "Vehicle added successfully")
+    @ApiResponse(responseCode = "400", description = "Invalid request or plate format")
+    @ApiResponse(responseCode = "409", description = "Vehicle with this plate already exists")
     @PostMapping
     @PreAuthorize("hasRole('DRIVER')")
     public ResponseEntity<VehicleResponse> createVehicle(
@@ -55,12 +50,10 @@ public class VehicleController {
     }
 
     @Operation(summary = "Update a vehicle", description = "Updates a vehicle belonging to the authenticated driver. Re-runs lookup if the plate changes.")
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Vehicle updated successfully"),
-        @ApiResponse(responseCode = "404", description = "Vehicle not found"),
-        @ApiResponse(responseCode = "403", description = "Vehicle doesn't belong to this driver"),
-        @ApiResponse(responseCode = "503", description = "Vehicle lookup service unavailable")
-    })
+    @ApiResponse(responseCode = "200", description = "Vehicle updated successfully")
+    @ApiResponse(responseCode = "404", description = "Vehicle not found")
+    @ApiResponse(responseCode = "403", description = "Vehicle doesn't belong to this driver")
+    @ApiResponse(responseCode = "503", description = "Vehicle lookup service unavailable")
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('DRIVER')")
     public ResponseEntity<VehicleResponse> updateVehicle(
@@ -72,10 +65,8 @@ public class VehicleController {
     }
 
     @Operation(summary = "Delete a vehicle", description = "Removes a vehicle belonging to the authenticated driver.")
-    @ApiResponses({
-        @ApiResponse(responseCode = "204", description = "Vehicle deleted"),
-        @ApiResponse(responseCode = "404", description = "Vehicle not found")
-    })
+    @ApiResponse(responseCode = "204", description = "Vehicle deleted")
+    @ApiResponse(responseCode = "404", description = "Vehicle not found")
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('DRIVER')")
     public ResponseEntity<Void> deleteVehicle(
@@ -87,10 +78,8 @@ public class VehicleController {
     }
 
     @Operation(summary = "List driver vehicles", description = "Returns all vehicles belonging to the authenticated driver.")
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Vehicles retrieved successfully"),
-        @ApiResponse(responseCode = "404", description = "User not found")
-    })
+    @ApiResponse(responseCode = "200", description = "Vehicles retrieved successfully")
+    @ApiResponse(responseCode = "404", description = "User not found")
     @GetMapping
     @PreAuthorize("hasRole('DRIVER')")
     public ResponseEntity<List<VehicleResponse>> listVehicles(@AuthenticationPrincipal Jwt jwt) {

@@ -17,12 +17,14 @@ public class ReservationEventPublisher {
 
     static final String TOPIC = "reservation-events";
 
-    @Autowired(required = false)
-    private KafkaTemplate<String, String> kafkaTemplate;
-
+    private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
 
-    public ReservationEventPublisher(ObjectMapper objectMapper) {
+    public ReservationEventPublisher(
+        @Autowired(required = false) KafkaTemplate<String, String> kafkaTemplate,
+        ObjectMapper objectMapper
+    ) {
+        this.kafkaTemplate = kafkaTemplate;
         this.objectMapper = objectMapper;
     }
 

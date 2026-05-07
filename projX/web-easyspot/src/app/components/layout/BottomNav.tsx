@@ -36,10 +36,15 @@ export function BottomNav() {
   const location = useLocation();
   const { profile } = useProfile();
 
-  const tabs =
-    profile === 'MANAGER' ? managerTabs :
-    profile === 'TECHNICAL' ? technicianTabs :
-    driverTabs;
+  const getTabs = () => {
+    switch (profile) {
+      case 'MANAGER':   return managerTabs;
+      case 'TECHNICAL': return technicianTabs;
+      default:          return driverTabs;
+    }
+  };
+
+  const tabs = getTabs();
 
   return (
     <nav

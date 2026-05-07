@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import pt.ua.deti.apieasyspot.billing.model.ParkingSession;
-import pt.ua.deti.apieasyspot.billing.repository.ParkingSessionRepository;
+import pt.ua.deti.apieasyspot.billing.repository.TimescaleParkingSessionRepository;
 import pt.ua.deti.apieasyspot.booking.model.Reservation;
 import pt.ua.deti.apieasyspot.occupancy.model.ZoneType;
 
@@ -23,7 +23,7 @@ import java.time.ZoneOffset;
 @RequiredArgsConstructor
 public class BillingService {
 
-    private final ParkingSessionRepository parkingSessionRepository;
+    private final TimescaleParkingSessionRepository parkingSessionRepository;
 
     @Value("${stripe.secret-key:}")
     private String stripeSecretKey;
@@ -82,8 +82,9 @@ public class BillingService {
         OffsetDateTime exit  = reservation.getDepartureTime().withOffsetSameInstant(ZoneOffset.UTC);
 
         ParkingSession session = new ParkingSession();
-        session.setUser(reservation.getUser());
-        session.setParkingLot(reservation.getParkingLot());
+        if (reservation.getUser() != null) session.setUserId(reservation.getUser().getId());
+        session.setParkingLotId(reservation.getParkingLot().getId());
+        if (reservation.getVehicle() != null) session.setVehicleId(reservation.getVehicle().getId());
         session.setZoneType(zone);
         session.setEntryTime(entry);
         session.setExitTime(exit);

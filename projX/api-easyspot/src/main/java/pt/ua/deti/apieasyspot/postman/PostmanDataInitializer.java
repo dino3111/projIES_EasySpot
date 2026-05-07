@@ -9,12 +9,12 @@ import org.springframework.stereotype.Component;
 import pt.ua.deti.apieasyspot.auth.model.User;
 import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
 import pt.ua.deti.apieasyspot.billing.model.ParkingSession;
-import pt.ua.deti.apieasyspot.billing.repository.ParkingSessionRepository;
+import pt.ua.deti.apieasyspot.billing.repository.TimescaleParkingSessionRepository;
 import pt.ua.deti.apieasyspot.notification.model.Alert;
 import pt.ua.deti.apieasyspot.notification.model.StateAlert;
 import pt.ua.deti.apieasyspot.notification.model.SeverityAlert;
 import pt.ua.deti.apieasyspot.notification.model.AlertType;
-import pt.ua.deti.apieasyspot.notification.repository.AlertRepository;
+import pt.ua.deti.apieasyspot.notification.repository.TimescaleAlertRepository;
 import pt.ua.deti.apieasyspot.occupancy.model.*;
 import pt.ua.deti.apieasyspot.occupancy.repository.AccessibleSpotRepository;
 import pt.ua.deti.apieasyspot.occupancy.repository.EVChargerRepository;
@@ -41,8 +41,8 @@ class PostmanDataInitializer implements ApplicationRunner {
     private final UserRepository userRepository;
     private final VehicleRepository vehicleRepository;
     private final ParkingLotRepository parkingLotRepository;
-    private final ParkingSessionRepository parkingSessionRepository;
-    private final AlertRepository alertRepository;
+    private final TimescaleParkingSessionRepository parkingSessionRepository;
+    private final TimescaleAlertRepository alertRepository;
     private final TimescaleOccupancySnapshotRepository occupancySnapshotRepository;
     private final TariffRepository tariffRepository;
     private final EVChargerRepository evChargerRepository;
@@ -65,8 +65,8 @@ class PostmanDataInitializer implements ApplicationRunner {
         UserRepository userRepository,
         VehicleRepository vehicleRepository,
         ParkingLotRepository parkingLotRepository,
-        ParkingSessionRepository parkingSessionRepository,
-        AlertRepository alertRepository,
+        TimescaleParkingSessionRepository parkingSessionRepository,
+        TimescaleAlertRepository alertRepository,
         TimescaleOccupancySnapshotRepository occupancySnapshotRepository,
         TariffRepository tariffRepository,
         EVChargerRepository evChargerRepository,
@@ -137,7 +137,6 @@ class PostmanDataInitializer implements ApplicationRunner {
 
     private void seedDetails(List<ParkingLot> lots) {
         for (ParkingLot lot : lots) {
-            // Tariffs
             Tariff standard = new Tariff();
             standard.setParkingLot(lot);
             standard.setName("Standard");
@@ -165,7 +164,6 @@ class PostmanDataInitializer implements ApplicationRunner {
                 accessibleSpotRepository.save(spot);
             }
 
-            // Some spots for the map
             for (int r = 1; r <= 3; r++) {
                 for (int c = 1; c <= 5; c++) {
                     ParkingSpot s = new ParkingSpot();
@@ -182,8 +180,6 @@ class PostmanDataInitializer implements ApplicationRunner {
     }
 
     private void seedSessions(List<ParkingLot> lots, User driver) {
-        Vehicle primary = vehicleRepository.findById(vehicleId).orElseThrow();
-        Vehicle secondary = vehicleRepository.findById(secondaryVehicleId).orElseThrow();
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         for (int daysAgo = 6; daysAgo >= 0; daysAgo--) {
             int count = 50 + (int) (Math.random() * 100);
@@ -191,14 +187,14 @@ class PostmanDataInitializer implements ApplicationRunner {
                 ParkingLot lot = lots.get(i % lots.size());
                 OffsetDateTime entry = now.minusDays(daysAgo).withHour(7 + (i % 14)).withMinute(i % 60);
                 double durationH = 0.5 + (Math.random() * 3.5);
-                Vehicle chosen = i % 2 == 0 ? primary : secondary;
-                parkingSessionRepository.save(session(lot, entry, durationH, driver, chosen));
+                UUID chosenVehicleId = i % 2 == 0 ? vehicleId : secondaryVehicleId;
+                parkingSessionRepository.save(session(lot, entry, durationH, driver.getId(), chosenVehicleId));
             }
         }
     }
 
     private void seedAlerts(List<ParkingLot> lots) {
-        alertRepository.saveAll(List.of(
+        List.of(
             alert(lots.get(0), AlertType.SENSOR, SeverityAlert.CRITICAL, StateAlert.OPEN,
                 "Piso 0 – Zona B", "IR-AV1-B07", null,
                 "Sensor infravermelho sem leituras há 2h", null, null,
@@ -219,7 +215,7 @@ class PostmanDataInitializer implements ApplicationRunner {
                 null, null, "73-CD-98",
                 "Lugar EV reservado estava ocupado por veículo convencional",
                 "Suporte EasySpot", "Reembolso processado.", OffsetDateTime.now(ZoneOffset.UTC).minusDays(1))
-        ));
+        ).forEach(alertRepository::save);
     }
 
     private void seedHourlySnapshots(List<ParkingLot> lots) {
@@ -251,11 +247,11 @@ class PostmanDataInitializer implements ApplicationRunner {
         return l;
     }
 
-    private ParkingSession session(ParkingLot lot, OffsetDateTime entry, double durationHours, User driver, Vehicle vehicle) {
+    private ParkingSession session(ParkingLot lot, OffsetDateTime entry, double durationHours, UUID driverId, UUID chosenVehicleId) {
         ParkingSession s = new ParkingSession();
-        s.setUser(driver);
-        s.setParkingLot(lot);
-        s.setVehicle(vehicle);
+        s.setUserId(driverId);
+        s.setParkingLotId(lot.getId());
+        s.setVehicleId(chosenVehicleId);
         s.setZoneType(ZoneType.STANDARD);
         s.setEntryTime(entry);
         s.setExitTime(entry.plusMinutes((long) (durationHours * 60)));
@@ -267,7 +263,8 @@ class PostmanDataInitializer implements ApplicationRunner {
                         StateAlert estado, String zona, String sensorId, String matricula,
                         String descricao, String atribuidoA, String notas, OffsetDateTime criadoEm) {
         Alert a = new Alert();
-        a.setParkingLot(lot);
+        a.setParkingLotId(lot.getId());
+        a.setParkingLotName(lot.getName());
         a.setType(tipo);
         a.setSeverity(severidade);
         a.setState(estado);

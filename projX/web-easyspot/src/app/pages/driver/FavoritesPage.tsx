@@ -16,9 +16,8 @@ export function FavoritesPage() {
       </div>
 
       {/* Estado vazio */}
-      <div
+      <section
         className="flex flex-col items-center justify-center rounded-2xl py-16 px-6 text-center bg-card border-2 border-dashed border-border"
-        role="status"
         aria-label="Nenhum favorito guardado"
       >
         <div
@@ -31,8 +30,8 @@ export function FavoritesPage() {
           Sem favoritos ainda
         </h2>
         <p className="text-muted-foreground max-w-xs leading-relaxed mb-6" style={{ fontSize: '0.875rem' }}>
-          Guarde os seus parques preferidos para acesso rápido. Toque na estrela
-          <i className="fas fa-star mx-1 text-warning" aria-hidden="true"></i>
+          Guarde os seus parques preferidos para acesso rápido. Toque na estrela{' '}
+          <i className="fas fa-star mx-1 text-warning" aria-hidden="true"></i>{' '}
           na página de detalhe de qualquer parque.
         </p>
         <Link
@@ -43,12 +42,11 @@ export function FavoritesPage() {
           <i className="fas fa-magnifying-glass" aria-hidden="true"></i>
           Explorar Parques
         </Link>
-      </div>
+      </section>
 
       {/* Dica */}
-      <div
+      <aside
         className="flex items-start gap-3 rounded-xl p-4 mt-4 bg-card border border-border"
-        role="note"
       >
         <i className="fas fa-lightbulb mt-0.5 flex-shrink-0 text-warning" aria-hidden="true"></i>
         <div>
@@ -60,7 +58,7 @@ export function FavoritesPage() {
             e poderá reservar mais rapidamente.
           </p>
         </div>
-      </div>
+      </aside>
     </div>
   );
 }

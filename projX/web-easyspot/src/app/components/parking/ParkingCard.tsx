@@ -6,9 +6,9 @@ import { getSpotDimCategory, getDistanceColor } from '../../data/parkingTypes';
 export type FilterMode = 'ev' | 'accessible' | 'both' | null;
 
 interface ParkingCardProps {
-  lot: ParkingLot;
-  highlightAccessible?: boolean;
-  filterMode?: FilterMode;
+  readonly lot: ParkingLot;
+  readonly highlightAccessible?: boolean;
+  readonly filterMode?: FilterMode;
 }
 
 export function ParkingCard({ lot, highlightAccessible = false, filterMode = null }: ParkingCardProps) {
@@ -29,10 +29,10 @@ export function ParkingCard({ lot, highlightAccessible = false, filterMode = nul
     ? getSpotDimCategory(closestAvailAcc.dimensions)
     : null;
 
-  const singleCtx = (() => {
+  const getSingleCtx = () => {
     if (filterMode === 'ev' && evTotal > 0) {
       const isFull = evAvail === 0;
-      const isAlmost = evAvail > 0 && evAvail <= Math.ceil(evTotal * 0.3);
+      const isAlmost = isFull ? false : evAvail <= Math.ceil(evTotal * 0.3);
       return {
         available: evAvail, total: evTotal,
         label: 'Carregadores', icon: 'fa-charging-station',
@@ -43,7 +43,7 @@ export function ParkingCard({ lot, highlightAccessible = false, filterMode = nul
     }
     if (filterMode === 'accessible' && accTotal > 0) {
       const isFull = accAvail === 0;
-      const isAlmost = accAvail > 0 && accAvail <= Math.ceil(accTotal * 0.3);
+      const isAlmost = isFull ? false : accAvail <= Math.ceil(accTotal * 0.3);
       return {
         available: accAvail, total: accTotal,
         label: 'Acessíveis', icon: 'fa-wheelchair',
@@ -53,7 +53,7 @@ export function ParkingCard({ lot, highlightAccessible = false, filterMode = nul
       };
     }
     const isFull = availableSpots === 0;
-    const isAlmost = !isFull && availableSpots <= Math.ceil(totalSpots * 0.2);
+    const isAlmost = isFull ? false : availableSpots <= Math.ceil(totalSpots * 0.2);
     return {
       available: availableSpots, total: totalSpots,
       label: 'Livres', icon: null,
@@ -61,21 +61,24 @@ export function ParkingCard({ lot, highlightAccessible = false, filterMode = nul
       isFull, isAlmost,
       statusLabel: isFull ? 'Lotado' : isAlmost ? 'Quase cheio' : 'Disponível',
     };
-  })();
+  };
+
+  const singleCtx = getSingleCtx();
 
   const ctx = filterMode !== 'both' ? singleCtx : null;
   const pct = ctx ? (ctx.total > 0 ? Math.round((ctx.available / ctx.total) * 100) : 0) : 0;
 
-  const borderClass = filterMode === 'both'
-    ? 'border-primary'
-    : filterMode === 'accessible'
-    ? 'border-primary/50 ring-1 ring-primary/20'
-    : filterMode === 'ev'
-    ? 'border-green-400/60 ring-1 ring-green-400/15'
-    : 'border-border';
+  const getBorderClass = () => {
+    if (filterMode === 'both')       return 'border-primary';
+    if (filterMode === 'accessible') return 'border-primary/50 ring-1 ring-primary/20';
+    if (filterMode === 'ev')         return 'border-green-400/60 ring-1 ring-green-400/15';
+    return 'border-border';
+  };
+
+  const borderClass = getBorderClass();
 
   const defaultIsFull = availableSpots === 0;
-  const defaultIsAlmost = !defaultIsFull && availableSpots <= Math.ceil(totalSpots * 0.2);
+  const defaultIsAlmost = defaultIsFull ? false : availableSpots <= Math.ceil(totalSpots * 0.2);
 
   const getBadgeStyle = (isFull: boolean, isAlmost: boolean) => ({
     bg: isFull ? '#ef4444' : isAlmost ? '#f59e0b' : '#22c55e',

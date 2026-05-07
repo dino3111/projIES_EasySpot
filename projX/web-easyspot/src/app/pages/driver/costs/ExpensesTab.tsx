@@ -12,7 +12,13 @@ const PERIODS: { id: Period; label: string }[] = [
   { id: '7d', label: '7 dias' }, { id: '30d', label: '30 dias' }, { id: '3m', label: '3 meses' },
 ];
 
-function SpendTooltip({ active, payload, label }: { active?: boolean; payload?: { value: number }[]; label?: string }) {
+interface SpendTooltipProps {
+  readonly active?: boolean;
+  readonly payload?: readonly { readonly value: number }[];
+  readonly label?: string;
+}
+
+function SpendTooltip({ active, payload, label }: SpendTooltipProps) {
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-base-100 border border-base-300/40 rounded-xl px-3 py-2 shadow-xl text-sm">

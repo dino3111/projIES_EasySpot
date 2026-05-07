@@ -24,8 +24,6 @@ import pt.ua.deti.apieasyspot.vehicle.model.Vehicle;
 import pt.ua.deti.apieasyspot.vehicle.repository.VehicleRepository;
 import pt.ua.deti.apieasyspot.vehicle.service.VehicleLookupClient;
 
-import java.util.UUID;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 import static pt.ua.deti.apieasyspot.support.TestJwtRequests.jwtWithRole;

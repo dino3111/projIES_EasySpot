@@ -16,6 +16,7 @@ import pt.ua.deti.apieasyspot.occupancy.repository.*;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -93,7 +94,7 @@ public class ParkService {
     private BigDecimal minPrice(UUID lotId) {
         return tariffRepository.findByParkingLotId(lotId).stream()
             .map(Tariff::getPricePerHour)
-            .filter(price -> price != null)
+            .filter(Objects::nonNull)
             .min(BigDecimal::compareTo)
             .orElse(null);
     }
@@ -172,7 +173,7 @@ public class ParkService {
                     snapshot.zoneType().name(), snapshot.totalCount(), free, pct
                 );
             })
-            .collect(Collectors.toList());
+            .toList();
     }
 
     private List<ParkingLotDetailsResponse.SpotResponse> fetchSpots(UUID lotId) {

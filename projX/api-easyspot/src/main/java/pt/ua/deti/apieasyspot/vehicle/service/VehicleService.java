@@ -29,6 +29,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class VehicleService {
     private static final Logger log = LoggerFactory.getLogger(VehicleService.class);
+    private static final String UNKNOWN = "DESCONHECIDO";
 
     private final VehicleRepository vehicleRepository;
     private final UserRepository userRepository;
@@ -112,10 +113,10 @@ public class VehicleService {
     }
 
     private void applyLookupData(Vehicle vehicle, VehicleData data) {
-        vehicle.setMake(nullSafe(data.make(), "DESCONHECIDO"));
-        vehicle.setModel(nullSafe(data.model(), "DESCONHECIDO"));
+        vehicle.setMake(nullSafe(data.make(), UNKNOWN));
+        vehicle.setModel(nullSafe(data.model(), UNKNOWN));
         vehicle.setVersion(data.version());
-        vehicle.setFuelType(nullSafe(data.fuelType(), "DESCONHECIDO"));
+        vehicle.setFuelType(nullSafe(data.fuelType(), UNKNOWN));
         vehicle.setVin(data.vin());
         vehicle.setEv(isElectric(data.fuelType()));
         vehicle.setYear(resolveYear(data.yearFrom()));

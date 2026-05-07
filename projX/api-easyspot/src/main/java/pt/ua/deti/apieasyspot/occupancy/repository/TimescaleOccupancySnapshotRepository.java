@@ -62,7 +62,7 @@ public class TimescaleOccupancySnapshotRepository {
 
     public Map<UUID, List<ZoneSnapshot>> latestByLotIds(Collection<UUID> lotIds) {
         if (lotIds == null || lotIds.isEmpty()) return Map.of();
-        String placeholders = lotIds.stream().map(_id -> "?").collect(Collectors.joining(","));
+        String placeholders = lotIds.stream().map(id -> "?").collect(Collectors.joining(","));
         Object[] params = lotIds.toArray();
         List<LotZoneSnapshot> rows = jdbc.query(
             """

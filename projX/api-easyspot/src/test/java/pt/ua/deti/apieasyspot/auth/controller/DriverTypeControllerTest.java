@@ -97,7 +97,7 @@ class DriverTypeControllerTest {
     @Test
     @DisplayName("POST /api/driver/type - success - returns 200 with profile excerpt")
     void updateDriverTypeSuccess() throws Exception {
-        when(userProfileService.updateDriverType(eq(EXISTING_AUTHENTIK_ID), eq(DriverType.REDUCED_MOBILITY)))
+        when(userProfileService.updateDriverType(EXISTING_AUTHENTIK_ID, DriverType.REDUCED_MOBILITY))
             .thenReturn(buildUser(DriverType.REDUCED_MOBILITY));
 
         mockMvc.perform(post("/api/driver/type")
@@ -115,7 +115,7 @@ class DriverTypeControllerTest {
     @DisplayName("POST /api/driver/type - explicit userId in body - uses it over JWT subject")
     void updateDriverTypeExplicitUserId() throws Exception {
         String explicitUserId = "explicit-user-id";
-        when(userProfileService.updateDriverType(eq(explicitUserId), eq(DriverType.EV)))
+        when(userProfileService.updateDriverType(explicitUserId, DriverType.EV))
             .thenReturn(buildUser(DriverType.EV));
 
         mockMvc.perform(post("/api/driver/type")

@@ -32,7 +32,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-public class VehicleServiceTest {
+class VehicleServiceTest {
     @Mock private VehicleRepository vehicleRepository;
     @Mock private UserRepository userRepository;
     @Mock private VehicleLookupClient vehicleLookupClient;

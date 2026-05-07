@@ -2,12 +2,12 @@ import { getBrandLogoUrl } from '../../utils/brandLogo';
 import type { Vehicle } from '../../context/ProfileContext';
 
 interface VehiclePickerProps {
-  vehicles: Vehicle[];
-  selectedId: string | null;
-  onSelect: (id: string | null) => void;
-  label?: string;
-  allLabel?: string;
-  className?: string;
+  readonly vehicles: readonly Vehicle[];
+  readonly selectedId: string | null;
+  readonly onSelect: (id: string | null) => void;
+  readonly label?: string;
+  readonly allLabel?: string;
+  readonly className?: string;
 }
 
 function vehicleLabel(v: Vehicle) {

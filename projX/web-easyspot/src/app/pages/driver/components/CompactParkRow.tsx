@@ -7,7 +7,7 @@ interface CompactParkRowProps {
   filterMode: FilterMode;
 }
 
-export function CompactParkRow({ lot, filterMode }: CompactParkRowProps) {
+export function CompactParkRow({ lot, filterMode }: Readonly<CompactParkRowProps>) {
   const evAvail  = lot.evChargers?.filter((c) => c.available).length ?? 0;
   const evTotal  = lot.evChargers?.length ?? 0;
   const accAvail = lot.accessibleSpots?.filter((s) => s.available).length ?? 0;
@@ -98,6 +98,12 @@ interface CtxData {
   borderCls: string;
 }
 
+function getStatusColor(avail: number, total: number, isAlmost: boolean, baseColor: string): string {
+  if (avail === 0) return '#ef4444';
+  if (isAlmost || avail <= Math.ceil(total * 0.3)) return '#f59e0b';
+  return baseColor;
+}
+
 function buildContext({ lot, filterMode, evAvail, evTotal, accAvail, accTotal }: {
   lot: ParkingLot; filterMode: FilterMode;
   evAvail: number; evTotal: number; accAvail: number; accTotal: number;
@@ -105,32 +111,45 @@ function buildContext({ lot, filterMode, evAvail, evTotal, accAvail, accTotal }:
   if (filterMode === 'ev' && evTotal > 0) {
     const isFull = evAvail === 0;
     return {
-      avail: evAvail, total: evTotal,
-      color: isFull ? '#ef4444' : evAvail <= Math.ceil(evTotal * 0.3) ? '#f59e0b' : '#22c55e',
+      avail: evAvail,
+      total: evTotal,
+      color: getStatusColor(evAvail, evTotal, false, '#22c55e'),
       label: isFull ? 'Sem EV' : 'EV livre',
-      icon: 'fa-charging-station', borderCls: 'border-green-400/40',
+      icon: 'fa-charging-station',
+      borderCls: 'border-green-400/40',
     };
   }
+
   if ((filterMode === 'accessible' || filterMode === 'both') && accTotal > 0) {
     const isFull = accAvail === 0;
     return {
-      avail: accAvail, total: accTotal,
-      color: isFull ? '#ef4444' : accAvail <= Math.ceil(accTotal * 0.3) ? '#f59e0b' : '#7357ec',
+      avail: accAvail,
+      total: accTotal,
+      color: getStatusColor(accAvail, accTotal, false, '#7357ec'),
       label: isFull ? 'Sem acess.' : 'Acessível',
-      icon: 'fa-wheelchair', borderCls: 'border-primary/40',
+      icon: 'fa-wheelchair',
+      borderCls: 'border-primary/40',
     };
   }
+
   const isFull = lot.availableSpots === 0;
   const isAlmost = !isFull && lot.availableSpots <= Math.ceil(lot.totalSpots * 0.2);
+  
+  let label = 'Disponível';
+  if (isFull) label = 'Lotado';
+  else if (isAlmost) label = 'Quase cheio';
+
   return {
-    avail: lot.availableSpots, total: lot.totalSpots,
-    color: isFull ? '#ef4444' : isAlmost ? '#f59e0b' : '#22c55e',
-    label: isFull ? 'Lotado' : isAlmost ? 'Quase cheio' : 'Disponível',
-    icon: null, borderCls: 'border-border',
+    avail: lot.availableSpots,
+    total: lot.totalSpots,
+    color: getStatusColor(lot.availableSpots, lot.totalSpots, isAlmost, '#22c55e'),
+    label,
+    icon: null,
+    borderCls: 'border-border',
   };
 }
 
-function SpotIndicator({ ctx }: { ctx: CtxData }) {
+function SpotIndicator({ ctx }: Readonly<{ ctx: CtxData }>) {
   return (
     <div className="w-11 h-11 rounded-xl flex-shrink-0 flex flex-col items-center justify-center" style={{ background: ctx.color }}>
       {ctx.icon ? (
@@ -156,7 +175,7 @@ interface AccessibleBadgesProps {
   evTotal: number;
 }
 
-function AccessibleBadges({ closestAvailAcc, dimCat, filterMode, evAvail, evTotal }: AccessibleBadgesProps) {
+function AccessibleBadges({ closestAvailAcc, dimCat, filterMode, evAvail, evTotal }: Readonly<AccessibleBadgesProps>) {
   return (
     <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
       <span

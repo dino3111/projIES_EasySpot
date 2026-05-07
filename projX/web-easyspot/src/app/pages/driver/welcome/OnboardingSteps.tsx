@@ -1,5 +1,5 @@
 import React from 'react';
-import type { AccountType, DriverType } from '../../../context/ProfileContext';
+import type { AppProfile, DriverType } from '../../../context/ProfileContext';
 
 export interface VehicleData {
   plate?: string;
@@ -47,8 +47,8 @@ export function VehicleFieldGroup({ label, fields }: { label?: string; fields: {
 }
 
 export function StepAccountType({ accountType, onSet }: {
-  accountType: AccountType;
-  onSet: (t: AccountType) => void;
+  accountType: AppProfile;
+  onSet: (t: AppProfile) => void;
 }) {
   return (
     <div className="space-y-3">
@@ -57,7 +57,7 @@ export function StepAccountType({ accountType, onSet }: {
         { id: 'DRIVER',     icon: 'fa-car',       label: 'Condutor',                 desc: 'Encontrar parques, reservar, gerir custos' },
         { id: 'MANAGER',    icon: 'fa-chart-pie',  label: 'Gestor de Parques',         desc: 'Dashboard, receitas, sensores, relatórios' },
         { id: 'TECHNICAL', icon: 'fa-wrench',     label: 'Técnico de Manutenção',     desc: 'Diagnóstico, ordens de manutenção, sensores' },
-      ] as { id: AccountType; icon: string; label: string; desc: string }[]).map((t) => (
+      ] as { id: AppProfile; icon: string; label: string; desc: string }[]).map((t) => (
         <button key={t.id} onClick={() => onSet(t.id)} className={`w-full flex items-center gap-3 p-4 rounded-xl border-2 text-left transition-all ${accountType === t.id ? 'border-primary bg-primary/8' : 'border-border hover:border-primary/40'}`}>
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${accountType === t.id ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
             <i className={`fas ${t.icon}`} style={{ fontSize: '1rem' }} />
@@ -186,7 +186,7 @@ export function StepVehicle(props: {
   );
 }
 
-export function StepAccess({ accountType }: { accountType: AccountType }) {
+export function StepAccess({ accountType }: { accountType: AppProfile }) {
   return (
     <div className="space-y-4">
       <p className="text-muted-foreground mb-2" style={{ fontSize: '0.82rem' }}>Configure o seu acesso à plataforma de {accountType === 'MANAGER' ? 'gestão' : 'manutenção'}.</p>
@@ -316,7 +316,7 @@ export function StepPreferences({ notifPush, setNotifPush, notifEmail, setNotifE
   );
 }
 
-export function StepFinished({ accountType }: { accountType: AccountType }) {
+export function StepFinished({ accountType }: { accountType: AppProfile }) {
   return (
     <div className="text-center py-4">
       <div className="relative inline-block mb-5">

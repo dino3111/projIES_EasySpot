@@ -1,7 +1,7 @@
 import type { EVCharger } from '../../data/parkingTypes';
 
 interface EVChargerCardProps {
-  charger: EVCharger;
+  readonly charger: EVCharger;
 }
 
 export function EVChargerCard({ charger }: EVChargerCardProps) {

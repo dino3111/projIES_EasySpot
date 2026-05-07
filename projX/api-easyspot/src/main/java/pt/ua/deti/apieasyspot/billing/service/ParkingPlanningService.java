@@ -8,6 +8,7 @@ import java.time.ZoneId;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -105,7 +106,7 @@ public class ParkingPlanningService {
     private BigDecimal minPrice(UUID lotId) {
         return tariffRepository.findByParkingLotId(lotId).stream()
             .map(Tariff::getPricePerHour)
-            .filter(price -> price != null)
+            .filter(Objects::nonNull)
             .min(BigDecimal::compareTo)
             .orElse(null);
     }

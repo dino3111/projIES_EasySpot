@@ -2,7 +2,6 @@ package pt.ua.deti.apieasyspot.booking.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -32,15 +31,13 @@ public class ReservationController {
             Idempotency-Key header to make the request safely retryable.
             """
     )
-    @ApiResponses({
-        @ApiResponse(responseCode = "201", description = "Reservation confirmed"),
-        @ApiResponse(responseCode = "400", description = "Validation error in request body"),
-        @ApiResponse(responseCode = "401", description = "Missing or invalid JWT"),
-        @ApiResponse(responseCode = "403", description = "Caller is not a DRIVER"),
-        @ApiResponse(responseCode = "404", description = "Park, vehicle or spot not found"),
-        @ApiResponse(responseCode = "409", description = "Spot or lot unavailable / vehicle double-booking"),
-        @ApiResponse(responseCode = "422", description = "Invalid date range or off-hours booking")
-    })
+    @ApiResponse(responseCode = "201", description = "Reservation confirmed")
+    @ApiResponse(responseCode = "400", description = "Validation error in request body")
+    @ApiResponse(responseCode = "401", description = "Missing or invalid JWT")
+    @ApiResponse(responseCode = "403", description = "Caller is not a DRIVER")
+    @ApiResponse(responseCode = "404", description = "Park, vehicle or spot not found")
+    @ApiResponse(responseCode = "409", description = "Spot or lot unavailable / vehicle double-booking")
+    @ApiResponse(responseCode = "422", description = "Invalid date range or off-hours booking")
     @PostMapping
     @PreAuthorize("hasRole('DRIVER')")
     public ResponseEntity<ReservationResponse> createReservation(

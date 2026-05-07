@@ -12,20 +12,20 @@ export interface ParkingWithCost extends ParkingLot {
 
 export const allExpenses: (Expense & { vehicle?: string })[] = [
   ...mockExpenses,
-  { id: 'exp-6',  parkingLotName: 'Parque das Gaivotas',   date: '2026-03-06', duration: '1h 30m', amount: 2.10, vehicle: 'Seat Ibiza' },
-  { id: 'exp-7',  parkingLotName: 'Estação Ferroviária de Ovar', date: '2026-03-04', duration: '2h 00m', amount: 1.60, vehicle: 'Seat Ibiza' },
+  { id: 'exp-6',  parkingLotName: 'Parque das Gaivotas',   date: '2026-03-06', duration: '1h 30m', amount: 2.1, vehicle: 'Seat Ibiza' },
+  { id: 'exp-7',  parkingLotName: 'Estação Ferroviária de Ovar', date: '2026-03-04', duration: '2h 00m', amount: 1.6, vehicle: 'Seat Ibiza' },
   { id: 'exp-8',  parkingLotName: 'Fórum Aveiro',          date: '2026-03-03', duration: '1h 15m', amount: 1.88, vehicle: 'Renault Zoe',
-    evCharging: { kWh: 14.0, chargerType: 'Type 2 (7kW)', chargingAmount: 3.92 } },
-  { id: 'exp-9',  parkingLotName: 'Estádio Municipal Dr. Magalhães Pessoa', date: '2026-02-27', duration: '4h 00m', amount: 7.20, vehicle: 'Renault Zoe',
-    evCharging: { kWh: 22.0, chargerType: 'CCS (50kW)', chargingAmount: 9.24 } },
-  { id: 'exp-10', parkingLotName: 'Estação Ferroviária de Ovar', date: '2026-02-22', duration: '1h 00m', amount: 0.80, vehicle: 'Seat Ibiza' },
-  { id: 'exp-11', parkingLotName: 'Parque das Gaivotas',   date: '2026-02-18', duration: '6h 00m', amount: 8.40, vehicle: 'Seat Ibiza' },
-  { id: 'exp-12', parkingLotName: 'Mercado Municipal de Arganil', date: '2026-02-15', duration: '0h 30m', amount: 0.30, vehicle: 'Seat Ibiza' },
-  { id: 'exp-13', parkingLotName: 'Estádio Cidade de Coimbra', date: '2026-02-10', duration: '3h 00m', amount: 5.40, vehicle: 'Renault Zoe',
+    evCharging: { kWh: 14, chargerType: 'Type 2 (7kW)', chargingAmount: 3.92 } },
+  { id: 'exp-9',  parkingLotName: 'Estádio Municipal Dr. Magalhães Pessoa', date: '2026-02-27', duration: '4h 00m', amount: 7.2, vehicle: 'Renault Zoe',
+    evCharging: { kWh: 22, chargerType: 'CCS (50kW)', chargingAmount: 9.24 } },
+  { id: 'exp-10', parkingLotName: 'Estação Ferroviária de Ovar', date: '2026-02-22', duration: '1h 00m', amount: 0.8, vehicle: 'Seat Ibiza' },
+  { id: 'exp-11', parkingLotName: 'Parque das Gaivotas',   date: '2026-02-18', duration: '6h 00m', amount: 8.4, vehicle: 'Seat Ibiza' },
+  { id: 'exp-12', parkingLotName: 'Mercado Municipal de Arganil', date: '2026-02-15', duration: '0h 30m', amount: 0.3, vehicle: 'Seat Ibiza' },
+  { id: 'exp-13', parkingLotName: 'Estádio Cidade de Coimbra', date: '2026-02-10', duration: '3h 00m', amount: 5.4, vehicle: 'Renault Zoe',
     evCharging: { kWh: 12.5, chargerType: 'CCS (50kW)', chargingAmount: 5.25 } },
-  { id: 'exp-14', parkingLotName: 'Parque de São Domingos', date: '2026-01-28', duration: '4h 30m', amount: 7.20, vehicle: 'Seat Ibiza' },
-  { id: 'exp-15', parkingLotName: 'Fórum Aveiro',          date: '2026-01-20', duration: '2h 00m', amount: 3.00, vehicle: 'Renault Zoe',
-    evCharging: { kWh: 8.0, chargerType: 'Type 2 (7kW)', chargingAmount: 2.24 } },
+  { id: 'exp-14', parkingLotName: 'Parque de São Domingos', date: '2026-01-28', duration: '4h 30m', amount: 7.2, vehicle: 'Seat Ibiza' },
+  { id: 'exp-15', parkingLotName: 'Fórum Aveiro',          date: '2026-01-20', duration: '2h 00m', amount: 3, vehicle: 'Renault Zoe',
+    evCharging: { kWh: 8, chargerType: 'Type 2 (7kW)', chargingAmount: 2.24 } },
 ];
 
 export const COLORS = ['#7357ec', '#22c55e', '#f59e0b', '#06b6d4', '#ec4899'];
@@ -81,7 +81,7 @@ export function buildVehicleData(expenses: typeof allExpenses) {
 
 export function calculateCost(lot: ParkingLot, minutes: number): number {
   const baseCost = lot.hourlyRate * (minutes / 60);
-  return baseCost > lot.dailyMax ? lot.dailyMax : baseCost;
+  return Math.min(baseCost, lot.dailyMax);
 }
 
 export function generateOccupancyForecast(lot: ParkingLot) {

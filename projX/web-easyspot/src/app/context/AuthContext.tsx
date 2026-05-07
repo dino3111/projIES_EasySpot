@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from 'react';
 import type { AppProfile } from './ProfileContext';
 
 const AUTHENTIK_BASE = (import.meta.env.VITE_AUTHENTIK_URL ?? 'http://localhost:9000/authentik').replace(/\/$/, '');
@@ -58,7 +58,7 @@ function parseJwtClaims(token: string): Record<string, unknown> {
   const parts = token.split('.');
   if (parts.length !== 3) return {};
   try {
-    return JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+    return JSON.parse(atob(parts[1].replaceAll('-', '+').replaceAll('_', '/')));
   } catch {
     return {};
   }
@@ -82,7 +82,7 @@ function buildUser(claims: Record<string, unknown>): AuthUser {
   };
 }
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+export function AuthProvider({ children }: { readonly children: ReactNode }) {
   const [user,        setUser]        = useState<AuthUser | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [isLoading,   setIsLoading]   = useState(true);
@@ -173,13 +173,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setAccessToken(null);
 
-    const params = new URLSearchParams({ post_logout_redirect_uri: `${window.location.origin}/welcome` });
+    const params = new URLSearchParams({ post_logout_redirect_uri: `${globalThis.location.origin}/welcome` });
     if (idToken) params.set('id_token_hint', idToken);
-    window.location.href = `${LOGOUT_URL}?${params.toString()}`;
+    globalThis.location.href = `${LOGOUT_URL}?${params.toString()}`;
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, accessToken, isLoading, login, register, logout, handleCallback }}>
+    <AuthContext.Provider value={useMemo(() => ({
+      user,
+      accessToken,
+      isLoading,
+      login,
+      register,
+      logout,
+      handleCallback
+    }), [user, accessToken, isLoading, login, register, logout, handleCallback])}>
       {children}
     </AuthContext.Provider>
   );

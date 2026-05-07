@@ -4,7 +4,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
@@ -40,10 +39,8 @@ public class ParkController {
         description = "Returns paginated parking lots and supports text, availability and feature filters. " +
             "When vehicleId is provided, compatible filters are automatically enriched with vehicle capabilities."
     )
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Parking lots retrieved successfully"),
-        @ApiResponse(responseCode = "400", description = "Invalid query parameters")
-    })
+    @ApiResponse(responseCode = "200", description = "Parking lots retrieved successfully")
+    @ApiResponse(responseCode = "400", description = "Invalid query parameters")
     @GetMapping("/list")
     public ResponseEntity<ParkingLotSummaryResponse> listParks(
         @Parameter(description = "Optional search text for parking lot name or location", example = "Aveiro")
@@ -80,10 +77,8 @@ public class ParkController {
     }
 
     @Operation(summary = "Get parking lot details")
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Parking lot details retrieved successfully"),
-        @ApiResponse(responseCode = "404", description = "Parking lot not found")
-    })
+    @ApiResponse(responseCode = "200", description = "Parking lot details retrieved successfully")
+    @ApiResponse(responseCode = "404", description = "Parking lot not found")
     @GetMapping("/{id}/details")
     public ResponseEntity<ParkingLotDetailsResponse> getDetails(
         @Parameter(description = "Parking lot UUID", example = "9f6a9a7b-c6a2-43a2-a2b6-f57e6d03df57")

@@ -18,7 +18,6 @@ import pt.ua.deti.apieasyspot.booking.event.ReservationEventPublisher;
 import pt.ua.deti.apieasyspot.booking.model.Reservation;
 import pt.ua.deti.apieasyspot.booking.model.ReservationStatus;
 import pt.ua.deti.apieasyspot.booking.repository.ReservationRepository;
-import pt.ua.deti.apieasyspot.booking.service.BookingConfirmationMailService;
 import pt.ua.deti.apieasyspot.common.exception.ConflictException;
 import pt.ua.deti.apieasyspot.common.exception.ResourceNotFoundException;
 import pt.ua.deti.apieasyspot.common.exception.UnprocessableEntityException;
@@ -150,9 +149,9 @@ class ReservationServiceTest {
     @DisplayName("create - arrival in the past - throws UnprocessableEntityException")
     void create_arrivalInPast_throwsUnprocessable() {
         String past = OffsetDateTime.now(ZoneOffset.UTC).minusHours(1).toString();
+        CreateReservationRequest req = new CreateReservationRequest(lot.getId(), vehicle.getId(), past, DEPARTURE.toString(), null);
         assertThatThrownBy(() ->
-            reservationService.create(AUTH_ID, null,
-                new CreateReservationRequest(lot.getId(), vehicle.getId(), past, DEPARTURE.toString(), null)))
+            reservationService.create(AUTH_ID, null, req))
             .isInstanceOf(UnprocessableEntityException.class);
     }
 
@@ -162,9 +161,9 @@ class ReservationServiceTest {
         stubUserAndLotAndVehicle();
         String arrival = ARRIVAL.toString();
         String departure = ARRIVAL.minusMinutes(10).toString();
+        CreateReservationRequest req = new CreateReservationRequest(lot.getId(), vehicle.getId(), arrival, departure, null);
         assertThatThrownBy(() ->
-            reservationService.create(AUTH_ID, null,
-                new CreateReservationRequest(lot.getId(), vehicle.getId(), arrival, departure, null)))
+            reservationService.create(AUTH_ID, null, req))
             .isInstanceOf(UnprocessableEntityException.class);
     }
 
@@ -174,9 +173,9 @@ class ReservationServiceTest {
         stubUserAndLotAndVehicle();
         String soon = OffsetDateTime.now(ZoneOffset.UTC).plusMinutes(10).toString();
         String departure = OffsetDateTime.now(ZoneOffset.UTC).plusMinutes(70).toString();
+        CreateReservationRequest req = new CreateReservationRequest(lot.getId(), vehicle.getId(), soon, departure, null);
         assertThatThrownBy(() ->
-            reservationService.create(AUTH_ID, null,
-                new CreateReservationRequest(lot.getId(), vehicle.getId(), soon, departure, null)))
+            reservationService.create(AUTH_ID, null, req))
             .isInstanceOf(UnprocessableEntityException.class);
     }
 
@@ -189,10 +188,10 @@ class ReservationServiceTest {
         OffsetDateTime lateArrival = OffsetDateTime.now(ZoneOffset.UTC)
             .withHour(21).withMinute(0).withSecond(0).withNano(0).plusDays(1);
         OffsetDateTime lateDeparture = lateArrival.plusHours(1);
+        CreateReservationRequest req = new CreateReservationRequest(lot.getId(), vehicle.getId(),
+                lateArrival.toString(), lateDeparture.toString(), null);
         assertThatThrownBy(() ->
-            reservationService.create(AUTH_ID, null,
-                new CreateReservationRequest(lot.getId(), vehicle.getId(),
-                    lateArrival.toString(), lateDeparture.toString(), null)))
+            reservationService.create(AUTH_ID, null, req))
             .isInstanceOf(UnprocessableEntityException.class)
             .hasMessageContaining("opening hours");
     }
@@ -205,7 +204,8 @@ class ReservationServiceTest {
         lot.setTotalSpaces(5);
         stubHappyPath(5, 0, 0, Collections.emptyList()); // 5 == totalSpaces
 
-        assertThatThrownBy(() -> reservationService.create(AUTH_ID, null, request(null)))
+        CreateReservationRequest req = request(null);
+        assertThatThrownBy(() -> reservationService.create(AUTH_ID, null, req))
             .isInstanceOf(ConflictException.class)
             .hasMessageContaining("fully booked");
     }
@@ -215,7 +215,8 @@ class ReservationServiceTest {
     void create_vehicleDoubleBook_throwsConflict() {
         stubHappyPath(0, 1, 0, Collections.emptyList()); // 1 vehicle conflict
 
-        assertThatThrownBy(() -> reservationService.create(AUTH_ID, null, request(null)))
+        CreateReservationRequest req = request(null);
+        assertThatThrownBy(() -> reservationService.create(AUTH_ID, null, req))
             .isInstanceOf(ConflictException.class)
             .hasMessageContaining("vehicle already has an active reservation");
     }
@@ -234,8 +235,9 @@ class ReservationServiceTest {
         when(parkingSpotRepository.findByIdWithLock(spot.getId())).thenReturn(Optional.of(spot));
         when(reservationRepository.countSpotConflicts(eq(spot.getId()), any(), any())).thenReturn(1L);
 
+        CreateReservationRequest req = request(spot.getId());
         assertThatThrownBy(() ->
-            reservationService.create(AUTH_ID, null, request(spot.getId())))
+            reservationService.create(AUTH_ID, null, req))
             .isInstanceOf(ConflictException.class)
             .hasMessageContaining("already has a reservation");
     }
@@ -261,8 +263,9 @@ class ReservationServiceTest {
         when(reservationRepository.spotBelongsToPark(spot.getId(), lot.getId())).thenReturn(true);
         when(parkingSpotRepository.findByIdWithLock(spot.getId())).thenReturn(Optional.of(spot));
 
+        CreateReservationRequest req = request(spot.getId());
         assertThatThrownBy(() ->
-            reservationService.create(AUTH_ID, null, request(spot.getId())))
+            reservationService.create(AUTH_ID, null, req))
             .isInstanceOf(ConflictException.class)
             .hasMessageContaining("not available");
     }
@@ -279,8 +282,9 @@ class ReservationServiceTest {
         when(occupancySnapshotRepository.sumFreeSpacesFromLatestSnapshot(lot.getId())).thenReturn(-1);
         when(reservationRepository.spotBelongsToPark(spot.getId(), lot.getId())).thenReturn(false);
 
+        CreateReservationRequest req = request(spot.getId());
         assertThatThrownBy(() ->
-            reservationService.create(AUTH_ID, null, request(spot.getId())))
+            reservationService.create(AUTH_ID, null, req))
             .isInstanceOf(UnprocessableEntityException.class);
     }
 
@@ -291,7 +295,8 @@ class ReservationServiceTest {
         when(parkingLotRepository.findById(lot.getId())).thenReturn(Optional.of(lot));
         when(vehicleRepository.findByIdAndUserId(vehicle.getId(), user.getId())).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> reservationService.create(AUTH_ID, null, request(null)))
+        CreateReservationRequest req = request(null);
+        assertThatThrownBy(() -> reservationService.create(AUTH_ID, null, req))
             .isInstanceOf(ResourceNotFoundException.class);
     }
 

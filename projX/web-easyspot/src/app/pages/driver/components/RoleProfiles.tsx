@@ -50,7 +50,7 @@ export function DriverProfile() {
   const openCustomerPortal = async () => {
     try {
       const url = await paymentApi.createCustomerPortalSession();
-      window.location.href = url;
+      globalThis.location.href = url;
     } catch (error) {
       setPaymentsError(error instanceof Error ? error.message : 'Não foi possível abrir o portal Stripe.');
     }
@@ -135,8 +135,8 @@ export function DriverProfile() {
             className="px-3.5 py-2 rounded-xl bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-all"
             style={{ fontSize: '0.78rem' }}
           >
-            <i className="fas fa-plus mr-1.5" />
-            Adicionar método
+            <i className="fas fa-plus mr-1.5" aria-hidden="true" />
+            {' '}Adicionar método
           </button>
           <button
             type="button"
@@ -144,8 +144,8 @@ export function DriverProfile() {
             className="px-3.5 py-2 rounded-xl border border-border text-foreground font-semibold hover:bg-muted/40 transition-all"
             style={{ fontSize: '0.78rem' }}
           >
-            <i className="fas fa-up-right-from-square mr-1.5" />
-            Abrir portal Stripe
+            <i className="fas fa-up-right-from-square mr-1.5" aria-hidden="true" />
+            {' '}Abrir portal Stripe
           </button>
           <button
             type="button"
@@ -153,8 +153,8 @@ export function DriverProfile() {
             className="px-3.5 py-2 rounded-xl border border-border text-foreground font-semibold hover:bg-muted/40 transition-all"
             style={{ fontSize: '0.78rem' }}
           >
-            <i className={`fas ${loadingPayments ? 'fa-spinner fa-spin' : 'fa-rotate-right'} mr-1.5`} />
-            Atualizar
+            <i className={`fas ${loadingPayments ? 'fa-spinner fa-spin' : 'fa-rotate-right'} mr-1.5`} aria-hidden="true" />
+            {' '}Atualizar
           </button>
         </div>
         {paymentsError && (

@@ -80,7 +80,7 @@ function RealtimeBadge() {
   return (
     <div
       className="hidden sm:flex items-center gap-2 bg-white/15 px-3 py-1.5 rounded-full"
-      role="status"
+      aria-live="polite"
       aria-label="Dados em tempo real"
     >
       <span className="relative flex h-2 w-2" aria-hidden="true">

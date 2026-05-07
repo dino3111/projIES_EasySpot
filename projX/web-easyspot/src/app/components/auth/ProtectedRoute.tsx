@@ -3,8 +3,8 @@ import { useAuth } from '../../context/AuthContext';
 import type { AppProfile } from '../../context/ProfileContext';
 
 interface ProtectedRouteProps {
-  children: React.ReactNode;
-  allowedRoles?: AppProfile[];
+  readonly children: React.ReactNode;
+  readonly allowedRoles?: readonly AppProfile[];
 }
 
 export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
