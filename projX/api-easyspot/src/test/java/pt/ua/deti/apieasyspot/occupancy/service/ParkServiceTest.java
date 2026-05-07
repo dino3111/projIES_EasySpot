@@ -12,12 +12,12 @@ import pt.ua.deti.apieasyspot.common.exception.ResourceNotFoundException;
 import pt.ua.deti.apieasyspot.occupancy.dto.ParkingLotDetailsResponse;
 import pt.ua.deti.apieasyspot.occupancy.dto.ParkingLotSummaryResponse;
 import pt.ua.deti.apieasyspot.occupancy.model.*;
+import pt.ua.deti.apieasyspot.occupancy.repository.TimescaleOccupancySnapshotRepository.ZoneSnapshot;
 import pt.ua.deti.apieasyspot.occupancy.repository.*;
 
 import java.math.BigDecimal;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.time.Instant;
+import java.util.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -56,14 +56,17 @@ class ParkServiceTest {
 
     @Test
     void searchParks_returnsItemsFromJdbc() {
-        ParkingLotSummaryResponse.ParkingLotSummary summary = new ParkingLotSummaryResponse.ParkingLotSummary(
-            lotId, "Test Park", "Aveiro", "Test Address", 40.6405, -8.6538, "24h",
-            BigDecimal.valueOf(1.5), 100, 20,
-            new ParkingLotSummaryResponse.CountInfo(5, 10),
-            new ParkingLotSummaryResponse.CountInfo(2, 5),
-            "AVAILABLE"
-        );
-        when(jdbc.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of(summary));
+        lot.setCity("Aveiro");
+        when(parkingLotRepository.findAll()).thenReturn(List.of(lot));
+        when(timescaleOccupancySnapshotRepository.latestByLotIds(anyCollection())).thenReturn(Map.of(
+            lotId, List.of(
+                new ZoneSnapshot(ZoneType.STANDARD, 80, 100, Instant.now()),
+                new ZoneSnapshot(ZoneType.EV, 5, 10, Instant.now())
+            )
+        ));
+        Tariff tariff = new Tariff();
+        tariff.setPricePerHour(BigDecimal.valueOf(1.5));
+        when(tariffRepository.findByParkingLotId(lotId)).thenReturn(List.of(tariff));
 
         ParkingLotSummaryResponse response = parkService.searchParks("Test", 10, null, List.of("EV"), 1, 10);
 
@@ -76,7 +79,8 @@ class ParkServiceTest {
 
     @Test
     void searchParks_noFilters_callsJdbc() {
-        when(jdbc.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(parkingLotRepository.findAll()).thenReturn(List.of());
+        when(timescaleOccupancySnapshotRepository.latestByLotIds(anyCollection())).thenReturn(Map.of());
 
         ParkingLotSummaryResponse response = parkService.searchParks(null, null, null, null, 1, 20);
 
@@ -87,7 +91,8 @@ class ParkServiceTest {
 
     @Test
     void searchParks_page2_usesCorrectOffset() {
-        when(jdbc.query(anyString(), any(RowMapper.class), any(Object[].class))).thenReturn(List.of());
+        when(parkingLotRepository.findAll()).thenReturn(List.of());
+        when(timescaleOccupancySnapshotRepository.latestByLotIds(anyCollection())).thenReturn(Map.of());
 
         ParkingLotSummaryResponse response = parkService.searchParks(null, null, null, null, 2, 10);
 
@@ -99,8 +104,8 @@ class ParkServiceTest {
     void getDetails_Success() {
         when(parkingLotRepository.findById(lotId)).thenReturn(Optional.of(lot));
 
-        when(jdbc.query(anyString(), any(RowMapper.class), eq(lotId))).thenReturn(List.of(
-            new ParkingLotDetailsResponse.ZoneResponse("STANDARD", 80, 20, 75)
+        when(timescaleOccupancySnapshotRepository.latestByLot(lotId)).thenReturn(List.of(
+            new ZoneSnapshot(ZoneType.STANDARD, 60, 80, Instant.now())
         ));
 
         Tariff tariff = new Tariff();

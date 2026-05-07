@@ -18,7 +18,10 @@ import pt.ua.deti.apieasyspot.billing.service.StripeService;
     "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect",
     "authentik.issuer=http://localhost:9000/authentik/",
     "spring.security.oauth2.resourceserver.jwt.jwk-set-uri=http://localhost:9000/authentik/application/o/easyspot/jwks/",
-    "cors.allowed-origins=http://localhost:5173"
+    "cors.allowed-origins=http://localhost:5173",
+    "timescale.datasource.url=jdbc:postgresql://localhost:5433/easyspot_ts",
+    "timescale.datasource.username=easyspot",
+    "timescale.datasource.password="
 })
 class ApiEasyspotApplicationTests {
 
