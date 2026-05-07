@@ -12,6 +12,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -29,19 +30,21 @@ public class TimescaleAlertRepository {
             alert.setId(UUID.randomUUID());
         }
         jdbc.update("""
-            insert into alerts (id, parking_lot_id, type, severity, state, zone, spot_number,
+            insert into alerts (id, parking_lot_id, parking_lot_name, type, severity, state, zone, spot_number,
                 sensor_id, plate, description, photo_url, attributed_to, notes, resolved_at, created_at)
-            values (?::uuid, ?::uuid, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            on conflict (id) do update set
+            values (?::uuid, ?::uuid, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            on conflict (id, created_at) do update set
                 state = excluded.state,
                 severity = excluded.severity,
                 attributed_to = excluded.attributed_to,
                 notes = excluded.notes,
                 resolved_at = excluded.resolved_at,
-                photo_url = excluded.photo_url
+                photo_url = excluded.photo_url,
+                parking_lot_name = excluded.parking_lot_name
             """,
             alert.getId().toString(),
             alert.getParkingLotId().toString(),
+            alert.getParkingLotName(),
             alert.getType().name(),
             alert.getSeverity().name(),
             alert.getState().name(),
@@ -68,14 +71,11 @@ public class TimescaleAlertRepository {
         return result != null ? result : 0L;
     }
 
-    public java.util.List<Alert> findAll() {
+    public List<Alert> findAll() {
         return jdbc.query("""
-            select a.id, a.parking_lot_id, pl.name as parking_lot_name,
-                   a.type, a.severity, a.state, a.zone, a.spot_number, a.sensor_id,
-                   a.plate, a.description, a.photo_url, a.attributed_to, a.notes,
-                   a.resolved_at, a.created_at
-            from alerts a
-            join parking_lots pl on pl.id = a.parking_lot_id
+            select id, parking_lot_id, parking_lot_name, type, severity, state, zone, spot_number,
+                   sensor_id, plate, description, photo_url, attributed_to, notes, resolved_at, created_at
+            from alerts
             """,
             this::mapRow
         );
@@ -83,13 +83,10 @@ public class TimescaleAlertRepository {
 
     public Optional<Alert> findById(UUID id) {
         var rows = jdbc.query("""
-            select a.id, a.parking_lot_id, pl.name as parking_lot_name,
-                   a.type, a.severity, a.state, a.zone, a.spot_number, a.sensor_id,
-                   a.plate, a.description, a.photo_url, a.attributed_to, a.notes,
-                   a.resolved_at, a.created_at
-            from alerts a
-            join parking_lots pl on pl.id = a.parking_lot_id
-            where a.id = ?::uuid
+            select id, parking_lot_id, parking_lot_name, type, severity, state, zone, spot_number,
+                   sensor_id, plate, description, photo_url, attributed_to, notes, resolved_at, created_at
+            from alerts
+            where id = ?::uuid
             """,
             this::mapRow,
             id.toString()

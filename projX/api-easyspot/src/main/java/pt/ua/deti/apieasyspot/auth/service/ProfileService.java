@@ -29,12 +29,7 @@ public class ProfileService {
     public Object getProfile(String authentikUserId, String jwtRole) {
         requireValidRole(jwtRole);
         User user = findUser(authentikUserId);
-        return switch (jwtRole) {
-            case "DRIVER" -> buildDriverProfile(user);
-            case "MANAGER" -> buildManagerProfile(user);
-            case "TECHNICAL" -> buildTechnicianProfile(user, authentikUserId);
-            default -> throw new IllegalArgumentException("Unknown role: " + jwtRole);
-        };
+        return buildProfileResponse(user, jwtRole, true, authentikUserId);
     }
 
     @Transactional
@@ -44,7 +39,7 @@ public class ProfileService {
         User user = findUser(authentikUserId);
         applyUpdates(user, request, jwtRole);
         userRepository.save(user);
-        return getProfile(authentikUserId, jwtRole);
+        return buildProfileResponse(user, jwtRole, false, authentikUserId);
     }
 
     private void requireValidRole(String jwtRole) {
@@ -80,9 +75,20 @@ public class ProfileService {
         user.setNotificationsEnabled(user.isPushNotificationsEnabled() || user.isEmailNotificationsEnabled());
     }
 
-    private DriverProfileResponse buildDriverProfile(User user) {
-        SpendingSummary spending = profileRepository.spendingSummary(user.getId());
-        long favorites = userFavoriteRepository.countByUserId(user.getId());
+    private Object buildProfileResponse(User user, String jwtRole, boolean includeStats, String authentikUserId) {
+        return switch (jwtRole) {
+            case "DRIVER" -> buildDriverProfile(user, includeStats);
+            case "MANAGER" -> buildManagerProfile(user, includeStats);
+            case "TECHNICAL" -> buildTechnicianProfile(user, includeStats, authentikUserId);
+            default -> throw new IllegalArgumentException("Unknown role: " + jwtRole);
+        };
+    }
+
+    private DriverProfileResponse buildDriverProfile(User user, boolean includeStats) {
+        SpendingSummary spending = includeStats
+            ? profileRepository.spendingSummary(user.getId())
+            : new SpendingSummary(java.math.BigDecimal.ZERO, 0L, java.math.BigDecimal.ZERO);
+        long favorites = includeStats ? userFavoriteRepository.countByUserId(user.getId()) : 0L;
         return new DriverProfileResponse(
             user.getName(), user.getEmail(), user.getRole(), user.getPhotoUrl(),
             user.getDriverType(), user.isNotificationsEnabled(),
@@ -90,7 +96,16 @@ public class ProfileService {
             spending, favorites);
     }
 
-    private ManagerProfileResponse buildManagerProfile(User user) {
+    private DriverProfileResponse buildDriverProfile(User user) {
+        return buildDriverProfile(user, true);
+    }
+
+    private ManagerProfileResponse buildManagerProfile(User user, boolean includeStats) {
+        if (!includeStats) {
+            return new ManagerProfileResponse(
+                user.getName(), user.getEmail(), user.getRole(), user.getPhotoUrl(),
+                user.isNotificationsEnabled(), 0, java.math.BigDecimal.ZERO, 0L, 0L);
+        }
         return new ManagerProfileResponse(
             user.getName(), user.getEmail(), user.getRole(), user.getPhotoUrl(),
             user.isNotificationsEnabled(),
@@ -100,7 +115,15 @@ public class ProfileService {
             analyticsRepository.countOpenAlerts());
     }
 
-    private TechnicianProfileResponse buildTechnicianProfile(User user, String authentikUserId) {
+    private TechnicianProfileResponse buildTechnicianProfile(User user, boolean includeStats, String authentikUserId) {
+        if (!includeStats) {
+            return new TechnicianProfileResponse(
+                user.getName(), user.getEmail(), user.getRole(), user.getPhotoUrl(),
+                user.isNotificationsEnabled(),
+                0L,
+                new SensorSummary(0, 0, 0.0),
+                0L);
+        }
         int total = technicianRepository.countTotalSensors();
         int operational = technicianRepository.countOperationalSensors();
         double uptimePct = total > 0 ? Math.round(operational * 1000.0 / total) / 10.0 : 0.0;

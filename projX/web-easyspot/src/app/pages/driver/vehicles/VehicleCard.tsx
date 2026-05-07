@@ -5,7 +5,15 @@ export function VehicleCard({
   vehicle, onEdit, onDelete, onSetPrimary,
 }: Readonly<{ vehicle: Vehicle; onEdit: () => void; onDelete: () => void; onSetPrimary: () => void }>) {
   return (
-    <div className={`rounded-2xl p-4 bg-card border transition-all ${vehicle.isPrimary ? 'border-primary shadow-md shadow-primary/10' : 'border-border'}`}>
+    <div className={`rounded-2xl overflow-hidden bg-card border transition-all ${vehicle.isPrimary ? 'border-primary shadow-md shadow-primary/10' : 'border-border'}`}>
+      {vehicle.imageUrl && (
+        <img
+          src={vehicle.imageUrl}
+          alt={`${vehicle.make ?? ''} ${vehicle.model ?? ''}`.trim() || vehicle.plate}
+          className="w-full h-28 object-cover"
+        />
+      )}
+      <div className="p-4">
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3 flex-1">
           <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center flex-shrink-0">
@@ -84,6 +92,7 @@ export function VehicleCard({
         <button type="button" aria-label="Remover veículo" onClick={onDelete} className="btn btn-sm btn-ghost text-error rounded-full" style={{ fontSize: '0.75rem' }}>
           <i className="fas fa-trash" style={{ fontSize: '0.7rem' }} />
         </button>
+      </div>
       </div>
     </div>
   );

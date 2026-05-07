@@ -130,9 +130,6 @@ class ProfileServiceTest {
         User user = buildUser("DRIVER");
         when(userRepository.findByAuthentikUserId("sub")).thenReturn(Optional.of(user));
         when(userRepository.save(any())).thenReturn(user);
-        when(profileRepository.spendingSummary(user.getId()))
-            .thenReturn(new SpendingSummary(BigDecimal.ZERO, 0L, BigDecimal.ZERO));
-        when(userFavoriteRepository.countByUserId(user.getId())).thenReturn(0L);
 
         ProfileUpdateRequest request = new ProfileUpdateRequest(DriverType.EV, null, null, null, null);
         Object result = profileService.updateProfile("sub", request, "DRIVER");
@@ -167,10 +164,6 @@ class ProfileServiceTest {
         User user = buildUser("MANAGER");
         when(userRepository.findByAuthentikUserId("sub")).thenReturn(Optional.of(user));
         when(userRepository.save(any())).thenReturn(user);
-        when(analyticsRepository.countActiveLots()).thenReturn(1);
-        when(analyticsRepository.revenueToday()).thenReturn(BigDecimal.ZERO);
-        when(analyticsRepository.countEntriesToday()).thenReturn(0L);
-        when(analyticsRepository.countOpenAlerts()).thenReturn(0L);
 
         ProfileUpdateRequest request = new ProfileUpdateRequest(null, false, null, null, null);
         profileService.updateProfile("sub", request, "MANAGER");
@@ -184,9 +177,6 @@ class ProfileServiceTest {
         User user = buildUser("DRIVER");
         when(userRepository.findByAuthentikUserId("sub")).thenReturn(Optional.of(user));
         when(userRepository.save(any())).thenReturn(user);
-        when(profileRepository.spendingSummary(user.getId()))
-            .thenReturn(new SpendingSummary(BigDecimal.ZERO, 0L, BigDecimal.ZERO));
-        when(userFavoriteRepository.countByUserId(user.getId())).thenReturn(0L);
 
         ProfileUpdateRequest request = new ProfileUpdateRequest(null, null, true, false, null);
         profileService.updateProfile("sub", request, "DRIVER");
@@ -201,9 +191,6 @@ class ProfileServiceTest {
         User user = buildUser("DRIVER");
         when(userRepository.findByAuthentikUserId("sub")).thenReturn(Optional.of(user));
         when(userRepository.save(any())).thenReturn(user);
-        when(profileRepository.spendingSummary(user.getId()))
-            .thenReturn(new SpendingSummary(BigDecimal.ZERO, 0L, BigDecimal.ZERO));
-        when(userFavoriteRepository.countByUserId(user.getId())).thenReturn(0L);
 
         ProfileUpdateRequest request = new ProfileUpdateRequest(null, null, null, null, null);
         profileService.updateProfile("sub", request, "DRIVER");
@@ -218,10 +205,6 @@ class ProfileServiceTest {
         User user = buildUser("TECHNICAL");
         when(userRepository.findByAuthentikUserId("sub")).thenReturn(Optional.of(user));
         when(userRepository.save(any())).thenReturn(user);
-        when(technicianRepository.countTotalSensors()).thenReturn(0);
-        when(technicianRepository.countOperationalSensors()).thenReturn(0);
-        when(technicianRepository.countFailuresToday()).thenReturn(0L);
-        when(profileRepository.countAssignedTasks("sub")).thenReturn(0L);
 
         ProfileUpdateRequest request = new ProfileUpdateRequest(null, null, null, null, "https://example.com/photo.jpg");
         profileService.updateProfile("sub", request, "TECHNICAL");

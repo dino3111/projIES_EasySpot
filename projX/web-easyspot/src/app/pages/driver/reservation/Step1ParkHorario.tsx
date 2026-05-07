@@ -32,11 +32,21 @@ function VehiclePicker({
                   selected ? 'border-primary bg-primary/5' : 'border-base-300 bg-base-100 hover:border-primary/40'
                 }`}
               >
-                <div className="w-9 h-9 rounded-lg bg-base-200 flex items-center justify-center flex-shrink-0">
-                  {logoUrl
-                    ? <img src={logoUrl} alt={v.make} className="w-7 h-7 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                    : <i className="fa-solid fa-car text-base-content/40" />}
-                </div>
+                {v.imageUrl
+                  ? <img src={v.imageUrl} alt={v.plate} className="w-16 h-11 object-cover rounded-lg flex-shrink-0" />
+                  : (
+                    <div className="w-9 h-9 rounded-lg bg-base-200 flex items-center justify-center flex-shrink-0">
+                      {logoUrl
+                        ? <img src={logoUrl} alt={v.make} className="w-7 h-7 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                        : <i className="fa-solid fa-car text-base-content/40" />}
+                    </div>
+                  )
+                }
+                {v.imageUrl && logoUrl && (
+                  <div className="w-6 h-6 rounded-full bg-base-200 flex items-center justify-center flex-shrink-0 -ml-2 border border-base-100">
+                    <img src={logoUrl} alt={v.make} className="w-4 h-4 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-mono font-bold text-sm text-base-content">{v.plate}</span>

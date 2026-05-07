@@ -15,7 +15,7 @@ export function Step3Confirmation({
   isSubmitting?: boolean;
 }>) {
   const hours = calcHours(arrivalTime, exitTime);
-  const vehicleValue = vehicle
+  const vehicleLabel = vehicle
     ? `${vehicle.plate}${vehicle.make ? ` · ${vehicle.make}` : ''}`
     : null;
 
@@ -35,7 +35,7 @@ export function Step3Confirmation({
               { icon: 'fa-flag-checkered',    label: 'Saída',   value: `${fmtDateTime(exitTime)} (${fmtDuration(hours)})` },
               { icon: 'fa-layer-group',       label: 'Piso',    value: floor },
               { icon: 'fa-car',               label: 'Lugar',   value: spot?.label || '—' },
-              ...(vehicleValue ? [{ icon: 'fa-id-card', label: 'Veículo', value: vehicleValue }] : []),
+              ...(vehicleLabel ? [{ icon: 'fa-id-card', label: 'Veículo', value: vehicleLabel }] : []),
             ].map(({ icon, label, value }) => (
               <div key={label} className="flex items-start gap-2">
                 <i className={`fa-solid ${icon} text-primary mt-0.5 w-4 shrink-0`} />
@@ -46,6 +46,13 @@ export function Step3Confirmation({
               </div>
             ))}
           </div>
+          {vehicle?.imageUrl && (
+            <img
+              src={vehicle.imageUrl}
+              alt={vehicleLabel ?? 'Veículo'}
+              className="mt-3 w-full h-24 object-cover rounded-xl border border-base-300"
+            />
+          )}
         </div>
       </div>
 

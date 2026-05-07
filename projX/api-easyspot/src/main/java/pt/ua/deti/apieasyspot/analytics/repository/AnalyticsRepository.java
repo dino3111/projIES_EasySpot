@@ -126,11 +126,10 @@ public class AnalyticsRepository {
     public List<AlertSummary> last5Alerts() {
         return timescaleJdbc.query(
             """
-            select a.id, a.type, pl.name as park, a.zone, a.sensor_id, a.plate,
-                   a.description, a.severity, a.state, a.created_at, a.attributed_to, a.notes
-            from alerts a
-            join parking_lots pl on pl.id = a.parking_lot_id
-            order by a.created_at desc
+            select id, type, parking_lot_name as park, zone, sensor_id, plate,
+                   description, severity, state, created_at, attributed_to, notes
+            from alerts
+            order by created_at desc
             limit 5
             """,
             (rs, rowNum) -> new AlertSummary(

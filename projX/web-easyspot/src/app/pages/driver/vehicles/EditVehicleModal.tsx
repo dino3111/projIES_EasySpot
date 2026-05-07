@@ -44,7 +44,15 @@ export function EditVehicleModal({
             </div>
           </div>
           {(vehicle.make || vehicle.model || vehicle.fuelType) && (
-            <div className="rounded-xl bg-muted p-4 space-y-1.5">
+            <div className="rounded-xl bg-muted overflow-hidden space-y-1.5">
+              {vehicle.imageUrl && (
+                <img
+                  src={vehicle.imageUrl}
+                  alt={`${vehicle.make ?? ''} ${vehicle.model ?? ''}`.trim() || vehicle.plate}
+                  className="w-full h-28 object-cover"
+                />
+              )}
+              <div className="p-4 space-y-1.5">
               <div className="flex items-center gap-3 mb-2">
                 <BrandLogo make={vehicle.make} logoUrl={vehicle.brandLogoUrl} />
                 <p className="text-foreground font-bold" style={{ fontSize: '0.875rem' }}>Informações do Veículo</p>
@@ -67,6 +75,7 @@ export function EditVehicleModal({
                   <span className="text-foreground font-semibold">{vehicle.color}</span>
                 </div>
               )}
+              </div>
             </div>
           )}
           <NicknameInput nickname={nickname} setNickname={setNickname} />
