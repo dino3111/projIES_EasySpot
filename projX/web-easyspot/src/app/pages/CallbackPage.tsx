@@ -12,10 +12,11 @@ function roleDefaultRoute(role: AppProfile): string {
 
 export function CallbackPage() {
   const navigate              = useNavigate();
-  const { handleCallback }    = useAuth();
+  const { handleCallback, user } = useAuth();
   const { setProfile }        = useProfile();
   const [error, setError]     = useState<string | null>(null);
   const processed             = useRef(false);
+  const pendingRole           = useRef<AppProfile | null>(null);
 
   useEffect(() => {
     if (processed.current) return;
@@ -51,8 +52,8 @@ export function CallbackPage() {
             }
           } catch { /* ignore parse errors */ }
         }
+        pendingRole.current = role;
         setProfile(role);
-        navigate(roleDefaultRoute(role), { replace: true });
       })
       .catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : 'Erro desconhecido no callback.';
@@ -61,6 +62,12 @@ export function CallbackPage() {
   // only runs once on mount
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (user && pendingRole.current) {
+      navigate(roleDefaultRoute(pendingRole.current), { replace: true });
+    }
+  }, [user, navigate]);
 
   if (error) {
     return (

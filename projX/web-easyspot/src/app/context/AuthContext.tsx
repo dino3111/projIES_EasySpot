@@ -125,8 +125,26 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
     globalThis.location.href = `${AUTHORIZE_URL}?${params.toString()}`;
   }, []);
 
-  const register = useCallback(() => {
-    globalThis.location.href = ENROLLMENT_URL;
+  const register = useCallback(async () => {
+    const verifier  = base64urlEncode(randomBytes(32));
+    const stateVal  = base64urlEncode(randomBytes(16));
+    const challenge = base64urlEncode(await sha256(verifier));
+
+    sessionStorage.setItem(SK.pkceVerifier, verifier);
+    sessionStorage.setItem(SK.pkceState,    stateVal);
+
+    const authorizeParams = new URLSearchParams({
+      response_type:         'code',
+      client_id:             CLIENT_ID,
+      redirect_uri:          REDIRECT_URI,
+      scope:                 'openid profile email groups',
+      state:                 stateVal,
+      code_challenge:        challenge,
+      code_challenge_method: 'S256',
+    });
+
+    const next = `${AUTHORIZE_URL}?${authorizeParams.toString()}`;
+    globalThis.location.href = `${ENROLLMENT_URL}?next=${encodeURIComponent(next)}`;
   }, []);
 
   const handleCallback = useCallback(async (code: string, state: string) => {

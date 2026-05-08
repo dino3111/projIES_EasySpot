@@ -25,7 +25,7 @@ function PaymentForm({ onReady }: Readonly<{ onReady: (confirmed: boolean) => vo
 
     const { error: submitError } = await stripe.confirmSetup({
       elements,
-      confirmParams: { return_url: globalThis.location.origin + '/callback' },
+      confirmParams: { return_url: globalThis.location.origin + '/welcome?stripe_return=1' },
       redirect: 'if_required',
     });
 
