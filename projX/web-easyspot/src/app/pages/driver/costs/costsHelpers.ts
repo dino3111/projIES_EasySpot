@@ -1,5 +1,4 @@
-import type { ParkingLot, Expense } from '../../../data/parkingData';
-import { mockExpenses } from '../../../data/parkingData';
+import type { ParkingLot, Expense } from '../../../data/parkingTypes';
 
 export type Period = '7d' | '30d' | '3m';
 export type SortBy = 'price' | 'distance' | 'ratio';
@@ -9,6 +8,14 @@ export interface ParkingWithCost extends ParkingLot {
   costPerKm: number;
   occupancyForecast: Array<{ hour: string; occupancy: number }>;
 }
+
+export const mockExpenses: Expense[] = [
+  { id: 'exp-1', parkingLotName: 'Parque Central', date: '2026-03-07', duration: '1h 00m', amount: 1.5, vehicle: 'AA-11-BB' },
+  { id: 'exp-2', parkingLotName: 'Parque da Estação', date: '2026-03-05', duration: '2h 00m', amount: 3.2, vehicle: 'AA-11-BB' },
+  { id: 'exp-3', parkingLotName: 'Fórum Aveiro', date: '2026-03-02', duration: '1h 30m', amount: 2.1, vehicle: 'CC-22-DD' },
+  { id: 'exp-4', parkingLotName: 'Parque Central', date: '2026-02-28', duration: '0h 45m', amount: 1.0, vehicle: 'AA-11-BB' },
+  { id: 'exp-5', parkingLotName: 'Parque da Estação', date: '2026-02-25', duration: '3h 00m', amount: 4.8, vehicle: 'CC-22-DD' },
+];
 
 export const allExpenses: (Expense & { vehicle?: string })[] = [
   ...mockExpenses,

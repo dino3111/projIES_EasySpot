@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from 'react';
 import { withGlobalLoading } from './LoadingContext';
 import type { AppProfile } from './ProfileContext';
+import { registerRefreshTokenFn } from '../../services/apiService';
 
 const AUTHENTIK_BASE = (import.meta.env.VITE_AUTHENTIK_URL ?? 'http://localhost:9000/authentik').replaceAll(/\/$/g, '');
 const CLIENT_ID      = import.meta.env.VITE_AUTHENTIK_CLIENT_ID ?? '';
@@ -106,6 +107,16 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
     console.log('[AUTH] AuthProvider init — token:', token ? 'EXISTS' : 'MISSING');
     if (token) {
       const claims = parseJwtClaims(token);
+      const expSec = typeof claims['exp'] === 'number' ? claims['exp'] : 0;
+      const expIn = expSec ? Math.round(expSec - Date.now() / 1000) : null;
+      console.log('[AUTH] token claims', {
+        iss: claims['iss'],
+        aud: claims['aud'],
+        sub: claims['sub'],
+        exp: expSec,
+        expiresInSec: expIn,
+        expired: expIn !== null && expIn <= 0,
+      });
       const u = buildUser(claims);
       console.log('[AUTH] AuthProvider restoring user:', u.sub, 'role:', u.role);
       setUser(u);
@@ -116,7 +127,10 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
 
   const refreshAccessToken = useCallback(async (): Promise<string | null> => {
     const refreshToken = sessionStorage.getItem(SK.refreshToken);
-    if (!refreshToken) return null;
+    if (!refreshToken) {
+      console.warn('[AUTH] refresh skipped: no refresh_token in sessionStorage');
+      return null;
+    }
 
     const body = new URLSearchParams({
       grant_type: 'refresh_token',
@@ -130,7 +144,11 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
       body: body.toString(),
     });
 
-    if (!resp.ok) return null;
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => '');
+      console.warn('[AUTH] refresh failed', { status: resp.status, body: text.slice(0, 300) });
+      return null;
+    }
 
     const data = await resp.json() as {
       access_token: string;
@@ -143,10 +161,16 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
     if (data.refresh_token) sessionStorage.setItem(SK.refreshToken, data.refresh_token);
 
     const claims = parseJwtClaims(data.id_token ?? data.access_token);
+    console.info('[AUTH] refresh ok', { sub: claims['sub'], iss: claims['iss'] });
     setUser(buildUser(claims));
     setAccessToken(data.access_token);
     return data.access_token;
   }, []);
+
+  useEffect(() => {
+    registerRefreshTokenFn(refreshAccessToken);
+    return () => registerRefreshTokenFn(null);
+  }, [refreshAccessToken]);
 
   useEffect(() => {
     if (!accessToken) return;

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { mockExpenses } from '../../data/parkingData';
-import type { Expense } from '../../data/parkingData';
+import { mockExpenses } from './costs/costsHelpers';
+import type { Expense } from '../../data/parkingTypes';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar,
