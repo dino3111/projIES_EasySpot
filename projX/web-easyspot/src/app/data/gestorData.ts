@@ -55,7 +55,7 @@ export interface BillingRecord {
   parqueNome: string;
   data: string;
   matricula: string;
-  metodo: 'OCR' | 'Manual';
+  metodo: 'OCR' | 'RFID' | 'Manual';
   duracao: string;
   valorEstacionamento: number;
   valorEV?: number;
@@ -143,7 +143,7 @@ export const mockIssues: IssueReport[] = [
     id: 'iss-004',
     tipo: 'sistema',
     parque: 'Europa – Leiria',
-    descricao: 'Leitor OCR da entrada principal sem comunicação com o servidor central desde as 06h45. Veículos a entrar sem registo automático.',
+    descricao: 'Leitor RFID da entrada principal sem comunicação com o servidor central desde as 06h45. Veículos a entrar sem registo automático.',
     severidade: 'critica',
     estado: 'em-progresso',
     criadoEm: '2026-03-09T06:50:00',
@@ -318,14 +318,14 @@ export const mockTariffs: TariffEntry[] = [
 
 // ─── Histórico de faturação ───────────────────────────────────────────────────
 export const mockBillingRecords: BillingRecord[] = [
-  { id: 'bil-001', parqueNome: 'Fórum Aveiro', data: '2026-03-09 08:32', matricula: '22-AB-44', metodo: 'OCR', duracao: '3h 15m', valorEstacionamento: 4.5, valorEV: 7.22, total: 11.72, estado: 'pago' },
+  { id: 'bil-001', parqueNome: 'Fórum Aveiro', data: '2026-03-09 08:32', matricula: '22-AB-44', metodo: 'RFID', duracao: '3h 15m', valorEstacionamento: 4.5, valorEV: 7.22, total: 11.72, estado: 'pago' },
   { id: 'bil-002', parqueNome: 'Glicínias Plaza', data: '2026-03-09 09:01', matricula: '55-CD-12', metodo: 'OCR', duracao: '1h 00m', valorEstacionamento: 1, total: 1, estado: 'pago' },
-  { id: 'bil-003', parqueNome: 'Europa – Leiria', data: '2026-03-09 07:45', matricula: '77-EF-88', metodo: 'OCR', duracao: '2h 30m', valorEstacionamento: 4, total: 4, estado: 'pago' },
+  { id: 'bil-003', parqueNome: 'Europa – Leiria', data: '2026-03-09 07:45', matricula: '77-EF-88', metodo: 'RFID', duracao: '2h 30m', valorEstacionamento: 4, total: 4, estado: 'pago' },
   { id: 'bil-004', parqueNome: 'Estádio Coimbra', data: '2026-03-09 10:10', matricula: '11-GH-55', metodo: 'OCR', duracao: '4h 00m', valorEstacionamento: 7.2, total: 7.2, estado: 'pendente' },
   { id: 'bil-005', parqueNome: 'Glicínias Plaza', data: '2026-03-09 14:02', matricula: '55-AB-23', metodo: 'OCR', duracao: '2h 00m', valorEstacionamento: 2, total: 2, estado: 'contestado' },
-  { id: 'bil-006', parqueNome: 'Foz Plaza', data: '2026-03-08 11:20', matricula: '73-CD-98', metodo: 'OCR', duracao: '5h 10m', valorEstacionamento: 6.2, valorEV: 9.8, total: 16, estado: 'pago' },
+  { id: 'bil-006', parqueNome: 'Foz Plaza', data: '2026-03-08 11:20', matricula: '73-CD-98', metodo: 'RFID', duracao: '5h 10m', valorEstacionamento: 6.2, valorEV: 9.8, total: 16, estado: 'pago' },
   { id: 'bil-007', parqueNome: 'Fórum Aveiro', data: '2026-03-08 13:45', matricula: '99-IJ-01', metodo: 'OCR', duracao: '0h 45m', valorEstacionamento: 1.5, total: 1.5, estado: 'pago' },
-  { id: 'bil-008', parqueNome: 'Mercado de Arganil', data: '2026-03-08 15:00', matricula: '44-KL-22', metodo: 'OCR', duracao: '2h 00m', valorEstacionamento: 1.2, total: 1.2, estado: 'pago' },
+  { id: 'bil-008', parqueNome: 'Mercado de Arganil', data: '2026-03-08 15:00', matricula: '44-KL-22', metodo: 'RFID', duracao: '2h 00m', valorEstacionamento: 1.2, total: 1.2, estado: 'pago' },
 ];
 
 // ─── KPIs do gestor (hoje) ────────────────────────────────────────────────────

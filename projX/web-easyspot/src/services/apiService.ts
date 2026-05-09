@@ -52,8 +52,22 @@ async function readErrorBody(res: Response): Promise<string> {
   }
 }
 
+function isAccessTokenExpired(): boolean {
+  const token = sessionStorage.getItem('es_access_token');
+  if (!token) return true;
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return true;
+    const claims = JSON.parse(atob(parts[1].replaceAll('-', '+').replaceAll('_', '/'))) as { exp?: number };
+    if (typeof claims.exp !== 'number') return true;
+    return claims.exp * 1000 < Date.now();
+  } catch {
+    return true;
+  }
+}
+
 function throwUnauthorizedError(hadToken: boolean): never {
-  if (hadToken) {
+  if (hadToken && isAccessTokenExpired()) {
     clearAuthStorage();
     redirectToWelcomeIfNeeded();
   }

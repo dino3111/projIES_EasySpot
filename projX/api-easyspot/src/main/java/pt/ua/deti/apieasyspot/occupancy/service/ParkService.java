@@ -30,6 +30,7 @@ public class ParkService {
     private final ParkingSpotRepository parkingSpotRepository;
     private final @Qualifier("jdbcTemplate") JdbcTemplate jdbc;
     private final TimescaleOccupancySnapshotRepository timescaleOccupancySnapshotRepository;
+    private final pt.ua.deti.apieasyspot.booking.repository.ReservationRepository reservationRepository;
 
     public ParkingLotSummaryResponse searchParks(String textQuery, Integer minAvailableSpaces, String city, List<String> filters, int page, int pageSize) {
         boolean filterEV = filters != null && filters.contains("EV");
@@ -99,15 +100,25 @@ public class ParkService {
     }
 
     private Availability availabilityFor(ParkingLot lot, List<ZoneSnapshot> snapshots) {
+        long activeRes = reservationRepository.countLotReservations(
+            lot.getId(), java.time.OffsetDateTime.now(), java.time.OffsetDateTime.now().plusMinutes(30)
+        );
+
         if (snapshots.isEmpty()) {
-            return new Availability(lot.getTotalSpaces(), lot.getTotalSpaces(), 0, 0, 0, 0);
+            int free = Math.max(0, lot.getTotalSpaces() - (int) activeRes);
+            return new Availability(lot.getTotalSpaces(), free, 0, 0, 0, 0);
         }
+
         int totalSpaces = snapshots.stream().mapToInt(ZoneSnapshot::totalCount).sum();
-        int freeSpaces = snapshots.stream().mapToInt(s -> Math.max(0, s.totalCount() - s.occupiedCount())).sum();
+        int sensorFree = snapshots.stream().mapToInt(s -> Math.max(0, s.totalCount() - s.occupiedCount())).sum();
+        int freeSpaces = Math.max(0, sensorFree - (int) activeRes);
+
         int evTotal = sumForZone(snapshots, ZoneType.EV, ZoneSnapshot::totalCount);
-        int evFree = sumForZone(snapshots, ZoneType.EV, s -> Math.max(0, s.totalCount() - s.occupiedCount()));
+        int evFree = Math.max(0, sumForZone(snapshots, ZoneType.EV, s -> Math.max(0, s.totalCount() - s.occupiedCount())) - (int) activeRes / 3); // Rough estimate for zones
+        
         int accTotal = sumForZone(snapshots, ZoneType.ACCESSIBLE, ZoneSnapshot::totalCount);
         int accFree = sumForZone(snapshots, ZoneType.ACCESSIBLE, s -> Math.max(0, s.totalCount() - s.occupiedCount()));
+        
         return new Availability(totalSpaces, freeSpaces, evTotal, evFree, accTotal, accFree);
     }
 
@@ -141,9 +152,8 @@ public class ParkService {
         ParkingLot lot = parkingLotRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Parking lot not found: " + id));
 
-        List<ZoneSnapshot> snapshots = timescaleOccupancySnapshotRepository.latestByLot(id);
-        Availability availability = availabilityFor(lot, snapshots);
-        List<ParkingLotDetailsResponse.ZoneResponse> zones = toZoneResponses(snapshots);
+        List<ParkingLotDetailsResponse.ZoneResponse> zones = fetchZones(id);
+        int freeSpaces = zones.stream().mapToInt(ParkingLotDetailsResponse.ZoneResponse::free).sum();
 
         return new ParkingLotDetailsResponse(
             lot.getId(),
@@ -151,8 +161,8 @@ public class ParkService {
             lot.getAddress(),
             new ParkingLotDetailsResponse.CoordinatesResponse(lot.getLatitude(), lot.getLongitude()),
             lot.getOpeningHours(),
-            availability.totalSpaces(),
-            availability.freeSpaces(),
+            lot.getTotalSpaces(),
+            freeSpaces,
             zones,
             fetchSpots(id),
             fetchEVChargers(id),
@@ -162,8 +172,8 @@ public class ParkService {
         );
     }
 
-    private List<ParkingLotDetailsResponse.ZoneResponse> toZoneResponses(List<ZoneSnapshot> snapshots) {
-        return snapshots.stream()
+    private List<ParkingLotDetailsResponse.ZoneResponse> fetchZones(UUID lotId) {
+        return timescaleOccupancySnapshotRepository.latestByLot(lotId).stream()
             .map(snapshot -> {
                 int free = Math.max(0, snapshot.totalCount() - snapshot.occupiedCount());
                 int pct = snapshot.totalCount() > 0
@@ -177,9 +187,25 @@ public class ParkService {
     }
 
     private List<ParkingLotDetailsResponse.SpotResponse> fetchSpots(UUID lotId) {
-        return parkingSpotRepository.findByParkingLotId(lotId).stream()
-            .map(s -> new ParkingLotDetailsResponse.SpotResponse(
-                s.getSpotNumber(), s.getZone().name(), s.getSpotRow(), s.getSpotCol(), s.getStatus()))
+        List<pt.ua.deti.apieasyspot.occupancy.model.ParkingSpot> spots = parkingSpotRepository.findByParkingLotId(lotId);
+        
+        // Get all active reservations for this park in the current window
+        java.time.OffsetDateTime now = java.time.OffsetDateTime.now();
+        java.time.OffsetDateTime windowEnd = now.plusMinutes(30);
+        
+        return spots.stream()
+            .map(s -> {
+                String status = s.getStatus();
+                // If spot is free in sensor, check if it's reserved
+                if ("free".equalsIgnoreCase(status)) {
+                    long conflicts = reservationRepository.countSpotConflicts(s.getId(), now, windowEnd);
+                    if (conflicts > 0) {
+                        status = "reserved";
+                    }
+                }
+                return new ParkingLotDetailsResponse.SpotResponse(
+                    s.getSpotNumber(), s.getZone().name(), s.getSpotRow(), s.getSpotCol(), status);
+            })
             .toList();
     }
 

@@ -6,7 +6,7 @@ import logoWhite from '../../../../assets/logo-white.svg';
 
 const features = [
   { icon: 'fa-satellite-dish',   title: 'Sensores em Tempo Real',     desc: 'Infravermelhos e LEDs em cada lugar. Disponibilidade atualizada ao segundo.' },
-  { icon: 'fa-id-card',          title: 'Identificação Automática',    desc: 'Leitura de matrícula por OCR na entrada.' },
+  { icon: 'fa-id-card',          title: 'Identificação Automática',    desc: 'Leitura de matrícula por OCR e identificador RFID na entrada.' },
   { icon: 'fa-charging-station', title: 'Carregamento EV',             desc: 'Localize carregadores compatíveis, veja velocidade e preço por kWh em tempo real.' },
   { icon: 'fa-wheelchair',       title: 'Acessibilidade Total',        desc: 'Dimensões dos lugares, distância à entrada e vigilância para mobilidade reduzida.' },
   { icon: 'fa-euro-sign',        title: 'Cobrança Inteligente',        desc: 'Faturação automática via Stripe com histórico, comparação de custos e alertas.' },
@@ -22,7 +22,7 @@ const personas = [
 
 const steps = [
   { n: '1', icon: 'fa-user-plus',   title: 'Crie a sua conta',       desc: 'Registe-se com e-mail ou SSO (Google, Microsoft). Secure via Authentik.' },
-  { n: '2', icon: 'fa-car-side',    title: 'Associe o seu veículo',  desc: 'Adicione a matrícula ou identifique-se automaticamente por OCR.' },
+  { n: '2', icon: 'fa-car-side',    title: 'Associe o seu veículo',  desc: 'Adicione a matrícula ou identifique-se por RFID Via Verde.' },
   { n: '3', icon: 'fa-credit-card', title: 'Configure o pagamento',  desc: 'Ligue o seu Stripe, cartão ou MB Way. Cobrança automática à saída.' },
 ];
 

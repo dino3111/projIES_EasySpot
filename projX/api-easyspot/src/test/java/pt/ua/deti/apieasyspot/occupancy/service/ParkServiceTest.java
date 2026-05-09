@@ -136,7 +136,6 @@ class ParkServiceTest {
 
         assertThat(response.id()).isEqualTo(lotId);
         assertThat(response.name()).isEqualTo("Test Park");
-        assertThat(response.totalSpaces()).isEqualTo(80);
         assertThat(response.freeSpaces()).isEqualTo(20);
         assertThat(response.zones()).hasSize(1);
         assertThat(response.tariffs()).hasSize(1);

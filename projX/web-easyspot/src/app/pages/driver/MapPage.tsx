@@ -17,8 +17,7 @@ const FILTERS: { id: FilterType; icon: string; label: string }[] = [
 ];
 
 function getStatusInfo(lot: ParkingLot) {
-  const safeTotal = Math.max(1, lot.totalSpots);
-  const pct = lot.availableSpots / safeTotal;
+  const pct = lot.availableSpots / lot.totalSpots;
   if (lot.availableSpots === 0) return { label: 'Lotado',     hex: '#ef4444', iconCls: 'fa-circle-xmark',          labelColor: 'text-destructive' };
   if (pct < 0.2)               return { label: 'Quase cheio', hex: '#f59e0b', iconCls: 'fa-triangle-exclamation', labelColor: 'text-warning' };
   return                              { label: 'Disponível', hex: '#22c55e', iconCls: 'fa-circle-check',          labelColor: 'text-success' };
