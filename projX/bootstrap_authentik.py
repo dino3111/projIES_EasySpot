@@ -362,12 +362,9 @@ def create_groups_property_mapping() -> str:
 
 
 def get_default_scope_mappings() -> list[str]:
-    resp = api("GET", "/propertymappings/provider/scope/?scope_name=openid")
-    pks = [m["pk"] for m in resp.get("results", [])]
-    for name in ("email", "profile"):
-        r = api(
-            "GET", f"/propertymappings/provider/scope/?scope_name={name}"
-        )
+    pks: list[str] = []
+    for scope in ("openid", "email", "profile", "offline_access"):
+        r = api("GET", f"/propertymappings/provider/scope/?scope_name={scope}")
         pks += [m["pk"] for m in r.get("results", [])]
     return pks
 
