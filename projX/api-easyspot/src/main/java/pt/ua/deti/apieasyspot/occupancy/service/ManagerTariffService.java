@@ -35,7 +35,8 @@ public class ManagerTariffService {
 
     @Transactional(readOnly = true)
     public Page<TariffResponse> listTariffs(UUID parkId, String city, TariffStatus status, Pageable pageable) {
-        return tariffRepository.findFiltered(parkId, city, status, pageable)
+        String normalizedCity = city == null || city.isBlank() ? null : city.trim().toLowerCase();
+        return tariffRepository.findFiltered(parkId, normalizedCity, status, pageable)
             .map(this::mapToResponse);
     }
 
