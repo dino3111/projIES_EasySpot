@@ -143,10 +143,16 @@ services:
       context: ./api-easyspot
       dockerfile: Dockerfile
     restart: unless-stopped
+    ports:
+      - "8080:8080"
+    dns:
+      - 192.168.227.21
+      - 192.168.227.20
+      - 8.8.8.8
     environment:
-      AUTHENTIK_JWK_SET_URI: ${AUTHENTIK_JWK_SET_URI:-http://authentik-server:9000/authentik/application/o/easyspot/jwks/}
-      AUTHENTIK_ISSUER_URI: ${AUTHENTIK_ISSUER_URI:-http://localhost:9000/authentik/}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173}
+      AUTHENTIK_JWK_SET_URI: http://authentik-server:9000/authentik/application/o/easyspot/jwks/
+      AUTHENTIK_ISSUER_URI: http://localhost/authentik/application/o/easyspot/
+      CORS_ALLOWED_ORIGINS: http://localhost:5173,http://localhost
       DB_URL: jdbc:postgresql://postgres:5432/${APP_DB}
       DB_USERNAME: ${APP_DB_USER}
       DB_PASSWORD: ${APP_DB_PASS}

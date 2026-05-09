@@ -306,7 +306,7 @@ export function ExpensesTab() {
         <div className="leading-relaxed text-xs">
           <p className="font-bold mb-1 text-foreground">Faturação Automática</p>
           <p className="text-muted-foreground">
-            As suas despesas são processadas automaticamente à saída através do sistema OCR.
+            As suas despesas são processadas automaticamente à saída através do sistema OCR/RFID.
             As faturas são enviadas para o seu email registado.
           </p>
         </div>

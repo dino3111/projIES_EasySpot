@@ -28,7 +28,9 @@ export function OnboardingModal({
   const initialStep = needsVehicle ? 1 : needsPayment ? 2 : 3;
   const [step, setStep] = useState(initialStep);
 
-  const [plate, setPlate]   = useState('');  const [plateLoading, setPlateLoading] = useState(false);
+  const [plate, setPlate]   = useState('');
+  const [rfid, setRfid]     = useState('');
+  const [plateLoading, setPlateLoading] = useState(false);
   const [plateError, setPlateError]     = useState<string | null>(null);
   const [vehicleResult, setVehicleResult] = useState<VehicleResponse | null>(null);
   const [lookupVehicleResult, setLookupVehicleResult] = useState<LookupVehicleData | null>(null);
@@ -121,7 +123,9 @@ export function OnboardingModal({
     setSavingVehicle(true);
     try {
       const created = await vehicleApi.create({
-        licensePlate: plate,        isAccessible: false,
+        licensePlate: plate,
+        externalIdentifier: rfid || undefined,
+        isAccessible: false,
         isPrimary: false,
         chargerTypes: [],
         make: manualData.make,
@@ -164,7 +168,9 @@ export function OnboardingModal({
         setSavingVehicle(true);
         try {
           const created = await vehicleApi.create({
-            licensePlate: plate,            isAccessible: false,
+            licensePlate: plate,
+            externalIdentifier: rfid || undefined,
+            isAccessible: false,
             isPrimary: false,
             chargerTypes: [],
             make: showManualForm ? manualData.make : undefined,
@@ -229,6 +235,7 @@ export function OnboardingModal({
     if (step === 1) return (
       <StepVehicle
         plate={plate} setPlate={setPlate}
+        rfid={rfid} setRfid={setRfid}
         plateLoading={plateLoading}
         vehicleData={vehicleResult ? {
           make: vehicleResult.make ?? undefined,

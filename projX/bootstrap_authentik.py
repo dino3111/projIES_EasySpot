@@ -411,6 +411,11 @@ def create_provider(groups_mapping_pk: str) -> str:
     authz_flow = get_default_flow("authorization")
     invalidation_flow = get_default_flow("invalidation")
 
+    # Get the default self-signed certificate for RS256 signing
+    cert_resp = api("GET", "/crypto/certificatekeypairs/?name=authentik Self-signed Certificate")
+    cert_results = cert_resp.get("results", [])
+    signing_key = cert_results[0]["pk"] if cert_results else None
+
     payload = {
         "name": PROVIDER_NAME,
         "authentication_flow": auth_flow,
@@ -418,12 +423,12 @@ def create_provider(groups_mapping_pk: str) -> str:
         "invalidation_flow": invalidation_flow,
         "client_type": "public",
         "redirect_uris": _build_redirect_uris(REDIRECT_URI),
-        "signing_key": None,
+        "signing_key": signing_key,
         "access_code_validity": "minutes=1",
         "access_token_validity": "minutes=5",
         "refresh_token_validity": "days=30",
         "include_claims_in_id_token": True,
-        "issuer_mode": "global",
+        "issuer_mode": "per_provider",
         "property_mappings": scope_pks,
         "sub_mode": "hashed_user_id",
     }
