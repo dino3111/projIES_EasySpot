@@ -14,7 +14,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ProfileRepository {
 
-    private final @Qualifier("jdbcTemplate") JdbcTemplate jdbc;
+    private final @Qualifier("timescaleJdbcTemplate") JdbcTemplate jdbc;
 
     public SpendingSummary spendingSummary(UUID userId) {
         return jdbc.queryForObject(

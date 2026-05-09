@@ -66,11 +66,17 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
   };
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const res = await withGlobalLoading(() => fetch(`${API_BASE}${path}`, { ...options, headers }));
+  const method = options.method ?? 'GET';
+  const url = `${API_BASE}${path}`;
+  const res = await withGlobalLoading(() => fetch(url, { ...options, headers }));
 
   if (!res.ok) {
-    if (res.status === Number(401)) throwUnauthorizedError();
+    if (res.status === Number(401)) {
+      console.warn('[API-401]', method, url, 'bearer:', token ? 'yes' : 'no');
+      throwUnauthorizedError();
+    }
     const errorText = await readErrorBody(res);
+    console.warn('[API-ERR]', method, url, 'status:', res.status, 'body:', errorText.slice(0, 500));
     throwHttpError(res.status, errorText);
   }
 

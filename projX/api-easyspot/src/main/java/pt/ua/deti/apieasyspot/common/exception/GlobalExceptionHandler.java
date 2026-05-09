@@ -6,6 +6,10 @@ import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.oauth2.jwt.JwtException;
+import org.springframework.security.oauth2.server.resource.InvalidBearerTokenException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -77,5 +81,29 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleStripeException(StripeException ex) {
         log.error("Stripe API error [{}]: {}", ex.getCode(), ex.getMessage());
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_GATEWAY, "Payment provider error");
+    }
+
+    @ExceptionHandler(InvalidBearerTokenException.class)
+    public ProblemDetail handleInvalidBearer(InvalidBearerTokenException ex) {
+        log.warn("[AUTH] Invalid bearer token: {}", ex.getMessage());
+        return ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, "Bearer token inválido: " + ex.getMessage());
+    }
+
+    @ExceptionHandler(JwtException.class)
+    public ProblemDetail handleJwtException(JwtException ex) {
+        log.warn("[AUTH] JWT decode/validation failed: {}", ex.getMessage());
+        return ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, "JWT inválido: " + ex.getMessage());
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ProblemDetail handleAuthentication(AuthenticationException ex) {
+        log.warn("[AUTH] AuthenticationException: {}", ex.getMessage());
+        return ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, "Autenticação falhou: " + ex.getMessage());
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ProblemDetail handleAccessDenied(AccessDeniedException ex) {
+        log.warn("[AUTH] AccessDenied: {}", ex.getMessage());
+        return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, "Acesso negado: " + ex.getMessage());
     }
 }

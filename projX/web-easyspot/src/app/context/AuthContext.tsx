@@ -89,6 +89,13 @@ function buildUser(claims: Record<string, unknown>): AuthUser {
   };
 }
 
+function getTokenExpirationMs(token: string): number | null {
+  const claims = parseJwtClaims(token);
+  const exp = claims['exp'];
+  if (typeof exp !== 'number') return null;
+  return exp * 1000;
+}
+
 export function AuthProvider({ children }: { readonly children: ReactNode }) {
   const [user,        setUser]        = useState<AuthUser | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
@@ -96,13 +103,76 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
 
   useEffect(() => {
     const token = sessionStorage.getItem(SK.accessToken);
+    console.log('[AUTH] AuthProvider init — token:', token ? 'EXISTS' : 'MISSING');
     if (token) {
       const claims = parseJwtClaims(token);
-      setUser(buildUser(claims));
+      const u = buildUser(claims);
+      console.log('[AUTH] AuthProvider restoring user:', u.sub, 'role:', u.role);
+      setUser(u);
       setAccessToken(token);
     }
     setIsLoading(false);
   }, []);
+
+  const refreshAccessToken = useCallback(async (): Promise<string | null> => {
+    const refreshToken = sessionStorage.getItem(SK.refreshToken);
+    if (!refreshToken) return null;
+
+    const body = new URLSearchParams({
+      grant_type: 'refresh_token',
+      client_id: CLIENT_ID,
+      refresh_token: refreshToken,
+    });
+
+    const resp = await fetch(TOKEN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString(),
+    });
+
+    if (!resp.ok) return null;
+
+    const data = await resp.json() as {
+      access_token: string;
+      id_token?: string;
+      refresh_token?: string;
+    };
+
+    sessionStorage.setItem(SK.accessToken, data.access_token);
+    if (data.id_token) sessionStorage.setItem(SK.idToken, data.id_token);
+    if (data.refresh_token) sessionStorage.setItem(SK.refreshToken, data.refresh_token);
+
+    const claims = parseJwtClaims(data.id_token ?? data.access_token);
+    setUser(buildUser(claims));
+    setAccessToken(data.access_token);
+    return data.access_token;
+  }, []);
+
+  useEffect(() => {
+    if (!accessToken) return;
+
+    const tick = async () => {
+      const expMs = getTokenExpirationMs(sessionStorage.getItem(SK.accessToken) ?? accessToken);
+      if (!expMs) return;
+      const nowMs = Date.now();
+      const msUntilExpiry = expMs - nowMs;
+      if (msUntilExpiry <= 60_000) {
+        const refreshed = await refreshAccessToken();
+        if (!refreshed) {
+          Object.values(SK).forEach((k) => sessionStorage.removeItem(k));
+          setUser(null);
+          setAccessToken(null);
+          globalThis.location.href = '/welcome?session=expired';
+        }
+      }
+    };
+
+    const id = globalThis.setInterval(() => {
+      void tick();
+    }, 15_000);
+    void tick();
+    return () => globalThis.clearInterval(id);
+  }, [accessToken, refreshAccessToken]);
 
   const login = useCallback(async () => {
     const verifier  = base64urlEncode(randomBytes(32));
@@ -173,7 +243,19 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
 
     if (!resp.ok) {
       const text = await resp.text();
-      throw new Error(`Token exchange failed: ${text}`);
+      let detail = text;
+      try {
+        const parsed = JSON.parse(text) as { error?: string; error_description?: string };
+        if (parsed.error) detail = `${parsed.error}${parsed.error_description ? ': ' + parsed.error_description : ''}`;
+      } catch { /* keep raw text */ }
+      console.error('[AUTH] token exchange failed', {
+        status: resp.status,
+        url: TOKEN_URL,
+        clientId: CLIENT_ID,
+        redirectUri: REDIRECT_URI,
+        detail,
+      });
+      throw new Error(`Token exchange failed (${resp.status}): ${detail}`);
     }
 
     const data = await resp.json() as {
@@ -188,6 +270,7 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
 
     const claims     = parseJwtClaims(data.id_token ?? data.access_token);
     const authedUser = buildUser(claims);
+    console.log('[AUTH] handleCallback — setUser:', authedUser.sub, 'role:', authedUser.role);
     setUser(authedUser);
     setAccessToken(data.access_token);
   }, []);

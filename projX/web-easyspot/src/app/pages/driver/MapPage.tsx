@@ -5,6 +5,7 @@ import { VehiclePicker } from '../../components/shared/VehiclePicker';
 import { useProfile } from '../../context/ProfileContext';
 import { ParkPanel } from './components/ParkPanel';
 import { fetchParkDetails, fetchParksList } from '../../services/parksApi';
+import { subscribeSpaceAvailableAlerts } from '../../services/parksApi';
 
 type FilterType = 'all' | 'ev' | 'accessible' | 'available';
 
@@ -33,6 +34,7 @@ export function MapPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(primaryVehicle?.id ?? null);
+  const [subscribeMessage, setSubscribeMessage] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -100,6 +102,16 @@ export function MapPage() {
 
   const selectedLot = selectedLotDetails ?? (parkingLots.find((l) => l.id === selectedLotId) ?? null);
   const handleSelectLot = useCallback((id: string) => setSelectedLotId(id), []);
+  const handleSubscribeSelected = useCallback(async () => {
+    if (!selectedLotId) return;
+    try {
+      setSubscribeMessage(null);
+      await subscribeSpaceAvailableAlerts([selectedLotId]);
+      setSubscribeMessage('Alerta ativado para este parque.');
+    } catch {
+      setSubscribeMessage('Não foi possível ativar alerta para este parque.');
+    }
+  }, [selectedLotId]);
 
   return (
     <div className="relative w-full flex overflow-hidden bg-background overscroll-none" style={{ height: 'calc(100vh - 56px)' }}>
@@ -117,6 +129,8 @@ export function MapPage() {
         activeFilter={activeFilter}
         onFilterChange={setActiveFilter}
         filteredCount={loading ? 0 : filteredLots.length}
+        onSubscribeSelected={selectedLot ? () => void handleSubscribeSelected() : undefined}
+        subscribeMessage={subscribeMessage}
       />
 
       {selectedLot ? (
@@ -158,9 +172,11 @@ interface ControlBarProps {
   readonly activeFilter: FilterType;
   readonly onFilterChange: (f: FilterType) => void;
   readonly filteredCount: number;
+  readonly onSubscribeSelected?: () => void;
+  readonly subscribeMessage: string | null;
 }
 
-function ControlBar({ searchQuery, onSearchChange, searchRef, vehicles, selectedVehicleId, onVehicleSelect, activeFilter, onFilterChange, filteredCount }: ControlBarProps) {
+function ControlBar({ searchQuery, onSearchChange, searchRef, vehicles, selectedVehicleId, onVehicleSelect, activeFilter, onFilterChange, filteredCount, onSubscribeSelected, subscribeMessage }: ControlBarProps) {
   return (
     <div className="absolute top-3 left-3 right-3 z-10 pointer-events-none">
       <div className="flex flex-col gap-2">
@@ -173,6 +189,14 @@ function ControlBar({ searchQuery, onSearchChange, searchRef, vehicles, selected
           )}
         </div>
         <FilterRow activeFilter={activeFilter} onFilterChange={onFilterChange} filteredCount={filteredCount} />
+        {onSubscribeSelected && (
+          <div className="pointer-events-auto">
+            <button type="button" className="btn btn-xs btn-outline" onClick={onSubscribeSelected}>
+              <i className="fas fa-bell" aria-hidden="true" /> Alertar-me deste parque
+            </button>
+            {subscribeMessage && <span className="ml-2 text-xs text-muted-foreground">{subscribeMessage}</span>}
+          </div>
+        )}
       </div>
     </div>
   );
