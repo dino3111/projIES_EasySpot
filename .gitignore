@@ -38,6 +38,8 @@ node_modules/
 .pnp.cjs
 .pnp.js
 .pnpm-lock
+.pnpm-store
+
 
 # production
 /build
