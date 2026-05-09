@@ -415,12 +415,26 @@ def get_default_flow(designation: str) -> str:
     return flow_pk
 
 
+def get_signing_key_pk() -> str:
+    """Return an RSA certificate keypair pk to sign OAuth2 JWTs."""
+    resp = api("GET", "/crypto/certificatekeypairs/")
+    results = resp.get("results", [])
+    for keypair in results:
+        if keypair.get("private_key_available") and keypair.get("private_key_type") == "rsa":
+            return str(keypair["pk"])
+    sys.exit(
+        "No RSA certificate keypair with private key found in Authentik. "
+        "Create one in Admin UI (System → Certificates) and re-run bootstrap."
+    )
+
+
 def create_provider(groups_mapping_pk: str) -> str:
     print("Creating OAuth2 provider...")
     scope_pks = get_default_scope_mappings() + [groups_mapping_pk]
     auth_flow = get_default_flow("authentication")
     authz_flow = get_default_flow("authorization")
     invalidation_flow = get_default_flow("invalidation")
+    signing_key_pk = get_signing_key_pk()
 
     payload = {
         "name": PROVIDER_NAME,
@@ -430,7 +444,7 @@ def create_provider(groups_mapping_pk: str) -> str:
         "client_type": "public",
         "redirect_uris": _build_redirect_uris(REDIRECT_URI)
         + _build_post_logout_redirect_uris(),
-        "signing_key": None,
+        "signing_key": signing_key_pk,
         "access_code_validity": "minutes=1",
         "access_token_validity": "minutes=5",
         "refresh_token_validity": "days=30",

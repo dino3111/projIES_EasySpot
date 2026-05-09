@@ -81,6 +81,33 @@ public class TimescaleAlertRepository {
         );
     }
 
+    public List<Alert> findAllFiltered(UUID parkId, StateAlert state, SeverityAlert severity) {
+        StringBuilder sql = new StringBuilder("""
+            select id, parking_lot_id, parking_lot_name, type, severity, state, zone, spot_number,
+                   sensor_id, plate, description, photo_url, attributed_to, notes, resolved_at, created_at
+            from alerts
+            where 1=1
+            """);
+        java.util.List<Object> params = new java.util.ArrayList<>();
+
+        if (parkId != null) {
+            sql.append(" and parking_lot_id = ?::uuid");
+            params.add(parkId.toString());
+        }
+        if (state != null) {
+            sql.append(" and state = ?");
+            params.add(state.name());
+        }
+        if (severity != null) {
+            sql.append(" and severity = ?");
+            params.add(severity.name());
+        }
+
+        sql.append(" order by created_at desc");
+
+        return jdbc.query(sql.toString(), this::mapRow, params.toArray());
+    }
+
     public Optional<Alert> findById(UUID id) {
         var rows = jdbc.query("""
             select id, parking_lot_id, parking_lot_name, type, severity, state, zone, spot_number,
