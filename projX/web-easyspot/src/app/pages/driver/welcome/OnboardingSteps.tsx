@@ -98,6 +98,118 @@ export function StepVehicle(props: {
   const { plate, setPlate, plateLoading, vehicleData, insuranceData, plateError, manualVehicleData, setManualVehicleData, showManualVehicleForm, setShowManualVehicleForm, onSaveManual, savingManual } = props;
   return (
     <div className="space-y-4">
+      <p className="text-muted-foreground" style={{ fontSize: '0.82rem' }}>
+        Insira a matrícula no formato português para associar o veículo automaticamente.
+      </p>
+
+      <div className="space-y-2">
+        <label className="text-foreground font-semibold" style={{ fontSize: '0.8rem' }}>
+          Matrícula
+        </label>
+        <input
+          type="text"
+          placeholder="00-AA-00"
+          value={plate}
+          onChange={(e) => setPlate(e.target.value.toUpperCase())}
+          className={INPUT_CLS}
+          maxLength={8}
+        />
+        {!PT_PLATE_REGEX.test(plate) && plate.length > 0 && (
+          <p className="text-warning" style={{ fontSize: '0.72rem' }}>Formato esperado: 00-AA-00</p>
+        )}
+        {plateLoading && (
+          <p className="text-muted-foreground" style={{ fontSize: '0.72rem' }}>A identificar veículo...</p>
+        )}
+        {plateError && (
+          <p className="text-danger" style={{ fontSize: '0.72rem' }}>{plateError}</p>
+        )}
+      </div>
+
+      {vehicleData && (
+        <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-3">
+          <div className="flex items-center gap-2">
+            <VehicleBrandLogo make={vehicleData.make} logoUrl={vehicleData.brandLogoUrl} />
+            <p className="text-foreground font-bold" style={{ fontSize: '0.9rem' }}>
+              {[vehicleData.make, vehicleData.model].filter(Boolean).join(' ') || 'Veículo identificado'}
+            </p>
+          </div>
+          <VehicleFieldGroup
+            fields={[
+              { label: 'Versão', value: typeof vehicleData.version === 'string' ? vehicleData.version : undefined },
+              { label: 'Cor', value: typeof vehicleData.color === 'string' ? vehicleData.color : undefined },
+              { label: 'Combustível', value: typeof vehicleData.fuelType === 'string' ? vehicleData.fuelType : undefined },
+              { label: 'Ano', value: typeof vehicleData.plateDate === 'string' ? vehicleData.plateDate : undefined },
+            ]}
+          />
+          {insuranceData && (
+            <VehicleFieldGroup
+              label="Seguro"
+              fields={[
+                { label: 'Entidade', value: insuranceData.entity },
+                { label: 'Apólice', value: insuranceData.policy },
+                { label: 'Validade', value: insuranceData.endDate },
+              ]}
+            />
+          )}
+        </div>
+      )}
+
+      <div className="pt-1">
+        <button
+          type="button"
+          onClick={() => setShowManualVehicleForm((v) => !v)}
+          className="text-primary font-semibold hover:opacity-80"
+          style={{ fontSize: '0.8rem' }}
+        >
+          {showManualVehicleForm ? 'Ocultar preenchimento manual' : 'Preencher dados manualmente'}
+        </button>
+      </div>
+
+      {showManualVehicleForm && (
+        <div className="space-y-3 rounded-xl border border-border p-3">
+          <input
+            type="text"
+            placeholder="Marca"
+            value={(manualVehicleData.make as string) ?? ''}
+            onChange={(e) => setManualVehicleData((prev) => ({ ...prev, make: e.target.value }))}
+            className={INPUT_CLS}
+          />
+          <input
+            type="text"
+            placeholder="Modelo"
+            value={(manualVehicleData.model as string) ?? ''}
+            onChange={(e) => setManualVehicleData((prev) => ({ ...prev, model: e.target.value }))}
+            className={INPUT_CLS}
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <input
+              type="text"
+              placeholder="Ano"
+              value={(manualVehicleData.year as string) ?? ''}
+              onChange={(e) => setManualVehicleData((prev) => ({ ...prev, year: e.target.value }))}
+              className={INPUT_CLS}
+            />
+            <input
+              type="text"
+              placeholder="Combustível"
+              value={(manualVehicleData.fuelType as string) ?? ''}
+              onChange={(e) => setManualVehicleData((prev) => ({ ...prev, fuelType: e.target.value }))}
+              className={INPUT_CLS}
+            />
+          </div>
+          {onSaveManual && (
+            <button
+              type="button"
+              onClick={onSaveManual}
+              disabled={savingManual}
+              className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground font-bold disabled:opacity-50"
+              style={{ fontSize: '0.85rem' }}
+            >
+              {savingManual ? 'A guardar...' : 'Guardar veículo manualmente'}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
