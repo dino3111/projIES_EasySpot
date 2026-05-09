@@ -361,6 +361,57 @@ class ReservationControllerIT {
             .andExpect(jsonPath("$.spotId").value(spot.getId().toString()));
     }
 
+    @Test
+    @DisplayName("POST /api/reservations - spot already reserved - returns 409")
+    void createReservation_spotAlreadyReserved_returns409() throws Exception {
+        OffsetDateTime arrival = now().plusHours(2);
+        OffsetDateTime departure = arrival.plusHours(2);
+
+        // First reservation claims the spot
+        Reservation existing = new Reservation();
+        existing.setUser(user);
+        existing.setParkingLot(lot);
+        existing.setParkingSpot(spot);
+        existing.setVehicle(vehicle);
+        existing.setArrivalTime(arrival.minusHours(1));
+        existing.setDepartureTime(departure);
+        existing.setStatus(ReservationStatus.CONFIRMED);
+        existing.setLockedUntil(arrival.minusHours(1).plusMinutes(30));
+        existing.setBookingCode("ES-SPOT-TEST");
+        reservationRepository.save(existing);
+
+        spot.setStatus("reserved");
+        parkingSpotRepository.save(spot);
+
+        var body = new CreateReservationRequest(
+            lot.getId(), vehicle.getId(),
+            arrival.toString(), departure.toString(), spot.getId());
+
+        mockMvc.perform(post("/api/reservations")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(body))
+                .with(jwtWithRole("auth-sub-123", "DRIVER")))
+            .andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("POST /api/reservations - spot marked occupied - returns 409")
+    void createReservation_spotOccupied_returns409() throws Exception {
+        spot.setStatus("occupied");
+        parkingSpotRepository.save(spot);
+
+        OffsetDateTime arrival = now().plusHours(2);
+        var body = new CreateReservationRequest(
+            lot.getId(), vehicle.getId(),
+            arrival.toString(), arrival.plusHours(2).toString(), spot.getId());
+
+        mockMvc.perform(post("/api/reservations")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(body))
+                .with(jwtWithRole("auth-sub-123", "DRIVER")))
+            .andExpect(status().isConflict());
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private OffsetDateTime now() {

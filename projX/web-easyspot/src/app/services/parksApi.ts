@@ -35,7 +35,7 @@ type ParkDetailsResponse = {
   totalSpaces: number;
   freeSpaces: number;
   zones: Array<{ zoneName: string; total: number; free: number }>;
-  spotMap: Array<{ spotNumber: string; zone: string; row: number; col: number; status: ParkingSpot['status'] }>;
+  spotMap: Array<{ spotId: string; spotNumber: string; zone: string; row: number; col: number; status: ParkingSpot['status'] }>;
   evChargers: Array<{ type: EVCharger['type']; speed: EVCharger['speed']; pricePerKwh: number; availability: boolean }>;
   accessibility: Array<{ location: string; availability: boolean; distanceToEntranceMeters: number; baySize: string }>;
   tariffs: Array<{ pricePerHour: number | null; maxDaily: number | null; monthly: number | null }>;
@@ -148,7 +148,7 @@ function mapFloors(spots: ParkDetailsResponse['spotMap']): ParkingFloor[] {
   for (const spot of spots) {
     const floorId = spot.spotNumber.includes(':') ? spot.spotNumber.split(':')[0] : 'floor-default';
     const mapped: ParkingSpot = {
-      id: spot.spotNumber,
+      id: spot.spotId ?? spot.spotNumber,
       row: Math.max(0, spot.row - 1),
       col: Math.max(0, spot.col - 1),
       status: spot.status,

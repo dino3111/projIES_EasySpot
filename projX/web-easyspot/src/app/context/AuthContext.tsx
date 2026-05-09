@@ -1,7 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from 'react';
 import { withGlobalLoading } from './LoadingContext';
 import type { AppProfile } from './ProfileContext';
-import { registerRefreshTokenFn } from '../../services/apiService';
 
 const AUTHENTIK_BASE = (import.meta.env.VITE_AUTHENTIK_URL ?? 'http://localhost:9000/authentik').replaceAll(/\/$/g, '');
 const CLIENT_ID      = import.meta.env.VITE_AUTHENTIK_CLIENT_ID ?? '';
@@ -107,16 +106,6 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
     console.log('[AUTH] AuthProvider init — token:', token ? 'EXISTS' : 'MISSING');
     if (token) {
       const claims = parseJwtClaims(token);
-      const expSec = typeof claims['exp'] === 'number' ? claims['exp'] : 0;
-      const expIn = expSec ? Math.round(expSec - Date.now() / 1000) : null;
-      console.log('[AUTH] token claims', {
-        iss: claims['iss'],
-        aud: claims['aud'],
-        sub: claims['sub'],
-        exp: expSec,
-        expiresInSec: expIn,
-        expired: expIn !== null && expIn <= 0,
-      });
       const u = buildUser(claims);
       console.log('[AUTH] AuthProvider restoring user:', u.sub, 'role:', u.role);
       setUser(u);
@@ -127,10 +116,7 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
 
   const refreshAccessToken = useCallback(async (): Promise<string | null> => {
     const refreshToken = sessionStorage.getItem(SK.refreshToken);
-    if (!refreshToken) {
-      console.warn('[AUTH] refresh skipped: no refresh_token in sessionStorage');
-      return null;
-    }
+    if (!refreshToken) return null;
 
     const body = new URLSearchParams({
       grant_type: 'refresh_token',
@@ -144,11 +130,7 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
       body: body.toString(),
     });
 
-    if (!resp.ok) {
-      const text = await resp.text().catch(() => '');
-      console.warn('[AUTH] refresh failed', { status: resp.status, body: text.slice(0, 300) });
-      return null;
-    }
+    if (!resp.ok) return null;
 
     const data = await resp.json() as {
       access_token: string;
@@ -161,45 +143,34 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
     if (data.refresh_token) sessionStorage.setItem(SK.refreshToken, data.refresh_token);
 
     const claims = parseJwtClaims(data.id_token ?? data.access_token);
-    console.info('[AUTH] refresh ok', { sub: claims['sub'], iss: claims['iss'] });
     setUser(buildUser(claims));
     setAccessToken(data.access_token);
     return data.access_token;
   }, []);
 
   useEffect(() => {
-    registerRefreshTokenFn(refreshAccessToken);
-    return () => registerRefreshTokenFn(null);
-  }, [refreshAccessToken]);
-
-  useEffect(() => {
     if (!accessToken) return;
 
-    let refreshing = false;
-
     const tick = async () => {
-      if (refreshing) return;
       const expMs = getTokenExpirationMs(sessionStorage.getItem(SK.accessToken) ?? accessToken);
       if (!expMs) return;
-      const secLeft = Math.round((expMs - Date.now()) / 1000);
-      console.debug('[AUTH] tick — token expires in', secLeft, 's');
-      if (secLeft > 60) return;
-      refreshing = true;
-      try {
+      const nowMs = Date.now();
+      const msUntilExpiry = expMs - nowMs;
+      if (msUntilExpiry <= 60_000) {
         const refreshed = await refreshAccessToken();
         if (!refreshed) {
-          console.warn('[AUTH] refresh returned null — logging out');
           Object.values(SK).forEach((k) => sessionStorage.removeItem(k));
           setUser(null);
           setAccessToken(null);
           globalThis.location.href = '/welcome?session=expired';
         }
-      } finally {
-        refreshing = false;
       }
     };
 
-    const id = globalThis.setInterval(() => { void tick(); }, 15_000);
+    const id = globalThis.setInterval(() => {
+      void tick();
+    }, 15_000);
+    void tick();
     return () => globalThis.clearInterval(id);
   }, [accessToken, refreshAccessToken]);
 
@@ -215,7 +186,7 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
       response_type:         'code',
       client_id:             CLIENT_ID,
       redirect_uri:          REDIRECT_URI,
-      scope:                 'openid profile email groups offline_access',
+      scope:                 'openid profile email groups',
       state:                 stateVal,
       code_challenge:        challenge,
       code_challenge_method: 'S256',
@@ -236,7 +207,7 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
       response_type:         'code',
       client_id:             CLIENT_ID,
       redirect_uri:          REDIRECT_URI,
-      scope:                 'openid profile email groups offline_access',
+      scope:                 'openid profile email groups',
       state:                 stateVal,
       code_challenge:        challenge,
       code_challenge_method: 'S256',

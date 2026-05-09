@@ -9,7 +9,10 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
+import pt.ua.deti.apieasyspot.occupancy.model.ParkingSpot;
+import pt.ua.deti.apieasyspot.occupancy.model.ZoneType;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingLotRepository;
+import pt.ua.deti.apieasyspot.occupancy.repository.ParkingSpotRepository;
 
 import java.util.List;
 import java.util.UUID;
@@ -25,11 +28,13 @@ class ParkControllerIT {
 
     @Autowired private MockMvc mockMvc;
     @Autowired private ParkingLotRepository parkingLotRepository;
+    @Autowired private ParkingSpotRepository parkingSpotRepository;
 
     private ParkingLot lot;
 
     @BeforeEach
     void setUp() {
+        parkingSpotRepository.deleteAll();
         parkingLotRepository.deleteAll();
         lot = new ParkingLot();
         lot.setName("Parque Central");
@@ -132,6 +137,45 @@ class ParkControllerIT {
                 .andExpect(jsonPath("$.address").value("Rua Principal"))
                 .andExpect(jsonPath("$.coordinates.lat").value(40.6))
                 .andExpect(jsonPath("$.amenities[0]").value("Wifi"));
+    }
+
+    @Test
+    void getDetails_spotMap_includesSpotIdForReservation() throws Exception {
+        ParkingSpot spot = new ParkingSpot();
+        spot.setParkingLot(lot);
+        spot.setSpotNumber("A01");
+        spot.setZone(ZoneType.STANDARD);
+        spot.setSpotRow(1);
+        spot.setSpotCol(1);
+        spot.setStatus("free");
+        spot = parkingSpotRepository.save(spot);
+
+        mockMvc.perform(get("/api/parks/{id}/details", lot.getId())
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(jwtWithRole("sub", "DRIVER")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.spotMap[0].spotId").value(spot.getId().toString()))
+                .andExpect(jsonPath("$.spotMap[0].spotNumber").value("A01"))
+                .andExpect(jsonPath("$.spotMap[0].status").value("free"));
+    }
+
+    @Test
+    void getDetails_spotMap_reservedSpotHasCorrectStatus() throws Exception {
+        ParkingSpot spot = new ParkingSpot();
+        spot.setParkingLot(lot);
+        spot.setSpotNumber("B01");
+        spot.setZone(ZoneType.STANDARD);
+        spot.setSpotRow(1);
+        spot.setSpotCol(1);
+        spot.setStatus("reserved");
+        parkingSpotRepository.save(spot);
+
+        mockMvc.perform(get("/api/parks/{id}/details", lot.getId())
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(jwtWithRole("sub", "DRIVER")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.spotMap[0].status").value("reserved"))
+                .andExpect(jsonPath("$.spotMap[0].spotId").isNotEmpty());
     }
 
     @Test

@@ -179,7 +179,7 @@ public class ParkService {
     private List<ParkingLotDetailsResponse.SpotResponse> fetchSpots(UUID lotId) {
         return parkingSpotRepository.findByParkingLotId(lotId).stream()
             .map(s -> new ParkingLotDetailsResponse.SpotResponse(
-                s.getSpotNumber(), s.getZone().name(), s.getSpotRow(), s.getSpotCol(), s.getStatus()))
+                s.getId(), s.getSpotNumber(), s.getZone().name(), s.getSpotRow(), s.getSpotCol(), s.getStatus()))
             .toList();
     }
 

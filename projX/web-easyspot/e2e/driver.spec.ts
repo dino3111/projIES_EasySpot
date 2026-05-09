@@ -8,6 +8,19 @@ const park = {
   evChargers: { available: 1, total: 1 }, accessibleSpaces: { available: 1, total: 1 },
 };
 
+const parkDetails = {
+  id: 'park-1', name: 'Parque Central', address: 'Rua A, Coimbra', coordinates: { lat: 40.2, lng: -8.4 },
+  openingHours: '24h', totalSpaces: 50, freeSpaces: 10, zones: [],
+  spotMap: [
+    { spotId: 'spot-uuid-free-1', spotNumber: 'f1:A1', zone: 'STANDARD', row: 1, col: 1, status: 'free' },
+    { spotId: 'spot-uuid-reserved-1', spotNumber: 'f1:A2', zone: 'STANDARD', row: 1, col: 2, status: 'reserved' },
+    { spotId: 'spot-uuid-occupied-1', spotNumber: 'f1:A3', zone: 'STANDARD', row: 1, col: 3, status: 'occupied' },
+  ],
+  evChargers: [{ type: 'Type 2', speed: '22kW', pricePerKwh: 0.3, availability: true }],
+  accessibility: [{ location: 'A', availability: true, distanceToEntranceMeters: 12, baySize: '3.5m x 5.0m' }],
+  tariffs: [{ pricePerHour: 1.5, maxDaily: 12, monthly: 60 }], amenities: ['wc'],
+};
+
 test.beforeEach(async ({ page }) => {
   await page.addInitScript((token) => {
     sessionStorage.setItem('es_access_token', token);
@@ -23,14 +36,7 @@ test.beforeEach(async ({ page }) => {
     await route.fulfill({ json: { items: [park], pagination: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 } } });
   });
   await page.route('**/api/parks/park-1/details', async (route) => {
-    await route.fulfill({ json: {
-      id: 'park-1', name: 'Parque Central', address: 'Rua A, Coimbra', coordinates: { lat: 40.2, lng: -8.4 },
-      openingHours: '24h', totalSpaces: 50, freeSpaces: 10, zones: [],
-      spotMap: [{ spotNumber: 'f1:1', zone: 'STANDARD', row: 1, col: 1, status: 'free' }],
-      evChargers: [{ type: 'Type 2', speed: '22kW', pricePerKwh: 0.3, availability: true }],
-      accessibility: [{ location: 'A', availability: true, distanceToEntranceMeters: 12, baySize: '3.5m x 5.0m' }],
-      tariffs: [{ pricePerHour: 1.5, maxDaily: 12, monthly: 60 }], amenities: ['wc'],
-    } });
+    await route.fulfill({ json: parkDetails });
   });
   await page.route('**/api/parks/park-1/favorite', async (route) => {
     if (route.request().method() === 'POST') await route.fulfill({ json: { parkId: 'park-1', isFavorite: true } });
@@ -74,4 +80,79 @@ test('Perfil', async ({ page }) => {
   await page.goto('/profile');
   await expect(page.getByRole('heading', { name: 'Perfil' })).toBeVisible();
   await expect(page.getByText('Ana Silva')).toBeVisible();
+});
+
+// ── Reservation E2E tests ────────────────────────────────────────────────────
+
+test.describe('Reserva de lugar', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.route('**/api/reservations', async (route) => {
+      if (route.request().method() !== 'POST') { await route.continue(); return; }
+      await route.fulfill({
+        status: 201,
+        json: {
+          reservationId: 'res-1', bookingCode: 'ES-ABCD-EFGH',
+          parkId: 'park-1', parkName: 'Parque Central', parkAddress: 'Rua A, Coimbra',
+          spotId: 'spot-uuid-free-1', spotNumber: 'A1',
+          vehicleId: 'v1', arrivalDateTime: new Date(Date.now() + 2 * 3600_000).toISOString(),
+          departureDateTime: new Date(Date.now() + 4 * 3600_000).toISOString(),
+          status: 'CONFIRMED', lockedUntil: new Date(Date.now() + 30 * 60_000).toISOString(),
+          estimatedCost: 3.0,
+        },
+      });
+    });
+  });
+
+  test('Lugares reservados/ocupados não são selecionáveis', async ({ page }) => {
+    await page.goto('/reservar?parkId=park-1');
+    await expect(page.getByRole('heading', { name: 'Reservar Lugar' })).toBeVisible();
+
+    // Avança para step 2 — selecionar parque já está pré-definido pelo parkId
+    await page.getByRole('button', { name: /Seguinte|Próximo|Continuar/i }).first().click();
+
+    // Spots ocupados/reservados devem estar desabilitados
+    const reservedSpot = page.getByRole('button', { name: 'Lugar A2' });
+    const occupiedSpot = page.getByRole('button', { name: 'Lugar A3' });
+    await expect(reservedSpot).toBeDisabled();
+    await expect(occupiedSpot).toBeDisabled();
+  });
+
+  test('Lugar livre pode ser selecionado e reservado com sucesso', async ({ page }) => {
+    await page.goto('/reservar?parkId=park-1');
+    await expect(page.getByRole('heading', { name: 'Reservar Lugar' })).toBeVisible();
+
+    // Step 1: avança (parque já pré-selecionado via parkId)
+    await page.getByRole('button', { name: /Seguinte|Próximo|Continuar/i }).first().click();
+
+    // Step 2: selecionar lugar livre A1
+    await page.getByRole('button', { name: 'Lugar A1' }).click();
+    await expect(page.getByText('A1 selecionado')).toBeVisible();
+    await page.getByRole('button', { name: 'Confirmar Lugar' }).click();
+
+    // Step 3: aceitar termos e confirmar
+    await page.getByRole('checkbox').click();
+    await page.getByRole('button', { name: /Confirmar Reserva/i }).click();
+
+    // Step 4: confirmação
+    await expect(page.getByText('ES-ABCD-EFGH')).toBeVisible();
+  });
+
+  test('Erro de spot já reservado é apresentado ao utilizador', async ({ page }) => {
+    await page.unroute('**/api/reservations');
+    await page.route('**/api/reservations', async (route) => {
+      await route.fulfill({
+        status: 409,
+        json: { detail: 'Spot A2 is not available' },
+      });
+    });
+
+    await page.goto('/reservar?parkId=park-1');
+    await page.getByRole('button', { name: /Seguinte|Próximo|Continuar/i }).first().click();
+    await page.getByRole('button', { name: 'Lugar A1' }).click();
+    await page.getByRole('button', { name: 'Confirmar Lugar' }).click();
+    await page.getByRole('checkbox').click();
+    await page.getByRole('button', { name: /Confirmar Reserva/i }).click();
+
+    await expect(page.getByRole('alert')).toContainText(/not available|indisponível|conflito/i);
+  });
 });
