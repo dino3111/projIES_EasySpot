@@ -5,6 +5,7 @@ import { ProfileProvider } from './context/ProfileContext';
 import { AuthProvider } from './context/AuthContext';
 import { LoadingProvider } from './context/LoadingContext';
 import { GlobalLoadingOverlay } from './components/shared/GlobalLoadingOverlay';
+import { RealtimeAlerts } from './components/shared/RealtimeAlerts';
 
 export default function App() {
   return (
@@ -13,6 +14,7 @@ export default function App() {
         <AuthProvider>
           <RouterProvider router={router} />
           <GlobalLoadingOverlay />
+          <RealtimeAlerts />
           <Toaster position="top-center" richColors />
         </AuthProvider>
       </ProfileProvider>

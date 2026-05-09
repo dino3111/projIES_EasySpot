@@ -47,7 +47,7 @@ public class SecurityConfig {
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.ignoringRequestMatchers(
-                "/api/**", "/actuator/**", "/v3/api-docs/**",
+                "/api/**", "/ws/**", "/actuator/**", "/v3/api-docs/**",
                 "/swagger-ui/**", "/swagger-ui.html"
             ))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -58,6 +58,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/test/token").permitAll()
                 .requestMatchers("/api/stripe/webhook").permitAll()
                 .requestMatchers("/api/parks/list", "/api/parks/*/details", "/api/parks/cities").permitAll()
+                .requestMatchers("/ws/**").permitAll()
                 .requestMatchers("/api/test/**").authenticated()
                 .anyRequest().authenticated());
 

@@ -96,9 +96,12 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
 
   useEffect(() => {
     const token = sessionStorage.getItem(SK.accessToken);
+    console.log('[AUTH] AuthProvider init — token:', token ? 'EXISTS' : 'MISSING');
     if (token) {
       const claims = parseJwtClaims(token);
-      setUser(buildUser(claims));
+      const u = buildUser(claims);
+      console.log('[AUTH] AuthProvider restoring user:', u.sub, 'role:', u.role);
+      setUser(u);
       setAccessToken(token);
     }
     setIsLoading(false);
@@ -188,6 +191,7 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
 
     const claims     = parseJwtClaims(data.id_token ?? data.access_token);
     const authedUser = buildUser(claims);
+    console.log('[AUTH] handleCallback — setUser:', authedUser.sub, 'role:', authedUser.role);
     setUser(authedUser);
     setAccessToken(data.access_token);
   }, []);

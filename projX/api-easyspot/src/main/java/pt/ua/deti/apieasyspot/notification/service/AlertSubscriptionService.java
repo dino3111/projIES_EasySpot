@@ -43,21 +43,39 @@ public class AlertSubscriptionService {
         List<String> normalizedParkIds = normalizeParkIds(request.parkIds());
         String parkScopeKey = parkScopeKey(normalizedParkIds);
         validateSchedule(request.alertType(), request.schedule());
+        String effectiveEmail = StringUtils.hasText(request.email()) ? request.email().trim() : user.getEmail();
 
-        if (alertSubscriptionRepository.existsByUser_IdAndAlertTypeAndParkScopeKey(
+        var existingSubscription = alertSubscriptionRepository.findFirstByUser_IdAndAlertTypeAndParkScopeKey(
             user.getId(), request.alertType(), parkScopeKey
-        )) {
-            throw new ConflictException("Alert subscription already exists for this user, type and park scope");
+        );
+        if (existingSubscription.isPresent()) {
+            AlertSubscription subscription = existingSubscription.get();
+            subscription.setEnabled(true);
+            subscription.setEmail(effectiveEmail);
+            subscription.setParkIdsCsv(String.join(",", normalizedParkIds));
+            subscription.setVehicleId(trimToNull(request.vehicleId()));
+            if (request.schedule() != null) {
+                subscription.setScheduleFrequency(request.schedule().frequency());
+                subscription.setScheduleTime(request.schedule().time());
+                subscription.setScheduleTimezone(request.schedule().timezone());
+            } else {
+                subscription.setScheduleFrequency(null);
+                subscription.setScheduleTime(null);
+                subscription.setScheduleTimezone(null);
+            }
+            return toResponse(alertSubscriptionRepository.save(subscription));
         }
 
-        String effectiveEmail = StringUtils.hasText(request.email()) ? request.email().trim() : user.getEmail();
         AlertSubscription subscription = buildEntity(user, request, normalizedParkIds, parkScopeKey, effectiveEmail);
 
         try {
             AlertSubscription saved = alertSubscriptionRepository.save(subscription);
             return toResponse(saved);
         } catch (DataIntegrityViolationException ex) {
-            throw new ConflictException("Alert subscription already exists for this user, type and park scope");
+            AlertSubscription saved = alertSubscriptionRepository.findFirstByUser_IdAndAlertTypeAndParkScopeKey(
+                user.getId(), request.alertType(), parkScopeKey
+            ).orElseThrow(() -> new ConflictException("Alert subscription already exists for this user, type and park scope"));
+            return toResponse(saved);
         }
     }
 

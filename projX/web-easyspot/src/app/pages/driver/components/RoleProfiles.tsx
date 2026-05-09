@@ -9,16 +9,20 @@ export function DriverProfile({ profileData, onProfileUpdate }: Readonly<{ profi
   const { driverType, setDriverType, vehicles } = useProfile();
   const [activeTab, setActiveTab] = useState<'profile' | 'payments'>('profile');
   const [notifications, setNotifications] = useState(profileData?.notificationsEnabled ?? true);
+  const [pushNotifications, setPushNotifications] = useState(profileData?.pushNotificationsEnabled ?? profileData?.notificationsEnabled ?? true);
+  const [emailNotifications, setEmailNotifications] = useState(profileData?.emailNotificationsEnabled ?? false);
   const [realtime, setRealtime] = useState(true);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodSummaryResponse[]>([]);
   const [loadingPayments, setLoadingPayments] = useState(false);
   const [paymentsError, setPaymentsError] = useState<string | null>(null);
   const [showAddPaymentModal, setShowAddPaymentModal] = useState(false);
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
+  const [savingNotifications, setSavingNotifications] = useState(false);
+  const [notificationsError, setNotificationsError] = useState<string | null>(null);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
 
-  const persistProfile = async (payload: { notificationsEnabled?: boolean; driverType?: 'regular' | 'ev' | 'reduced_mobility' | null }) => {
+  const persistProfile = async (payload: { notificationsEnabled?: boolean; pushNotificationsEnabled?: boolean; emailNotificationsEnabled?: boolean; driverType?: 'regular' | 'ev' | 'reduced_mobility' | null }) => {
     const updated = await profileApi.update(payload);
     onProfileUpdate(updated);
   };
@@ -26,6 +30,8 @@ export function DriverProfile({ profileData, onProfileUpdate }: Readonly<{ profi
   useEffect(() => {
     if (!profileData) return;
     setNotifications(profileData.notificationsEnabled);
+    setPushNotifications(profileData.pushNotificationsEnabled);
+    setEmailNotifications(profileData.emailNotificationsEnabled);
     setDriverType(profileData.driverType);
   }, [profileData, setDriverType]);
 
@@ -57,6 +63,26 @@ export function DriverProfile({ profileData, onProfileUpdate }: Readonly<{ profi
       setPaymentsError(error instanceof Error ? error.message : 'Não foi possível remover o método.');
     } finally {
       setRemovingId(null);
+    }
+  };
+
+  const saveNotificationPreferences = async () => {
+    setSavingNotifications(true);
+    setNotificationsError(null);
+    try {
+      const enabled = pushNotifications || emailNotifications;
+      const updated = await profileApi.update({
+        notificationsEnabled: enabled,
+        pushNotificationsEnabled: pushNotifications,
+        emailNotificationsEnabled: emailNotifications,
+      });
+      onProfileUpdate(updated);
+      setNotifications(enabled);
+      setShowNotificationsModal(false);
+    } catch (error) {
+      setNotificationsError(error instanceof Error ? error.message : 'Não foi possível guardar as preferências.');
+    } finally {
+      setSavingNotifications(false);
     }
   };
 
@@ -232,7 +258,74 @@ export function DriverProfile({ profileData, onProfileUpdate }: Readonly<{ profi
 
       {showNotificationsModal && (
         <SimpleModal title="Gerir Notificações" onClose={() => setShowNotificationsModal(false)}>
-          <p className="text-muted-foreground" style={{ fontSize: '0.82rem' }}>Pode gerir notificações no bloco de Preferências deste perfil.</p>
+          <div className="space-y-3">
+            <p className="text-muted-foreground" style={{ fontSize: '0.82rem' }}>
+              Escolha como quer receber alertas e avisos do EasySpot.
+            </p>
+
+            {notificationsError && (
+              <div className="rounded-xl border border-error/30 bg-error/10 p-3 text-error" style={{ fontSize: '0.75rem' }}>
+                {notificationsError}
+              </div>
+            )}
+
+            <ToggleRow
+              icon="fa-bell"
+              label="Notificações gerais"
+              desc="Ativa ou desativa alertas desta conta"
+              value={notifications}
+              onChange={(value) => {
+                setNotifications(value);
+                setPushNotifications(value);
+                setEmailNotifications(value ? emailNotifications : false);
+              }}
+              id="modal-notif-toggle"
+            />
+            <div className="h-px bg-border" />
+            <ToggleRow
+              icon="fa-mobile-screen-button"
+              label="Push no browser"
+              desc="Alertas em tempo real no navegador"
+              value={pushNotifications}
+              onChange={(value) => {
+                setPushNotifications(value);
+                setNotifications(value || emailNotifications);
+              }}
+              id="modal-push-toggle"
+            />
+            <div className="h-px bg-border" />
+            <ToggleRow
+              icon="fa-envelope"
+              label="Email"
+              desc="Recebe resumos e alertas por correio eletrónico"
+              value={emailNotifications}
+              onChange={(value) => {
+                setEmailNotifications(value);
+                setNotifications(pushNotifications || value);
+              }}
+              id="modal-email-toggle"
+            />
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowNotificationsModal(false)}
+                className="px-3.5 py-2 rounded-xl border border-border text-foreground font-semibold hover:bg-muted/40 transition-all"
+                style={{ fontSize: '0.78rem' }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => { void saveNotificationPreferences(); }}
+                disabled={savingNotifications}
+                className="px-3.5 py-2 rounded-xl bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-all disabled:opacity-60"
+                style={{ fontSize: '0.78rem' }}
+              >
+                {savingNotifications ? 'A guardar...' : 'Guardar'}
+              </button>
+            </div>
+          </div>
         </SimpleModal>
       )}
 

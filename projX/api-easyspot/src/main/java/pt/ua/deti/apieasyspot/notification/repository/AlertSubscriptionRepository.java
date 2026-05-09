@@ -11,6 +11,8 @@ import java.util.UUID;
 public interface AlertSubscriptionRepository extends JpaRepository<AlertSubscription, UUID> {
     boolean existsByUser_IdAndAlertTypeAndParkScopeKey(UUID userId, AlertSubscriptionType alertType, String parkScopeKey);
 
+    java.util.Optional<AlertSubscription> findFirstByUser_IdAndAlertTypeAndParkScopeKey(UUID userId, AlertSubscriptionType alertType, String parkScopeKey);
+
     @EntityGraph(attributePaths = {"user"})
     List<AlertSubscription> findByEnabledTrueAndAlertType(AlertSubscriptionType alertType);
 }

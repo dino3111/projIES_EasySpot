@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -21,6 +22,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
+@Slf4j
 @Tag(name = "Payments", description = "Stripe Payment Integration")
 public class PaymentController {
 
@@ -67,7 +69,12 @@ public class PaymentController {
     @PreAuthorize(IS_AUTHENTICATED)
     public ResponseEntity<String> createSetupIntent(
             @AuthenticationPrincipal Jwt jwt) throws StripeException {
-        return ResponseEntity.ok(stripeService.createSetupIntent(jwt.getSubject(), jwt.getClaimAsString(CLAIM_EMAIL)));
+        try {
+            return ResponseEntity.ok(stripeService.createSetupIntent(jwt.getSubject(), jwt.getClaimAsString(CLAIM_EMAIL)));
+        } catch (StripeException ex) {
+            log.warn("Stripe setup-intent unavailable for user={}: {}", jwt.getSubject(), ex.getMessage());
+            return ResponseEntity.status(503).body("Stripe setup is temporarily unavailable");
+        }
     }
 
     @Operation(summary = "Get payment method setup status for authenticated user")
@@ -77,7 +84,12 @@ public class PaymentController {
     @PreAuthorize(IS_AUTHENTICATED)
     public ResponseEntity<PaymentSetupStatusResponse> getPaymentSetupStatus(
             @AuthenticationPrincipal Jwt jwt) throws StripeException {
-        return ResponseEntity.ok(stripeService.getPaymentSetupStatus(jwt.getSubject(), jwt.getClaimAsString(CLAIM_EMAIL)));
+        try {
+            return ResponseEntity.ok(stripeService.getPaymentSetupStatus(jwt.getSubject(), jwt.getClaimAsString(CLAIM_EMAIL)));
+        } catch (StripeException ex) {
+            log.warn("Stripe setup-status unavailable for user={}: {}", jwt.getSubject(), ex.getMessage());
+            return ResponseEntity.ok(new PaymentSetupStatusResponse(false));
+        }
     }
 
     @Operation(summary = "Generate Stripe Customer Portal Session")

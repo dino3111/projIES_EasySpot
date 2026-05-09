@@ -37,9 +37,11 @@ export function CallbackPage() {
       return;
     }
 
+    console.log('[AUTH] handleCallback start');
     handleCallback(code, state)
       .then(() => {
         const token  = globalThis.sessionStorage.getItem('es_access_token') ?? '';
+        console.log('[AUTH] token in sessionStorage after callback:', token ? 'EXISTS' : 'MISSING');
         const parts  = token.split('.');
         let role: AppProfile = 'DRIVER';
         if (parts.length === 3) {
@@ -52,11 +54,13 @@ export function CallbackPage() {
             }
           } catch { /* ignore parse errors */ }
         }
+        console.log('[AUTH] role resolved:', role);
         pendingRole.current = role;
         setProfile(role);
       })
       .catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : 'Erro desconhecido no callback.';
+        console.error('[AUTH] handleCallback error:', msg);
         setError(msg);
       });
   // only runs once on mount
@@ -64,7 +68,9 @@ export function CallbackPage() {
   }, []);
 
   useEffect(() => {
+    console.log('[AUTH] user effect fired — user:', user ? user.sub : 'null', 'pendingRole:', pendingRole.current);
     if (user && pendingRole.current) {
+      console.log('[AUTH] navigating to:', roleDefaultRoute(pendingRole.current));
       navigate(roleDefaultRoute(pendingRole.current), { replace: true });
     }
   }, [user, navigate]);
