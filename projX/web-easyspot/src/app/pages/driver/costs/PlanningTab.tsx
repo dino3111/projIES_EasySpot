@@ -1,10 +1,18 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
-import { mockParkingLots } from '../../../data/parkingData';
 import { useProfile } from '../../../context/ProfileContext';
 import { VehiclePicker } from '../../../components/shared/VehiclePicker';
-import { calculateCost, generateOccupancyForecast, type SortBy, type ParkingWithCost } from './costsHelpers';
+import { fetchParkCities } from '../../../services/parksApi';
+import { fetchParkingPlanning, type PlanningRecommendation } from '../../../services/costsApi';
+
+// Default coordinates for some cities to support the planning API without a map picker
+const CITY_COORDS: Record<string, { lat: number; lng: number }> = {
+  'Aveiro': { lat: 40.6405, lng: -8.6538 },
+  'Coimbra': { lat: 40.2033, lng: -8.4103 },
+  'Porto': { lat: 41.1579, lng: -8.6291 },
+  'Lisboa': { lat: 38.7223, lng: -9.1393 },
+};
 
 interface OccupancyTooltipProps {
   readonly active?: boolean;
@@ -56,49 +64,66 @@ export function PlanningTab() {
   const [planVehicleId, setPlanVehicleId]       = useState<string | null>(primaryVehicle?.id ?? null);
   const [durationHours, setDurationHours]       = useState(2);
   const [durationMinutes, setDurationMinutes]   = useState(0);
-  const [selectedCity, setSelectedCity]         = useState<string | null>(null);
+  const [selectedCity, setSelectedCity]         = useState<string>('Aveiro');
   const [filterEV, setFilterEV]                 = useState(primaryVehicle?.isEV ?? false);
   const [filterAccessible, setFilterAccessible] = useState(primaryVehicle?.isAccessible ?? false);
-  const [maxDistance, setMaxDistance]           = useState(5);
-  const [sortBy, setSortBy]                     = useState<SortBy>('ratio');
+  const [maxDistance, setMaxDistance]           = useState(10); // Aumentado para 10km por defeito
+  const [sortBy, setSortBy]                     = useState<'price' | 'distance' | 'ratio'>('ratio');
   const [expandedPark, setExpandedPark]         = useState<string | null>(null);
+
+  const [availableCities, setAvailableCities]   = useState<string[]>([]);
+  const [recommendations, setRecommendations]   = useState<PlanningRecommendation[]>([]);
+  const [loading, setLoading]                   = useState(false);
+  const [error, setError]                       = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchParkCities().then((cities) => {
+      setAvailableCities(cities);
+      // Se tivermos cidades, selecionar Coimbra como padrão (mais parques no seed)
+      if (cities.length > 0) {
+        const defaultCity = cities.find(c => c.toLowerCase().includes('coimbra')) || cities[0];
+        setSelectedCity(defaultCity);
+      }
+    });
+  }, []);
 
   useEffect(() => {
     const v = vehicles.find((v) => v.id === planVehicleId) ?? null;
-    setFilterEV(v?.isEV ?? false);
-    setFilterAccessible(v?.isAccessible ?? false);
+    if (v) {
+      setFilterEV(v.isEV);
+      setFilterAccessible(v.isAccessible);
+    }
   }, [planVehicleId, vehicles]);
 
-  const availableCities = useMemo(
-    () => [...new Set(mockParkingLots.map((lot) => lot.localidade))].sort((a, b) => a.localeCompare(b)),
-    [],
-  );
-
-  const processedParks = useMemo<ParkingWithCost[]>(() => {
-    const lots = mockParkingLots.filter((lot) => {
-      if (selectedCity && lot.localidade !== selectedCity) return false;
-      if (filterEV && !lot.hasEVCharger) return false;
-      if (filterAccessible && !lot.hasAccessible) return false;
-      const distKm = Number.parseFloat(lot.distance.replace(' km', '').replace(',', '.'));
-      if (distKm > maxDistance) return false;
-      return true;
-    });
-    const totalMinutes = durationHours * 60 + durationMinutes;
-    const withCosts: ParkingWithCost[] = lots.map((lot) => {
-      const cost = calculateCost(lot, totalMinutes);
-      const distKm = Number.parseFloat(lot.distance.replace(' km', '').replace(',', '.'));
-      return { ...lot, estimatedCost: cost, costPerKm: cost / distKm, occupancyForecast: generateOccupancyForecast(lot) };
-    });
-    withCosts.sort((a, b) => {
-      if (sortBy === 'price') return a.estimatedCost - b.estimatedCost;
-      if (sortBy === 'distance') {
-        return Number.parseFloat(a.distance.replace(' km', '').replace(',', '.')) -
-               Number.parseFloat(b.distance.replace(' km', '').replace(',', '.'));
+  useEffect(() => {
+    const loadPlanning = async () => {
+      if (!selectedCity) return;
+      try {
+        setLoading(true);
+        setError(null);
+        const coords = CITY_COORDS[selectedCity] || CITY_COORDS['Aveiro'];
+        const resp = await fetchParkingPlanning({
+          city: selectedCity,
+          durationMinutes: durationHours * 60 + durationMinutes,
+          isElectric: filterEV,
+          isAccessible: filterAccessible,
+          maxDistanceMeters: maxDistance * 1000,
+          lat: coords.lat,
+          lng: coords.lng,
+          orderBy: sortBy,
+        });
+        setRecommendations(resp.recommendations);
+      } catch (err) {
+        setError('Não foi possível gerar o planeamento.');
+        console.error(err);
+      } finally {
+        setLoading(false);
       }
-      return a.costPerKm - b.costPerKm;
-    });
-    return withCosts;
-  }, [durationHours, durationMinutes, selectedCity, filterEV, filterAccessible, maxDistance, sortBy]);
+    };
+
+    const timeout = setTimeout(loadPlanning, 400);
+    return () => clearTimeout(timeout);
+  }, [selectedCity, durationHours, durationMinutes, filterEV, filterAccessible, maxDistance, sortBy]);
 
   const activeFilters = [filterEV, filterAccessible].filter(Boolean).length;
 
@@ -125,16 +150,16 @@ export function PlanningTab() {
       <div className="bg-card rounded-2xl border border-border/40 shadow-sm p-4 mb-4">
         <p className="text-foreground font-semibold mb-2" style={{ fontSize: '0.8rem' }}>
           <i className="fas fa-city text-primary mr-1.5" aria-hidden="true" />{' '}
-          Cidade
+          Cidade de Destino
         </p>
         <select
-          value={selectedCity ?? ''}
-          onChange={(e) => setSelectedCity(e.target.value || null)}
+          value={selectedCity}
+          onChange={(e) => setSelectedCity(e.target.value)}
           aria-label="Filtrar por cidade"
           className="w-full rounded-lg border border-border bg-background text-foreground px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
         >
-          <option value="">Todas as cidades</option>
           {availableCities.map((city) => <option key={city} value={city}>{city}</option>)}
+          {availableCities.length === 0 && <option value="Aveiro">Aveiro</option>}
         </select>
       </div>
 
@@ -221,7 +246,11 @@ export function PlanningTab() {
         </div>
       </div>
 
-      {processedParks.length === 0 ? (
+      {loading ? (
+        <div className="py-20 text-center text-muted-foreground">A calcular as melhores opções...</div>
+      ) : error ? (
+        <div className="py-20 text-center text-error font-bold">{error}</div>
+      ) : recommendations.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-2xl py-16 px-6 text-center bg-card border-2 border-dashed border-border">
           <div className="w-16 h-16 rounded-full bg-warning/10 flex items-center justify-center mb-3">
             <i className="fas fa-triangle-exclamation text-warning" style={{ fontSize: '1.5rem' }} aria-hidden="true" />
@@ -231,15 +260,17 @@ export function PlanningTab() {
         </div>
       ) : (
         <div className="space-y-3">
-          {processedParks.map((park, index) => {
+          {recommendations.map((park, index) => {
             const isExpanded = expandedPark === park.id;
-            const occupancyPct = Math.round(((park.totalSpots - park.availableSpots) / park.totalSpots) * 100);
-            const isFull = park.availableSpots === 0;
-            const isLow  = park.availableSpots > 0 && park.availableSpots <= Math.ceil(park.totalSpots * 0.2);
+            const occ = park.currentOccupancy;
+            const durationTotalMinutes = durationHours * 60 + durationMinutes;
+            const estimatedCost = (park.pricePerHour * durationTotalMinutes) / 60;
+            const distanceKm = (park.distanceMeters / 1000).toFixed(1);
+
             let statusCfg = { bg: 'bg-success/10', text: 'text-success', label: 'Disponível' };
-            if (isFull) {
+            if (occ.status === 'FULL') {
               statusCfg = { bg: 'bg-error/10', text: 'text-error', label: 'Lotado' };
-            } else if (isLow) {
+            } else if (occ.status === 'LIMITED') {
               statusCfg = { bg: 'bg-warning/10', text: 'text-warning', label: 'Quase cheio' };
             }
 
@@ -262,23 +293,6 @@ export function PlanningTab() {
                             Melhor opção
                           </span>
                         )}
-                        {park.hasEVCharger && (
-                          <span className="px-2 py-0.5 rounded-full text-[0.65rem] font-bold uppercase bg-warning/10 text-warning">
-                            <i className="fas fa-bolt mr-1" aria-hidden="true" />{' '}
-                            EV
-                          </span>
-                        )}
-                        {park.hasAccessible && (
-                          <span className="px-2 py-0.5 rounded-full text-[0.65rem] font-bold uppercase bg-info/10 text-info">
-                          <i className="fas fa-wheelchair mr-1" aria-hidden="true" />{' '}
-                          Acessível
-                          </span>
-                        )}
-                        {park.is24h && (
-                          <span className="px-2 py-0.5 rounded-full text-[0.65rem] font-bold uppercase bg-primary/10 text-primary">
-                            <i className="fas fa-clock mr-1" aria-hidden="true" />24h
-                          </span>
-                        )}
                       </div>
                       <h2 className="text-foreground font-bold leading-tight line-clamp-1" style={{ fontSize: '1rem' }}>{park.name}</h2>
                       <p className="text-muted-foreground flex items-center gap-1 mt-0.5 line-clamp-1" style={{ fontSize: '0.78rem' }}>
@@ -288,52 +302,44 @@ export function PlanningTab() {
 
                     <div className="flex gap-3 shrink-0">
                       <div className="text-center">
-                        <p className="text-muted-foreground uppercase tracking-wide" style={{ fontSize: '0.6rem' }}>Custo</p>
-                        <p className="text-primary font-extrabold" style={{ fontSize: '1.1rem', lineHeight: 1 }}>€{park.estimatedCost.toFixed(2)}</p>
+                        <p className="text-muted-foreground uppercase tracking-wide" style={{ fontSize: '0.6rem' }}>Custo Est.</p>
+                        <p className="text-primary font-extrabold" style={{ fontSize: '1.1rem', lineHeight: 1 }}>€{estimatedCost.toFixed(2)}</p>
                         <p className="text-muted-foreground" style={{ fontSize: '0.6rem' }}>{durationHours}h{durationMinutes > 0 ? `${durationMinutes}m` : ''}</p>
                       </div>
                       <div className="text-center">
                         <p className="text-muted-foreground uppercase tracking-wide" style={{ fontSize: '0.6rem' }}>Distância</p>
-                        <p className="text-foreground font-extrabold" style={{ fontSize: '1.1rem', lineHeight: 1 }}>{park.distance}</p>
-                        <p className="text-muted-foreground" style={{ fontSize: '0.6rem' }}>{park.walkingTime} a pé</p>
+                        <p className="text-foreground font-extrabold" style={{ fontSize: '1.1rem', lineHeight: 1 }}>{distanceKm} km</p>
                       </div>
                     </div>
                   </div>
 
                   <div className="mt-3 pt-3 border-t border-border/40 grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {[
-                      { label: 'Horária',     value: `€${park.hourlyRate.toFixed(2)}/h` },
-                      { label: 'Máx. diário', value: `€${park.dailyMax.toFixed(2)}` },
-                      { label: 'Mensalidade', value: `€${park.monthlyRate.toFixed(2)}` },
-                      { label: 'Disponíveis', value: `${park.availableSpots}/${park.totalSpots}`,
-                        valueClass:
-                          park.availableSpots > 20
-                            ? 'text-success'
-                            : park.availableSpots > 5
-                              ? 'text-warning'
-                              : 'text-error',
-                      },
+                      { label: 'Tarifa Horária', value: `€${park.pricePerHour.toFixed(2)}/h` },
+                      { label: 'Horário',        value: park.openingHours },
+                      { label: 'Disponíveis',    value: `${park.currentOccupancy.total - park.currentOccupancy.occupied}/${park.currentOccupancy.total}` },
                     ].map((item) => (
                       <div key={item.label} className="flex flex-col">
                         <span className="text-muted-foreground" style={{ fontSize: '0.68rem' }}>{item.label}</span>
-                        <span className={`font-semibold ${item.valueClass ?? 'text-foreground'}`} style={{ fontSize: '0.8rem' }}>{item.value}</span>
+                        <span className="font-semibold text-foreground truncate" style={{ fontSize: '0.8rem' }}>{item.value}</span>
                       </div>
                     ))}
                   </div>
 
                   <div className="mt-3">
                     <div className="flex justify-between text-muted-foreground mb-1" style={{ fontSize: '0.68rem' }}>
-                      <span>Ocupação atual</span><span>{occupancyPct}%</span>
+                      <span>Ocupação atual</span><span>{occ.occupancyPercent}%</span>
                     </div>
                     <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
-                      <progress
+                      <div
                         className={`h-full rounded-full transition-all duration-500 ${
-                          occupancyPct >= 90 ? 'bg-error' : occupancyPct >= 70 ? 'bg-warning' : 'bg-success'
+                          occ.occupancyPercent >= 90 ? 'bg-error' : occ.occupancyPercent >= 70 ? 'bg-warning' : 'bg-success'
                         }`}
-                        style={{ width: `${occupancyPct}%` }}
-                        value={occupancyPct}
-                        max={100}
-                        aria-label={`Ocupação: ${occupancyPct}%`}
+                        style={{ width: `${occ.occupancyPercent}%` }}
+                        role="progressbar"
+                        aria-valuenow={occ.occupancyPercent}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
                       />
                     </div>
                   </div>
@@ -357,16 +363,6 @@ export function PlanningTab() {
                         <i className="fas fa-circle-info" aria-hidden="true" style={{ fontSize: '0.7rem' }} />{' '}
                         Detalhes
                       </button>
-                      {park.availableSpots > 0 && (
-                        <button
-                          onClick={() => navigate(`/reservation?parkId=${park.id}`)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-primary text-primary hover:bg-primary hover:text-white transition-all font-medium"
-                          style={{ fontSize: '0.78rem' }} aria-label={`Reservar lugar em ${park.name}`}
-                        >
-                          <i className="fas fa-bookmark" aria-hidden="true" style={{ fontSize: '0.7rem' }} />{' '}
-                          Reservar
-                        </button>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -375,28 +371,20 @@ export function PlanningTab() {
                   <div className="border-t border-border/40 px-4 pb-4 pt-3 bg-muted/30">
                     <p className="text-foreground font-semibold mb-3" style={{ fontSize: '0.8rem' }}>
                       <i className="fas fa-calendar text-primary mr-1.5" aria-hidden="true" />
-                      Previsão de ocupação — próximas 12 horas
+                      Previsão de ocupação — próximas horas
                     </p>
                     <div style={{ width: '100%', height: 180 }}>
                       <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={park.occupancyForecast} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                        <LineChart data={park.occupancyByHour} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.08} />
                           <XAxis dataKey="hour" style={{ fontSize: '0.62rem' }} tick={{ fill: 'var(--color-muted-foreground)' }} />
                           <YAxis domain={[0, 100]} style={{ fontSize: '0.62rem' }} tick={{ fill: 'var(--color-muted-foreground)' }} tickFormatter={(v) => `${v}%`} />
                           <Tooltip content={<OccupancyTooltip />} />
-                          <Line type="monotone" dataKey="occupancy" stroke="#7357ec" strokeWidth={2}
+                          <Line type="monotone" dataKey="occupancyPercent" stroke="#7357ec" strokeWidth={2}
                             dot={{ fill: '#7357ec', r: 2.5 }} activeDot={{ r: 4 }} name="Ocupação prevista" />
                         </LineChart>
                       </ResponsiveContainer>
                     </div>
-                    {park.availableSpots < 10 && (
-                      <div className="flex items-start gap-2 mt-3 rounded-xl p-3 bg-warning/10 border border-warning/20">
-                        <i className="fas fa-triangle-exclamation text-warning mt-0.5 flex-shrink-0" style={{ fontSize: '0.8rem' }} aria-hidden="true" />
-                        <p className="text-foreground" style={{ fontSize: '0.78rem' }}>
-                          Poucos lugares disponíveis. <strong>Recomendamos reservar com antecedência.</strong>
-                        </p>
-                      </div>
-                    )}
                   </div>
                 )}
               </article>
@@ -410,10 +398,10 @@ export function PlanningTab() {
           <i className="fas fa-circle-info text-primary" style={{ fontSize: '0.85rem' }} aria-hidden="true" />
         </div>
         <div>
-          <p className="text-foreground font-bold mb-0.5" style={{ fontSize: '0.8rem' }}>Informação sobre reservas</p>
+          <p className="text-foreground font-bold mb-0.5" style={{ fontSize: '0.8rem' }}>Informação sobre planeamento</p>
           <p className="text-muted-foreground leading-relaxed" style={{ fontSize: '0.78rem' }}>
-            As reservas são válidas por 30 minutos após confirmação. O veículo é identificado automaticamente
-            na entrada (Via Verde RFID ou OCR de matrícula) e o pagamento processado pelo método definido no perfil.
+            As estimativas de custo baseiam-se nas tarifas atuais do parque. A previsão de ocupação utiliza dados históricos
+            e tendências em tempo real para ajudar a escolher o melhor momento para a sua viagem.
           </p>
         </div>
       </aside>

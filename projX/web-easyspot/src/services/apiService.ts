@@ -47,9 +47,9 @@ async function readErrorBody(res: Response): Promise<string> {
 }
 
 function throwUnauthorizedError(): never {
-  clearAuthStorage();
-  redirectToWelcomeIfNeeded();
-  throw new Error('Sessão expirada. Inicie sessão novamente.');
+  // We no longer clear storage or redirect immediately. 
+  // Let the component handle the error or the AuthContext refresh.
+  throw new Error('Sessão expirada ou inválida. Por favor, tente entrar novamente.');
 }
 
 function throwHttpError(status: number, text: string): never {

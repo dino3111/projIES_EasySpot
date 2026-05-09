@@ -51,7 +51,7 @@ class ProfileServiceTest {
             .thenReturn(new SpendingSummary(BigDecimal.TEN, 2L, BigDecimal.valueOf(5)));
         when(userFavoriteRepository.countByUserId(user.getId())).thenReturn(3L);
 
-        Object result = profileService.getProfile("sub", "DRIVER");
+        Object result = profileService.getProfile("sub", "test@test.com", "DRIVER");
 
         assertThat(result).isInstanceOf(DriverProfileResponse.class);
         DriverProfileResponse r = (DriverProfileResponse) result;
@@ -69,7 +69,7 @@ class ProfileServiceTest {
         when(analyticsRepository.countEntriesToday()).thenReturn(87L);
         when(analyticsRepository.countOpenAlerts()).thenReturn(2L);
 
-        Object result = profileService.getProfile("sub", "MANAGER");
+        Object result = profileService.getProfile("sub", "test@test.com", "MANAGER");
 
         assertThat(result).isInstanceOf(ManagerProfileResponse.class);
         ManagerProfileResponse r = (ManagerProfileResponse) result;
@@ -87,7 +87,7 @@ class ProfileServiceTest {
         when(technicianRepository.countFailuresToday()).thenReturn(5L);
         when(profileRepository.countAssignedTasks("sub")).thenReturn(2L);
 
-        Object result = profileService.getProfile("sub", "TECHNICAL");
+        Object result = profileService.getProfile("sub", "test@test.com", "TECHNICAL");
 
         assertThat(result).isInstanceOf(TechnicianProfileResponse.class);
         TechnicianProfileResponse r = (TechnicianProfileResponse) result;
@@ -98,7 +98,7 @@ class ProfileServiceTest {
     @Test
     @DisplayName("getProfile - unknown role - throws IllegalArgumentException")
     void getProfile_unknownRole_throwsIllegalArgument() {
-        assertThatThrownBy(() -> profileService.getProfile("sub", "ADMIN"))
+        assertThatThrownBy(() -> profileService.getProfile("sub", "test@test.com", "ADMIN"))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("Unknown role");
         verify(userRepository, never()).findByAuthentikUserId(any());
@@ -109,7 +109,7 @@ class ProfileServiceTest {
     void updateProfile_unknownRole_doesNotPersist() {
         ProfileUpdateRequest request = new ProfileUpdateRequest(null, false, null, null, null);
 
-        assertThatThrownBy(() -> profileService.updateProfile("sub", request, "UNKNOWN"))
+        assertThatThrownBy(() -> profileService.updateProfile("sub", "test@test.com", request, "UNKNOWN"))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("Unknown role");
         verify(userRepository, never()).save(any());
@@ -119,8 +119,9 @@ class ProfileServiceTest {
     @DisplayName("getProfile - user not found - throws ResourceNotFoundException")
     void getProfile_userNotFound_throwsResourceNotFound() {
         when(userRepository.findByAuthentikUserId("missing")).thenReturn(Optional.empty());
+        when(userRepository.findByEmail("missing@test.com")).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> profileService.getProfile("missing", "DRIVER"))
+        assertThatThrownBy(() -> profileService.getProfile("missing", "missing@test.com", "DRIVER"))
             .isInstanceOf(ResourceNotFoundException.class);
     }
 
@@ -132,7 +133,7 @@ class ProfileServiceTest {
         when(userRepository.save(any())).thenReturn(user);
 
         ProfileUpdateRequest request = new ProfileUpdateRequest(DriverType.EV, null, null, null, null);
-        Object result = profileService.updateProfile("sub", request, "DRIVER");
+        Object result = profileService.updateProfile("sub", "test@test.com", request, "DRIVER");
 
         assertThat(result).isInstanceOf(DriverProfileResponse.class);
         verify(userRepository).save(argThat(u -> u.getDriverType() == DriverType.EV));
@@ -143,7 +144,7 @@ class ProfileServiceTest {
     void updateProfile_driverType_rejectedForManager() {
         ProfileUpdateRequest request = new ProfileUpdateRequest(DriverType.EV, null, null, null, null);
 
-        assertThatThrownBy(() -> profileService.updateProfile("sub", request, "MANAGER"))
+        assertThatThrownBy(() -> profileService.updateProfile("sub", "test@test.com", request, "MANAGER"))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("driverType");
     }
@@ -153,7 +154,7 @@ class ProfileServiceTest {
     void updateProfile_driverType_rejectedForTechnician() {
         ProfileUpdateRequest request = new ProfileUpdateRequest(DriverType.EV, null, null, null, null);
 
-        assertThatThrownBy(() -> profileService.updateProfile("sub", request, "TECHNICAL"))
+        assertThatThrownBy(() -> profileService.updateProfile("sub", "test@test.com", request, "TECHNICAL"))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("driverType");
     }
@@ -166,7 +167,7 @@ class ProfileServiceTest {
         when(userRepository.save(any())).thenReturn(user);
 
         ProfileUpdateRequest request = new ProfileUpdateRequest(null, false, null, null, null);
-        profileService.updateProfile("sub", request, "MANAGER");
+        profileService.updateProfile("sub", "test@test.com", request, "MANAGER");
 
         verify(userRepository).save(argThat(u -> !u.isNotificationsEnabled()));
     }
@@ -179,7 +180,7 @@ class ProfileServiceTest {
         when(userRepository.save(any())).thenReturn(user);
 
         ProfileUpdateRequest request = new ProfileUpdateRequest(null, null, true, false, null);
-        profileService.updateProfile("sub", request, "DRIVER");
+        profileService.updateProfile("sub", "test@test.com", request, "DRIVER");
 
         verify(userRepository).save(argThat(u ->
             u.isPushNotificationsEnabled() && !u.isEmailNotificationsEnabled() && u.isNotificationsEnabled()));
@@ -193,7 +194,7 @@ class ProfileServiceTest {
         when(userRepository.save(any())).thenReturn(user);
 
         ProfileUpdateRequest request = new ProfileUpdateRequest(null, null, null, null, null);
-        profileService.updateProfile("sub", request, "DRIVER");
+        profileService.updateProfile("sub", "test@test.com", request, "DRIVER");
 
         verify(userRepository).save(argThat(u ->
             u.getDriverType() == null && u.isNotificationsEnabled() && u.getPhotoUrl() == null));
@@ -207,7 +208,7 @@ class ProfileServiceTest {
         when(userRepository.save(any())).thenReturn(user);
 
         ProfileUpdateRequest request = new ProfileUpdateRequest(null, null, null, null, "https://example.com/photo.jpg");
-        profileService.updateProfile("sub", request, "TECHNICAL");
+        profileService.updateProfile("sub", "test@test.com", request, "TECHNICAL");
 
         verify(userRepository).save(argThat(u -> "https://example.com/photo.jpg".equals(u.getPhotoUrl())));
     }

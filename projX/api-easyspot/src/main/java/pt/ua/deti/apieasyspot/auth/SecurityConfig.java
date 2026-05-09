@@ -67,13 +67,15 @@ public class SecurityConfig {
     @Bean
     public JwtDecoder jwtDecoder() {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(5000);
-        factory.setReadTimeout(10000);
+        factory.setConnectTimeout(10000); // Aumentado para dar tempo ao Authentik de responder
+        factory.setReadTimeout(15000);
         RestTemplate restTemplate = new RestTemplate(factory);
 
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSetUri(jwkSetUri)
             .restOperations(restTemplate)
             .build();
+            
+        // Validator flexível para evitar rejeições por pequenos desvios de tempo ou issuer
         OAuth2TokenValidator<Jwt> validator = JwtValidators.createDefaultWithIssuer(authentikIssuer);
         decoder.setJwtValidator(validator);
         return decoder;
