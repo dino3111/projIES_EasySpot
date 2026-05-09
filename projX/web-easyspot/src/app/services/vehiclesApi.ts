@@ -29,6 +29,11 @@ export async function fetchVehicles(): Promise<Vehicle[]> {
   }));
   if (!resp.ok) return [];
   const data = (await resp.json()) as VehicleResponse[];
+  const absolutize = (url?: string): string | undefined => {
+    if (!url) return undefined;
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    return `${API_BASE}${url.startsWith('/') ? '' : '/'}${url}`;
+  };
   return data.map((v) => ({
     id: v.id,
     plate: v.plate,
@@ -44,7 +49,7 @@ export async function fetchVehicles(): Promise<Vehicle[]> {
     isAccessible: v.isAccessible,
     isPrimary: v.isPrimary,
     chargerTypes: v.isEv ? ['Type 2', 'CCS'] : [],
-    imageUrl: v.imageUrl,
-    brandLogoUrl: v.brandLogoUrl,
+    imageUrl: absolutize(v.imageUrl),
+    brandLogoUrl: absolutize(v.brandLogoUrl),
   }));
 }

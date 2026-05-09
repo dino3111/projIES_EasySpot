@@ -37,15 +37,6 @@ export interface ParkingFloor {
   spots: ParkingSpot[];
 }
 
-export interface ParkingZone {
-  id: string;
-  name: string;
-  totalSpots: number;
-  availableSpots: number;
-  type: 'standard' | 'ev' | 'accessible' | 'reserved';
-  floor: string;
-}
-
 export interface ParkingLot {
   id: string;
   name: string;
@@ -58,6 +49,8 @@ export interface ParkingLot {
   monthlyRate: number;
   distance: string;
   walkingTime: string;
+  drivingDistance: string;
+  drivingTime: string;
   hasEVCharger: boolean;
   hasAccessible: boolean;
   latitude: number;
@@ -94,6 +87,15 @@ export interface Expense {
   };
 }
 
+export interface ParkingZone {
+  id: string;
+  name: string;
+  totalSpots: number;
+  availableSpots: number;
+  type: 'standard' | 'ev' | 'accessible' | 'reserved';
+  floor: string;
+}
+
 export function getSpotDimCategory(dimensions: string): {
   label: string;
   bgClass: string;
@@ -102,8 +104,12 @@ export function getSpotDimCategory(dimensions: string): {
 } {
   const match = /^([\d.]+)/.exec(dimensions);
   const width = match ? Number.parseFloat(match[1]) : 0;
-  if (width >= 4) return { label: 'Amplo', bgClass: 'bg-success/15', textClass: 'text-success', icon: 'fa-expand' };
-  if (width >= 3.5) return { label: 'Standard', bgClass: 'bg-info/15', textClass: 'text-info', icon: 'fa-arrows-left-right' };
+  if (width >= 4) {
+    return { label: 'Amplo', bgClass: 'bg-success/15', textClass: 'text-success', icon: 'fa-expand' };
+  }
+  if (width >= 3.5) {
+    return { label: 'Standard', bgClass: 'bg-info/15', textClass: 'text-info', icon: 'fa-arrows-left-right' };
+  }
   return { label: 'Compacto', bgClass: 'bg-warning/15', textClass: 'text-warning', icon: 'fa-compress' };
 }
 
@@ -112,4 +118,3 @@ export function getDistanceColor(meters: number): { bg: string; label: string } 
   if (meters <= 40) return { bg: '#f59e0b', label: `${meters}m` };
   return { bg: '#ef4444', label: `${meters}m` };
 }
-

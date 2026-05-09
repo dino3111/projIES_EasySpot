@@ -143,10 +143,6 @@ services:
       context: ./api-easyspot
       dockerfile: Dockerfile
     restart: unless-stopped
-    dns:
-      - 192.168.227.21
-      - 192.168.227.20
-      - 8.8.8.8
     environment:
       AUTHENTIK_JWK_SET_URI: ${AUTHENTIK_JWK_SET_URI:-http://authentik-server:9000/authentik/application/o/easyspot/jwks/}
       AUTHENTIK_ISSUER_URI: ${AUTHENTIK_ISSUER_URI:-http://localhost:9000/authentik/}

@@ -141,8 +141,9 @@ public class ParkService {
         ParkingLot lot = parkingLotRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Parking lot not found: " + id));
 
-        List<ParkingLotDetailsResponse.ZoneResponse> zones = fetchZones(id);
-        int freeSpaces = zones.stream().mapToInt(ParkingLotDetailsResponse.ZoneResponse::free).sum();
+        List<ZoneSnapshot> snapshots = timescaleOccupancySnapshotRepository.latestByLot(id);
+        Availability availability = availabilityFor(lot, snapshots);
+        List<ParkingLotDetailsResponse.ZoneResponse> zones = toZoneResponses(snapshots);
 
         return new ParkingLotDetailsResponse(
             lot.getId(),
@@ -150,8 +151,8 @@ public class ParkService {
             lot.getAddress(),
             new ParkingLotDetailsResponse.CoordinatesResponse(lot.getLatitude(), lot.getLongitude()),
             lot.getOpeningHours(),
-            lot.getTotalSpaces(),
-            freeSpaces,
+            availability.totalSpaces(),
+            availability.freeSpaces(),
             zones,
             fetchSpots(id),
             fetchEVChargers(id),
@@ -161,8 +162,8 @@ public class ParkService {
         );
     }
 
-    private List<ParkingLotDetailsResponse.ZoneResponse> fetchZones(UUID lotId) {
-        return timescaleOccupancySnapshotRepository.latestByLot(lotId).stream()
+    private List<ParkingLotDetailsResponse.ZoneResponse> toZoneResponses(List<ZoneSnapshot> snapshots) {
+        return snapshots.stream()
             .map(snapshot -> {
                 int free = Math.max(0, snapshot.totalCount() - snapshot.occupiedCount());
                 int pct = snapshot.totalCount() > 0
