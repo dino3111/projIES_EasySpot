@@ -28,17 +28,17 @@ public class ProfileService {
     private final TechnicianRepository technicianRepository;
     private final UserFavoriteRepository userFavoriteRepository;
 
-    public Object getProfile(String authentikUserId, String jwtRole) {
+    public Object getProfile(String authentikUserId, String email, String jwtRole) {
         requireValidRole(jwtRole);
-        User user = findUser(authentikUserId);
+        User user = findAndSyncUser(authentikUserId, email);
         return buildProfileResponse(user, jwtRole, true, authentikUserId);
     }
 
     @Transactional
-    public Object updateProfile(String authentikUserId, ProfileUpdateRequest request, String jwtRole) {
+    public Object updateProfile(String authentikUserId, String email, ProfileUpdateRequest request, String jwtRole) {
         requireValidRole(jwtRole);
         validateRoleFields(request, jwtRole);
-        User user = findUser(authentikUserId);
+        User user = findAndSyncUser(authentikUserId, email);
         applyUpdates(user, request, jwtRole);
         userRepository.save(user);
         return buildProfileResponse(user, jwtRole, false, authentikUserId);
@@ -161,8 +161,25 @@ public class ProfileService {
         }
     }
 
-    private User findUser(String authentikUserId) {
+    private User findAndSyncUser(String authentikUserId, String email) {
+        log.debug("Finding user by authentikUserId: {}", authentikUserId);
         return userRepository.findByAuthentikUserId(authentikUserId)
-            .orElseThrow(() -> new ResourceNotFoundException("User not found: " + authentikUserId));
+            .or(() -> {
+                log.info("User with authentikUserId={} not found. Trying sync by email={}...", authentikUserId, email);
+                if (email == null || email.isBlank()) {
+                    log.warn("Cannot sync user: email is missing in JWT");
+                    return java.util.Optional.empty();
+                }
+                return userRepository.findByEmail(email)
+                    .map(u -> {
+                        log.info("Sincronização automática: Utilizador {} encontrado por email. A atualizar authentikUserId para {}", email, authentikUserId);
+                        u.setAuthentikUserId(authentikUserId);
+                        return userRepository.save(u);
+                    });
+            })
+            .orElseThrow(() -> {
+                log.error("Utilizador não encontrado no sistema: ID={} Email={}", authentikUserId, email);
+                return new ResourceNotFoundException("Perfil de utilizador não encontrado. Por favor, complete o registo.");
+            });
     }
 }

@@ -7,6 +7,7 @@ import { useProfile } from '../../context/ProfileContext';
 import { CompactParkRow } from './components/CompactParkRow';
 import { FilterBanners } from './components/FilterBanners';
 import { fetchParkCities, fetchParksList } from '../../services/parksApi';
+import { subscribeSpaceAvailableAlerts } from '../../services/parksApi';
 
 export function ParkingListPage() {
   const { vehicles } = useProfile();
@@ -25,6 +26,8 @@ export function ParkingListPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [districts, setDistricts] = useState<string[]>([]);
+  const [subscribing, setSubscribing] = useState(false);
+  const [subscribeMessage, setSubscribeMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const vehicle = vehicles.find((v) => v.id === selectedVehicleId) ?? null;
@@ -84,6 +87,20 @@ export function ParkingListPage() {
 
   const filtered = parkingLots;
 
+  const handleSubscribeVisible = async () => {
+    if (filtered.length === 0) return;
+    try {
+      setSubscribing(true);
+      setSubscribeMessage(null);
+      await subscribeSpaceAvailableAlerts(filtered.map((lot) => lot.id));
+      setSubscribeMessage('Alertas ativados para os parques visíveis.');
+    } catch {
+      setSubscribeMessage('Não foi possível ativar alertas para a listagem atual.');
+    } finally {
+      setSubscribing(false);
+    }
+  };
+
   const totalAccessible = filtered.reduce(
     (s, l) => s + (l.accessibleSpots?.filter((a) => a.available).length ?? 0), 0
   );
@@ -127,6 +144,12 @@ export function ParkingListPage() {
         closestAccDistance={closestAccDistance}
         filteredCount={filtered.length}
       />
+      <div className="mb-3 flex items-center gap-2">
+        <button className="btn btn-sm btn-outline" disabled={subscribing || filtered.length === 0} onClick={() => void handleSubscribeVisible()}>
+          <i className="fas fa-bell" aria-hidden="true" /> Alertar-me destes parques
+        </button>
+        {subscribeMessage && <span className="text-xs text-muted-foreground">{subscribeMessage}</span>}
+      </div>
 
       {loading && <p className="text-muted-foreground text-sm mb-3">A carregar parques...</p>}
       {loadError && <p className="text-error text-sm mb-3">{loadError}</p>}

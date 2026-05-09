@@ -3,11 +3,14 @@ import { Link } from 'react-router';
 import type { ParkingLot } from '../../data/parkingTypes';
 import { CompactParkRow } from './components/CompactParkRow';
 import { fetchFavoriteParks } from '../../services/parksApi';
+import { subscribeSpaceAvailableAlerts } from '../../services/parksApi';
 
 export function FavoritesPage() {
   const [favorites, setFavorites] = useState<ParkingLot[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [subscribingAll, setSubscribingAll] = useState(false);
+  const [subscribeMessage, setSubscribeMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -46,6 +49,27 @@ export function FavoritesPage() {
 
       {!loading && favorites.length > 0 && (
         <section aria-label="Lista de favoritos">
+          <div className="mb-3 flex items-center gap-2">
+            <button
+              className="btn btn-sm btn-outline"
+              disabled={subscribingAll}
+              onClick={async () => {
+                try {
+                  setSubscribingAll(true);
+                  setSubscribeMessage(null);
+                  await subscribeSpaceAvailableAlerts(favorites.map((f) => f.id));
+                  setSubscribeMessage('Alertas ativados para os seus favoritos.');
+                } catch {
+                  setSubscribeMessage('Não foi possível ativar alertas para favoritos.');
+                } finally {
+                  setSubscribingAll(false);
+                }
+              }}
+            >
+              <i className="fas fa-bell" aria-hidden="true" /> Alertar-me dos favoritos
+            </button>
+            {subscribeMessage && <span className="text-xs text-muted-foreground">{subscribeMessage}</span>}
+          </div>
           <ul className="space-y-2">
             {favorites.map((lot) => (
               <li key={lot.id}>

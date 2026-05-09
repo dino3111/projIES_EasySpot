@@ -47,6 +47,14 @@ type FavoriteToggleResponse = {
   isFavorite: boolean;
 };
 
+type AlertSubscriptionResponse = {
+  subscription: {
+    id: string;
+    enabled: boolean;
+    createdAt: string;
+  };
+};
+
 function is24Hours(openingHours: string): boolean {
   const normalized = openingHours.toLowerCase();
   return normalized.includes('24h') || normalized.includes('24 h');
@@ -303,4 +311,41 @@ export async function fetchFavoriteParks(): Promise<ParkingLot[]> {
   );
 
   return checks.filter((park): park is ParkingLot => park !== null);
+}
+
+export async function subscribeSpaceAvailableAlerts(parkIds: string[]): Promise<AlertSubscriptionResponse> {
+  const token = getAccessToken();
+  const uniqueParkIds = [...new Set(parkIds.filter(Boolean))];
+  const resp = await withGlobalLoading(() => fetch(`${API_BASE}/api/alerts`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({
+      alertType: 'SPACE_AVAILABLE',
+      parkIds: uniqueParkIds,
+    }),
+  }));
+  if (!resp.ok) {
+    // Subscription uniqueness is enforced server-side. A 409 means "already subscribed",
+    // which is a successful outcome from the user's perspective.
+    if (resp.status === 409) {
+      return {
+        subscription: {
+          id: 'existing',
+          enabled: true,
+          createdAt: new Date().toISOString(),
+        },
+      };
+    }
+    let detail = '';
+    try {
+      detail = await resp.text();
+    } catch {
+      detail = '';
+    }
+    throw new Error(detail ? `Failed to subscribe alerts (${resp.status}): ${detail}` : `Failed to subscribe alerts (${resp.status})`);
+  }
+  return (await resp.json()) as AlertSubscriptionResponse;
 }

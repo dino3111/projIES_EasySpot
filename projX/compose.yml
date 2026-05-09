@@ -7,11 +7,11 @@ services:
       - "5173:5173"
     volumes:
       - ./web-easyspot:/app
-      - /app/node_modules
+      - web-easyspot-node_modules:/app/node_modules
       - /app/dist
     environment:
       - CHOKIDAR_USEPOLLING=true
-      - VITE_API_BASE_URL=${VITE_API_BASE_URL:-}
+      - VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://localhost}
       - VITE_STRIPE_PUBLISHABLE_KEY=${VITE_STRIPE_PUBLISHABLE_KEY:-}
       - VITE_AUTHENTIK_URL=${VITE_AUTHENTIK_URL:-http://localhost/authentik}
       - VITE_AUTHENTIK_CLIENT_ID=${VITE_AUTHENTIK_CLIENT_ID:-}
@@ -143,14 +143,16 @@ services:
       context: ./api-easyspot
       dockerfile: Dockerfile
     restart: unless-stopped
+    ports:
+      - "8080:8080"
     dns:
       - 192.168.227.21
       - 192.168.227.20
       - 8.8.8.8
     environment:
-      AUTHENTIK_JWK_SET_URI: ${AUTHENTIK_JWK_SET_URI:-http://authentik-server:9000/authentik/application/o/easyspot/jwks/}
-      AUTHENTIK_ISSUER_URI: ${AUTHENTIK_ISSUER_URI:-http://localhost:9000/authentik/}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173}
+      AUTHENTIK_JWK_SET_URI: http://authentik-server:9000/authentik/application/o/easyspot/jwks/
+      AUTHENTIK_ISSUER_URI: http://localhost/authentik/application/o/easyspot/
+      CORS_ALLOWED_ORIGINS: http://localhost:5173,http://localhost
       DB_URL: jdbc:postgresql://postgres:5432/${APP_DB}
       DB_USERNAME: ${APP_DB_USER}
       DB_PASSWORD: ${APP_DB_PASS}
@@ -186,6 +188,10 @@ services:
       context: ./scraper-vehicle
       dockerfile: Dockerfile
     restart: unless-stopped
+    dns:
+      - 192.168.227.21
+      - 192.168.227.20
+      - 8.8.8.8
     environment:
       PORT: 4100
       SCRAPER_API_KEY: ${SCRAPER_API_KEY:-}
@@ -302,3 +308,4 @@ volumes:
   sonarqube-extensions:
   sonarqube-logs:
   kafka-data:
+  web-easyspot-node_modules:

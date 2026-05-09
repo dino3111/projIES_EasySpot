@@ -362,40 +362,29 @@ def create_groups_property_mapping() -> str:
 
 
 def get_default_scope_mappings() -> list[str]:
-    resp = api("GET", "/propertymappings/provider/scope/?scope_name=openid")
-    pks = [m["pk"] for m in resp.get("results", [])]
-    for name in ("email", "profile"):
-        r = api(
-            "GET", f"/propertymappings/provider/scope/?scope_name={name}"
-        )
+    pks: list[str] = []
+    for scope in ("openid", "email", "profile", "offline_access"):
+        r = api("GET", f"/propertymappings/provider/scope/?scope_name={scope}")
         pks += [m["pk"] for m in r.get("results", [])]
     return pks
 
 
 def _build_redirect_uris(primary: str) -> list[dict]:
-    uris = {primary, primary.replace(":5173", ""), "http://localhost", "http://localhost:5173"}
-    return [{"matching_mode": "strict", "url": u} for u in uris if u]
+    frontend_origin = urlparse(primary)._replace(path="", params="", query="", fragment="")
+    origin = frontend_origin.geturl()
+    origin_no_port = primary.replace(":5173", "").replace(":5174", "")
 
-
-def _build_post_logout_redirect_uris() -> list[dict]:
-    frontend_origin = urlparse(REDIRECT_URI)._replace(
-        path="", params="", query="", fragment=""
-    )
-    welcome_url = frontend_origin._replace(path="/welcome").geturl()
     uris = {
-        welcome_url,
+        primary,
+        origin_no_port,
+        "http://localhost",
+        "http://localhost:5173",
+        f"{origin}/welcome",
+        f"{origin_no_port}/welcome",
         "http://localhost/welcome",
         "http://localhost:5173/welcome",
     }
-    return [
-        {
-            "matching_mode": "strict",
-            "redirect_uri_type": "logout",
-            "url": u,
-        }
-        for u in uris
-        if u
-    ]
+    return [{"matching_mode": "strict", "url": u} for u in uris if u]
 
 
 def get_default_flow(designation: str) -> str:
@@ -415,12 +404,31 @@ def get_default_flow(designation: str) -> str:
     return flow_pk
 
 
+def get_signing_key_pk() -> str:
+    """Return an RSA certificate keypair pk to sign OAuth2 JWTs."""
+    resp = api("GET", "/crypto/certificatekeypairs/")
+    results = resp.get("results", [])
+    for keypair in results:
+        if keypair.get("private_key_available") and keypair.get("private_key_type") == "rsa":
+            return str(keypair["pk"])
+    sys.exit(
+        "No RSA certificate keypair with private key found in Authentik. "
+        "Create one in Admin UI (System → Certificates) and re-run bootstrap."
+    )
+
+
 def create_provider(groups_mapping_pk: str) -> str:
     print("Creating OAuth2 provider...")
     scope_pks = get_default_scope_mappings() + [groups_mapping_pk]
     auth_flow = get_default_flow("authentication")
     authz_flow = get_default_flow("authorization")
     invalidation_flow = get_default_flow("invalidation")
+    signing_key_pk = get_signing_key_pk()
+
+    # Get the default self-signed certificate for RS256 signing
+    cert_resp = api("GET", "/crypto/certificatekeypairs/?name=authentik Self-signed Certificate")
+    cert_results = cert_resp.get("results", [])
+    signing_key = cert_results[0]["pk"] if cert_results else None
 
     payload = {
         "name": PROVIDER_NAME,
@@ -428,14 +436,13 @@ def create_provider(groups_mapping_pk: str) -> str:
         "authorization_flow": authz_flow,
         "invalidation_flow": invalidation_flow,
         "client_type": "public",
-        "redirect_uris": _build_redirect_uris(REDIRECT_URI)
-        + _build_post_logout_redirect_uris(),
-        "signing_key": None,
+        "redirect_uris": _build_redirect_uris(REDIRECT_URI),
+        "signing_key": signing_key,
         "access_code_validity": "minutes=1",
         "access_token_validity": "minutes=5",
         "refresh_token_validity": "days=30",
         "include_claims_in_id_token": True,
-        "issuer_mode": "global",
+        "issuer_mode": "per_provider",
         "property_mappings": scope_pks,
         "sub_mode": "hashed_user_id",
     }

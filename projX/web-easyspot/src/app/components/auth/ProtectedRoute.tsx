@@ -10,9 +10,14 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
   const { user, isLoading } = useAuth();
 
+  console.log('[AUTH] ProtectedRoute — isLoading:', isLoading, 'user:', user ? user.sub : 'null', 'path:', globalThis.location.pathname);
+
   if (isLoading) return null;
 
-  if (!user) return <Navigate to="/welcome" replace />;
+  if (!user) {
+    console.log('[AUTH] ProtectedRoute — no user, redirecting to /welcome');
+    return <Navigate to="/welcome" replace />;
+  }
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {
     if (user.role === 'MANAGER')   return <Navigate to="/manager/dashboard"   replace />;
