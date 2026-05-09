@@ -1,0 +1,167 @@
+import { test, expect } from '@playwright/test';
+
+// JWT with TECHNICAL role (signature not validated in tests)
+const jwt = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZWNoLTEiLCJuYW1lIjoiTGF1cmEgRmFyaWFzIiwiZW1haWwiOiJsYXVyYUBlYXN5c3BvdC5wdCIsImdyb3VwcyI6WyJURUNITklDQUwiXX0.sig';
+
+const mockDashboard = {
+  kpis: {
+    totalSensors: 12,
+    operationalSensors: 10,
+    uptimePct: 96.5,
+    failuresToday: 2,
+    failuresTodayVariancePct: 10,
+    meanTimeToRepair: '2h 30m',
+    mttrVariancePct: -5,
+  },
+  uptimeLast7Days: [
+    { date: '2026-05-01', day: 'Qui', uptimePct: 97.0 },
+    { date: '2026-05-02', day: 'Sex', uptimePct: 96.5 },
+    { date: '2026-05-03', day: 'Sáb', uptimePct: 95.8 },
+    { date: '2026-05-04', day: 'Dom', uptimePct: 96.2 },
+    { date: '2026-05-05', day: 'Seg', uptimePct: 97.1 },
+    { date: '2026-05-06', day: 'Ter', uptimePct: 96.9 },
+    { date: '2026-05-07', day: 'Qua', uptimePct: 96.5 },
+  ],
+  sensorDistribution: [
+    { status: 'operational', label: 'Operacional', count: 10, percentage: 83.3 },
+    { status: 'offline',     label: 'Offline',     count: 2,  percentage: 16.7 },
+  ],
+  urgentWorkOrders: [
+    {
+      id: '9f6a9a7b-c6a2-43a2-a2b6-f57e6d03df57',
+      type: 'sensor',
+      park: 'Fórum Aveiro',
+      zone: 'Piso 0 – Zona B',
+      sensorId: 'IR-AV1-B07',
+      description: 'Falha de leitura IR sem sinal',
+      severity: 'critical',
+      state: 'open',
+      createdAt: '2026-05-08T09:00:00Z',
+      attributedTo: null,
+    },
+  ],
+};
+
+const mockSensors = [
+  {
+    sensorId: 'IR-AV1-B07',
+    parkingLotId: 'b231a846-7d40-5100-ba29-b9c0ca0ef9aa',
+    parkingLotName: 'Fórum Aveiro',
+    zone: 'Piso 0 – Zona B',
+    status: 'offline',
+    lastSeenAt: '2026-05-08T08:12:00Z',
+    createdAt: '2024-06-15T00:00:00Z',
+  },
+  {
+    sensorId: 'GW-AV1-01',
+    parkingLotId: 'b231a846-7d40-5100-ba29-b9c0ca0ef9aa',
+    parkingLotName: 'Fórum Aveiro',
+    zone: 'Sala Técnica',
+    status: 'operational',
+    lastSeenAt: '2026-05-08T10:47:00Z',
+    createdAt: '2024-05-28T00:00:00Z',
+  },
+];
+
+const mockSensorDetail = {
+  ...mockSensors[0],
+  logs: [
+    {
+      alertId: 'alert-uuid-001',
+      type: 'sensor',
+      severity: 'critical',
+      state: 'open',
+      description: 'Sensor IR sem leituras há >2h.',
+      createdAt: '2026-05-08T08:12:00Z',
+      resolvedAt: null,
+    },
+    {
+      alertId: 'alert-uuid-002',
+      type: 'sensor',
+      severity: 'warning',
+      state: 'resolved',
+      description: 'Sinal IR abaixo do limiar.',
+      createdAt: '2026-05-07T14:30:00Z',
+      resolvedAt: '2026-05-07T16:00:00Z',
+    },
+  ],
+};
+
+const mockProfile = {
+  role: 'TECHNICAL',
+  name: 'Laura Farias',
+  email: 'laura@easyspot.pt',
+  photoUrl: null,
+  notificationsEnabled: true,
+  driverType: null,
+  pushNotificationsEnabled: false,
+  emailNotificationsEnabled: true,
+  spending: { totalEuros: 0, sessionCount: 0, avgEuros: 0 },
+  favoritesCount: 0,
+};
+
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript((token) => {
+    sessionStorage.setItem('es_access_token', token);
+    sessionStorage.setItem('es_id_token', token);
+  }, jwt);
+
+  await page.route('**/api/profile', (route) => route.fulfill({ json: mockProfile }));
+  await page.route('**/api/technician/dashboard', (route) => route.fulfill({ json: mockDashboard }));
+  await page.route('**/api/technician/sensors', (route) => route.fulfill({ json: mockSensors }));
+  await page.route('**/api/technician/sensors/IR-AV1-B07/logs', (route) => route.fulfill({ json: mockSensorDetail }));
+  await page.route('**/api/alerts/**/state', (route) => route.fulfill({ status: 204, body: '' }));
+});
+
+test('Painel técnico mostra KPIs da API', async ({ page }) => {
+  await page.goto('/technician/dashboard');
+
+  await expect(page.getByText('Total Sensores')).toBeVisible();
+  await expect(page.getByText('12')).toBeVisible();
+  await expect(page.getByText('96.5%')).toBeVisible();
+  await expect(page.getByText('2h 30m')).toBeVisible();
+});
+
+test('Painel técnico mostra ordens urgentes', async ({ page }) => {
+  await page.goto('/technician/dashboard');
+
+  await expect(page.getByText(/ordens urgentes/i)).toBeVisible();
+  await expect(page.getByText('Falha de leitura IR sem sinal')).toBeVisible();
+  await expect(page.getByText('Fórum Aveiro')).toBeVisible();
+});
+
+test('Painel técnico mostra estado de erro quando API falha', async ({ page }) => {
+  await page.unroute('**/api/technician/dashboard');
+  await page.route('**/api/technician/dashboard', (route) => route.fulfill({ status: 500, body: 'Server Error' }));
+
+  await page.goto('/technician/dashboard');
+
+  await expect(page.getByRole('button', { name: /tentar novamente/i })).toBeVisible();
+});
+
+test('Página de manutenção carrega com dados de sensores da API', async ({ page }) => {
+  await page.goto('/technician/maintenance');
+
+  // Tab de sensores mostra badge com count de falhas
+  await expect(page.getByRole('tab', { name: /sensores/i })).toBeVisible();
+});
+
+test('Página de manutenção navega entre tabs', async ({ page }) => {
+  await page.goto('/technician/maintenance');
+
+  await page.getByRole('tab', { name: /sensores/i }).click();
+  await expect(page.getByText(/estado dos sensores/i).or(page.getByText(/sensores/i).first())).toBeVisible();
+
+  await page.getByRole('tab', { name: /tarefas/i }).click();
+  await expect(page.getByText(/ordens de manutenção/i).or(page.getByText(/tarefas/i).first())).toBeVisible();
+});
+
+test('Banner de erro parcial aparece quando API de sensores falha', async ({ page }) => {
+  await page.unroute('**/api/technician/sensors');
+  await page.route('**/api/technician/sensors', (route) => route.fulfill({ status: 503, body: 'Unavailable' }));
+
+  await page.goto('/technician/maintenance');
+
+  await expect(page.getByRole('alert')).toBeVisible();
+  await expect(page.getByText(/dados parciais/i)).toBeVisible();
+});

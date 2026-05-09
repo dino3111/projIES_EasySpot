@@ -2,18 +2,12 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-RUN npm install -g pnpm@9
+COPY package.json ./
 
-# Copy only package files first for better caching
-COPY package.json pnpm-lock.yaml* .npmrc* ./
+RUN npm install --legacy-peer-deps
 
-# Install dependencies (this layer is cached if package.json doesn't change)
-# Use --frozen-lockfile to ensure exact versions and --unsafe-perm to allow build scripts
-RUN CI=true pnpm install --frozen-lockfile --shamefully-hoist
-
-# Copy the rest of the application
 COPY . .
 
 EXPOSE 5173
 
-CMD ["pnpm", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
+CMD ["npx", "vite", "--host", "0.0.0.0", "--port", "5173"]
