@@ -18,25 +18,52 @@ import { SensorDiagPanel, StatusUpdateModal } from './components/SensorModals';
 import { NewOrderModal, QuickTaskFromIssueModal } from './components/OrderModals';
 import { fetchSensorList, fetchSensorDetail, type SensorSummary } from '../../services/technicianApi';
 
+function toSensorStatus(apiStatus: string, fallback: SensorStatus): SensorStatus {
+  if (apiStatus === 'operational') return 'operacional';
+  if (apiStatus === 'offline')     return 'offline';
+  if (apiStatus === 'degraded')    return 'falha';
+  return fallback;
+}
+
 function mergeSensorStatus(
   locals: SensorDevice[],
   apiSensors: SensorSummary[],
 ): SensorDevice[] {
-  const apiMap = new Map(apiSensors.map((s) => [s.sensorId, s]));
-  return locals.map((s) => {
-    const api = apiMap.get(s.id);
+  const localIds = new Set(locals.map((s) => s.id));
+
+  // Update status of sensors that exist in the mock
+  const updated = locals.map((s) => {
+    const api = apiSensors.find((a) => a.sensorId === s.id);
     if (!api) return s;
-    const mapped: SensorStatus =
-      api.status === 'operational' ? 'operacional' :
-      api.status === 'offline'     ? 'offline'     :
-      api.status === 'degraded'    ? 'falha'        : s.status;
-    return { ...s, status: mapped, ultimaLeitura: api.lastSeenAt };
+    return { ...s, status: toSensorStatus(api.status, s.status), ultimaLeitura: api.lastSeenAt };
   });
+
+  // Add sensors from the API that don't exist in the mock
+  const newFromApi: SensorDevice[] = apiSensors
+    .filter((a) => !localIds.has(a.sensorId))
+    .map((a) => ({
+      id: a.sensorId,
+      tipo: 'IR' as const,
+      parqueId: a.parkingLotId.toString(),
+      parqueNome: a.parkingLotName,
+      cidade: '',
+      zona: a.zone,
+      status: toSensorStatus(a.status, 'offline'),
+      ultimaLeitura: a.lastSeenAt,
+      uptimePercent: 0,
+      taxaFalsosPositivos: 0,
+      firmware: '—',
+      instaladoEm: a.createdAt,
+      ultimaManutencao: '—',
+      historicoErros: [],
+    }));
+
+  return [...updated, ...newFromApi];
 }
 
 export function MaintenancePage() {
   const [tab, setTab]                       = useState<PageTab>('ocorrencias');
-  const [sensors, setSensors]               = useState<SensorDevice[]>(mockSensors);
+  const [sensors, setSensors]               = useState<SensorDevice[]>([]);
   const [orders, setOrders]                 = useState<MaintenanceOrder[]>(mockMaintenanceOrders);
   const [apiError, setApiError]             = useState<string | null>(null);
   const [selectedIssue, setSelectedIssue]   = useState<IssueReport | null>(null);

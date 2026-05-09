@@ -165,3 +165,83 @@ test('Banner de erro parcial aparece quando API de sensores falha', async ({ pag
   await expect(page.getByRole('alert')).toBeVisible();
   await expect(page.getByText(/dados parciais/i)).toBeVisible();
 });
+
+test('Tab sensores mostra parques e sensores vindos da API', async ({ page }) => {
+  await page.goto('/technician/maintenance');
+
+  await page.getByRole('tab', { name: /sensores/i }).click();
+
+  // parkingLotName "Fórum Aveiro" vem da API mock (mockSensors)
+  await expect(page.getByText('Fórum Aveiro')).toBeVisible();
+});
+
+test('Abrir sensor mostra painel de diagnóstico com logs carregados da API', async ({ page }) => {
+  await page.goto('/technician/maintenance');
+
+  await page.getByRole('tab', { name: /sensores/i }).click();
+
+  // Entra no parque Fórum Aveiro
+  await page.getByText('Fórum Aveiro').click();
+
+  // Abre o sensor IR-AV1-B07 (offline, tem logs no mockSensorDetail)
+  await page.getByText('IR-AV1-B07').click();
+
+  // Painel de diagnóstico aparece
+  await expect(page.getByRole('dialog')).toBeVisible();
+
+  // Logs carregados da API ficam visíveis no histórico de erros
+  await expect(page.getByText('Sensor IR sem leituras há >2h.')).toBeVisible();
+  await expect(page.getByText('Sinal IR abaixo do limiar.')).toBeVisible();
+});
+
+test('Painel de diagnóstico distingue log aberto de log resolvido', async ({ page }) => {
+  await page.goto('/technician/maintenance');
+
+  await page.getByRole('tab', { name: /sensores/i }).click();
+  await page.getByText('Fórum Aveiro').click();
+  await page.getByText('IR-AV1-B07').click();
+
+  await expect(page.getByRole('dialog')).toBeVisible();
+
+  // Log crítico aberto (estado open) não deve estar marcado como resolvido
+  const criticalLog = page.getByText('Sensor IR sem leituras há >2h.').locator('..');
+  await expect(criticalLog).toBeVisible();
+
+  // Log warning resolvido existe
+  await expect(page.getByText('Sinal IR abaixo do limiar.')).toBeVisible();
+});
+
+test('Fechar painel de diagnóstico remove o modal', async ({ page }) => {
+  await page.goto('/technician/maintenance');
+
+  await page.getByRole('tab', { name: /sensores/i }).click();
+  await page.getByText('Fórum Aveiro').click();
+  await page.getByText('IR-AV1-B07').click();
+
+  await expect(page.getByRole('dialog')).toBeVisible();
+
+  await page.getByRole('button', { name: /fechar/i }).click();
+
+  await expect(page.getByRole('dialog')).not.toBeVisible();
+});
+
+test('Painel mostra loading enquanto carrega logs do sensor', async ({ page }) => {
+  // Atrasa a resposta de logs para confirmar o estado de loading
+  await page.unroute('**/api/technician/sensors/IR-AV1-B07/logs');
+  await page.route('**/api/technician/sensors/IR-AV1-B07/logs', async (route) => {
+    await new Promise((r) => setTimeout(r, 800));
+    await route.fulfill({ json: mockSensorDetail });
+  });
+
+  await page.goto('/technician/maintenance');
+  await page.getByRole('tab', { name: /sensores/i }).click();
+  await page.getByText('Fórum Aveiro').click();
+  await page.getByText('IR-AV1-B07').click();
+
+  // Loading overlay aparece antes dos logs chegarem
+  await expect(page.getByText(/a carregar logs do sensor/i)).toBeVisible();
+
+  // Depois dos logs chegarem o overlay desaparece
+  await expect(page.getByText('Sensor IR sem leituras há >2h.')).toBeVisible();
+  await expect(page.getByText(/a carregar logs do sensor/i)).not.toBeVisible();
+});
