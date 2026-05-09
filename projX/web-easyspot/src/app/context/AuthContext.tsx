@@ -6,7 +6,10 @@ const AUTHENTIK_BASE = (import.meta.env.VITE_AUTHENTIK_URL ?? 'http://localhost/
 const CLIENT_ID      = import.meta.env.VITE_AUTHENTIK_CLIENT_ID ?? '';
 const REDIRECT_URI   = import.meta.env.VITE_AUTHENTIK_REDIRECT_URI ?? 'http://localhost/callback';
 
-const EXPECTED_ISSUER = `${AUTHENTIK_BASE}/application/o/easyspot/`;
+const EXPECTED_ISSUERS = [
+  `${AUTHENTIK_BASE}/application/o/easyspot/`,
+  `${AUTHENTIK_BASE}/`,
+] as const;
 const AUTHORIZE_URL  = `${AUTHENTIK_BASE}/application/o/authorize/`;
 const TOKEN_URL      = `${AUTHENTIK_BASE}/application/o/token/`;
 const LOGOUT_URL     = `${AUTHENTIK_BASE}/application/o/easyspot/end-session/`;
@@ -71,7 +74,8 @@ function normalizeIssuer(issuer: unknown): string {
 }
 
 function tokenIssuerMatches(claims: Record<string, unknown>): boolean {
-  return normalizeIssuer(claims['iss']) === normalizeIssuer(EXPECTED_ISSUER);
+  const tokenIssuer = normalizeIssuer(claims['iss']);
+  return EXPECTED_ISSUERS.some((issuer) => normalizeIssuer(issuer) === tokenIssuer);
 }
 
 function clearAuthStorage() {
@@ -120,7 +124,7 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
     if (token) {
       const claims = parseJwtClaims(token);
       if (!tokenIssuerMatches(claims)) {
-        console.warn('[AUTH] clearing token with unexpected issuer:', claims['iss'], 'expected:', EXPECTED_ISSUER);
+        console.warn('[AUTH] clearing token with unexpected issuer:', claims['iss'], 'expected one of:', EXPECTED_ISSUERS);
         clearAuthStorage();
         setIsLoading(false);
         return;
@@ -159,7 +163,7 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
 
     const claims = parseJwtClaims(data.access_token);
     if (!tokenIssuerMatches(claims)) {
-      console.warn('[AUTH] refreshed token has unexpected issuer:', claims['iss'], 'expected:', EXPECTED_ISSUER);
+      console.warn('[AUTH] refreshed token has unexpected issuer:', claims['iss'], 'expected one of:', EXPECTED_ISSUERS);
       clearAuthStorage();
       return null;
     }
@@ -291,7 +295,7 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
 
     const claims = parseJwtClaims(data.access_token);
     if (!tokenIssuerMatches(claims)) {
-      console.warn('[AUTH] callback token has unexpected issuer:', claims['iss'], 'expected:', EXPECTED_ISSUER);
+      console.warn('[AUTH] callback token has unexpected issuer:', claims['iss'], 'expected one of:', EXPECTED_ISSUERS);
       clearAuthStorage();
       throw new Error('Sessão inválida para este ambiente. Inicie sessão novamente.');
     }

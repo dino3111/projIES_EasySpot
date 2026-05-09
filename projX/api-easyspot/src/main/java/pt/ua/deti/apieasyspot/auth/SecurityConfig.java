@@ -11,7 +11,9 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtValidators;
@@ -24,8 +26,11 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.net.URI;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 @Slf4j
 @Configuration
@@ -120,16 +125,66 @@ public class SecurityConfig {
         factory.setReadTimeout(15000);
         RestTemplate restTemplate = new RestTemplate(factory);
 
-        log.info("[JWT-CONFIG] decoder boot: jwkSetUri='{}' expectedIssuer='{}'", jwkSetUri, authentikIssuer);
+        Set<String> acceptedIssuers = buildAcceptedIssuers(authentikIssuer);
+        log.info("[JWT-CONFIG] decoder boot: jwkSetUri='{}' acceptedIssuers='{}'", jwkSetUri, acceptedIssuers);
 
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSetUri(jwkSetUri)
             .restOperations(restTemplate)
             .build();
-            
-        // Validator flexível para evitar rejeições por pequenos desvios de tempo ou issuer
-        OAuth2TokenValidator<Jwt> validator = JwtValidators.createDefaultWithIssuer(authentikIssuer);
-        decoder.setJwtValidator(validator);
+
+        OAuth2TokenValidator<Jwt> defaults = JwtValidators.createDefault();
+        OAuth2TokenValidator<Jwt> issuerValidator = jwt -> {
+            String tokenIssuer = normalizeIssuer(jwt.getIssuer() != null ? jwt.getIssuer().toString() : null);
+            boolean issuerMatches = acceptedIssuers.stream()
+                .map(SecurityConfig::normalizeIssuer)
+                .anyMatch(tokenIssuer::equals);
+            if (issuerMatches) {
+                return OAuth2TokenValidatorResult.success();
+            }
+            return OAuth2TokenValidatorResult.failure(new OAuth2Error(
+                "invalid_token",
+                "The iss claim is not valid",
+                null
+            ));
+        };
+        decoder.setJwtValidator(jwt -> {
+            OAuth2TokenValidatorResult defaultsResult = defaults.validate(jwt);
+            if (defaultsResult.hasErrors()) {
+                return defaultsResult;
+            }
+            return issuerValidator.validate(jwt);
+        });
         return decoder;
+    }
+
+    private static Set<String> buildAcceptedIssuers(String configuredIssuer) {
+        Set<String> issuers = new LinkedHashSet<>();
+        String normalizedConfigured = normalizeIssuer(configuredIssuer);
+        if (!normalizedConfigured.isBlank()) {
+            issuers.add(normalizedConfigured);
+        }
+        if (normalizedConfigured.endsWith("/application/o/easyspot")) {
+            issuers.add(normalizedConfigured.replace("/application/o/easyspot", ""));
+        } else if (normalizedConfigured.endsWith("/authentik")) {
+            issuers.add(normalizedConfigured + "/application/o/easyspot");
+        }
+        return issuers;
+    }
+
+    private static String normalizeIssuer(String issuer) {
+        if (issuer == null || issuer.isBlank()) {
+            return "";
+        }
+        String noTrailingSlash = issuer.replaceAll("/+$", "");
+        try {
+            URI uri = URI.create(noTrailingSlash);
+            if (uri.getPath() == null) {
+                return noTrailingSlash;
+            }
+            return uri.toString().replaceAll("/+$", "");
+        } catch (IllegalArgumentException ex) {
+            return noTrailingSlash;
+        }
     }
 
     @Bean
