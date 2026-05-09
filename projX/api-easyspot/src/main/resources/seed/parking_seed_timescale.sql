@@ -1,38 +1,37 @@
--- Time-series seed for occupancy snapshots (TimescaleDB hypertable).
--- Self-contained with real IDs to avoid cross-DB join issues in initialization.
-
 BEGIN;
-
 DELETE FROM occupancy_snapshots;
-
--- Estádio Cidade de Coimbra (b231a846-7d40-5100-ba29-b9c0ca0ef9aa)
-INSERT INTO occupancy_snapshots (id, parking_lot_id, zone_type, occupied_count, total_count, recorded_at) VALUES 
-(gen_random_uuid(), 'b231a846-7d40-5100-ba29-b9c0ca0ef9aa', 'STANDARD', 50, 100, NOW()),
-(gen_random_uuid(), 'b231a846-7d40-5100-ba29-b9c0ca0ef9aa', 'EV', 2, 10, NOW()),
-(gen_random_uuid(), 'b231a846-7d40-5100-ba29-b9c0ca0ef9aa', 'ACCESSIBLE', 1, 10, NOW());
-
--- CoimbraShopping (452ed8eb-d0a3-5d61-8428-572e946614a5)
-INSERT INTO occupancy_snapshots (id, parking_lot_id, zone_type, occupied_count, total_count, recorded_at) VALUES 
-(gen_random_uuid(), '452ed8eb-d0a3-5d61-8428-572e946614a5', 'STANDARD', 20, 50, NOW()),
-(gen_random_uuid(), '452ed8eb-d0a3-5d61-8428-572e946614a5', 'ACCESSIBLE', 0, 10, NOW());
-
--- Fórum Aveiro (4731819f-a806-5c1f-be8c-a478d4276840)
-INSERT INTO occupancy_snapshots (id, parking_lot_id, zone_type, occupied_count, total_count, recorded_at) VALUES 
-(gen_random_uuid(), '4731819f-a806-5c1f-be8c-a478d4276840', 'STANDARD', 30, 80, NOW()),
-(gen_random_uuid(), '4731819f-a806-5c1f-be8c-a478d4276840', 'EV', 1, 5, NOW());
-
--- Glicínias Plaza (d8085d8f-7aaa-5eb4-b47d-2e2fe79bfe43)
-INSERT INTO occupancy_snapshots (id, parking_lot_id, zone_type, occupied_count, total_count, recorded_at) VALUES 
-(gen_random_uuid(), 'd8085d8f-7aaa-5eb4-b47d-2e2fe79bfe43', 'STANDARD', 60, 150, NOW()),
-(gen_random_uuid(), 'd8085d8f-7aaa-5eb4-b47d-2e2fe79bfe43', 'EV', 2, 5, NOW()),
-(gen_random_uuid(), 'd8085d8f-7aaa-5eb4-b47d-2e2fe79bfe43', 'ACCESSIBLE', 1, 5, NOW());
-
--- Europa (070b4f4d-9a9e-5c4a-92bd-eae711ecb6b3)
-INSERT INTO occupancy_snapshots (id, parking_lot_id, zone_type, occupied_count, total_count, recorded_at) VALUES 
-(gen_random_uuid(), '070b4f4d-9a9e-5c4a-92bd-eae711ecb6b3', 'STANDARD', 40, 90, NOW());
-
--- Estádio Municipal Dr. Magalhães Pessoa (7021e6fc-7585-5463-bbb7-de9bb8f4c37b)
-INSERT INTO occupancy_snapshots (id, parking_lot_id, zone_type, occupied_count, total_count, recorded_at) VALUES 
-(gen_random_uuid(), '7021e6fc-7585-5463-bbb7-de9bb8f4c37b', 'STANDARD', 100, 300, NOW());
-
+INSERT INTO occupancy_snapshots (id, parking_lot_id, zone_type, occupied_count, total_count, recorded_at) VALUES (gen_random_uuid(), '070b4f4d-9a9e-5c4a-92bd-eae711ecb6b3', 'ACCESSIBLE', 1, 1, NOW());
+INSERT INTO occupancy_snapshots (id, parking_lot_id, zone_type, occupied_count, total_count, recorded_at) VALUES (gen_random_uuid(), '070b4f4d-9a9e-5c4a-92bd-eae711ecb6b3', 'STANDARD', 179, 179, NOW());
+INSERT INTO occupancy_snapshots (id, parking_lot_id, zone_type, occupied_count, total_count, recorded_at) VALUES (gen_random_uuid(), '33cce245-2bff-5ad3-9cf4-5b6abf1076b4', 'ACCESSIBLE', 1, 1, NOW());
+INSERT INTO occupancy_snapshots (id, parking_lot_id, zone_type, occupied_count, total_count, recorded_at) VALUES (gen_random_uuid(), '33cce245-2bff-5ad3-9cf4-5b6abf1076b4', 'RESERVED', 1, 1, NOW());
+INSERT INTO occupancy_snapshots (id, parking_lot_id, zone_type, occupied_count, total_count, recorded_at) VALUES (gen_random_uuid(), '33cce245-2bff-5ad3-9cf4-5b6abf1076b4', 'STANDARD', 135, 138, NOW());
+INSERT INTO occupancy_snapshots (id, parking_lot_id, zone_type, occupied_count, total_count, recorded_at) VALUES (gen_random_uuid(), '452ed8eb-d0a3-5d61-8428-572e946614a5', 'ACCESSIBLE', 1, 1, NOW());
+INSERT INTO occupancy_snapshots (id, parking_lot_id, zone_type, occupied_count, total_count, recorded_at) VALUES (gen_random_uuid(), '452ed8eb-d0a3-5d61-8428-572e946614a5', 'STANDARD', 107, 119, NOW());
+INSERT INTO occupancy_snapshots (id, parking_lot_id, zone_type, occupied_count, total_count, recorded_at) VALUES (gen_random_uuid(), '4731819f-a806-5c1f-be8c-a478d4276840', 'ACCESSIBLE', 1, 1, NOW());
+INSERT INTO occupancy_snapshots (id, parking_lot_id, zone_type, occupied_count, total_count, recorded_at) VALUES (gen_random_uuid(), '4731819f-a806-5c1f-be8c-a478d4276840', 'EV', 1, 1, NOW());
+INSERT INTO occupancy_snapshots (id, parking_lot_id, zone_type, occupied_count, total_count, recorded_at) VALUES (gen_random_uuid(), '4731819f-a806-5c1f-be8c-a478d4276840', 'RESERVED', 2, 2, NOW());
+INSERT INTO occupancy_snapshots (id, parking_lot_id, zone_type, occupied_count, total_count, recorded_at) VALUES (gen_random_uuid(), '4731819f-a806-5c1f-be8c-a478d4276840', 'STANDARD', 125, 166, NOW());
+INSERT INTO occupancy_snapshots (id, parking_lot_id, zone_type, occupied_count, total_count, recorded_at) VALUES (gen_random_uuid(), '617dd647-6d08-52b2-95d3-9b4a4e002b6e', 'ACCESSIBLE', 1, 1, NOW());
+INSERT INTO occupancy_snapshots (id, parking_lot_id, zone_type, occupied_count, total_count, recorded_at) VALUES (gen_random_uuid(), '617dd647-6d08-52b2-95d3-9b4a4e002b6e', 'STANDARD', 119, 199, NOW());
+INSERT INTO occupancy_snapshots (id, parking_lot_id, zone_type, occupied_count, total_count, recorded_at) VALUES (gen_random_uuid(), '62feaf63-aa20-5070-b89f-e81bfd5f47cd', 'ACCESSIBLE', 1, 1, NOW());
+INSERT INTO occupancy_snapshots (id, parking_lot_id, zone_type, occupied_count, total_count, recorded_at) VALUES (gen_random_uuid(), '62feaf63-aa20-5070-b89f-e81bfd5f47cd', 'EV', 1, 1, NOW());
+INSERT INTO occupancy_snapshots (id, parking_lot_id, zone_type, occupied_count, total_count, recorded_at) VALUES (gen_random_uuid(), '62feaf63-aa20-5070-b89f-e81bfd5f47cd', 'STANDARD', 224, 498, NOW());
+INSERT INTO occupancy_snapshots (id, parking_lot_id, zone_type, occupied_count, total_count, recorded_at) VALUES (gen_random_uuid(), '6d139aed-f62a-5899-a42a-d3088fd3408b', 'STANDARD', 29, 96, NOW());
+INSERT INTO occupancy_snapshots (id, parking_lot_id, zone_type, occupied_count, total_count, recorded_at) VALUES (gen_random_uuid(), '7021e6fc-7585-5463-bbb7-de9bb8f4c37b', 'ACCESSIBLE', 0, 1, NOW());
+INSERT INTO occupancy_snapshots (id, parking_lot_id, zone_type, occupied_count, total_count, recorded_at) VALUES (gen_random_uuid(), '7021e6fc-7585-5463-bbb7-de9bb8f4c37b', 'EV', 0, 1, NOW());
+INSERT INTO occupancy_snapshots (id, parking_lot_id, zone_type, occupied_count, total_count, recorded_at) VALUES (gen_random_uuid(), '7021e6fc-7585-5463-bbb7-de9bb8f4c37b', 'STANDARD', 90, 598, NOW());
+INSERT INTO occupancy_snapshots (id, parking_lot_id, zone_type, occupied_count, total_count, recorded_at) VALUES (gen_random_uuid(), 'b231a846-7d40-5100-ba29-b9c0ca0ef9aa', 'ACCESSIBLE', 1, 1, NOW());
+INSERT INTO occupancy_snapshots (id, parking_lot_id, zone_type, occupied_count, total_count, recorded_at) VALUES (gen_random_uuid(), 'b231a846-7d40-5100-ba29-b9c0ca0ef9aa', 'EV', 2, 2, NOW());
+INSERT INTO occupancy_snapshots (id, parking_lot_id, zone_type, occupied_count, total_count, recorded_at) VALUES (gen_random_uuid(), 'b231a846-7d40-5100-ba29-b9c0ca0ef9aa', 'RESERVED', 2, 2, NOW());
+INSERT INTO occupancy_snapshots (id, parking_lot_id, zone_type, occupied_count, total_count, recorded_at) VALUES (gen_random_uuid(), 'b231a846-7d40-5100-ba29-b9c0ca0ef9aa', 'STANDARD', 115, 115, NOW());
+INSERT INTO occupancy_snapshots (id, parking_lot_id, zone_type, occupied_count, total_count, recorded_at) VALUES (gen_random_uuid(), 'c7c34eb2-d620-5fd6-a565-f04d9ec8b52a', 'ACCESSIBLE', 1, 1, NOW());
+INSERT INTO occupancy_snapshots (id, parking_lot_id, zone_type, occupied_count, total_count, recorded_at) VALUES (gen_random_uuid(), 'c7c34eb2-d620-5fd6-a565-f04d9ec8b52a', 'EV', 1, 1, NOW());
+INSERT INTO occupancy_snapshots (id, parking_lot_id, zone_type, occupied_count, total_count, recorded_at) VALUES (gen_random_uuid(), 'c7c34eb2-d620-5fd6-a565-f04d9ec8b52a', 'RESERVED', 2, 2, NOW());
+INSERT INTO occupancy_snapshots (id, parking_lot_id, zone_type, occupied_count, total_count, recorded_at) VALUES (gen_random_uuid(), 'c7c34eb2-d620-5fd6-a565-f04d9ec8b52a', 'STANDARD', 231, 236, NOW());
+INSERT INTO occupancy_snapshots (id, parking_lot_id, zone_type, occupied_count, total_count, recorded_at) VALUES (gen_random_uuid(), 'cd48f90c-637d-5f26-966a-73e1dd6baf98', 'ACCESSIBLE', 1, 1, NOW());
+INSERT INTO occupancy_snapshots (id, parking_lot_id, zone_type, occupied_count, total_count, recorded_at) VALUES (gen_random_uuid(), 'cd48f90c-637d-5f26-966a-73e1dd6baf98', 'EV', 1, 1, NOW());
+INSERT INTO occupancy_snapshots (id, parking_lot_id, zone_type, occupied_count, total_count, recorded_at) VALUES (gen_random_uuid(), 'cd48f90c-637d-5f26-966a-73e1dd6baf98', 'STANDARD', 106, 118, NOW());
+INSERT INTO occupancy_snapshots (id, parking_lot_id, zone_type, occupied_count, total_count, recorded_at) VALUES (gen_random_uuid(), 'd8085d8f-7aaa-5eb4-b47d-2e2fe79bfe43', 'ACCESSIBLE', 1, 1, NOW());
+INSERT INTO occupancy_snapshots (id, parking_lot_id, zone_type, occupied_count, total_count, recorded_at) VALUES (gen_random_uuid(), 'd8085d8f-7aaa-5eb4-b47d-2e2fe79bfe43', 'EV', 1, 1, NOW());
+INSERT INTO occupancy_snapshots (id, parking_lot_id, zone_type, occupied_count, total_count, recorded_at) VALUES (gen_random_uuid(), 'd8085d8f-7aaa-5eb4-b47d-2e2fe79bfe43', 'STANDARD', 336, 448, NOW());
 COMMIT;
