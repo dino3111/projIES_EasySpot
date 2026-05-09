@@ -21,6 +21,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ProfileController {
 
+    private static final String CLAIM_EMAIL = "email";
     private final ProfileService profileService;
     private final ProfilePhotoService profilePhotoService;
 
@@ -29,7 +30,7 @@ public class ProfileController {
     @ApiResponse(responseCode = "401", description = "Missing or invalid authentication token")
     @GetMapping
     public ResponseEntity<Object> getProfile(@AuthenticationPrincipal Jwt jwt) {
-        return ResponseEntity.ok(profileService.getProfile(jwt.getSubject(), extractRole(jwt)));
+        return ResponseEntity.ok(profileService.getProfile(jwt.getSubject(), jwt.getClaimAsString(CLAIM_EMAIL), extractRole(jwt)));
     }
 
     @Operation(summary = "Update authenticated user profile preferences")
@@ -42,7 +43,7 @@ public class ProfileController {
         @AuthenticationPrincipal Jwt jwt
     ) {
         return ResponseEntity.ok(
-            profileService.updateProfile(jwt.getSubject(), request, extractRole(jwt)));
+            profileService.updateProfile(jwt.getSubject(), jwt.getClaimAsString(CLAIM_EMAIL), request, extractRole(jwt)));
     }
 
     @Operation(summary = "Upload authenticated user profile photo")
@@ -53,9 +54,11 @@ public class ProfileController {
         @RequestPart("photo") MultipartFile photo,
         @AuthenticationPrincipal Jwt jwt
     ) {
+        String email = jwt.getClaimAsString(CLAIM_EMAIL);
         String photoUrl = profilePhotoService.upload(jwt.getSubject(), photo);
         return ResponseEntity.ok(profileService.updateProfile(
             jwt.getSubject(),
+            email,
             new ProfileUpdateRequest(null, null, null, null, photoUrl),
             extractRole(jwt)
         ));
