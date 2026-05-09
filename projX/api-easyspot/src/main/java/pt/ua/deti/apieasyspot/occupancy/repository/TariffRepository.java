@@ -19,11 +19,11 @@ public interface TariffRepository extends JpaRepository<Tariff, UUID> {
 
     @Query("SELECT t FROM Tariff t JOIN t.parkingLot p WHERE " +
            "(:parkId IS NULL OR p.id = :parkId) AND " +
-           "(:city IS NULL OR LOWER(p.city) LIKE CONCAT('%', :city, '%')) AND " +
+           "(:cityPattern IS NULL OR LOWER(p.city) LIKE :cityPattern) AND " +
            "(:status IS NULL OR t.status = :status)")
     Page<Tariff> findFiltered(
             @Param("parkId") UUID parkId,
-            @Param("city") String city,
+            @Param("cityPattern") String cityPattern,
             @Param("status") TariffStatus status,
             Pageable pageable);
 }

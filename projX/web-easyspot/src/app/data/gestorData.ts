@@ -38,6 +38,7 @@ export interface IssueReport {
 }
 
 export interface TariffEntry {
+  id?: string;
   parqueId: string;
   parqueNome: string;
   cidade: string;

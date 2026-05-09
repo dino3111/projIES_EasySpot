@@ -1,6 +1,75 @@
 import { request } from '../../services/apiService';
 import type { TariffEntry, IssueReport } from '../data/gestorData';
 
+// ─── Dashboard types ──────────────────────────────────────────────────────────
+
+export interface DashboardKpiSummary {
+  todayEntrances: number;
+  entranceVariance: number;
+  averageOccupancy: number;
+  totalLots: number;
+  occupiedLots: number;
+  totalEarnings: number;
+  earningsVariance: number;
+  averageOccupancyTime: string;
+  alertsOpened: number;
+  activeParks: number;
+}
+
+export interface DashboardDailyMetric {
+  date: string;
+  day: string;
+  entrances: number;
+  earnings: number;
+}
+
+export interface DashboardZoneOccupancy {
+  name: string;
+  type: string;
+  total: number;
+  occupied: number;
+}
+
+export interface DashboardHourlyOccupancy {
+  time: string;
+  occupancy: number;
+}
+
+export interface DashboardAlertSummary {
+  id: string;
+  type: string;
+  park: string;
+  zone: string;
+  sensorId: string;
+  plate: string;
+  description: string;
+  severity: string;
+  state: string;
+  createdAt: string;
+  attributedTo: string;
+  notes: string;
+}
+
+export interface DashboardParkSummary {
+  name: string;
+  city: string;
+  entrances: number;
+  occupancyPercentage: number;
+  earnings: number;
+}
+
+export interface ManagerDashboardResponse {
+  kpis: DashboardKpiSummary;
+  seriesLast7Days: DashboardDailyMetric[];
+  occupancyPerZone: DashboardZoneOccupancy[];
+  occupancyPerHour: DashboardHourlyOccupancy[];
+  lastAlerts: DashboardAlertSummary[];
+  performancePerPark: DashboardParkSummary[];
+}
+
+export const fetchManagerDashboard = () =>
+  request<ManagerDashboardResponse>('/api/manager/dashboard');
+
 export interface TariffResponse {
   id: string;
   parkId: string;

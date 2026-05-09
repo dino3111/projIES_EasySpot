@@ -32,6 +32,7 @@ function mapTariff(t: TariffResponse): TariffEntry {
     SUSPENDED: 'suspenso',
   };
   return {
+    id: t.id,
     parqueId: t.parkId,
     parqueNome: t.parkName,
     cidade: t.city,
@@ -56,9 +57,12 @@ function mapAlert(a: AlertResponse): IssueReport {
     WARNING: 'aviso',
     INFO: 'info',
   };
+  const typeMap: Record<string, IssueReport['tipo']> = {
+    sensor: 'sensor', client: 'cliente', cliente: 'cliente', system: 'sistema', sistema: 'sistema',
+  };
   return {
     id: a.id,
-    tipo: a.type.toLowerCase() as any,
+    tipo: typeMap[a.type?.toLowerCase()] ?? 'sistema',
     parque: a.park,
     zona: a.zone,
     sensorId: a.sensorId,
@@ -68,7 +72,7 @@ function mapAlert(a: AlertResponse): IssueReport {
     estado: stateMap[a.state] || 'aberto',
     criadoEm: a.createdAt,
     atribuidoA: a.attributedTo,
-    notes: a.notes,
+    notas: a.notes,
   };
 }
 

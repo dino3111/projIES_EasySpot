@@ -107,10 +107,10 @@ function IssueCard({ issue, onClick }: IssueCardProps) {
     sistema: { icon: 'fa-server', label: 'Sistema' },
     cliente: { icon: 'fa-user', label: 'Cliente' },
   };
-  const severityInfo = severityMap[issue.severidade];
-  const typeInfo = typeMap[issue.tipo];
+  const severityInfo = severityMap[issue.severidade] ?? { color: '#6b7280', label: 'Info' };
+  const typeInfo = typeMap[issue.tipo] ?? { icon: 'fa-circle-exclamation', label: issue.tipo };
 
-  const estadoBadge = ISSUE_STATUS_BADGES[issue.estado];
+  const estadoBadge = ISSUE_STATUS_BADGES[issue.estado] ?? { label: issue.estado, color: '#6b7280', bg: '#6b728020' };
 
   return (
     <button

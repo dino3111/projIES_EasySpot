@@ -27,7 +27,7 @@ export function TariffsTab({ onEdit, tariffs }: { readonly onEdit: (t: TariffEnt
             </thead>
             <tbody>
               {tariffs.map((t) => (
-                <TariffRow key={t.parqueId} tariff={t} onEdit={onEdit} />
+                <TariffRow key={t.id ?? t.parqueId} tariff={t} onEdit={onEdit} />
               ))}
             </tbody>
           </table>
@@ -55,9 +55,9 @@ function TariffRow({ tariff, onEdit }: { readonly tariff: TariffEntry; readonly 
     <tr className="border-b border-border/50 last:border-0 hover:bg-muted/20 transition-colors">
       <td className="px-4 py-3 text-foreground" style={{ fontWeight: 600 }}>{tariff.parqueNome}</td>
       <td className="px-3 py-3 text-muted-foreground">{tariff.cidade}</td>
-      <td className="px-3 py-3 text-center text-foreground">€{tariff.tarifaHora.toFixed(2)}</td>
-      <td className="px-3 py-3 text-center text-foreground">€{tariff.maxDiario.toFixed(2)}</td>
-      <td className="px-3 py-3 text-center text-foreground">€{tariff.mensalidade.toFixed(2)}</td>
+      <td className="px-3 py-3 text-center text-foreground">€{(tariff.tarifaHora ?? 0).toFixed(2)}</td>
+      <td className="px-3 py-3 text-center text-foreground">€{(tariff.maxDiario ?? 0).toFixed(2)}</td>
+      <td className="px-3 py-3 text-center text-foreground">€{(tariff.mensalidade ?? 0).toFixed(2)}</td>
       <td className="px-3 py-3 text-center">
         {tariff.tarifaEV ? (
           <span className="text-green-600 dark:text-green-400" style={{ fontWeight: 600 }}>
