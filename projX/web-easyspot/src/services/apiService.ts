@@ -31,9 +31,8 @@ function parseErrorMessage(text: string, status: number): string {
   try {
     const json = JSON.parse(text) as { detail?: string; message?: string };
     return json.detail ?? json.message ?? text;
-  } catch (error: unknown) {
-    const errMsg = error instanceof Error ? error.message : String(error);
-    return `${text} (detalhe: ${errMsg})`;
+  } catch {
+    return text;
   }
 }
 
