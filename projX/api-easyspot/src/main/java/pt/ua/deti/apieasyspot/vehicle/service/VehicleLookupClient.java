@@ -1,92 +1,110 @@
 package pt.ua.deti.apieasyspot.vehicle.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 import pt.ua.deti.apieasyspot.common.exception.ExternalServiceException;
+import pt.ua.deti.apieasyspot.common.exception.PlateNotFoundException;
 import pt.ua.deti.apieasyspot.vehicle.dto.VehicleData;
 
-/**
- * Client responsible for fetching vehicle data from the InfoMatrícula external API.
- *
- * InfoMatrícula requires a Firebase Anonymous Auth token on every request.
- * Since Firebase anonymous tokens are short-lived (~1 hour), this client caches the token
- * and only requests a new one when the current one is about to expire.
- *
- * Auth flow:
- *   1. POST to Firebase Identity Toolkit with returnSecureToken=true → receives idToken + expiresIn
- *   2. Use that idToken as a Bearer token on every request to api.infomatricula.pt
- */
 @Component
 public class VehicleLookupClient {
 
-    private final RestClient restClient;
-    private final String firebaseApiKey;
+    private static final Logger log = LoggerFactory.getLogger(VehicleLookupClient.class);
 
-    // Cached Firebase token and its expiry timestamp (epoch millis)
-    private String cachedToken;
-    private long tokenExpiresAt;
+    private final RestClient restClient;
 
     public VehicleLookupClient(
-        @Value("${infomatricula.base-url}") String baseUrl,
-        @Value("${infomatricula.firebase-api-key}") String firebaseApiKey
+        @Value("${scraper.base-url}") String baseUrl,
+        @Value("${scraper.api-key}") String apiKey
     ) {
-        this.restClient = RestClient.builder().baseUrl(baseUrl).build();
-        this.firebaseApiKey = firebaseApiKey;
+        this.restClient = RestClient.builder()
+            .baseUrl(baseUrl)
+            .requestInterceptor((request, body, execution) -> {
+                request.getHeaders().set("X-API-Key", apiKey);
+                return execution.execute(request, body);
+            })
+            .build();
     }
 
-    /**
-     * Fetches vehicle data for the given licence plate from the InfoMatrícula API.
-     * Automatically handles Firebase authentication before the request.
-     */
     public VehicleData lookup(String plate) {
-        String token = getToken();
+        log.info("Scraper lookup plate={}", plate);
         try {
-            VehicleData result = restClient.get()
-                .uri("/informacao/fetch?plate={plate}", plate)
-                .header("Authorization", "Bearer " + token)
-                .header("Accept", "application/json")
+            ScraperLookupPayload payload = restClient.get()
+                .uri(uriBuilder -> uriBuilder.path("/lookup").queryParam("plate", plate).build())
                 .retrieve()
-                .body(VehicleData.class);
-            if (result == null || result.make() == null)
-                throw new ExternalServiceException("Plate not found in IMT registry: " + plate);
-            return result;
-        } catch (ExternalServiceException ex) {
+                .body(ScraperLookupPayload.class);
+            if (payload == null) {
+                throw new ExternalServiceException("Empty response from scraper service");
+            }
+            return mapToVehicleData(plate, payload);
+        } catch (RestClientResponseException ex) {
+            HttpStatusCode status = ex.getStatusCode();
+            log.error("Scraper lookup failed plate={} status={}", plate, status);
+            if (status.value() == 404) {
+                throw new PlateNotFoundException("Plate not found in scraper registry: " + plate, ex);
+            }
+            if (status.value() == 503) {
+                throw new ExternalServiceException("Vehicle lookup service temporarily unavailable", ex);
+            }
+            throw new ExternalServiceException("Could not fetch vehicle data for plate: " + plate, ex);
+        } catch (PlateNotFoundException ex) {
             throw ex;
         } catch (Exception ex) {
+            log.error("Scraper lookup unexpected error plate={}", plate, ex);
             throw new ExternalServiceException("Could not fetch vehicle data for plate: " + plate, ex);
         }
     }
 
-    /**
-     * Returns a valid Firebase token, using the cached one if still valid.
-     * Firebase tokens expire after ~1 hour; we refresh 60 seconds early to avoid edge cases.
-     */
-    private synchronized String getToken() {
-        if (cachedToken != null && System.currentTimeMillis() < tokenExpiresAt) {
-            return cachedToken;
-        }
-
-        // Firebase Anonymous Sign-Up endpoint — no user credentials required,
-        // just the project API key. Returns a short-lived JWT (idToken).
-        String firebaseUrl = "https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=" + firebaseApiKey;
-
-        FirebaseTokenResponse response = RestClient.create().post()
-            .uri(firebaseUrl)
-            .header("Content-Type", "application/json")
-            .body("{\"returnSecureToken\":true}")
-            .retrieve()
-            .body(FirebaseTokenResponse.class);
-
-        if (response == null)
-            throw new ExternalServiceException("Failed to authenticate with the licence plate service.");
-
-        cachedToken = response.idToken();
-        // expiresIn is in seconds; subtract 60s as a safety buffer before expiry
-        tokenExpiresAt = System.currentTimeMillis() + (Long.parseLong(response.expiresIn()) - 60) * 1000;
-        return cachedToken;
+    private VehicleData mapToVehicleData(String plate, ScraperLookupPayload payload) {
+        return new VehicleData(
+            plate,
+            payload.vin(),
+            payload.make(),
+            payload.model(),
+            payload.version(),
+            payload.yearFrom(),
+            payload.yearTo(),
+            payload.fuelType(),
+            payload.powerKw(),
+            payload.powerCv(),
+            payload.displacementCc(),
+            payload.cylinders(),
+            payload.bodyType(),
+            payload.driveType(),
+            payload.engineCode(),
+            payload.engineType(),
+            payload.imageRelativeUrl(),
+            payload.sourceCarId() != null ? String.valueOf(payload.sourceCarId()) : null,
+            payload.canonicalUrl()
+        );
     }
 
-    /** Maps the relevant fields from Firebase's token response. */
-    private record FirebaseTokenResponse(String idToken, String expiresIn) {}
+    private record ScraperLookupPayload(
+        String plate,
+        String make,
+        String model,
+        String version,
+        Integer sourceCarId,
+        Integer sourceMakerId,
+        Integer sourceModelId,
+        String canonicalUrl,
+        String vin,
+        String engineType,
+        Integer yearFrom,
+        Integer yearTo,
+        String bodyType,
+        String driveType,
+        Double powerKw,
+        Double powerCv,
+        Integer displacementCc,
+        Integer cylinders,
+        String fuelType,
+        String engineCode,
+        String imageRelativeUrl
+    ) {}
 }

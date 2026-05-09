@@ -1,22 +1,29 @@
 import { useRef } from 'react';
-import type { ParkingLot, ParkingSpot } from '../../../data/parkingData';
+import type { ParkingLot, ParkingSpot } from '../../../data/parkingTypes';
 import type { Vehicle } from '../../../context/ProfileContext';
 import { calcHours, fmtDateTime, fmtDuration, fmtCountdown } from './reservationHelpers';
 
 export function Step4Reserved({
   bookingCode, countdown, lot, spot, vehicle, arrivalTime, exitTime, cost,
   onNewBooking, onNavigate,
-}: {
+}: Readonly<{
   bookingCode: string; countdown: number;
   lot: ParkingLot | null; spot: ParkingSpot | null; vehicle: Vehicle | null;
   arrivalTime: string; exitTime: string; cost: number;
   onNewBooking: () => void; onNavigate: () => void;
-}) {
+}>) {
   const codeRef = useRef<HTMLDivElement>(null);
   const hours = calcHours(arrivalTime, exitTime);
   const pct = (countdown / (30 * 60)) * 100;
   const isExpiring = countdown < 5 * 60;
   const isExpired = countdown === 0;
+  let expiryTone = 'text-primary';
+  if (isExpired) expiryTone = 'text-error';
+  else if (isExpiring) expiryTone = 'text-warning';
+  let progressTone = 'bg-primary';
+  if (isExpired) progressTone = 'bg-error';
+  else if (isExpiring) progressTone = 'bg-warning';
+  const hourglassIcon = isExpiring ? 'end' : 'half';
 
   function copyCode() {
     navigator.clipboard.writeText(bookingCode).catch(() => {});
@@ -65,18 +72,18 @@ export function Step4Reserved({
         <div className="card-body p-4">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <i className={`fa-solid fa-hourglass-${isExpiring ? 'end' : 'half'} ${isExpired ? 'text-error' : isExpiring ? 'text-warning' : 'text-primary'}`} />
+              <i className={`fa-solid fa-hourglass-${hourglassIcon} ${expiryTone}`} />
               <span className="text-sm font-semibold text-base-content">
                 {isExpired ? 'Reserva expirada' : 'Validade da reserva'}
               </span>
             </div>
-            <span className={`text-2xl font-mono font-bold ${isExpired ? 'text-error' : isExpiring ? 'text-warning' : 'text-primary'}`}>
+            <span className={`text-2xl font-mono font-bold ${expiryTone}`}>
               {fmtCountdown(countdown)}
             </span>
           </div>
           <div className="w-full bg-base-300 rounded-full h-2.5 overflow-hidden">
             <div
-              className={`h-2.5 rounded-full transition-all duration-1000 ${isExpired ? 'bg-error' : isExpiring ? 'bg-warning' : 'bg-primary'}`}
+              className={`h-2.5 rounded-full transition-all duration-1000 ${progressTone}`}
               style={{ width: `${pct}%` }}
             />
           </div>
@@ -106,7 +113,7 @@ export function Step4Reserved({
               <div><p className="text-base-content/50">Parque</p><p className="font-medium text-base-content">{lot.name}</p></div>
               <div><p className="text-base-content/50">Lugar</p><p className="font-medium text-base-content">{spot?.label || '—'}</p></div>
               <div><p className="text-base-content/50">Chegada</p><p className="font-medium text-base-content">{fmtDateTime(arrivalTime)}</p></div>
-              <div><p className="text-base-content/50">Saída prevista</p><p className="font-medium text-base-content">{fmtDateTime(exitTime)} <span className="text-base-content/50">({fmtDuration(hours)})</span></p></div>
+              <div><p className="text-base-content/50">Saída prevista</p><p className="font-medium text-base-content">{fmtDateTime(exitTime)}{' '}<span className="text-base-content/50">({fmtDuration(hours)})</span></p></div>
               <div><p className="text-base-content/50">Custo total</p><p className="font-bold text-primary">€{cost.toFixed(2)}</p></div>
               <div><p className="text-base-content/50">Telefone</p><p className="font-medium text-base-content">{lot.phone}</p></div>
               {vehicle && (

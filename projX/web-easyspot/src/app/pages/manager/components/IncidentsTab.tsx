@@ -4,6 +4,26 @@ import { QuickStat } from './shared';
 type IssueFilter = 'todos' | 'aberto' | 'em-progresso' | 'resolvido';
 type SevFilter = 'todos' | 'critica' | 'aviso' | 'info';
 
+type IncidentsTabProps = Readonly<{
+  issues: IssueReport[];
+  issueFilter: IssueFilter;
+  setIssueFilter: (f: IssueFilter) => void;
+  sevFilter: SevFilter;
+  setSevFilter: (f: SevFilter) => void;
+  onSelect: (i: IssueReport) => void;
+}>;
+
+type IssueCardProps = Readonly<{
+  issue: IssueReport;
+  onClick: () => void;
+}>;
+
+const ISSUE_STATUS_BADGES: Record<IssueReport['estado'], { label: string; color: string; bg: string }> = {
+  aberto: { label: 'Aberto', color: '#d4183d', bg: '#d4183d20' },
+  'em-progresso': { label: 'Em progresso', color: '#f59e0b', bg: '#f59e0b20' },
+  resolvido: { label: 'Resolvido', color: '#22c55e', bg: '#22c55e20' },
+};
+
 export function IncidentsTab({
   issues,
   issueFilter,
@@ -11,14 +31,7 @@ export function IncidentsTab({
   sevFilter,
   setSevFilter,
   onSelect,
-}: {
-  issues: IssueReport[];
-  issueFilter: IssueFilter;
-  setIssueFilter: (f: IssueFilter) => void;
-  sevFilter: SevFilter;
-  setSevFilter: (f: SevFilter) => void;
-  onSelect: (i: IssueReport) => void;
-}) {
+}: IncidentsTabProps) {
   const estadoCounts = {
     aberto: mockIssues.filter(i => i.estado === 'aberto').length,
     'em-progresso': mockIssues.filter(i => i.estado === 'em-progresso').length,
@@ -44,7 +57,7 @@ export function IncidentsTab({
               }`}
               style={{ fontSize: '0.75rem', fontWeight: 600 }}
             >
-              {f === 'todos' ? 'Todos' : f === 'aberto' ? 'Abertos' : f === 'em-progresso' ? 'Em Progresso' : 'Resolvidos'}
+              {{ todos: 'Todos', aberto: 'Abertos', 'em-progresso': 'Em Progresso', resolvido: 'Resolvidos' }[f]}
             </button>
           ))}
         </div>
@@ -58,7 +71,7 @@ export function IncidentsTab({
               }`}
               style={{ fontSize: '0.75rem', fontWeight: 600 }}
             >
-              {f === 'todos' ? 'Todas' : f === 'critica' ? 'Crítica' : f === 'aviso' ? 'Aviso' : 'Info'}
+              {{ todos: 'Todas', critica: 'Crítica', aviso: 'Aviso', info: 'Info' }[f]}
             </button>
           ))}
         </div>
@@ -83,24 +96,21 @@ export function IncidentsTab({
   );
 }
 
-function IssueCard({ issue, onClick }: { issue: IssueReport; onClick: () => void }) {
-  const sevColor =
-    issue.severidade === 'critica' ? '#d4183d' :
-    issue.severidade === 'aviso' ? '#f59e0b' : '#3b82f6';
-  const sevLabel =
-    issue.severidade === 'critica' ? 'Crítico' :
-    issue.severidade === 'aviso' ? 'Aviso' : 'Info';
-  const tipoIcon =
-    issue.tipo === 'sensor' ? 'fa-microchip' :
-    issue.tipo === 'sistema' ? 'fa-server' : 'fa-user';
-  const tipoLabel =
-    issue.tipo === 'sensor' ? 'Sensor' :
-    issue.tipo === 'sistema' ? 'Sistema' : 'Cliente';
+function IssueCard({ issue, onClick }: IssueCardProps) {
+  const severityMap = {
+    critica: { color: '#d4183d', label: 'Crítico' },
+    aviso: { color: '#f59e0b', label: 'Aviso' },
+    info: { color: '#3b82f6', label: 'Info' },
+  };
+  const typeMap = {
+    sensor: { icon: 'fa-microchip', label: 'Sensor' },
+    sistema: { icon: 'fa-server', label: 'Sistema' },
+    cliente: { icon: 'fa-user', label: 'Cliente' },
+  };
+  const severityInfo = severityMap[issue.severidade];
+  const typeInfo = typeMap[issue.tipo];
 
-  const estadoBadge =
-    issue.estado === 'aberto' ? { label: 'Aberto', color: '#d4183d', bg: '#d4183d20' } :
-    issue.estado === 'em-progresso' ? { label: 'Em progresso', color: '#f59e0b', bg: '#f59e0b20' } :
-    { label: 'Resolvido', color: '#22c55e', bg: '#22c55e20' };
+  const estadoBadge = ISSUE_STATUS_BADGES[issue.estado];
 
   return (
     <button
@@ -111,10 +121,10 @@ function IssueCard({ issue, onClick }: { issue: IssueReport; onClick: () => void
       <div className="flex items-start gap-3">
         <div
           className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
-          style={{ background: `${sevColor}15` }}
+          style={{ background: `${severityInfo.color}15` }}
           aria-hidden="true"
         >
-          <i className={`fas ${tipoIcon}`} style={{ color: sevColor, fontSize: '0.9rem' }}></i>
+          <i className={`fas ${typeInfo.icon}`} style={{ color: severityInfo.color, fontSize: '0.9rem' }}></i>
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-1.5 mb-1">
@@ -131,24 +141,26 @@ function IssueCard({ issue, onClick }: { issue: IssueReport; onClick: () => void
           {issue.sensorId && (
             <p className="text-muted-foreground mt-1" style={{ fontSize: '0.7rem' }}>
               <i className="fas fa-tag mr-1" aria-hidden="true"></i>
-              Sensor: <span style={{ fontFamily: 'monospace' }}>{issue.sensorId}</span>
+              Sensor:{' '}
+              <span style={{ fontFamily: 'monospace' }}>{issue.sensorId}</span>
             </p>
           )}
           {issue.matricula && (
             <p className="text-muted-foreground mt-1" style={{ fontSize: '0.7rem' }}>
               <i className="fas fa-car mr-1" aria-hidden="true"></i>
-              Matrícula: <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{issue.matricula}</span>
+              Matrícula:{' '}
+              <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{issue.matricula}</span>
             </p>
           )}
           <div className="flex flex-wrap items-center gap-2 mt-2">
-            <span className="px-1.5 py-0.5 rounded-full" style={{ fontSize: '0.65rem', fontWeight: 700, background: `${sevColor}20`, color: sevColor }}>
-              {sevLabel}
+            <span className="px-1.5 py-0.5 rounded-full" style={{ fontSize: '0.65rem', fontWeight: 700, background: `${severityInfo.color}20`, color: severityInfo.color }}>
+              {severityInfo.label}
             </span>
             <span className="px-1.5 py-0.5 rounded-full" style={{ fontSize: '0.65rem', fontWeight: 700, background: estadoBadge.bg, color: estadoBadge.color }}>
               {estadoBadge.label}
             </span>
             <span className="px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground" style={{ fontSize: '0.65rem', fontWeight: 600 }}>
-              {tipoLabel}
+              {typeInfo.label}
             </span>
             <span className="text-muted-foreground/70 ml-auto" style={{ fontSize: '0.65rem' }}>
               {new Date(issue.criadoEm).toLocaleString('pt-PT', {
@@ -159,7 +171,8 @@ function IssueCard({ issue, onClick }: { issue: IssueReport; onClick: () => void
           {issue.atribuidoA && (
             <p className="text-muted-foreground mt-1.5" style={{ fontSize: '0.7rem' }}>
               <i className="fas fa-user-gear mr-1" aria-hidden="true"></i>
-              Atribuído a: <span style={{ fontWeight: 600 }}>{issue.atribuidoA}</span>
+              Atribuído a:{' '}
+              <span style={{ fontWeight: 600 }}>{issue.atribuidoA}</span>
             </p>
           )}
         </div>

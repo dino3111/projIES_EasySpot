@@ -1,17 +1,21 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { FilterBar } from '../../components/parking/FilterBar';
 import { ParkingCard, type FilterMode } from '../../components/parking/ParkingCard';
 import { VehiclePicker } from '../../components/shared/VehiclePicker';
-import { mockParkingLots, simulateRealTimeUpdate, type ParkingLot } from '../../data/parkingData';
+import type { ParkingLot } from '../../data/parkingTypes';
 import { useProfile } from '../../context/ProfileContext';
 import { CompactParkRow } from './components/CompactParkRow';
 import { FilterBanners } from './components/FilterBanners';
+import { fetchParkCities, fetchParksList } from '../../services/parksApi';
+import { subscribeSpaceAvailableAlerts } from '../../services/parksApi';
 
 export function ParkingListPage() {
   const { vehicles } = useProfile();
   const primaryVehicle = vehicles.find((v) => v.isPrimary) ?? vehicles[0] ?? null;
 
-  const [parkingLots, setParkingLots] = useState<ParkingLot[]>(mockParkingLots);
+  const [parkingLots, setParkingLots] = useState<ParkingLot[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [showEVOnly, setShowEVOnly] = useState(false);
   const [showAccessibleOnly, setShowAccessibleOnly] = useState(false);
   const [showAvailableOnly, setShowAvailableOnly] = useState(false);
@@ -19,6 +23,11 @@ export function ParkingListPage() {
   const [selectedDistrict, setSelectedDistrict] = useState('');
   const [mobileView, setMobileView] = useState<'list' | 'grid'>('list');
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(primaryVehicle?.id ?? null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [districts, setDistricts] = useState<string[]>([]);
+  const [subscribing, setSubscribing] = useState(false);
+  const [subscribeMessage, setSubscribeMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const vehicle = vehicles.find((v) => v.id === selectedVehicleId) ?? null;
@@ -27,49 +36,70 @@ export function ParkingListPage() {
   }, [selectedVehicleId, vehicles]);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setParkingLots((current) =>
-        current.map((lot) => (Math.random() > 0.5 ? simulateRealTimeUpdate(lot) : lot))
-      );
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const filterMode: FilterMode =
-    showAccessibleOnly && showEVOnly ? 'both'
-    : showAccessibleOnly ? 'accessible'
-    : showEVOnly ? 'ev'
-    : null;
-
-  const districts = useMemo(() => {
-    const set = new Set(mockParkingLots.map((l) => l.localidade));
-    return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt'));
-  }, []);
-
-  const selectedVehicle = useMemo(
-    () => vehicles.find((v) => v.id === selectedVehicleId) ?? null,
-    [vehicles, selectedVehicleId],
-  );
-
-  const filtered = useMemo(() => {
-    return parkingLots.filter((lot) => {
-      if (showEVOnly) {
-        if (!lot.hasEVCharger || !lot.evChargers?.length) return false;
-        if (selectedVehicle?.isEV && selectedVehicle.chargerTypes?.length) {
-          const hasCompatible = lot.evChargers.some((c) => selectedVehicle.chargerTypes!.includes(c.type));
-          if (!hasCompatible) return false;
-        }
-      }
-      if (showAccessibleOnly && (!lot.hasAccessible || !lot.accessibleSpots?.length)) return false;
-      if (showAvailableOnly && lot.availableSpots === 0) return false;
-      if (selectedDistrict && lot.localidade !== selectedDistrict) return false;
-      if (searchQuery) {
-        const q = searchQuery.toLowerCase();
-        if (!lot.name.toLowerCase().includes(q) && !lot.address.toLowerCase().includes(q)) return false;
-      }
-      return true;
+    let mounted = true;
+    fetchParkCities().then((cities) => {
+      if (mounted) setDistricts(cities);
     });
-  }, [parkingLots, showEVOnly, showAccessibleOnly, showAvailableOnly, selectedDistrict, searchQuery, selectedVehicle]);
+    return () => { mounted = false; };
+  }, []);
+
+  useEffect(() => {
+    setPage(1);
+  }, [showEVOnly, showAccessibleOnly, showAvailableOnly, searchQuery, selectedDistrict, selectedVehicleId]);
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        setLoading(true);
+        setLoadError(null);
+        const data = await fetchParksList({
+          page,
+          pageSize: 20,
+          textQuery: searchQuery || undefined,
+          city: selectedDistrict || undefined,
+          vehicleId: selectedVehicleId,
+          evOnly: showEVOnly,
+          accessibleOnly: showAccessibleOnly,
+          availableOnly: showAvailableOnly,
+        });
+        if (!mounted) return;
+        setParkingLots(data.items);
+        setTotalPages(data.pagination.totalPages);
+      } catch {
+        if (mounted) setLoadError('Não foi possível carregar parques do backend.');
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+    load();
+    return () => { mounted = false; };
+  }, [page, showEVOnly, showAccessibleOnly, showAvailableOnly, searchQuery, selectedDistrict, selectedVehicleId]);
+
+  let filterMode: FilterMode = null;
+  if (showAccessibleOnly && showEVOnly) {
+    filterMode = 'both';
+  } else if (showAccessibleOnly) {
+    filterMode = 'accessible';
+  } else if (showEVOnly) {
+    filterMode = 'ev';
+  }
+
+  const filtered = parkingLots;
+
+  const handleSubscribeVisible = async () => {
+    if (filtered.length === 0) return;
+    try {
+      setSubscribing(true);
+      setSubscribeMessage(null);
+      await subscribeSpaceAvailableAlerts(filtered.map((lot) => lot.id));
+      setSubscribeMessage('Alertas ativados para os parques visíveis.');
+    } catch {
+      setSubscribeMessage('Não foi possível ativar alertas para a listagem atual.');
+    } finally {
+      setSubscribing(false);
+    }
+  };
 
   const totalAccessible = filtered.reduce(
     (s, l) => s + (l.accessibleSpots?.filter((a) => a.available).length ?? 0), 0
@@ -114,6 +144,15 @@ export function ParkingListPage() {
         closestAccDistance={closestAccDistance}
         filteredCount={filtered.length}
       />
+      <div className="mb-3 flex items-center gap-2">
+        <button className="btn btn-sm btn-outline" disabled={subscribing || filtered.length === 0} onClick={() => void handleSubscribeVisible()}>
+          <i className="fas fa-bell" aria-hidden="true" /> Alertar-me destes parques
+        </button>
+        {subscribeMessage && <span className="text-xs text-muted-foreground">{subscribeMessage}</span>}
+      </div>
+
+      {loading && <p className="text-muted-foreground text-sm mb-3">A carregar parques...</p>}
+      {loadError && <p className="text-error text-sm mb-3">{loadError}</p>}
 
       {filtered.length > 0 ? (
         <ParkingResults
@@ -127,11 +166,21 @@ export function ParkingListPage() {
       ) : (
         <EmptyState />
       )}
+      <div className="mt-4 flex items-center justify-between">
+        <button className="btn btn-sm" disabled={page <= 1 || loading} onClick={() => setPage((p) => Math.max(1, p - 1))}>Anterior</button>
+        <span className="text-sm text-muted-foreground">Página {page} / {Math.max(totalPages, 1)}</span>
+        <button className="btn btn-sm" disabled={loading || (totalPages > 0 && page >= totalPages)} onClick={() => setPage((p) => p + 1)}>Seguinte</button>
+      </div>
     </div>
   );
 }
 
-function PageHeader({ mobileView, setMobileView }: { mobileView: 'list' | 'grid'; setMobileView: (v: 'list' | 'grid') => void }) {
+interface PageHeaderProps {
+  readonly mobileView: 'list' | 'grid';
+  readonly setMobileView: (v: 'list' | 'grid') => void;
+}
+
+function PageHeader({ mobileView, setMobileView }: PageHeaderProps) {
   return (
     <div className="flex items-center justify-between gap-3 mb-4">
       <h1 className="text-foreground" style={{ fontSize: '1.75rem', fontWeight: 800, lineHeight: 1.2 }}>
@@ -158,18 +207,18 @@ function PageHeader({ mobileView, setMobileView }: { mobileView: 'list' | 'grid'
 }
 
 interface ParkingResultsProps {
-  filtered: ParkingLot[];
-  filterMode: FilterMode;
-  mobileView: 'list' | 'grid';
-  showAccessibleOnly: boolean;
-  totalAccessible: number;
-  totalEV: number;
+  readonly filtered: ParkingLot[];
+  readonly filterMode: FilterMode;
+  readonly mobileView: 'list' | 'grid';
+  readonly showAccessibleOnly: boolean;
+  readonly totalAccessible: number;
+  readonly totalEV: number;
 }
 
 function ParkingResults({ filtered, filterMode, mobileView, showAccessibleOnly, totalAccessible, totalEV }: ParkingResultsProps) {
   return (
     <>
-      <p className="mb-3 text-muted-foreground font-medium" style={{ fontSize: '0.8rem' }} role="status" aria-live="polite">
+      <output className="mb-3 text-muted-foreground font-medium block" style={{ fontSize: '0.8rem' }} aria-live="polite">
         {filtered.length} parque{filtered.length !== 1 ? 's' : ''} encontrado{filtered.length !== 1 ? 's' : ''}
         {filterMode === 'accessible' && (
           <span className="ml-1.5 text-primary font-semibold">
@@ -186,15 +235,15 @@ function ParkingResults({ filtered, filterMode, mobileView, showAccessibleOnly, 
             · {totalAccessible} acessível{totalAccessible !== 1 ? 'is' : ''} · {totalEV} EV
           </span>
         )}
-      </p>
+      </output>
 
-      <div className={`space-y-2 ${mobileView === 'grid' ? 'hidden' : 'flex flex-col'} sm:hidden`} role="list">
+      <ul className={`space-y-2 ${mobileView === 'grid' ? 'hidden' : 'flex flex-col'} sm:hidden`}>
         {filtered.map((lot) => (
-          <div key={lot.id} role="listitem">
+          <li key={lot.id}>
             <CompactParkRow lot={lot} filterMode={filterMode} />
-          </div>
+          </li>
         ))}
-      </div>
+      </ul>
 
       <div
         className={`grid gap-3 lg:gap-4 ${
@@ -203,10 +252,9 @@ function ParkingResults({ filtered, filterMode, mobileView, showAccessibleOnly, 
             : 'hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
         }`}
         style={{ alignItems: 'stretch' }}
-        role="list"
       >
         {filtered.map((lot) => (
-          <div key={lot.id} role="listitem" className="flex flex-col">
+          <div key={lot.id} className="flex flex-col">
             <ParkingCard lot={lot} highlightAccessible={showAccessibleOnly} filterMode={filterMode} />
           </div>
         ))}
@@ -217,10 +265,10 @@ function ParkingResults({ filtered, filterMode, mobileView, showAccessibleOnly, 
 
 function EmptyState() {
   return (
-    <div className="flex flex-col items-center justify-center text-center rounded-2xl p-10 bg-primary/5 border-2 border-dashed border-primary/30" role="status">
+    <output className="flex flex-col items-center justify-center text-center rounded-2xl p-10 bg-primary/5 border-2 border-dashed border-primary/30">
       <i className="fas fa-magnifying-glass mb-3 text-primary/50" style={{ fontSize: '2.5rem' }} aria-hidden="true" />
       <p className="text-foreground font-bold" style={{ fontSize: '1rem' }}>Nenhum parque encontrado</p>
       <p className="text-foreground/60 mt-1" style={{ fontSize: '0.85rem' }}>Tente ajustar os filtros ou a pesquisa.</p>
-    </div>
+    </output>
   );
 }

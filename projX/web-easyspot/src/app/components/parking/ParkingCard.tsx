@@ -1,18 +1,55 @@
 import { Link } from 'react-router';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
-import type { ParkingLot } from '../../data/parkingData';
-import { getSpotDimCategory, getDistanceColor } from '../../data/parkingData';
+import type { ParkingLot } from '../../data/parkingTypes';
+import { getSpotDimCategory, getDistanceColor } from '../../data/parkingTypes';
 
 export type FilterMode = 'ev' | 'accessible' | 'both' | null;
 
 interface ParkingCardProps {
-  lot: ParkingLot;
-  highlightAccessible?: boolean;
-  filterMode?: FilterMode;
+  readonly lot: ParkingLot;
+  readonly highlightAccessible?: boolean;
+  readonly filterMode?: FilterMode;
+}
+
+interface AvailabilityContext {
+  available: number;
+  total: number;
+  label: string;
+  icon: string | null;
+  accentColor: string;
+  isFull: boolean;
+  isAlmost: boolean;
+  statusLabel: string;
+}
+
+function buildAvailabilityContext(
+  available: number,
+  total: number,
+  label: string,
+  icon: string | null,
+  availableLabel: string,
+  almostLabel: string,
+  fullLabel: string,
+  normalColor: string
+): AvailabilityContext {
+  const isFull = available === 0;
+  const isAlmost = !isFull && available <= Math.ceil(total * 0.3);
+  let accentColor = normalColor;
+  let statusLabel = availableLabel;
+
+  if (isFull) {
+    accentColor = '#ef4444';
+    statusLabel = fullLabel;
+  } else if (isAlmost) {
+    accentColor = '#f59e0b';
+    statusLabel = almostLabel;
+  }
+
+  return { available, total, label, icon, accentColor, isFull, isAlmost, statusLabel };
 }
 
 export function ParkingCard({ lot, highlightAccessible = false, filterMode = null }: ParkingCardProps) {
-  const { id, name, address, availableSpots, totalSpots, hourlyRate, walkingTime,
+  const { id, name, address, availableSpots, totalSpots, hourlyRate, walkingTime, drivingTime,
           hasEVCharger, hasAccessible, evChargers, accessibleSpots } = lot;
 
   const evAvail = evChargers?.filter((c) => c.available).length ?? 0;
@@ -29,61 +66,62 @@ export function ParkingCard({ lot, highlightAccessible = false, filterMode = nul
     ? getSpotDimCategory(closestAvailAcc.dimensions)
     : null;
 
-  const singleCtx = (() => {
+  const getSingleCtx = (): AvailabilityContext => {
+    const lotIsFull = availableSpots === 0;
+    if (lotIsFull) {
+      return buildAvailabilityContext(
+        0, Math.max(1, totalSpots), 'Livres', null,
+        'Lotado', 'Lotado', 'Lotado', '#ef4444'
+      );
+    }
     if (filterMode === 'ev' && evTotal > 0) {
-      const isFull = evAvail === 0;
-      const isAlmost = evAvail > 0 && evAvail <= Math.ceil(evTotal * 0.3);
-      return {
-        available: evAvail, total: evTotal,
-        label: 'Carregadores', icon: 'fa-charging-station',
-        accentColor: isFull ? '#ef4444' : isAlmost ? '#f59e0b' : '#22c55e',
-        isFull, isAlmost,
-        statusLabel: isFull ? 'Sem EV' : isAlmost ? 'Quase cheio' : 'EV livre',
-      };
+      return buildAvailabilityContext(
+        evAvail, evTotal, 'Carregadores', 'fa-charging-station',
+        'EV livre', 'Quase cheio', 'Sem EV', '#22c55e'
+      );
     }
     if (filterMode === 'accessible' && accTotal > 0) {
-      const isFull = accAvail === 0;
-      const isAlmost = accAvail > 0 && accAvail <= Math.ceil(accTotal * 0.3);
-      return {
-        available: accAvail, total: accTotal,
-        label: 'Acessíveis', icon: 'fa-wheelchair',
-        accentColor: isFull ? '#ef4444' : isAlmost ? '#f59e0b' : '#7357ec',
-        isFull, isAlmost,
-        statusLabel: isFull ? 'Sem acessíveis' : isAlmost ? 'Quase cheio' : 'Acessível',
-      };
+      return buildAvailabilityContext(
+        accAvail, accTotal, 'Acessíveis', 'fa-wheelchair',
+        'Acessível', 'Quase cheio', 'Sem acessíveis', '#7357ec'
+      );
     }
-    const isFull = availableSpots === 0;
-    const isAlmost = !isFull && availableSpots <= Math.ceil(totalSpots * 0.2);
-    return {
-      available: availableSpots, total: totalSpots,
-      label: 'Livres', icon: null,
-      accentColor: isFull ? '#ef4444' : isAlmost ? '#f59e0b' : '#22c55e',
-      isFull, isAlmost,
-      statusLabel: isFull ? 'Lotado' : isAlmost ? 'Quase cheio' : 'Disponível',
-    };
-  })();
+    return buildAvailabilityContext(
+      availableSpots, totalSpots, 'Livres', null,
+      'Disponível', 'Quase cheio', 'Lotado', '#22c55e'
+    );
+  };
+
+  const singleCtx = getSingleCtx();
 
   const ctx = filterMode !== 'both' ? singleCtx : null;
   const pct = ctx ? (ctx.total > 0 ? Math.round((ctx.available / ctx.total) * 100) : 0) : 0;
 
-  const borderClass = filterMode === 'both'
-    ? 'border-primary'
-    : filterMode === 'accessible'
-    ? 'border-primary/50 ring-1 ring-primary/20'
-    : filterMode === 'ev'
-    ? 'border-green-400/60 ring-1 ring-green-400/15'
-    : 'border-border';
+  const getBorderClass = () => {
+    if (filterMode === 'both')       return 'border-primary';
+    if (filterMode === 'accessible') return 'border-primary/50 ring-1 ring-primary/20';
+    if (filterMode === 'ev')         return 'border-green-400/60 ring-1 ring-green-400/15';
+    return 'border-border';
+  };
+
+  const borderClass = getBorderClass();
 
   const defaultIsFull = availableSpots === 0;
   const defaultIsAlmost = !defaultIsFull && availableSpots <= Math.ceil(totalSpots * 0.2);
 
-  const getBadgeStyle = (isFull: boolean, isAlmost: boolean) => ({
-    bg: isFull ? '#ef4444' : isAlmost ? '#f59e0b' : '#22c55e',
-    color: isAlmost ? '#000' : '#fff',
-  });
+  const getBadgeStyle = (isFull: boolean, isAlmost: boolean) => {
+    if (isFull) return { bg: '#ef4444', color: '#fff' };
+    if (isAlmost) return { bg: '#f59e0b', color: '#000' };
+    return { bg: '#22c55e', color: '#fff' };
+  };
 
   const defaultBadgeStyle = getBadgeStyle(defaultIsFull, defaultIsAlmost);
-  const defaultBadgeLabel = defaultIsFull ? 'Lotado' : defaultIsAlmost ? 'Quase Cheio' : 'Disponível';
+  let defaultBadgeLabel = 'Disponível';
+  if (defaultIsFull) {
+    defaultBadgeLabel = 'Lotado';
+  } else if (defaultIsAlmost) {
+    defaultBadgeLabel = 'Quase Cheio';
+  }
 
   const badgeStyle = ctx ? getBadgeStyle(ctx.isFull, ctx.isAlmost) : defaultBadgeStyle;
   const badgeLabel = ctx ? ctx.statusLabel : defaultBadgeLabel;
@@ -177,7 +215,7 @@ export function ParkingCard({ lot, highlightAccessible = false, filterMode = nul
           <div className="mt-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="relative w-10 h-10 flex-shrink-0">
+                <div className="relative w-10 h-10 min-w-10 min-h-10 flex-shrink-0">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
@@ -212,9 +250,14 @@ export function ParkingCard({ lot, highlightAccessible = false, filterMode = nul
                   </p>
                 </div>
               </div>
-              <span className="flex items-center gap-1 text-muted-foreground font-medium" style={{ fontSize: '0.7rem' }}>
-                <i className="fas fa-person-walking" aria-hidden="true" /> {walkingTime}
-              </span>
+              <div className="flex flex-col items-end gap-0.5 text-muted-foreground font-medium" style={{ fontSize: '0.68rem' }}>
+                <span className="flex items-center gap-1">
+                  <i className="fas fa-car" aria-hidden="true" /> {drivingTime}
+                </span>
+                <span className="flex items-center gap-1">
+                  <i className="fas fa-person-walking" aria-hidden="true" /> {walkingTime}
+                </span>
+              </div>
             </div>
 
             {filterMode === 'accessible' && closestAvailAcc && (

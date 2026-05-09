@@ -1,7 +1,7 @@
-import type { ParkingLot } from '../../../data/parkingData';
+import type { ParkingLot } from '../../../data/parkingTypes';
 import type { Vehicle } from '../../../context/ProfileContext';
 
-export function TabEV({ lot, myVehicle }: { lot: ParkingLot; myVehicle: Vehicle | null }) {
+export function TabEV({ lot, myVehicle }: Readonly<{ lot: ParkingLot; myVehicle: Vehicle | null }>) {
   if (!lot.evChargers) return null;
 
   return (
@@ -22,10 +22,14 @@ export function TabEV({ lot, myVehicle }: { lot: ParkingLot; myVehicle: Vehicle 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {lot.evChargers.map((c) => {
           const compatible = myVehicle?.chargerTypes?.includes(c.type) ?? null;
+          const compatibilityClass =
+            compatible === true
+              ? 'border-success/40'
+              : (compatible === false ? 'border-border opacity-60' : 'border-border');
           return (
             <div
               key={c.id}
-              className={`p-3 rounded-xl border bg-card flex gap-3 items-center ${compatible === true ? 'border-success/40' : compatible === false ? 'border-border opacity-60' : 'border-border'}`}
+              className={`p-3 rounded-xl border bg-card flex gap-3 items-center ${compatibilityClass}`}
             >
               <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary text-sm flex-shrink-0">
                 <i className={`fas ${c.type === 'Tesla Supercharger' ? 'fa-bolt' : 'fa-plug'}`} />

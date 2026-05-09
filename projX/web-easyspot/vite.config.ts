@@ -6,6 +6,9 @@ import react from '@vitejs/plugin-react'
 export default defineConfig(() => {
 
   return {
+    define: {
+      global: 'globalThis',
+    },
     plugins: [
       // The React and Tailwind plugins are both required for Make, even if
       // Tailwind is not being actively used – do not remove them
@@ -20,11 +23,18 @@ export default defineConfig(() => {
     },
 
     server: {
+      host: '0.0.0.0',
+      middlewareMode: false,
+      allowedHosts: ['localhost', '127.0.0.1', 'frontend'],
       proxy: {
-        '/infomatricula': {
-          target: 'https://api.infomatricula.pt',
+        '/api': {
+          target: 'http://api:8080',
           changeOrigin: true,
-          rewrite: (proxyPath) => proxyPath.replace(/^\/infomatricula/, ''),
+        },
+        '/ws': {
+          target: 'http://api:8080',
+          changeOrigin: true,
+          ws: true,
         },
       },
     },

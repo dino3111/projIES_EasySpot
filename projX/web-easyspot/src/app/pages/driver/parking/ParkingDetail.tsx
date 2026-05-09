@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
 import { useProfile } from '../../../context/ProfileContext';
-import { mockParkingLots, simulateRealTimeUpdate, type ParkingLot } from '../../../data/parkingData';
+import type { ParkingLot } from '../../../data/parkingTypes';
 import { LeafletMap } from '../../../components/parking/LeafletMap';
 import { InfoBox, amenityIcon, amenityLabel } from './parkingShared';
 import { TabGeneral } from './TabGeneral';
@@ -9,8 +9,26 @@ import { TabMap } from './TabMap';
 import { TabEV } from './TabEV';
 import { TabAccessibility } from './TabAccessibility';
 import { TabTariffs } from './TabTariffs';
+import { fetchParkDetails, fetchParkFavoriteStatus, toggleParkFavorite } from '../../../services/parksApi';
 
 type Tab = 'general' | 'map' | 'ev' | 'accessibility' | 'tariffs';
+
+function getOccupancyStatus(availableSpots: number, totalSpots: number) {
+  const isFull = availableSpots === 0;
+  const isAlmostFull = !isFull && availableSpots <= Math.ceil(totalSpots * 0.2);
+
+  let statusHex = '#22c55e';
+  let statusLabel = 'Disponível';
+  if (isFull) {
+    statusHex = '#ef4444';
+    statusLabel = 'Lotado';
+  } else if (isAlmostFull) {
+    statusHex = '#f59e0b';
+    statusLabel = 'Quase cheio';
+  }
+
+  return { isFull, isAlmostFull, statusHex, statusLabel };
+}
 
 export function ParkingDetail() {
   const { id } = useParams<{ id: string }>();
@@ -18,10 +36,10 @@ export function ParkingDetail() {
   const { vehicles } = useProfile();
   const myVehicle = useMemo(() => vehicles.find((v) => v.isPrimary) ?? vehicles[0] ?? null, [vehicles]);
 
-  const [lot, setLot] = useState<ParkingLot | null>(
-    () => mockParkingLots.find((l) => l.id === id) ?? null
-  );
+  const [lot, setLot] = useState<ParkingLot | null>(null);
+  const [loading, setLoading] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false);
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
   const [activeFloorIdx, setActiveFloorIdx] = useState(0);
 
   const totalEV  = lot?.evChargers?.length ?? 0;
@@ -37,10 +55,35 @@ export function ParkingDetail() {
   const [activeTab, setActiveTab] = useState<Tab>(initialTab);
 
   useEffect(() => {
-    if (!lot) return;
-    const interval = setInterval(() => setLot((prev) => (prev ? simulateRealTimeUpdate(prev) : prev)), 5000);
-    return () => clearInterval(interval);
-  }, [lot?.id]);
+    if (!id) return;
+    let mounted = true;
+    const load = async () => {
+      try {
+        setLoading(true);
+        const details = await fetchParkDetails(id);
+        if (!mounted) return;
+        setLot(details);
+        try {
+          const favoriteStatus = await fetchParkFavoriteStatus(id);
+          if (mounted) setIsFavorite(favoriteStatus.isFavorite);
+        } catch {
+          if (mounted) setIsFavorite(false);
+        }
+      } catch {
+        if (mounted) setLot(null);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, [id]);
+
+  if (loading) {
+    return <div className="p-6 text-muted-foreground">A carregar parque...</div>;
+  }
 
   if (!lot) {
     return (
@@ -57,10 +100,7 @@ export function ParkingDetail() {
 
   const occupied = lot.totalSpots - lot.availableSpots;
   const occupancyPct = lot.totalSpots > 0 ? Math.round((occupied / lot.totalSpots) * 100) : 0;
-  const isFull = lot.availableSpots === 0;
-  const isAlmostFull = !isFull && lot.availableSpots <= Math.ceil(lot.totalSpots * 0.2);
-  const statusHex   = isFull ? '#ef4444' : isAlmostFull ? '#f59e0b' : '#22c55e';
-  const statusLabel = isFull ? 'Lotado' : isAlmostFull ? 'Quase cheio' : 'Disponível';
+  const { isFull, isAlmostFull, statusHex, statusLabel } = getOccupancyStatus(lot.availableSpots, lot.totalSpots);
   const availableEV  = lot.evChargers?.filter((c) => c.available).length ?? 0;
   const availableAcc = lot.accessibleSpots?.filter((s) => s.available).length ?? 0;
 
@@ -90,9 +130,21 @@ export function ParkingDetail() {
               </button>
               <button
                 type="button"
-                onClick={() => setIsFavorite((v) => !v)}
+                onClick={async () => {
+                  if (!lot || favoriteLoading) return;
+                  try {
+                    setFavoriteLoading(true);
+                    const result = await toggleParkFavorite(lot.id);
+                    setIsFavorite(result.isFavorite);
+                  } catch {
+                    // Keep current state when request fails.
+                  } finally {
+                    setFavoriteLoading(false);
+                  }
+                }}
+                disabled={favoriteLoading}
                 aria-label={isFavorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
-                className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
+                className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${
                   isFavorite ? 'bg-warning text-white shadow-md shadow-warning/30' : 'bg-white/10 text-white/80 hover:bg-white/20 hover:text-white'
                 }`}
               >
@@ -143,6 +195,8 @@ export function ParkingDetail() {
           <div className="grid grid-cols-2 gap-3">
             <InfoBox icon="fa-euro-sign" label="Por Hora"  value={`€${lot.hourlyRate.toFixed(2)}`} color="text-primary" />
             <InfoBox icon="fa-clock"     label="Horário"   value={lot.is24h ? '24h' : lot.openingHours} color="text-primary" />
+            <InfoBox icon="fa-car"       label="Carro"     value={lot.drivingTime} color="text-primary" />
+            <InfoBox icon="fa-person-walking" label="A pé" value={lot.walkingTime} color="text-primary" />
           </div>
 
           {(lot.amenities.length > 0 || totalEV > 0 || totalAcc > 0) && (

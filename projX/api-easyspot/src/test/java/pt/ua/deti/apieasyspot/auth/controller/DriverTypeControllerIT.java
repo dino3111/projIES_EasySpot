@@ -17,8 +17,6 @@ import pt.ua.deti.apieasyspot.auth.model.DriverType;
 import pt.ua.deti.apieasyspot.auth.model.User;
 import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
 
-import java.util.List;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static pt.ua.deti.apieasyspot.support.TestJwtRequests.jwtWithRole;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;

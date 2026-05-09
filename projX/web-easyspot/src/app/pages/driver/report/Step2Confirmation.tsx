@@ -1,8 +1,9 @@
-import type { ReactNode } from 'react';
-import { mockParkingLots } from '../../../data/parkingData';
+import { useEffect, useState, type ReactNode } from 'react';
 import { violationTypes, type ReportForm } from './reportTypes';
+import type { ParkingLot } from '../../../data/parkingTypes';
+import { fetchAllParksSummary } from '../../../services/parksCatalog';
 
-function DetailRow({ icon, label, children }: { icon: string; label: string; children: ReactNode }) {
+function DetailRow({ icon, label, children }: Readonly<{ icon: string; label: string; children: ReactNode }>) {
   return (
     <div className="flex items-start gap-3">
       <i className={`fas ${icon} text-muted-foreground mt-0.5 w-4 flex-shrink-0`} style={{ fontSize: '0.8rem' }} />
@@ -22,8 +23,12 @@ interface Props {
   onGoHome: () => void;
 }
 
-export function Step2Confirmation({ reportId, form, onViewReports, onNewReport, onGoHome }: Props) {
-  const selectedLot = mockParkingLots.find((p) => p.id === form.parkingLotId);
+export function Step2Confirmation({ reportId, form, onViewReports, onNewReport, onGoHome }: Readonly<Props>) {
+  const [parks, setParks] = useState<ParkingLot[]>([]);
+  useEffect(() => {
+    fetchAllParksSummary().then(setParks).catch(() => setParks([]));
+  }, []);
+  const selectedLot = parks.find((p) => p.id === form.parkingLotId);
   const violationType = violationTypes.find((v) => v.id === form.violationType);
 
   return (
@@ -86,8 +91,8 @@ export function Step2Confirmation({ reportId, form, onViewReports, onNewReport, 
               { icon: 'fa-magnifying-glass', color: 'text-primary', text: 'Verificação no local nas próximas 2 horas' },
               { icon: 'fa-gavel',          color: 'text-warning', text: 'Se confirmada, serão tomadas medidas apropriadas' },
               { icon: 'fa-bell',           color: 'text-info',    text: 'Receberá notificação quando o estado for atualizado' },
-            ].map((item, i) => (
-              <li key={i} className="flex items-start gap-2.5">
+            ].map((item) => (
+              <li key={item.text} className="flex items-start gap-2.5">
                 <i className={`fas ${item.icon} ${item.color} mt-0.5 flex-shrink-0`} style={{ fontSize: '0.8rem' }} />
                 <span className="text-muted-foreground" style={{ fontSize: '0.82rem' }}>{item.text}</span>
               </li>

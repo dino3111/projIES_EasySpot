@@ -5,7 +5,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -39,17 +38,15 @@ public class DriverSpendingController {
             - `timeWindow` cannot be combined with `from`/`to`.
             """
     )
-    @ApiResponses({
-        @ApiResponse(
-            responseCode = "200",
-            description = "Spending analytics retrieved successfully",
-            content = @Content(schema = @Schema(implementation = DriverSpendingResponse.class))
-        ),
-        @ApiResponse(responseCode = "400", description = "Invalid query parameters or date range"),
-        @ApiResponse(responseCode = "401", description = "Missing or invalid JWT"),
-        @ApiResponse(responseCode = "403", description = "User is authenticated but not a DRIVER"),
-        @ApiResponse(responseCode = "404", description = "Requested vehicleId does not belong to the authenticated driver")
-    })
+    @ApiResponse(
+        responseCode = "200",
+        description = "Spending analytics retrieved successfully",
+        content = @Content(schema = @Schema(implementation = DriverSpendingResponse.class))
+    )
+    @ApiResponse(responseCode = "400", description = "Invalid query parameters or date range")
+    @ApiResponse(responseCode = "401", description = "Missing or invalid JWT")
+    @ApiResponse(responseCode = "403", description = "User is authenticated but not a DRIVER")
+    @ApiResponse(responseCode = "404", description = "Requested vehicleId does not belong to the authenticated driver")
     @GetMapping("/spending")
     @PreAuthorize("hasRole('DRIVER')")
     public ResponseEntity<DriverSpendingResponse> getSpending(

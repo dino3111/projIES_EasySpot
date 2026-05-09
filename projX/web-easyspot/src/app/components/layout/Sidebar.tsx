@@ -38,10 +38,15 @@ export function Sidebar() {
   const location = useLocation();
   const { profile } = useProfile();
 
-  const navItems =
-    profile === 'MANAGER' ? managerNav :
-    profile === 'TECHNICAL' ? technicianNav :
-    driverNav;
+  const getNavItems = () => {
+    switch (profile) {
+      case 'MANAGER':   return managerNav;
+      case 'TECHNICAL': return technicianNav;
+      default:          return driverNav;
+    }
+  };
+
+  const navItems = getNavItems();
 
   return (
     <aside
@@ -91,7 +96,7 @@ export function Sidebar() {
   );
 }
 
-function SidebarRoleBadge({ profile }: { profile: 'MANAGER' | 'TECHNICAL' }) {
+function SidebarRoleBadge({ profile }: { readonly profile: 'MANAGER' | 'TECHNICAL' }) {
   const isManager = profile === 'MANAGER';
   return (
     <div className="mt-auto p-3">

@@ -1,0 +1,58 @@
+{
+  "info": {
+    "_postman_id": "7e74598b-3d6d-4c84-9958-8f95d4a2a5a1",
+    "name": "EasySpot_Profile",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Get Profile",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{jwt}}" }
+        ],
+        "url": "{{baseUrl}}/api/profile"
+      }
+    },
+    {
+      "name": "Update Profile Preferences",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{jwt}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"notificationsEnabled\": true,\n  \"pushNotificationsEnabled\": true,\n  \"emailNotificationsEnabled\": false,\n  \"driverType\": \"ev\"\n}"
+        },
+        "url": "{{baseUrl}}/api/profile"
+      }
+    },
+    {
+      "name": "Upload Profile Photo",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{jwt}}" }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "photo",
+              "type": "file",
+              "src": "postman/files/max-size-10mb.jpg"
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/api/profile/photo"
+      }
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "jwt", "value": "" }
+  ]
+}

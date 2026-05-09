@@ -1,8 +1,36 @@
 import { useState } from 'react';
 import { mockSensors, computeTechKPIs, type SensorDevice } from '../../../data/technicianData';
-import { mockParkingLots } from '../../../data/parkingData';
 import { STATUS_COLOR, STATUS_LABEL, TIPO_ICON, type StatusFil } from './maintenanceTypes';
 import { EmptyState, StatBadge, TechMapLegend } from './shared';
+
+type SensorsTabProps = Readonly<{
+  sensors: SensorDevice[];
+  statusFil: StatusFil;
+  setStatusFil: (f: StatusFil) => void;
+  onSelect: (s: SensorDevice) => void;
+  kpis: ReturnType<typeof computeTechKPIs>;
+}>;
+
+type ParkSensorMapViewProps = Readonly<{
+  parkId: string;
+  allSensors: SensorDevice[];
+  statusFilter: StatusFil;
+  onBack: () => void;
+  onSelectSensor: (s: SensorDevice) => void;
+}>;
+
+const getHealthColor = (healthPct: number) => {
+  if (healthPct > 90) return '#22c55e';
+  if (healthPct > 70) return '#f59e0b';
+  return '#d4183d';
+};
+
+const getSensorSpotStyle = (sensor?: SensorDevice) => ({
+  width: 48,
+  height: 48,
+  background: sensor ? STATUS_COLOR[sensor.status] : 'var(--color-muted)',
+  opacity: sensor ? 1 : 0.3,
+});
 
 export function SensorsTab({
   sensors,
@@ -10,18 +38,12 @@ export function SensorsTab({
   setStatusFil,
   onSelect,
   kpis,
-}: {
-  sensors: SensorDevice[];
-  statusFil: StatusFil;
-  setStatusFil: (f: StatusFil) => void;
-  onSelect: (s: SensorDevice) => void;
-  kpis: ReturnType<typeof computeTechKPIs>;
-}) {
+}: SensorsTabProps) {
   const [selectedParkId, setSelectedParkId] = useState<string | null>(null);
-  const [cidadeFilter, setCidadeFilter] = useState<'todas' | string>('todas');
+  const [cidadeFilter, setCidadeFilter] = useState('todas');
 
   const allParkIds = Array.from(new Set(mockSensors.map(s => s.parqueId)));
-  const uniqueCities = Array.from(new Set(mockSensors.map(s => s.cidade))).sort();
+  const uniqueCities = Array.from(new Set(mockSensors.map(s => s.cidade))).sort((a, b) => a.localeCompare(b, 'pt-PT'));
 
   const statusFilters: { value: StatusFil; label: string; count: number }[] = [
     { value: 'todos',       label: 'Todos',       count: mockSensors.length },
@@ -62,6 +84,7 @@ export function SensorsTab({
             style={{ fontSize: '0.75rem', fontWeight: 600 }}
           >
             <i className="fas fa-map-pin mr-1" aria-hidden="true"></i>
+            {' '}
             Todas as Cidades
           </button>
           {uniqueCities.map(city => (
@@ -107,7 +130,7 @@ export function SensorsTab({
           const healthPct = allParkSensors.length > 0
             ? Math.round(allParkSensors.filter(s => s.status === 'operacional').length / allParkSensors.length * 100)
             : 100;
-          const healthColor = healthPct > 90 ? '#22c55e' : healthPct > 70 ? '#f59e0b' : '#d4183d';
+          const healthColor = getHealthColor(healthPct);
           const statusByState = {
             operacional: allParkSensors.filter(s => s.status === 'operacional').length,
             falha:       allParkSensors.filter(s => s.status === 'falha').length,
@@ -152,17 +175,11 @@ export function SensorsTab({
 
 function ParkSensorMapView({
   parkId, allSensors, statusFilter, onBack, onSelectSensor,
-}: {
-  parkId: string;
-  allSensors: SensorDevice[];
-  statusFilter: StatusFil;
-  onBack: () => void;
-  onSelectSensor: (s: SensorDevice) => void;
-}) {
+}: ParkSensorMapViewProps) {
   const [activeFloorIdx, setActiveFloorIdx] = useState(0);
   const [localFilter, setLocalFilter] = useState<StatusFil>(statusFilter);
   const [visibleCount, setVisibleCount] = useState(5);
-  const lot = mockParkingLots.find(l => l.id === parkId) ?? null;
+  const lot = null;
   const activeFloor = lot?.floors?.[activeFloorIdx];
   const parkName = allSensors[0]?.parqueNome ?? parkId;
 
@@ -194,6 +211,7 @@ function ParkSensorMapView({
           style={{ fontSize: '0.8rem', fontWeight: 600 }}
         >
           <i className="fas fa-arrow-left" aria-hidden="true"></i>
+          {' '}
           Voltar
         </button>
       </div>
@@ -242,7 +260,7 @@ function ParkSensorMapView({
                         key={spot.id}
                         onClick={() => sensor && onSelectSensor(sensor)}
                         className={`flex flex-col items-center justify-center rounded-lg shadow-sm transition-all ${sensor ? 'cursor-pointer hover:scale-110' : ''}`}
-                        style={{ width: 48, height: 48, background: sensor ? STATUS_COLOR[sensor.status] : 'var(--color-muted)', opacity: sensor ? 1 : 0.3 }}
+                        style={getSensorSpotStyle(sensor)}
                         title={sensor ? `${sensor.id} (${sensor.lugar})` : `Lugar ${spot.label || 'vazio'}`}
                         aria-label={sensor ? `Sensor ${sensor.id}: ${STATUS_LABEL[sensor.status]}` : `Lugar ${spot.label || 'vazio'}`}
                       >

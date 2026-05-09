@@ -69,9 +69,10 @@ class DriverSpendingServiceTest {
     @DisplayName("getSpending - unknown vehicle for user - throws 404")
     void getSpending_unknownVehicle_throws404() {
         UUID vehicleId = UUID.randomUUID();
+        String vehicleIdStr = vehicleId.toString();
         when(vehicleRepository.findByIdAndUserId(vehicleId, user.getId())).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.getSpending("driver-sub-001", vehicleId.toString(), "7D", null, null, 0, 50))
+        assertThatThrownBy(() -> service.getSpending("driver-sub-001", vehicleIdStr, "7D", null, null, 0, 50))
             .isInstanceOf(ResourceNotFoundException.class)
             .hasMessageContaining("Unknown vehicleId");
     }

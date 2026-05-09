@@ -1,7 +1,7 @@
 import type { TariffEntry } from '../../../data/gestorData';
 import { LegendBadge } from './shared';
 
-export function TariffsTab({ onEdit, tariffs }: { onEdit: (t: TariffEntry) => void; tariffs: TariffEntry[] }) {
+export function TariffsTab({ onEdit, tariffs }: { readonly onEdit: (t: TariffEntry) => void; readonly tariffs: TariffEntry[] }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2">
@@ -43,13 +43,13 @@ export function TariffsTab({ onEdit, tariffs }: { onEdit: (t: TariffEntry) => vo
   );
 }
 
-function TariffRow({ tariff, onEdit }: { tariff: TariffEntry; onEdit: (t: TariffEntry) => void }) {
-  const statusColor =
-    tariff.estado === 'ativo' ? '#22c55e' :
-    tariff.estado === 'revisao' ? '#f59e0b' : '#9ca3af';
-  const statusLabel =
-    tariff.estado === 'ativo' ? 'Ativo' :
-    tariff.estado === 'revisao' ? 'Revisão' : 'Suspenso';
+function TariffRow({ tariff, onEdit }: { readonly tariff: TariffEntry; readonly onEdit: (t: TariffEntry) => void }) {
+  const statusMap = {
+    ativo: { color: '#22c55e', label: 'Ativo' },
+    revisao: { color: '#f59e0b', label: 'Revisão' },
+    suspenso: { color: '#9ca3af', label: 'Suspenso' },
+  };
+  const statusInfo = statusMap[tariff.estado];
 
   return (
     <tr className="border-b border-border/50 last:border-0 hover:bg-muted/20 transition-colors">
@@ -70,9 +70,9 @@ function TariffRow({ tariff, onEdit }: { tariff: TariffEntry; onEdit: (t: Tariff
       <td className="px-3 py-3 text-center">
         <span
           className="px-2 py-0.5 rounded-full"
-          style={{ fontSize: '0.68rem', fontWeight: 700, background: `${statusColor}20`, color: statusColor }}
+          style={{ fontSize: '0.68rem', fontWeight: 700, background: `${statusInfo.color}20`, color: statusInfo.color }}
         >
-          {statusLabel}
+          {statusInfo.label}
         </span>
       </td>
       <td className="px-4 py-3 text-right">

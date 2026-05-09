@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useProfile } from '../../context/ProfileContext';
-import { mockParkingLots } from '../../data/parkingData';
+import type { ParkingLot } from '../../data/parkingTypes';
 import {
   mockTariffs,
   mockIssues,
@@ -14,10 +14,17 @@ import { BillingTab } from './components/BillingTab';
 import { IssueModal }   from './components/IssueModal';
 import { TariffModal }  from './components/TariffModal';
 import { TabBtn }       from './components/shared';
+import { fetchAllParksSummary } from '../../services/parksCatalog';
 
 type PageTab    = 'tarifas' | 'ocorrencias' | 'faturacao';
 type IssueFilter = 'todos' | 'aberto' | 'em-progresso' | 'resolvido';
 type SevFilter  = 'todos' | 'critica' | 'aviso' | 'info';
+
+const EXPORT_TITLE_BY_TAB: Record<PageTab, string> = {
+  tarifas: 'Tarifários',
+  ocorrencias: 'Ocorrências',
+  faturacao: 'Faturação',
+};
 
 export function TariffsIncidentsPage() {
   const { managerParks } = useProfile();
@@ -27,6 +34,11 @@ export function TariffsIncidentsPage() {
   const [selectedIssue, setSelectedIssue] = useState<IssueReport | null>(null);
   const [editTariff, setEditTariff] = useState<TariffEntry | null>(null);
   const [parkSearch, setParkSearch] = useState('');
+  const [parks, setParks] = useState<ParkingLot[]>([]);
+
+  useEffect(() => {
+    fetchAllParksSummary().then(setParks).catch(() => setParks([]));
+  }, []);
 
   const gestorTariffs       = mockTariffs.filter(t => managerParks.includes(t.parqueId));
   const gestorIssues        = mockIssues.filter(i => gestorTariffs.some(t => t.parqueNome === i.parque));
@@ -60,7 +72,7 @@ export function TariffsIncidentsPage() {
     link.download = filename;
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
+    link.remove();
     URL.revokeObjectURL(url);
   };
 
@@ -81,7 +93,7 @@ export function TariffsIncidentsPage() {
           className="self-start sm:self-auto flex items-center gap-2 px-3 py-1.5 rounded-xl bg-card border border-border hover:bg-muted transition-colors text-foreground"
           style={{ fontSize: '0.8rem', fontWeight: 600 }}
           aria-label="Exportar dados"
-          title={`Exportar dados de ${tab === 'tarifas' ? 'Tarifários' : tab === 'ocorrencias' ? 'Ocorrências' : 'Faturação'}`}
+          title={`Exportar dados de ${EXPORT_TITLE_BY_TAB[tab]}`}
         >
           <i className="fas fa-file-export text-primary" style={{ fontSize: '0.85rem' }} aria-hidden="true"></i>
           Exportar
@@ -116,7 +128,7 @@ export function TariffsIncidentsPage() {
           />
         </div>
         <div className="flex flex-wrap gap-2">
-          {mockParkingLots
+          {parks
             .filter(p => managerParks.includes(p.id))
             .filter(p => p.name.toLowerCase().includes(parkSearch.toLowerCase()))
             .slice(0, 5)
@@ -131,7 +143,7 @@ export function TariffsIncidentsPage() {
               </div>
             ))}
           {managerParks.filter(id =>
-            mockParkingLots.find(p => p.id === id && p.name.toLowerCase().includes(parkSearch.toLowerCase()))
+            parks.find(p => p.id === id && p.name.toLowerCase().includes(parkSearch.toLowerCase()))
           ).length === 0 && (
             <p className="text-muted-foreground w-full text-center py-2" style={{ fontSize: '0.875rem' }}>
               Nenhum parque encontrado

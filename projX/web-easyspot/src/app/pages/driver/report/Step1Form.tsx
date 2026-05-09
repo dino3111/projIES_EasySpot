@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { mockParkingLots } from '../../../data/parkingData';
+import { useEffect, useState } from 'react';
 import { lookupVehicleData, type VehicleData } from '../../../../services/vehicleLookup';
 import { violationTypes, inputBase, inputError, type ReportForm } from './reportTypes';
+import type { ParkingLot } from '../../../data/parkingTypes';
+import { fetchAllParksSummary } from '../../../services/parksCatalog';
 
 interface Props {
   form: ReportForm;
@@ -10,10 +11,15 @@ interface Props {
   onCancel: () => void;
 }
 
-export function Step1Form({ form, onChange, onSubmit, onCancel }: Props) {
+export function Step1Form({ form, onChange, onSubmit, onCancel }: Readonly<Props>) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [plateInfo, setPlateInfo] = useState<VehicleData | null>(null);
   const [lookingUp, setLookingUp] = useState(false);
+  const [parks, setParks] = useState<ParkingLot[]>([]);
+
+  useEffect(() => {
+    fetchAllParksSummary().then(setParks).catch(() => setParks([]));
+  }, []);
 
   const lookupPlate = async () => {
     if (!form.vehiclePlate.trim()) return;
@@ -81,12 +87,13 @@ export function Step1Form({ form, onChange, onSubmit, onCancel }: Props) {
           </h2>
 
           <div className="mb-4">
-            <label className="block text-foreground font-semibold mb-1.5" style={{ fontSize: '0.82rem' }}>
+            <label htmlFor="parking-lot-input" className="block text-foreground font-semibold mb-1.5" style={{ fontSize: '0.82rem' }}>
               Parque de Estacionamento <span className="text-error">*</span>
             </label>
             <div className="relative">
               <i className="fas fa-map-marker-alt absolute left-3.5 top-1/2 -translate-y-1/2 text-primary/60 pointer-events-none" style={{ fontSize: '0.8rem' }} />
               <select
+                id="parking-lot-input"
                 value={form.parkingLotId}
                 onChange={(e) => onChange({ parkingLotId: e.target.value })}
                 className={`${inputBase} pl-9 pr-8 appearance-none ${errors.parkingLotId ? inputError : ''}`}
@@ -94,7 +101,7 @@ export function Step1Form({ form, onChange, onSubmit, onCancel }: Props) {
                 aria-invalid={!!errors.parkingLotId}
               >
                 <option value="">Selecione o parque...</option>
-                {mockParkingLots.map((lot) => (
+                {parks.map((lot) => (
                   <option key={lot.id} value={lot.id}>{lot.name} — {lot.localidade}</option>
                 ))}
               </select>
@@ -102,7 +109,8 @@ export function Step1Form({ form, onChange, onSubmit, onCancel }: Props) {
             </div>
             {errors.parkingLotId && (
               <p className="text-error mt-1.5 flex items-center gap-1" style={{ fontSize: '0.75rem' }}>
-                <i className="fas fa-circle-exclamation" />{errors.parkingLotId}
+                    <i className="fas fa-circle-exclamation" />
+                    {errors.parkingLotId}
               </p>
             )}
           </div>
@@ -113,11 +121,12 @@ export function Step1Form({ form, onChange, onSubmit, onCancel }: Props) {
               { key: 'spotNumber' as const, label: 'Número do Lugar', placeholder: 'Ex: A-07, MR-02' },
             ].map(({ key, label, placeholder }) => (
               <div key={key}>
-                <label className="block text-foreground font-semibold mb-1.5" style={{ fontSize: '0.82rem' }}>
+                <label htmlFor={`${key}-input`} className="block text-foreground font-semibold mb-1.5" style={{ fontSize: '0.82rem' }}>
                   {label} <span className="text-error">*</span>
                 </label>
                 <input
                   type="text"
+                  id={`${key}-input`}
                   placeholder={placeholder}
                   value={form[key]}
                   onChange={(e) => onChange({ [key]: e.target.value })}
@@ -127,7 +136,8 @@ export function Step1Form({ form, onChange, onSubmit, onCancel }: Props) {
                 />
                 {errors[key] && (
                   <p className="text-error mt-1.5 flex items-center gap-1" style={{ fontSize: '0.75rem' }}>
-                    <i className="fas fa-circle-exclamation" />{errors[key]}
+                    <i className="fas fa-circle-exclamation" />
+                    {errors[key]}
                   </p>
                 )}
               </div>
@@ -173,7 +183,8 @@ export function Step1Form({ form, onChange, onSubmit, onCancel }: Props) {
           </div>
           {errors.violationType && (
             <p className="text-error mt-3 flex items-center gap-1" style={{ fontSize: '0.75rem' }}>
-              <i className="fas fa-circle-exclamation" />{errors.violationType}
+              <i className="fas fa-circle-exclamation" />
+              {errors.violationType}
             </p>
           )}
         </section>
@@ -188,7 +199,7 @@ export function Step1Form({ form, onChange, onSubmit, onCancel }: Props) {
 
           <div className="mb-4">
             <div className="flex items-center justify-between mb-1.5">
-              <label className="text-foreground font-semibold" style={{ fontSize: '0.82rem' }}>
+              <label htmlFor="vehicle-plate-input" className="text-foreground font-semibold" style={{ fontSize: '0.82rem' }}>
                 <i className="fas fa-car text-primary/70 mr-1.5" />Matrícula do Veículo
               </label>
               <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium" style={{ fontSize: '0.68rem' }}>Opcional</span>
@@ -196,6 +207,7 @@ export function Step1Form({ form, onChange, onSubmit, onCancel }: Props) {
             <div className="flex gap-2">
               <input
                 type="text"
+                id="vehicle-plate-input"
                 placeholder="Ex: 22-AB-44"
                 value={form.vehiclePlate}
                 onChange={(e) => { onChange({ vehiclePlate: e.target.value.toUpperCase() }); setPlateInfo(null); }}
@@ -212,22 +224,32 @@ export function Step1Form({ form, onChange, onSubmit, onCancel }: Props) {
                 {lookingUp ? <i className="fas fa-spinner fa-spin" /> : 'Verificar'}
               </button>
             </div>
-            {plateInfo && (plateInfo.make || plateInfo.model || plateInfo.color) && (
-              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 px-3 py-2 rounded-xl bg-primary/6 border border-primary/20">
+            {!!(plateInfo && (plateInfo.make || plateInfo.model || plateInfo.color || plateInfo.imageUrl)) && (
+              <div className="mt-2 px-3 py-2 rounded-xl bg-primary/6 border border-primary/20">
+                {plateInfo.imageUrl && (
+                  <img src={plateInfo.imageUrl} alt="Veículo identificado" className="w-full h-24 object-cover rounded-lg border border-border mb-2" />
+                )}
+                <div className="flex flex-wrap gap-x-4 gap-y-1">
                 {plateInfo.make && <span className="text-foreground font-semibold" style={{ fontSize: '0.78rem' }}><span className="text-muted-foreground">Marca: </span>{plateInfo.make}</span>}
                 {plateInfo.model && <span className="text-foreground font-semibold" style={{ fontSize: '0.78rem' }}><span className="text-muted-foreground">Modelo: </span>{plateInfo.model}</span>}
-                {plateInfo.plateDate && <span className="text-foreground font-semibold" style={{ fontSize: '0.78rem' }}><span className="text-muted-foreground">Ano: </span>{plateInfo.plateDate.slice(0, 4)}</span>}
+                {(plateInfo.yearFrom || plateInfo.plateDate) && <span className="text-foreground font-semibold" style={{ fontSize: '0.78rem' }}><span className="text-muted-foreground">Ano: </span>{plateInfo.yearFrom ?? plateInfo.plateDate?.slice(0, 4)}</span>}
+                {plateInfo.yearTo && <span className="text-foreground font-semibold" style={{ fontSize: '0.78rem' }}><span className="text-muted-foreground">Até: </span>{plateInfo.yearTo}</span>}
+                {plateInfo.bodyType && <span className="text-foreground font-semibold" style={{ fontSize: '0.78rem' }}><span className="text-muted-foreground">Carroceria: </span>{plateInfo.bodyType}</span>}
+                {plateInfo.powerKw && <span className="text-foreground font-semibold" style={{ fontSize: '0.78rem' }}><span className="text-muted-foreground">Potência: </span>{plateInfo.powerKw} kW</span>}
+                {plateInfo.displacementCc && <span className="text-foreground font-semibold" style={{ fontSize: '0.78rem' }}><span className="text-muted-foreground">Cilindrada: </span>{plateInfo.displacementCc} cc</span>}
                 {plateInfo.color && <span className="text-foreground font-semibold" style={{ fontSize: '0.78rem' }}><span className="text-muted-foreground">Cor: </span>{plateInfo.color}</span>}
+                </div>
               </div>
             )}
             <p className="text-muted-foreground mt-1.5" style={{ fontSize: '0.75rem' }}>Se conseguir visualizar a matrícula, por favor indique-a.</p>
           </div>
 
           <div>
-            <label className="block text-foreground font-semibold mb-1.5" style={{ fontSize: '0.82rem' }}>
+            <label htmlFor="description-input" className="block text-foreground font-semibold mb-1.5" style={{ fontSize: '0.82rem' }}>
               <i className="fas fa-align-left text-primary/70 mr-1.5" />Descrição da Situação <span className="text-error">*</span>
             </label>
             <textarea
+              id="description-input"
               placeholder="Descreva o que observou. Ex: Veículo preto sem dístico estacionado no lugar MR-02 desde as 14h00..."
               value={form.description}
               onChange={(e) => onChange({ description: e.target.value })}
@@ -240,7 +262,8 @@ export function Step1Form({ form, onChange, onSubmit, onCancel }: Props) {
             <div className="flex items-center justify-between mt-1.5">
               {errors.description ? (
                 <p className="text-error flex items-center gap-1" style={{ fontSize: '0.75rem' }}>
-                  <i className="fas fa-circle-exclamation" />{errors.description}
+                  <i className="fas fa-circle-exclamation" />
+                  {errors.description}
                 </p>
               ) : <span />}
               <span className={`text-right ${form.description.length >= 450 ? 'text-warning' : 'text-muted-foreground'}`} style={{ fontSize: '0.72rem' }}>

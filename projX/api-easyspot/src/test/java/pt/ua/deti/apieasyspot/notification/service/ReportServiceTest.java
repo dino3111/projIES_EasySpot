@@ -18,10 +18,7 @@ import pt.ua.deti.apieasyspot.infrastructure.R2StorageService;
 import pt.ua.deti.apieasyspot.notification.dto.CreateReportRequest;
 import pt.ua.deti.apieasyspot.notification.dto.ReportResponse;
 import pt.ua.deti.apieasyspot.notification.model.Alert;
-import pt.ua.deti.apieasyspot.notification.model.AlertType;
-import pt.ua.deti.apieasyspot.notification.model.SeverityAlert;
-import pt.ua.deti.apieasyspot.notification.model.StateAlert;
-import pt.ua.deti.apieasyspot.notification.repository.AlertRepository;
+import pt.ua.deti.apieasyspot.notification.repository.TimescaleAlertRepository;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingLotRepository;
 
@@ -41,7 +38,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class ReportServiceTest {
 
-    @Mock private AlertRepository alertRepository;
+    @Mock private TimescaleAlertRepository alertRepository;
     @Mock private UserRepository userRepository;
     @Mock private ParkingLotRepository parkingLotRepository;
     @Mock private R2StorageService r2StorageService;
@@ -122,7 +119,7 @@ class ReportServiceTest {
 
     @Test
     @DisplayName("create - with valid JPEG photo - uploads to R2 and includes url in response")
-    void create_withJpegPhoto_uploadsAndIncludesUrl() throws Exception {
+    void create_withJpegPhoto_uploadsAndIncludesUrl() {
         when(r2StorageService.upload(any(), any(), any()))
             .thenReturn("https://cdn.example.com/reports/spot.jpg");
         MockMultipartFile photo = new MockMultipartFile("photo", "spot.jpg", "image/jpeg", new byte[1024]);

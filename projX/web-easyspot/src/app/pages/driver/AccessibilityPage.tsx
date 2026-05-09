@@ -128,7 +128,8 @@ export function AccessibilityPage() {
               onClick={() => navigate(-1)}
               className="btn btn-ghost btn-sm rounded-full border border-base-300"
             >
-              <i className="fa-solid fa-arrow-left mr-1" /> Voltar
+              <i className="fa-solid fa-arrow-left mr-1" />
+              Voltar
             </button>
           </div>
         </div>
@@ -155,8 +156,8 @@ export function AccessibilityPage() {
               { icon: 'fa-building', label: 'Parques com Acessibilidade', value: new Set(spots.map(s => s.parkingLotName)).size, bg: 'bg-info/10', text: 'text-info' },
               { icon: 'fa-video', label: 'Lugares Monitorizados', value: spots.filter(s => s.isMonitored).length, bg: 'bg-primary/10', text: 'text-primary' },
               { icon: 'fa-ruler-combined', label: 'Largura Média', value: `${(spots.reduce((acc, s) => acc + s.width, 0) / spots.length).toFixed(1)}m`, bg: 'bg-warning/10', text: 'text-warning' },
-            ] as const).map((stat, idx) => (
-              <div key={idx} className="card bg-base-200 shadow-md">
+            ] as const).map((stat) => (
+              <div key={stat.label} className="card bg-base-200 shadow-md">
                 <div className="card-body p-4">
                   <div className={`w-10 h-10 rounded-xl ${stat.bg} flex items-center justify-center mb-2`}>
                     <i className={`fa-solid ${stat.icon} ${stat.text} text-lg`} />
@@ -288,8 +289,8 @@ export function AccessibilityPage() {
                   <div className="mb-4">
                     <p className="text-xs text-base-content/60 mb-2 font-semibold">Características de Acessibilidade:</p>
                     <div className="flex flex-wrap gap-2">
-                      {spot.features.map((feature, idx) => (
-                        <span key={idx} className="badge badge-sm badge-outline gap-1">
+                      {spot.features.map((feature) => (
+                        <span key={feature} className="badge badge-sm badge-outline gap-1">
                           <i className="fa-solid fa-check text-success" />
                           {feature}
                         </span>

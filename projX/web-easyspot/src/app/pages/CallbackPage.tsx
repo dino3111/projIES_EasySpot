@@ -12,16 +12,17 @@ function roleDefaultRoute(role: AppProfile): string {
 
 export function CallbackPage() {
   const navigate              = useNavigate();
-  const { handleCallback }    = useAuth();
+  const { handleCallback, user } = useAuth();
   const { setProfile }        = useProfile();
   const [error, setError]     = useState<string | null>(null);
   const processed             = useRef(false);
+  const pendingRole           = useRef<AppProfile | null>(null);
 
   useEffect(() => {
     if (processed.current) return;
     processed.current = true;
 
-    const params   = new URLSearchParams(window.location.search);
+    const params   = new URLSearchParams(globalThis.location.search);
     const code     = params.get('code');
     const state    = params.get('state');
     const errParam = params.get('error');
@@ -36,14 +37,16 @@ export function CallbackPage() {
       return;
     }
 
+    console.log('[AUTH] handleCallback start');
     handleCallback(code, state)
       .then(() => {
-        const token  = sessionStorage.getItem('es_access_token') ?? '';
+        const token  = globalThis.sessionStorage.getItem('es_access_token') ?? '';
+        console.log('[AUTH] token in sessionStorage after callback:', token ? 'EXISTS' : 'MISSING');
         const parts  = token.split('.');
         let role: AppProfile = 'DRIVER';
         if (parts.length === 3) {
           try {
-            const claims = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+            const claims = JSON.parse(globalThis.atob(parts[1].replaceAll('-', '+').replaceAll('_', '/')));
             const groups = claims['groups'];
             if (Array.isArray(groups) && groups.length > 0) {
               const r = String(groups[0]).toUpperCase();
@@ -51,16 +54,26 @@ export function CallbackPage() {
             }
           } catch { /* ignore parse errors */ }
         }
+        console.log('[AUTH] role resolved:', role);
+        pendingRole.current = role;
         setProfile(role);
-        navigate(roleDefaultRoute(role), { replace: true });
       })
       .catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : 'Erro desconhecido no callback.';
+        console.error('[AUTH] handleCallback error:', msg);
         setError(msg);
       });
   // only runs once on mount
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    console.log('[AUTH] user effect fired — user:', user ? user.sub : 'null', 'pendingRole:', pendingRole.current);
+    if (user && pendingRole.current) {
+      console.log('[AUTH] navigating to:', roleDefaultRoute(pendingRole.current));
+      navigate(roleDefaultRoute(pendingRole.current), { replace: true });
+    }
+  }, [user, navigate]);
 
   if (error) {
     return (

@@ -11,14 +11,22 @@ export const CHARGER_ICONS: Record<string, string> = {
   'Tesla Supercharger': 'fa-bolt-lightning',
 };
 
-export function BrandLogo({ make }: { make?: string }) {
-  const url = getBrandLogoUrl(make);
-  const [failed, setFailed] = useState(false);
-  if (!url || failed) return <i className="fas fa-car text-muted-foreground" style={{ fontSize: '1.4rem' }} />;
-  return <img src={url} alt={make} className="w-10 h-10 object-contain" onError={() => setFailed(true)} />;
+export function BrandLogo({ make, logoUrl }: Readonly<{ make?: string; logoUrl?: string }>) {
+  const cdnUrl = getBrandLogoUrl(make);
+  const primary = logoUrl ?? cdnUrl;
+  const [primaryFailed, setPrimaryFailed] = useState(false);
+  const [fallbackFailed, setFallbackFailed] = useState(false);
+
+  if (!primary || (primaryFailed && (!cdnUrl || fallbackFailed))) {
+    return <i className="fas fa-car text-muted-foreground" style={{ fontSize: '1.4rem' }} />;
+  }
+  if (primaryFailed && cdnUrl) {
+    return <img src={cdnUrl} alt={make} className="w-10 h-10 object-contain" onError={() => setFallbackFailed(true)} />;
+  }
+  return <img src={primary} alt={make} className="w-10 h-10 object-contain" onError={() => setPrimaryFailed(true)} />;
 }
 
-export function NicknameInput({ nickname, setNickname }: { nickname: string; setNickname: (v: string) => void }) {
+export function NicknameInput({ nickname, setNickname }: Readonly<{ nickname: string; setNickname: (v: string) => void }>) {
   return (
     <div>
       <label htmlFor="nickname-input" className="block text-foreground font-bold mb-2" style={{ fontSize: '0.875rem' }}>
@@ -37,56 +45,56 @@ export function NicknameInput({ nickname, setNickname }: { nickname: string; set
   );
 }
 
-export function RfidInput({ rfid, setRfid }: { rfid: string; setRfid: (v: string) => void }) {
-  return (
-    <div>
-      <label htmlFor="rfid-input" className="block text-foreground font-bold mb-2" style={{ fontSize: '0.875rem' }}>
-        Identificador Via Verde / RFID (opcional)
-      </label>
-      <div className="relative">
-        <i className="fas fa-id-card absolute left-3 top-1/2 -translate-y-1/2 text-primary" style={{ fontSize: '0.85rem' }} />
-        <input
-          id="rfid-input"
-          type="text"
-          value={rfid}
-          onChange={(e) => setRfid(e.target.value)}
-          placeholder="Ex: VV-123456789"
-          className="input input-bordered w-full rounded-xl pl-9"
-          style={{ fontSize: '0.875rem' }}
-        />
-      </div>
-      <p className="text-muted-foreground mt-1" style={{ fontSize: '0.72rem' }}>Usado para identificação automática na entrada/saída</p>
-    </div>
-  );
+export function OcrInfo() {
+  return null;
 }
 
-export function VehicleDataCard({ vehicleData, insuranceData }: { vehicleData: VehicleData; insuranceData: InsuranceData | null }) {
+export function VehicleDataCard({ vehicleData, insuranceData }: Readonly<{ vehicleData: VehicleData; insuranceData: InsuranceData | null }>) {
+  const vehicleYear = vehicleData.yearFrom
+    ? { label: 'Ano (de)', value: String(vehicleData.yearFrom) }
+    : vehicleData.plateDate
+      ? { label: 'Ano', value: vehicleData.plateDate.slice(0, 4) }
+      : null;
+  const vehiclePower = vehicleData.powerKw
+    ? { label: 'Potência', value: `${vehicleData.powerKw} kW` }
+    : vehicleData.powerkw
+      ? { label: 'Potência', value: `${vehicleData.powerkw} kW` }
+      : null;
+  const details = [
+    vehicleData.make && vehicleData.model ? { label: 'Marca/Modelo', value: `${vehicleData.make} ${vehicleData.model}` } : null,
+    vehicleData.version ? { label: 'Versão', value: vehicleData.version } : null,
+    vehicleYear,
+    vehicleData.yearTo ? { label: 'Ano (até)', value: String(vehicleData.yearTo) } : null,
+    vehicleData.fuelType ? { label: 'Combustível', value: vehicleData.fuelType } : null,
+    vehicleData.bodyType ? { label: 'Carroceria', value: vehicleData.bodyType } : null,
+    vehiclePower,
+    vehicleData.displacementCc ? { label: 'Cilindrada', value: `${vehicleData.displacementCc} cc` } : null,
+    vehicleData.color ? { label: 'Cor', value: vehicleData.color } : null,
+  ].filter((item): item is { label: string; value: string } => Boolean(item));
+
   return (
     <div className="rounded-xl bg-muted p-4 space-y-2">
       <div className="flex items-center justify-between mb-2">
         <p className="text-foreground font-bold" style={{ fontSize: '0.875rem' }}>
-          <i className="fas fa-check-circle text-success mr-2" style={{ fontSize: '0.85rem' }} />
+          <i className="fas fa-check-circle text-success mr-2" aria-hidden="true" style={{ fontSize: '0.85rem' }} />{' '}
           Dados encontrados
         </p>
-        {vehicleData.make && <div className="w-8 h-8"><BrandLogo make={vehicleData.make} /></div>}
+        {vehicleData.make && <div className="w-8 h-8"><BrandLogo make={vehicleData.make} logoUrl={vehicleData.brandLogoUrl} /></div>}
       </div>
-      {[
-        vehicleData.make && vehicleData.model ? { label: 'Marca/Modelo', value: `${vehicleData.make} ${vehicleData.model}` } : null,
-        vehicleData.version ? { label: 'Versão', value: vehicleData.version } : null,
-        vehicleData.plateDate ? { label: 'Ano', value: vehicleData.plateDate.slice(0, 4) } : null,
-        vehicleData.fuelType ? { label: 'Combustível', value: vehicleData.fuelType } : null,
-        vehicleData.powerkw ? { label: 'Potência', value: `${vehicleData.powerkw} kW` } : null,
-        vehicleData.color ? { label: 'Cor', value: vehicleData.color } : null,
-      ].filter(Boolean).map((item) => (
-        <div key={item!.label} className="flex justify-between text-sm">
-          <span className="text-muted-foreground">{item!.label}:</span>
-          <span className="text-foreground font-semibold">{item!.value}</span>
+      {vehicleData.imageUrl && (
+        <img src={vehicleData.imageUrl} alt="Veículo identificado" className="w-full h-28 object-cover rounded-lg border border-border mb-2" />
+      )}
+      {details.map((item) => (
+        <div key={item.label} className="flex justify-between text-sm">
+          <span className="text-muted-foreground">{item.label}:</span>
+          <span className="text-foreground font-semibold">{item.value}</span>
         </div>
       ))}
       {insuranceData && (
         <div className="mt-3 pt-3 border-t border-border space-y-1.5">
           <p className="text-foreground font-bold" style={{ fontSize: '0.8rem' }}>
-            <i className="fas fa-shield-halved text-primary mr-2" style={{ fontSize: '0.78rem' }} />Seguro
+            <i className="fas fa-shield-halved text-primary mr-2" aria-hidden="true" style={{ fontSize: '0.78rem' }} />{' '}
+            Seguro
           </p>
           {insuranceData.entity && (
             <div className="flex justify-between text-sm">
@@ -114,16 +122,21 @@ export function VehicleDataCard({ vehicleData, insuranceData }: { vehicleData: V
 
 export function EVOptions({
   isEV, setIsEV, chargerTypes, setChargerTypes, isAccessible, setIsAccessible, make,
-}: {
+}: Readonly<{
   isEV: boolean; setIsEV: (v: boolean) => void;
   chargerTypes: string[]; setChargerTypes: (v: string[]) => void;
   isAccessible: boolean; setIsAccessible: (v: boolean) => void;
   make?: string;
-}) {
+}>) {
   const allChargerTypes = ['Type 2', 'CCS', 'CHAdeMO', 'Tesla Supercharger'];
 
-  const toggleCharger = (type: string) =>
-    setChargerTypes(chargerTypes.includes(type) ? chargerTypes.filter((t) => t !== type) : [...chargerTypes, type]);
+  const toggleCharger = (type: string) => {
+    if (chargerTypes.includes(type)) {
+      setChargerTypes(chargerTypes.filter((t) => t !== type));
+      return;
+    }
+    setChargerTypes([...chargerTypes, type]);
+  };
 
   const handleIsEVChange = (checked: boolean) => {
     setIsEV(checked);
@@ -133,11 +146,12 @@ export function EVOptions({
 
   return (
     <div className="space-y-2">
-      <label className="flex items-center gap-3 p-3 rounded-xl border border-border hover:bg-muted/50 cursor-pointer transition-colors">
-        <input type="checkbox" checked={isEV} onChange={(e) => handleIsEVChange(e.target.checked)} className="checkbox checkbox-primary checkbox-sm" />
+      <label htmlFor="vehicle-is-ev" className="flex items-center gap-3 p-3 rounded-xl border border-border hover:bg-muted/50 cursor-pointer transition-colors">
+        <input id="vehicle-is-ev" type="checkbox" checked={isEV} onChange={(e) => handleIsEVChange(e.target.checked)} className="checkbox checkbox-primary checkbox-sm" />
         <div className="flex-1">
           <p className="text-foreground font-semibold" style={{ fontSize: '0.875rem' }}>
-            <i className="fas fa-bolt text-green-500 mr-2" style={{ fontSize: '0.8rem' }} />Veículo Elétrico
+            <i className="fas fa-bolt text-green-500 mr-2" aria-hidden="true" style={{ fontSize: '0.8rem' }} />{' '}
+            Veículo Elétrico
           </p>
           <p className="text-muted-foreground" style={{ fontSize: '0.72rem' }}>Priorizar lugares com carregadores EV</p>
         </div>
@@ -166,11 +180,12 @@ export function EVOptions({
         </div>
       )}
 
-      <label className="flex items-center gap-3 p-3 rounded-xl border border-border hover:bg-muted/50 cursor-pointer transition-colors">
-        <input type="checkbox" checked={isAccessible} onChange={(e) => setIsAccessible(e.target.checked)} className="checkbox checkbox-primary checkbox-sm" />
+      <label htmlFor="vehicle-is-accessible" className="flex items-center gap-3 p-3 rounded-xl border border-border hover:bg-muted/50 cursor-pointer transition-colors">
+        <input id="vehicle-is-accessible" type="checkbox" checked={isAccessible} onChange={(e) => setIsAccessible(e.target.checked)} className="checkbox checkbox-primary checkbox-sm" />
         <div className="flex-1">
           <p className="text-foreground font-semibold" style={{ fontSize: '0.875rem' }}>
-            <i className="fas fa-wheelchair text-blue-500 mr-2" style={{ fontSize: '0.8rem' }} />Veículo Acessível
+            <i className="fas fa-wheelchair text-blue-500 mr-2" aria-hidden="true" style={{ fontSize: '0.8rem' }} />{' '}
+            Veículo Acessível
           </p>
           <p className="text-muted-foreground" style={{ fontSize: '0.72rem' }}>Necessita de lugares para mobilidade reduzida</p>
         </div>

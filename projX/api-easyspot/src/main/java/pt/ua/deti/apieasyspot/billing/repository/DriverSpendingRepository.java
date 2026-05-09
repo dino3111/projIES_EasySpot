@@ -1,6 +1,7 @@
 package pt.ua.deti.apieasyspot.billing.repository;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -18,7 +19,12 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class DriverSpendingRepository {
 
-    private final NamedParameterJdbcTemplate jdbc;
+    private static final String TOTAL_SPENT = "total_spent";
+    private static final String PARK_NAME = "park_name";
+    private static final String VEHICLE = "vehicle";
+    private static final String STATUS_COMPLETED = "COMPLETED";
+
+    private final @Qualifier("timescaleNamedJdbcTemplate") NamedParameterJdbcTemplate jdbc;
 
     public TotalsRow totals(UUID userId, UUID vehicleId, OffsetDateTime fromInclusive, OffsetDateTime toExclusive) {
         return jdbc.queryForObject(
@@ -38,7 +44,7 @@ public class DriverSpendingRepository {
             """,
             params(userId, vehicleId, fromInclusive, toExclusive),
             (rs, row) -> new TotalsRow(
-                rs.getBigDecimal("total_spent"),
+                rs.getBigDecimal(TOTAL_SPENT),
                 rs.getBigDecimal("charging_spent"),
                 rs.getBigDecimal("parking_spent"),
                 rs.getLong("sessions")
@@ -63,7 +69,7 @@ public class DriverSpendingRepository {
             params(userId, vehicleId, fromInclusive, toExclusive),
             (rs, row) -> new TimeseriesPointRow(
                 rs.getDate("day").toLocalDate(),
-                rs.getBigDecimal("total_spent")
+                rs.getBigDecimal(TOTAL_SPENT)
             )
         );
     }
@@ -88,8 +94,8 @@ public class DriverSpendingRepository {
             params(userId, vehicleId, fromInclusive, toExclusive),
             (rs, row) -> new ParkBreakdownRow(
                 UUID.fromString(rs.getString("parking_lot_id")),
-                rs.getString("park_name"),
-                rs.getBigDecimal("total_spent"),
+                rs.getString(PARK_NAME),
+                rs.getBigDecimal(TOTAL_SPENT),
                 rs.getLong("session_count")
             )
         );
@@ -115,7 +121,7 @@ public class DriverSpendingRepository {
             (rs, row) -> new VehicleBreakdownRow(
                 UUID.fromString(rs.getString("vehicle_id")),
                 rs.getString("license_plate"),
-                rs.getBigDecimal("total_spent")
+                rs.getBigDecimal(TOTAL_SPENT)
             )
         );
     }
@@ -141,16 +147,14 @@ public class DriverSpendingRepository {
             """,
             params(userId, vehicleId, fromInclusive, toExclusive),
             (rs, row) -> new CostliestSessionRow(
-                rs.getString("park_name"),
+                rs.getString(PARK_NAME),
                 asOffset(rs.getTimestamp("ended_at")),
-                rs.getString("vehicle"),
-                rs.getBigDecimal("total_spent")
+                rs.getString(VEHICLE),
+                rs.getBigDecimal(TOTAL_SPENT)
             )
         );
         return rows.isEmpty() ? null : rows.get(0);
     }
-
-    private static final String STATUS_COMPLETED = "COMPLETED";
 
     public List<HistoryRow> history(UUID userId, UUID vehicleId, OffsetDateTime fromInclusive, OffsetDateTime toExclusive, int page, int size) {
         var p = params(userId, vehicleId, fromInclusive, toExclusive)
@@ -178,11 +182,11 @@ public class DriverSpendingRepository {
             """,
             p,
             (rs, row) -> new HistoryRow(
-                rs.getString("park_name"),
+                rs.getString(PARK_NAME),
                 asOffset(rs.getTimestamp("entry_time")),
                 Math.round(rs.getDouble("duration_minutes")),
-                rs.getString("vehicle"),
-                rs.getBigDecimal("total_spent"),
+                rs.getString(VEHICLE),
+                rs.getBigDecimal(TOTAL_SPENT),
                 STATUS_COMPLETED
             )
         );

@@ -1,11 +1,12 @@
-import { Toaster } from 'sonner';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router';
 import { useAuth } from '../../../context/AuthContext';
 import logo from '../../../../assets/logo.svg';
 import logoWhite from '../../../../assets/logo-white.svg';
 
 const features = [
   { icon: 'fa-satellite-dish',   title: 'Sensores em Tempo Real',     desc: 'Infravermelhos e LEDs em cada lugar. Disponibilidade atualizada ao segundo.' },
-  { icon: 'fa-id-card',          title: 'Identificação Automática',    desc: 'Leitura de matrícula por OCR e identificador RFID na entrada.' },
+  { icon: 'fa-id-card',          title: 'Identificação Automática',    desc: 'Leitura de matrícula por OCR na entrada.' },
   { icon: 'fa-charging-station', title: 'Carregamento EV',             desc: 'Localize carregadores compatíveis, veja velocidade e preço por kWh em tempo real.' },
   { icon: 'fa-wheelchair',       title: 'Acessibilidade Total',        desc: 'Dimensões dos lugares, distância à entrada e vigilância para mobilidade reduzida.' },
   { icon: 'fa-euro-sign',        title: 'Cobrança Inteligente',        desc: 'Faturação automática via Stripe com histórico, comparação de custos e alertas.' },
@@ -21,16 +22,72 @@ const personas = [
 
 const steps = [
   { n: '1', icon: 'fa-user-plus',   title: 'Crie a sua conta',       desc: 'Registe-se com e-mail ou SSO (Google, Microsoft). Secure via Authentik.' },
-  { n: '2', icon: 'fa-car-side',    title: 'Associe o seu veículo',  desc: 'Adicione a matrícula ou identifique-se por RFID Via Verde.' },
+  { n: '2', icon: 'fa-car-side',    title: 'Associe o seu veículo',  desc: 'Adicione a matrícula ou identifique-se automaticamente por OCR.' },
   { n: '3', icon: 'fa-credit-card', title: 'Configure o pagamento',  desc: 'Ligue o seu Stripe, cartão ou MB Way. Cobrança automática à saída.' },
 ];
 
+function SessionExpiredModal({ onLogin, onClose }: Readonly<{ onLogin: () => void; onClose: () => void }>) {
+  const handleBackdropKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape' || event.key === 'Enter' || event.key === ' ') onClose();
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+      onClick={onClose}
+      onKeyDown={handleBackdropKeyDown}
+      role="button"
+      tabIndex={0}
+      aria-label="Fechar aviso de sessão expirada"
+    >
+      <div
+        className="bg-card border border-border rounded-2xl p-8 max-w-sm w-full mx-4 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+        role="presentation"
+      >
+        <div className="flex flex-col items-center text-center gap-4">
+          <div className="w-14 h-14 rounded-full bg-amber-500/10 flex items-center justify-center">
+            <i className="fas fa-clock text-amber-500" style={{ fontSize: '1.5rem' }} />
+          </div>
+          <div>
+            <h2 className="text-foreground font-bold text-lg mb-1">Sessão expirada</h2>
+            <p className="text-muted-foreground text-sm">A sua sessão terminou. Inicie sessão novamente para continuar.</p>
+          </div>
+          <div className="flex gap-3 w-full">
+            <button onClick={onClose} className="flex-1 px-4 py-2.5 rounded-full border border-border text-foreground font-semibold hover:bg-muted transition-colors text-sm">
+              Fechar
+            </button>
+            <button onClick={onLogin} className="flex-1 px-4 py-2.5 rounded-full bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity shadow-md shadow-primary/25 text-sm">
+              <i className="fas fa-sign-in-alt mr-2" />Entrar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function WelcomePage() {
   const { login, register } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [showExpiredModal, setShowExpiredModal] = useState(searchParams.get('session') === 'expired');
+
+  useEffect(() => {
+    if (searchParams.get('session') === 'expired') {
+      setShowExpiredModal(true);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
+  const handleLogin = () => {
+    setShowExpiredModal(false);
+    login();
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <Toaster />
+      {showExpiredModal && <SessionExpiredModal onLogin={handleLogin} onClose={() => setShowExpiredModal(false)} />}
 
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">

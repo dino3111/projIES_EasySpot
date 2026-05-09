@@ -40,16 +40,11 @@ public class AlertNotificationDispatchService {
 
         int delivered = 0;
         for (AlertSubscription subscription : subscriptions) {
-            if (!matchesPark(subscription, event.parkId())) {
-                continue;
+            if (matchesPark(subscription, event.parkId()) && matchesVehicle(subscription, event.vehicleId())) {
+                String destination = "/topic/alerts/" + subscription.getUser().getAuthentikUserId();
+                messagingTemplate.convertAndSend(destination, event);
+                delivered++;
             }
-            if (!matchesVehicle(subscription, event.vehicleId())) {
-                continue;
-            }
-
-            String destination = "/topic/alerts/" + subscription.getUser().getAuthentikUserId();
-            messagingTemplate.convertAndSend(destination, event);
-            delivered++;
         }
         return delivered;
     }

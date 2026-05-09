@@ -1,6 +1,6 @@
 import { STEPS, type ReservationStep } from './reservationHelpers';
 
-export function StepBar({ current }: { current: ReservationStep }) {
+export function StepBar({ current }: Readonly<{ current: ReservationStep }>) {
   return (
     <div className="w-full overflow-x-auto pb-1">
       <ol className="flex items-center min-w-max gap-0" aria-label="Passos da reserva">

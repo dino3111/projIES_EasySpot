@@ -2,7 +2,6 @@ package pt.ua.deti.apieasyspot.notification.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
@@ -33,13 +32,11 @@ public class ReportController {
     private final ReportService reportService;
 
     @Operation(summary = "Submit an unauthorized parking report")
-    @ApiResponses({
-        @ApiResponse(responseCode = "201", description = "Report submitted"),
-        @ApiResponse(responseCode = "400", description = "Invalid violation type or file"),
-        @ApiResponse(responseCode = "401", description = "Unauthenticated"),
-        @ApiResponse(responseCode = "404", description = "Parking lot not found"),
-        @ApiResponse(responseCode = "413", description = "Photo exceeds 10 MB")
-    })
+    @ApiResponse(responseCode = "201", description = "Report submitted")
+    @ApiResponse(responseCode = "400", description = "Invalid violation type or file")
+    @ApiResponse(responseCode = "401", description = "Unauthenticated")
+    @ApiResponse(responseCode = "404", description = "Parking lot not found")
+    @ApiResponse(responseCode = "413", description = "Photo exceeds 10 MB")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('DRIVER')")
     public ResponseEntity<ReportResponse> create(

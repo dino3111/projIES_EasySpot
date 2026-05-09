@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { ParkingLot, ParkingSpot } from '../../../data/parkingData';
+import type { ParkingLot, ParkingSpot } from '../../../data/parkingTypes';
 import { SPOT_FILTER_OPTIONS, isSpotSelectable, spotColorClasses, type SpotFilter } from './reservationHelpers';
 
 export function Step2SpotChoice({
@@ -7,15 +7,21 @@ export function Step2SpotChoice({
   selectedFloorId, setSelectedFloorId,
   selectedSpotId, setSelectedSpotId,
   onNext, onBack,
-}: {
+}: Readonly<{
   lot: ParkingLot;
   spotFilter: SpotFilter; setSpotFilter: (f: SpotFilter) => void;
   selectedFloorId: string; setSelectedFloorId: (id: string) => void;
   selectedSpotId: string; setSelectedSpotId: (id: string) => void;
   onNext: () => void; onBack: () => void;
-}) {
+}>) {
   const floor = lot.floors.find(f => f.id === selectedFloorId) || lot.floors[0];
   const selectedSpot = floor?.spots.find(s => s.id === selectedSpotId) || null;
+  const spotContent = (spot: ParkingSpot, selected: boolean) => {
+    if (selected) return <i className="fa-solid fa-check text-[8px]" />;
+    if (spot.status === 'ev') return <i className="fa-solid fa-bolt text-[8px]" />;
+    if (spot.status === 'accessible') return <i className="fa-solid fa-wheelchair text-[8px]" />;
+    return spot.label;
+  };
 
   const spotsByRow = useMemo(() => {
     if (!floor) return {};
@@ -39,16 +45,16 @@ export function Step2SpotChoice({
   return (
     <div className="space-y-4">
       {lot.floors.length > 1 && (
-        <div className="flex gap-2 flex-wrap" role="tablist" aria-label="Selecionar piso">
+        <div className="flex gap-2 flex-wrap" aria-label="Selecionar piso">
           {lot.floors.map(f => (
             <button
               key={f.id}
-              role="tab"
-              aria-selected={f.id === selectedFloorId}
+              aria-pressed={f.id === selectedFloorId}
               onClick={() => { setSelectedFloorId(f.id); setSelectedSpotId(''); }}
               className={`btn btn-sm rounded-full transition-all ${f.id === selectedFloorId ? 'btn-primary' : 'btn-outline btn-primary'}`}
             >
-              <i className="fa-solid fa-layer-group mr-1.5" />{f.name}
+              <i className="fa-solid fa-layer-group mr-1.5" />
+              {f.name}
             </button>
           ))}
         </div>
@@ -57,7 +63,7 @@ export function Step2SpotChoice({
       <div className="card bg-base-200 shadow-md">
         <div className="card-body p-3">
           <div className="flex items-center justify-between flex-wrap gap-2">
-            <div className="flex gap-2 flex-wrap" role="group" aria-label="Filtrar tipo de lugar">
+            <div className="flex gap-2 flex-wrap" aria-label="Filtrar tipo de lugar">
               {SPOT_FILTER_OPTIONS.map(opt => (
                 <button
                   key={opt.key}
@@ -99,11 +105,11 @@ export function Step2SpotChoice({
                     <div className="w-5 shrink-0 text-center text-xs font-bold text-base-content/40 select-none">
                       {rowLabel(row)}
                     </div>
-                    {(spots as ParkingSpot[]).map((spot, colIdx) => {
+                    {spots.map((spot, colIdx) => {
                       const selectable = isSpotSelectable(spot, spotFilter);
                       const selected = spot.id === selectedSpotId;
                       const classes = spotColorClasses(spot, selected, selectable);
-                      const needsAisle = colIdx === Math.floor((spots as ParkingSpot[]).length / 2);
+                      const needsAisle = colIdx === Math.floor(spots.length / 2);
                       return (
                         <div key={spot.id} className="flex gap-0 items-center">
                           {needsAisle && <div className="w-4 shrink-0" aria-hidden="true" />}
@@ -115,14 +121,7 @@ export function Step2SpotChoice({
                             aria-pressed={selected}
                             className={`w-7 h-7 md:w-8 md:h-8 shrink-0 rounded border flex items-center justify-center text-[9px] md:text-[10px] font-bold transition-all duration-150 select-none focus:outline-none focus:ring-2 focus:ring-primary/50 ${classes}`}
                           >
-                            {selected
-                              ? <i className="fa-solid fa-check text-[8px]" />
-                              : spot.status === 'ev'
-                                ? <i className="fa-solid fa-bolt text-[8px]" />
-                                : spot.status === 'accessible'
-                                  ? <i className="fa-solid fa-wheelchair text-[8px]" />
-                                  : spot.label
-                            }
+                            {spotContent(spot, selected)}
                           </button>
                         </div>
                       );

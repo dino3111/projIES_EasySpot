@@ -1,6 +1,8 @@
 package pt.ua.deti.apieasyspot.postman;
 
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Profile;
@@ -9,14 +11,19 @@ import org.springframework.stereotype.Component;
 import pt.ua.deti.apieasyspot.auth.model.User;
 import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
 import pt.ua.deti.apieasyspot.billing.model.ParkingSession;
-import pt.ua.deti.apieasyspot.billing.repository.ParkingSessionRepository;
+import pt.ua.deti.apieasyspot.billing.repository.TimescaleParkingSessionRepository;
 import pt.ua.deti.apieasyspot.notification.model.Alert;
 import pt.ua.deti.apieasyspot.notification.model.StateAlert;
 import pt.ua.deti.apieasyspot.notification.model.SeverityAlert;
 import pt.ua.deti.apieasyspot.notification.model.AlertType;
-import pt.ua.deti.apieasyspot.notification.repository.AlertRepository;
+import pt.ua.deti.apieasyspot.notification.repository.TimescaleAlertRepository;
 import pt.ua.deti.apieasyspot.occupancy.model.*;
-import pt.ua.deti.apieasyspot.occupancy.repository.*;
+import pt.ua.deti.apieasyspot.occupancy.repository.AccessibleSpotRepository;
+import pt.ua.deti.apieasyspot.occupancy.repository.EVChargerRepository;
+import pt.ua.deti.apieasyspot.occupancy.repository.ParkingLotRepository;
+import pt.ua.deti.apieasyspot.occupancy.repository.ParkingSpotRepository;
+import pt.ua.deti.apieasyspot.occupancy.repository.TariffRepository;
+import pt.ua.deti.apieasyspot.occupancy.repository.TimescaleOccupancySnapshotRepository;
 import pt.ua.deti.apieasyspot.vehicle.model.Vehicle;
 import pt.ua.deti.apieasyspot.vehicle.repository.VehicleRepository;
 
@@ -31,14 +38,15 @@ import java.util.UUID;
 @Component
 @Profile("postman")
 @Order(2)
+@Slf4j
 class PostmanDataInitializer implements ApplicationRunner {
 
     private final UserRepository userRepository;
     private final VehicleRepository vehicleRepository;
     private final ParkingLotRepository parkingLotRepository;
-    private final ParkingSessionRepository parkingSessionRepository;
-    private final AlertRepository alertRepository;
-    private final OccupancySnapshotRepository occupancySnapshotRepository;
+    private final TimescaleParkingSessionRepository parkingSessionRepository;
+    private final TimescaleAlertRepository alertRepository;
+    private final TimescaleOccupancySnapshotRepository occupancySnapshotRepository;
     private final TariffRepository tariffRepository;
     private final EVChargerRepository evChargerRepository;
     private final AccessibleSpotRepository accessibleSpotRepository;
@@ -60,9 +68,9 @@ class PostmanDataInitializer implements ApplicationRunner {
         UserRepository userRepository,
         VehicleRepository vehicleRepository,
         ParkingLotRepository parkingLotRepository,
-        ParkingSessionRepository parkingSessionRepository,
-        AlertRepository alertRepository,
-        OccupancySnapshotRepository occupancySnapshotRepository,
+        TimescaleParkingSessionRepository parkingSessionRepository,
+        TimescaleAlertRepository alertRepository,
+        TimescaleOccupancySnapshotRepository occupancySnapshotRepository,
         TariffRepository tariffRepository,
         EVChargerRepository evChargerRepository,
         AccessibleSpotRepository accessibleSpotRepository,
@@ -85,9 +93,17 @@ class PostmanDataInitializer implements ApplicationRunner {
         User driver = seedUser();
         List<ParkingLot> lots = seedLots();
         seedDetails(lots);
-        seedSessions(lots, driver);
-        seedAlerts(lots);
-        seedHourlySnapshots(lots);
+        runBestEffort("timeseries parking sessions", () -> seedSessions(lots, driver));
+        runBestEffort("timeseries alerts", () -> seedAlerts(lots));
+        runBestEffort("timeseries occupancy snapshots", () -> seedHourlySnapshots(lots));
+    }
+
+    private void runBestEffort(String datasetName, Runnable seedAction) {
+        try {
+            seedAction.run();
+        } catch (DataAccessException ex) {
+            log.warn("Postman seed skipped for {}: {}", datasetName, ex.getMostSpecificCause().getMessage());
+        }
     }
 
     private User seedUser() {
@@ -132,7 +148,6 @@ class PostmanDataInitializer implements ApplicationRunner {
 
     private void seedDetails(List<ParkingLot> lots) {
         for (ParkingLot lot : lots) {
-            // Tariffs
             Tariff standard = new Tariff();
             standard.setParkingLot(lot);
             standard.setName("Standard");
@@ -160,7 +175,6 @@ class PostmanDataInitializer implements ApplicationRunner {
                 accessibleSpotRepository.save(spot);
             }
 
-            // Some spots for the map
             for (int r = 1; r <= 3; r++) {
                 for (int c = 1; c <= 5; c++) {
                     ParkingSpot s = new ParkingSpot();
@@ -177,8 +191,6 @@ class PostmanDataInitializer implements ApplicationRunner {
     }
 
     private void seedSessions(List<ParkingLot> lots, User driver) {
-        Vehicle primary = vehicleRepository.findById(vehicleId).orElseThrow();
-        Vehicle secondary = vehicleRepository.findById(secondaryVehicleId).orElseThrow();
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         for (int daysAgo = 6; daysAgo >= 0; daysAgo--) {
             int count = 50 + (int) (Math.random() * 100);
@@ -186,14 +198,14 @@ class PostmanDataInitializer implements ApplicationRunner {
                 ParkingLot lot = lots.get(i % lots.size());
                 OffsetDateTime entry = now.minusDays(daysAgo).withHour(7 + (i % 14)).withMinute(i % 60);
                 double durationH = 0.5 + (Math.random() * 3.5);
-                Vehicle chosen = i % 2 == 0 ? primary : secondary;
-                parkingSessionRepository.save(session(lot, entry, durationH, driver, chosen));
+                UUID chosenVehicleId = i % 2 == 0 ? vehicleId : secondaryVehicleId;
+                parkingSessionRepository.save(session(lot, entry, durationH, driver.getId(), chosenVehicleId));
             }
         }
     }
 
     private void seedAlerts(List<ParkingLot> lots) {
-        alertRepository.saveAll(List.of(
+        List.of(
             alert(lots.get(0), AlertType.SENSOR, SeverityAlert.CRITICAL, StateAlert.OPEN,
                 "Piso 0 – Zona B", "IR-AV1-B07", null,
                 "Sensor infravermelho sem leituras há 2h", null, null,
@@ -204,7 +216,7 @@ class PostmanDataInitializer implements ApplicationRunner {
                 "A verificar logs de entrada/saída.", OffsetDateTime.now(ZoneOffset.UTC).minusHours(1)),
             alert(lots.get(2), AlertType.SYSTEM, SeverityAlert.CRITICAL, StateAlert.IN_PROGRESS,
                 null, null, null,
-                "Leitor RFID sem comunicação desde as 06h45", "Laura Farias",
+                "Leitor OCR sem comunicação desde as 06h45", "Laura Farias",
                 "Técnico a caminho.", OffsetDateTime.now(ZoneOffset.UTC).minusHours(5)),
             alert(lots.get(0), AlertType.SENSOR, SeverityAlert.WARNING, StateAlert.OPEN,
                 "Piso 0 – Zona A", "IR-AV1-A12", null,
@@ -214,7 +226,7 @@ class PostmanDataInitializer implements ApplicationRunner {
                 null, null, "73-CD-98",
                 "Lugar EV reservado estava ocupado por veículo convencional",
                 "Suporte EasySpot", "Reembolso processado.", OffsetDateTime.now(ZoneOffset.UTC).minusDays(1))
-        ));
+        ).forEach(alertRepository::save);
     }
 
     private void seedHourlySnapshots(List<ParkingLot> lots) {
@@ -225,10 +237,10 @@ class PostmanDataInitializer implements ApplicationRunner {
             Instant recordedAt = startOfDay.plus(h + 7, ChronoUnit.HOURS);
             int pct = occupancyByHour[h];
             for (ParkingLot lot : lots) {
-                occupancySnapshotRepository.save(snapshot(lot, ZoneType.STANDARD, pct, 200, recordedAt));
-                occupancySnapshotRepository.save(snapshot(lot, ZoneType.EV, Math.min(pct + 5, 100), 30, recordedAt));
-                occupancySnapshotRepository.save(snapshot(lot, ZoneType.ACCESSIBLE, Math.max(pct - 20, 0), 15, recordedAt));
-                occupancySnapshotRepository.save(snapshot(lot, ZoneType.RESERVED, pct + 10 > 100 ? 95 : pct + 10, 20, recordedAt));
+                insertSnapshot(lot, ZoneType.STANDARD, pct, 200, recordedAt);
+                insertSnapshot(lot, ZoneType.EV, Math.min(pct + 5, 100), 30, recordedAt);
+                insertSnapshot(lot, ZoneType.ACCESSIBLE, Math.max(pct - 20, 0), 15, recordedAt);
+                insertSnapshot(lot, ZoneType.RESERVED, pct + 10 > 100 ? 95 : pct + 10, 20, recordedAt);
             }
         }
     }
@@ -246,11 +258,11 @@ class PostmanDataInitializer implements ApplicationRunner {
         return l;
     }
 
-    private ParkingSession session(ParkingLot lot, OffsetDateTime entry, double durationHours, User driver, Vehicle vehicle) {
+    private ParkingSession session(ParkingLot lot, OffsetDateTime entry, double durationHours, UUID driverId, UUID chosenVehicleId) {
         ParkingSession s = new ParkingSession();
-        s.setUser(driver);
-        s.setParkingLot(lot);
-        s.setVehicle(vehicle);
+        s.setUserId(driverId);
+        s.setParkingLotId(lot.getId());
+        s.setVehicleId(chosenVehicleId);
         s.setZoneType(ZoneType.STANDARD);
         s.setEntryTime(entry);
         s.setExitTime(entry.plusMinutes((long) (durationHours * 60)));
@@ -262,7 +274,8 @@ class PostmanDataInitializer implements ApplicationRunner {
                         StateAlert estado, String zona, String sensorId, String matricula,
                         String descricao, String atribuidoA, String notas, OffsetDateTime criadoEm) {
         Alert a = new Alert();
-        a.setParkingLot(lot);
+        a.setParkingLotId(lot.getId());
+        a.setParkingLotName(lot.getName());
         a.setType(tipo);
         a.setSeverity(severidade);
         a.setState(estado);
@@ -276,13 +289,14 @@ class PostmanDataInitializer implements ApplicationRunner {
         return a;
     }
 
-    private OccupancySnapshot snapshot(ParkingLot lot, ZoneType zone, int pct, int total, Instant at) {
-        OccupancySnapshot s = new OccupancySnapshot();
-        s.setParkingLot(lot);
-        s.setZoneType(zone);
-        s.setTotalCount(total);
-        s.setOccupiedCount((int) Math.round(total * pct / 100.0));
-        s.setRecordedAt(at);
-        return s;
+    private void insertSnapshot(ParkingLot lot, ZoneType zone, int pct, int total, Instant at) {
+        occupancySnapshotRepository.insert(
+            UUID.randomUUID(),
+            lot.getId(),
+            zone,
+            (int) Math.round(total * pct / 100.0),
+            total,
+            at
+        );
     }
 }

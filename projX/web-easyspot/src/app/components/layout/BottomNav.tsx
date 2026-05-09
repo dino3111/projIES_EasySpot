@@ -23,6 +23,7 @@ const managerTabs: NavTab[] = [
 const driverTabs: NavTab[] = [
   { path: '/',         icon: 'fa-list',             label: 'Lista',   exact: true },
   { path: '/map',      icon: 'fa-map-location-dot', label: 'Mapa',    exact: false },
+  { path: '/favorites',icon: 'fa-star',             label: 'Favs',    exact: false },
   { path: '/costs',    icon: 'fa-wallet',            label: 'Custos',  exact: false },
   { path: '/profile',  icon: 'fa-user',              label: 'Perfil',  exact: false },
 ];
@@ -36,10 +37,15 @@ export function BottomNav() {
   const location = useLocation();
   const { profile } = useProfile();
 
-  const tabs =
-    profile === 'MANAGER' ? managerTabs :
-    profile === 'TECHNICAL' ? technicianTabs :
-    driverTabs;
+  const getTabs = () => {
+    switch (profile) {
+      case 'MANAGER':   return managerTabs;
+      case 'TECHNICAL': return technicianTabs;
+      default:          return driverTabs;
+    }
+  };
+
+  const tabs = getTabs();
 
   return (
     <nav

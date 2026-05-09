@@ -1,13 +1,13 @@
-import type { ParkingLot } from '../../../data/parkingData';
+import type { ParkingLot } from '../../../data/parkingTypes';
 import { MapLegend, SpotCell } from './parkingShared';
 
 export function TabMap({
   lot, activeFloorIdx, setActiveFloorIdx,
-}: {
+}: Readonly<{
   lot: ParkingLot;
   activeFloorIdx: number;
   setActiveFloorIdx: (idx: number) => void;
-}) {
+}>) {
   const activeFloor = lot.floors?.[activeFloorIdx];
 
   return (

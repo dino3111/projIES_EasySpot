@@ -3,11 +3,14 @@ import { Header } from './Header';
 import { BottomNav } from './BottomNav';
 import { Sidebar } from './Sidebar';
 import { useProfile } from '../../context/ProfileContext';
+import { useDriverOnboarding } from '../../hooks/useDriverOnboarding';
+import { OnboardingModal } from '../../pages/driver/welcome/OnboardingModal';
 
 export function Layout() {
-  const { profile } = useProfile();
+  const { profile, setDriverType } = useProfile();
   const location = useLocation();
   const path = location.pathname;
+  const { showOnboarding, setShowOnboarding, needsVehicle, needsPayment } = useDriverOnboarding();
 
   if (path.startsWith('/manager') && profile !== 'MANAGER') {
     return <Navigate to="/" replace />;
@@ -30,6 +33,15 @@ export function Layout() {
       </div>
 
       <BottomNav />
+
+      {showOnboarding && (
+        <OnboardingModal
+          needsVehicle={needsVehicle}
+          needsPayment={needsPayment}
+          onFinish={(dt) => { setDriverType(dt); setShowOnboarding(false); }}
+          onClose={() => setShowOnboarding(false)}
+        />
+      )}
     </div>
   );
 }

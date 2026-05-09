@@ -19,11 +19,11 @@ const parkSummaryRows = [
   { nome: 'Glicínias Plaza',   cidade: 'Aveiro',   entradas: 42, ocupacao: 61, receita: 198.20 },
   { nome: 'Estádio Coimbra',   cidade: 'Coimbra',  entradas: 37, ocupacao: 69, receita: 215.10 },
   { nome: 'CoimbraShopping',   cidade: 'Coimbra',  entradas: 29, ocupacao: 55, receita: 131.40 },
-  { nome: 'Europa',            cidade: 'Leiria',   entradas: 44, ocupacao: 78, receita: 284.00 },
+  { nome: 'Europa',            cidade: 'Leiria',   entradas: 44, ocupacao: 78, receita: 284 },
   { nome: 'Foz Plaza',         cidade: 'Figueira', entradas: 61, ocupacao: 82, receita: 398.60 },
   { nome: 'Mercado Arganil',   cidade: 'Arganil',  entradas: 18, ocupacao: 45, receita: 64.20  },
   { nome: 'Furadouro',         cidade: 'Ovar',     entradas: 14, ocupacao: 30, receita: 32.10  },
-  { nome: 'Est. Mag. Pessoa',  cidade: 'Leiria',   entradas:  0, ocupacao:  0, receita: 79.50  },
+  { nome: 'Est. Mag. Pessoa',  cidade: 'Leiria',   entradas:  0, ocupacao:  0, receita: 79.5  },
 ];
 
 const tooltipStyle = {
@@ -33,6 +33,14 @@ const tooltipStyle = {
   color: 'var(--color-foreground)',
   fontSize: '0.8rem',
 };
+
+function getTrendFromVariation(variation: number): 'up' | 'down' {
+  return variation > 0 ? 'up' : 'down';
+}
+
+function formatVariation(variation: number) {
+  return `${variation > 0 ? '+' : ''}${variation}% vs ontem`;
+}
 
 export function DashboardManagerPage() {
   const [chartTab, setChartTab] = useState<ChartTab>('entradas');
@@ -44,9 +52,9 @@ export function DashboardManagerPage() {
       <PageHeader />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KpiCard icon="fa-arrow-right-to-bracket" label="Entradas Hoje"   value={kpis.entradasHoje.toString()} subValue={`${kpis.variacaoEntradas > 0 ? '+' : ''}${kpis.variacaoEntradas}% vs ontem`} trend={kpis.variacaoEntradas > 0 ? 'up' : 'down'} color="#7357ec" />
+        <KpiCard icon="fa-arrow-right-to-bracket" label="Entradas Hoje"   value={kpis.entradasHoje.toString()} subValue={formatVariation(kpis.variacaoEntradas)} trend={getTrendFromVariation(kpis.variacaoEntradas)} color="#7357ec" />
         <KpiCard icon="fa-chart-pie"              label="Taxa de Ocupação" value={`${kpis.taxaOcupacaoMedia}%`}  subValue={`${kpis.totalLugares - kpis.lugaresLivres} / ${kpis.totalLugares} lugares`}    trend="neutral"                                        color="#5948a6" />
-        <KpiCard icon="fa-euro-sign"              label="Receita Hoje"    value={`€${kpis.receitaHoje.toFixed(2)}`} subValue={`${kpis.variacaoReceita > 0 ? '+' : ''}${kpis.variacaoReceita}% vs ontem`} trend={kpis.variacaoReceita > 0 ? 'up' : 'down'} color="#22c55e" />
+        <KpiCard icon="fa-euro-sign"              label="Receita Hoje"    value={`€${kpis.receitaHoje.toFixed(2)}`} subValue={formatVariation(kpis.variacaoReceita)} trend={getTrendFromVariation(kpis.variacaoReceita)} color="#22c55e" />
         <KpiCard icon="fa-clock"                  label="Tempo Médio"     value={kpis.tempoMedioEstadia}       subValue={`${kpis.alertasAbertos} alerta${kpis.alertasAbertos !== 1 ? 's' : ''} em aberto`} trend={kpis.alertasAbertos > 0 ? 'warn' : 'neutral'} color="#f59e0b" />
       </div>
 
@@ -83,7 +91,16 @@ function PageHeader() {
   );
 }
 
-function DailyChart({ chartTab, onTabChange }: { chartTab: ChartTab; onTabChange: (t: ChartTab) => void }) {
+function DailyChart({ chartTab, onTabChange }: { readonly chartTab: ChartTab; readonly onTabChange: (t: ChartTab) => void }) {
+  const yAxisTickFormatter = chartTab === 'receita' ? (v: number) => `€${v}` : undefined;
+  const tooltipFormatter = (v: number) => {
+    if (chartTab === 'receita') {
+      return [`€${v.toFixed(2)}`, 'Receita'];
+    }
+    return [v, 'Entradas'];
+  };
+  const dataKey = chartTab === 'entradas' ? 'entradas' : 'receita';
+
   return (
     <div className="lg:col-span-2 bg-card border border-border rounded-2xl p-4">
       <div className="flex items-center justify-between mb-4">
@@ -106,9 +123,9 @@ function DailyChart({ chartTab, onTabChange }: { chartTab: ChartTab; onTabChange
           <BarChart key={`bar-chart-${chartTab}`} data={mockDailyMetrics} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
             <XAxis dataKey="day" tick={{ fill: 'var(--color-muted-foreground)', fontSize: 12 }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fill: 'var(--color-muted-foreground)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={chartTab === 'receita' ? (v) => `€${v}` : undefined} />
-            <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => chartTab === 'receita' ? [`€${(v as number).toFixed(2)}`, 'Receita'] : [v, 'Entradas']} />
-            <Bar key={`bar-${chartTab}`} dataKey={chartTab === 'entradas' ? 'entradas' : 'receita'} fill="#7357ec" radius={[6, 6, 0, 0]} />
+            <YAxis tick={{ fill: 'var(--color-muted-foreground)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={yAxisTickFormatter} />
+            <Tooltip contentStyle={tooltipStyle} formatter={tooltipFormatter} />
+            <Bar key={`bar-${chartTab}`} dataKey={dataKey} fill="#7357ec" radius={[6, 6, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -172,7 +189,7 @@ function HourlyChart() {
   );
 }
 
-function AlertsSection({ alertasAbertos }: { alertasAbertos: typeof mockIssues }) {
+function AlertsSection({ alertasAbertos }: { readonly alertasAbertos: typeof mockIssues }) {
   return (
     <div className="bg-card border border-border rounded-2xl p-4">
       <div className="flex items-center justify-between mb-4">
@@ -207,8 +224,8 @@ function ParkTable() {
             </tr>
           </thead>
           <tbody>
-            {parkSummaryRows.map((row, idx) => (
-              <tr key={`${row.nome}-${idx}`} className="border-b border-border/50 last:border-0">
+            {parkSummaryRows.map((row) => (
+              <tr key={row.nome} className="border-b border-border/50 last:border-0">
                 <td className="py-2.5 text-foreground" style={{ fontWeight: 500 }}>
                   {row.nome}
                   <span className="ml-1.5 text-muted-foreground" style={{ fontSize: '0.7rem' }}>{row.cidade}</span>

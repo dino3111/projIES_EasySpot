@@ -70,7 +70,7 @@ export function StatCard({ icon, value, label, color }: Readonly<{ icon: string;
 
 const ROW_CLASS = "w-full flex items-center gap-3 px-4 py-3.5 hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-left bg-transparent border-none cursor-pointer";
 
-export function AccountRow({ icon, label, accent, to }: Readonly<{ icon: string; label: string; accent?: boolean; to?: string }>) {
+export function AccountRow({ icon, label, accent, to, onClick }: Readonly<{ icon: string; label: string; accent?: boolean; to?: string; onClick?: () => void }>) {
   const inner = (
     <>
       <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${accent ? 'bg-error/10' : 'bg-primary/10'}`}>
@@ -81,7 +81,7 @@ export function AccountRow({ icon, label, accent, to }: Readonly<{ icon: string;
     </>
   );
   if (to) return <Link to={to} className={ROW_CLASS}>{inner}</Link>;
-  return <button type="button" className={ROW_CLASS}>{inner}</button>;
+  return <button type="button" className={ROW_CLASS} onClick={onClick}>{inner}</button>;
 }
 
 export function AccountRowWithBadge({ icon, label, badge, to }: Readonly<{ icon: string; label: string; badge?: string; to?: string }>) {

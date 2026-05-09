@@ -1,23 +1,44 @@
 import { useState } from 'react';
 import { type SensorDevice, type SensorStatus } from '../../../data/technicianData';
-import { mockParkingLots } from '../../../data/parkingData';
 import { STATUS_COLOR, STATUS_LABEL, STATUS_ICON, TIPO_ICON } from './maintenanceTypes';
 import { MetaRow, TechMapLegend } from './shared';
 
-export function SensorDiagPanel({
-  sensor, onClose, onUpdate,
-}: {
+type SensorDiagPanelProps = Readonly<{
   sensor: SensorDevice;
   onClose: () => void;
   onUpdate: () => void;
-}) {
+}>;
+
+type StatusUpdateModalProps = Readonly<{
+  sensor: SensorDevice;
+  onClose: () => void;
+  onConfirm: (id: string, status: SensorStatus, notes: string) => void;
+}>;
+
+type StatusOption = Readonly<{
+  value: SensorStatus;
+  label: string;
+  icon: string;
+  desc: string;
+}>;
+
+const getSensorSpotStyle = (isSensorSpot: boolean) => ({
+  width: 34,
+  height: 34,
+  background: isSensorSpot ? '#3b82f6' : 'var(--color-muted)',
+  opacity: isSensorSpot ? 1 : 0.4,
+});
+
+export function SensorDiagPanel({
+  sensor, onClose, onUpdate,
+}: SensorDiagPanelProps) {
   const [activeFloorIdx, setActiveFloorIdx] = useState(0);
   const color = STATUS_COLOR[sensor.status];
-  const lot = mockParkingLots.find(l => l.id === sensor.parqueId) ?? null;
+  const lot = null;
   const activeFloor = lot?.floors?.[activeFloorIdx];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={`Diagnóstico: ${sensor.id}`}>
+    <dialog open className="fixed inset-0 z-50 flex items-center justify-center bg-transparent p-4" aria-label={`Diagnóstico: ${sensor.id}`}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
       <div className="relative bg-card border border-border rounded-2xl p-5 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
 
@@ -80,7 +101,7 @@ export function SensorDiagPanel({
                         <div
                           key={spot.id}
                           className={`flex flex-col items-center justify-center rounded-lg shadow-sm cursor-pointer transition-all ${isSensorSpot ? 'ring-2 ring-offset-1 ring-blue-500 scale-110' : ''}`}
-                          style={{ width: 34, height: 34, background: isSensorSpot ? '#3b82f6' : 'var(--color-muted)', opacity: isSensorSpot ? 1 : 0.4 }}
+                          style={getSensorSpotStyle(isSensorSpot)}
                           title={`Lugar ${spot.label}`}
                           aria-label={`Lugar ${spot.label}${isSensorSpot ? ' - Este sensor' : ''}`}
                         >
@@ -148,21 +169,17 @@ export function SensorDiagPanel({
           </button>
         </div>
       </div>
-    </div>
+    </dialog>
   );
 }
 
 export function StatusUpdateModal({
   sensor, onClose, onConfirm,
-}: {
-  sensor: SensorDevice;
-  onClose: () => void;
-  onConfirm: (id: string, status: SensorStatus, notes: string) => void;
-}) {
+}: StatusUpdateModalProps) {
   const [newStatus, setNewStatus] = useState<SensorStatus>(sensor.status);
   const [notes, setNotes] = useState('');
 
-  const options: { value: SensorStatus; label: string; icon: string; desc: string }[] = [
+  const options: StatusOption[] = [
     { value: 'operacional', label: 'Operacional', icon: 'fa-circle-check', desc: 'Sensor reparado e em funcionamento normal' },
     { value: 'manutencao',  label: 'Manutenção',  icon: 'fa-wrench',       desc: 'Intervenção em curso, monitoring suspenso' },
     { value: 'falha',       label: 'Falha',        icon: 'fa-circle-xmark', desc: 'Falha confirmada, aguarda reparação' },
@@ -170,7 +187,7 @@ export function StatusUpdateModal({
   ];
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Atualizar estado do sensor">
+    <dialog open className="fixed inset-0 z-[60] flex items-center justify-center bg-transparent p-4" aria-label="Atualizar estado do sensor">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
       <div className="relative bg-card border border-border rounded-2xl p-5 w-full max-w-md shadow-2xl">
 
@@ -183,12 +200,14 @@ export function StatusUpdateModal({
         </div>
 
         <p className="text-muted-foreground mb-4" style={{ fontSize: '0.78rem' }}>
-          Sensor: <span className="text-foreground font-bold" style={{ fontFamily: 'monospace' }}>{sensor.id}</span>
+          Sensor:{' '}
+          <span className="text-foreground font-bold" style={{ fontFamily: 'monospace' }}>{sensor.id}</span>
           {' · '}Estado atual:{' '}
           <span style={{ color: STATUS_COLOR[sensor.status], fontWeight: 700 }}>{STATUS_LABEL[sensor.status]}</span>
         </p>
 
-        <div role="radiogroup" aria-label="Novo estado" className="space-y-2 mb-4">
+        <fieldset className="space-y-2 mb-4">
+          <legend className="sr-only">Novo estado</legend>
           {options.map(opt => (
             <label
               key={opt.value}
@@ -205,7 +224,7 @@ export function StatusUpdateModal({
               {newStatus === opt.value && <i className="fas fa-check text-primary" style={{ fontSize: '0.8rem' }} aria-hidden="true"></i>}
             </label>
           ))}
-        </div>
+        </fieldset>
 
         <div className="mb-4">
           <label htmlFor="update-notes" className="block text-foreground mb-1" style={{ fontSize: '0.8rem', fontWeight: 600 }}>
@@ -237,6 +256,6 @@ export function StatusUpdateModal({
           </button>
         </div>
       </div>
-    </div>
+    </dialog>
   );
 }

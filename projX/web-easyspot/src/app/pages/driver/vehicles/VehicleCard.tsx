@@ -5,11 +5,19 @@ export function VehicleCard({
   vehicle, onEdit, onDelete, onSetPrimary,
 }: Readonly<{ vehicle: Vehicle; onEdit: () => void; onDelete: () => void; onSetPrimary: () => void }>) {
   return (
-    <div className={`rounded-2xl p-4 bg-card border transition-all ${vehicle.isPrimary ? 'border-primary shadow-md shadow-primary/10' : 'border-border'}`}>
+    <div className={`rounded-2xl overflow-hidden bg-card border transition-all ${vehicle.isPrimary ? 'border-primary shadow-md shadow-primary/10' : 'border-border'}`}>
+      {vehicle.imageUrl && (
+        <img
+          src={vehicle.imageUrl}
+          alt={`${vehicle.make ?? ''} ${vehicle.model ?? ''}`.trim() || vehicle.plate}
+          className="w-full h-28 object-cover"
+        />
+      )}
+      <div className="p-4">
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3 flex-1">
           <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center flex-shrink-0">
-            <BrandLogo make={vehicle.make} />
+            <BrandLogo make={vehicle.make} logoUrl={vehicle.brandLogoUrl} />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-0.5 flex-wrap">
@@ -53,12 +61,7 @@ export function VehicleCard({
             <span>{vehicle.color}</span>
           </div>
         )}
-        {vehicle.rfid && (
-          <div className="flex items-center gap-1.5">
-            <i className="fas fa-id-card" style={{ fontSize: '0.72rem', color: '#7357ec' }} />
-            <span className="font-mono" style={{ fontSize: '0.72rem' }}>{vehicle.rfid}</span>
-          </div>
-        )}
+        
       </div>
 
       {vehicle.isEV && vehicle.chargerTypes && vehicle.chargerTypes.length > 0 && (
@@ -84,6 +87,7 @@ export function VehicleCard({
         <button type="button" aria-label="Remover veículo" onClick={onDelete} className="btn btn-sm btn-ghost text-error rounded-full" style={{ fontSize: '0.75rem' }}>
           <i className="fas fa-trash" style={{ fontSize: '0.7rem' }} />
         </button>
+      </div>
       </div>
     </div>
   );

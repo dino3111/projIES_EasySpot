@@ -1,16 +1,16 @@
-import type { ParkingLot } from '../../../data/parkingData';
+import type { ParkingLot } from '../../../data/parkingTypes';
 import { calcHours, fmtDateTime, fmtDuration, type ReservationStep } from './reservationHelpers';
 
 export function CostSummary({
   lot, arrivalTime, exitTime, cost, spotLabel, step,
-}: {
+}: Readonly<{
   lot: ParkingLot | null;
   arrivalTime: string;
   exitTime: string;
   cost: number;
   spotLabel: string;
   step: ReservationStep;
-}) {
+}>) {
   if (step === 4) return null;
   const hours = calcHours(arrivalTime, exitTime);
 
@@ -82,7 +82,7 @@ export function CostSummary({
             </div>
             {lot.hourlyRate * hours > lot.dailyMax && (
               <div className="flex justify-between text-success text-xs">
-                <span><i className="fa-solid fa-tag mr-1" />Máx. diário aplicado</span>
+                <span><i className="fa-solid fa-tag mr-1" /> Máx. diário aplicado</span>
                 <span>— €{(lot.hourlyRate * hours - lot.dailyMax).toFixed(2)}</span>
               </div>
             )}
@@ -94,9 +94,14 @@ export function CostSummary({
           </div>
         )}
 
-        {(!lot || hours <= 0) && (
+        {(lot && hours <= 0) && (
           <p className="text-base-content/40 text-xs italic text-center">
-            {!lot ? 'Selecione um parque para ver o custo' : 'Defina a hora de saída para ver o custo'}
+            Defina a hora de saída para ver o custo
+          </p>
+        )}
+        {!lot && (
+          <p className="text-base-content/40 text-xs italic text-center">
+            Selecione um parque para ver o custo
           </p>
         )}
       </div>

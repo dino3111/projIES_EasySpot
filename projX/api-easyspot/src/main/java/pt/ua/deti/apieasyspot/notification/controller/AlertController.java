@@ -4,7 +4,6 @@ package pt.ua.deti.apieasyspot.notification.controller;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -31,12 +30,10 @@ public class AlertController {
     private final AlertSubscriptionService alertSubscriptionService;
 
     @Operation(summary = "Create an alert subscription")
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Alert subscription created successfully"),
-        @ApiResponse(responseCode = "400", description = "Invalid subscription request payload"),
-        @ApiResponse(responseCode = "401", description = "Missing or invalid authentication token"),
-        @ApiResponse(responseCode = "403", description = "User is authenticated but not a DRIVER")
-    })
+    @ApiResponse(responseCode = "200", description = "Alert subscription created successfully")
+    @ApiResponse(responseCode = "400", description = "Invalid subscription request payload")
+    @ApiResponse(responseCode = "401", description = "Missing or invalid authentication token")
+    @ApiResponse(responseCode = "403", description = "User is authenticated but not a DRIVER")
     @PostMapping
     @PreAuthorize("hasRole('DRIVER')")
     public ResponseEntity<AlertSubscriptionResponse> createSubscription(
@@ -48,13 +45,11 @@ public class AlertController {
     }
 
     @Operation(summary = "Update alert state")
-    @ApiResponses({
-        @ApiResponse(responseCode = "204", description = "Alert state updated successfully"),
-        @ApiResponse(responseCode = "400", description = "Invalid alert state payload"),
-        @ApiResponse(responseCode = "401", description = "Missing or invalid authentication token"),
-        @ApiResponse(responseCode = "403", description = "User is authenticated but not a TECHNICAL or MANAGER"),
-        @ApiResponse(responseCode = "404", description = "Alert not found")
-    })
+    @ApiResponse(responseCode = "204", description = "Alert state updated successfully")
+    @ApiResponse(responseCode = "400", description = "Invalid alert state payload")
+    @ApiResponse(responseCode = "401", description = "Missing or invalid authentication token")
+    @ApiResponse(responseCode = "403", description = "User is authenticated but not a TECHNICAL or MANAGER")
+    @ApiResponse(responseCode = "404", description = "Alert not found")
     @PatchMapping("/{id}/state")
     @PreAuthorize("hasAnyRole('TECHNICAL', 'MANAGER')")
     public ResponseEntity<Void> updateState(

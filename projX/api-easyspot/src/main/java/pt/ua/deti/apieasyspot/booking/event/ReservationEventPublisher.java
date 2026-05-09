@@ -1,7 +1,7 @@
 package pt.ua.deti.apieasyspot.booking.event;
 
-import tools.jackson.core.JacksonException;
-import tools.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.JacksonException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -17,12 +17,14 @@ public class ReservationEventPublisher {
 
     static final String TOPIC = "reservation-events";
 
-    @Autowired(required = false)
-    private KafkaTemplate<String, String> kafkaTemplate;
-
+    private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
 
-    public ReservationEventPublisher(ObjectMapper objectMapper) {
+    public ReservationEventPublisher(
+        @Autowired(required = false) KafkaTemplate<String, String> kafkaTemplate,
+        ObjectMapper objectMapper
+    ) {
+        this.kafkaTemplate = kafkaTemplate;
         this.objectMapper = objectMapper;
     }
 

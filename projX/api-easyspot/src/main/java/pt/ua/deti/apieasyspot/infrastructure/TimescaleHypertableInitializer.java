@@ -1,9 +1,9 @@
 package pt.ua.deti.apieasyspot.infrastructure;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.annotation.Order;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -11,13 +11,27 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 @Order(1)
-@RequiredArgsConstructor
 public class TimescaleHypertableInitializer implements ApplicationRunner {
 
     private final JdbcTemplate jdbc;
 
+    public TimescaleHypertableInitializer(@Qualifier("timescaleJdbcTemplate") JdbcTemplate jdbc) {
+        this.jdbc = jdbc;
+    }
+
     @Override
     public void run(ApplicationArguments args) {
+        try {
+            // Keep the core tables available even when TimescaleDB extension is missing
+            // (e.g., CI jobs using plain PostgreSQL for Postman/Newman flows).
+            prepareOccupancySnapshotTable();
+            prepareParkingSessionsTable();
+            prepareAlertsTable();
+        } catch (Exception e) {
+            log.warn("TimescaleDB base table initialization skipped: {}", e.getMessage());
+            return;
+        }
+
         try {
             jdbc.execute("create extension if not exists timescaledb cascade");
             jdbc.execute("create extension if not exists pg_stat_statements");
@@ -29,18 +43,109 @@ public class TimescaleHypertableInitializer implements ApplicationRunner {
             addPolicies();
             applyStorageSettings();
             createPartialIndexes();
-            createPaymentIndexes();
             log.info("TimescaleDB initialization complete.");
         } catch (Exception e) {
             log.warn("TimescaleDB initialization skipped: {}", e.getMessage());
         }
     }
 
+    private void prepareOccupancySnapshotTable() {
+        jdbc.execute("""
+            create table if not exists occupancy_snapshots (
+                id uuid not null,
+                parking_lot_id uuid not null,
+                zone_type text not null,
+                occupied_count integer not null,
+                total_count integer not null,
+                recorded_at timestamptz not null,
+                primary key (id, recorded_at)
+            )
+            """);
+
+        try {
+            jdbc.execute("alter table occupancy_snapshots drop constraint if exists occupancy_snapshots_pkey");
+            jdbc.execute("""
+                alter table occupancy_snapshots
+                add primary key (id, recorded_at)
+                """);
+        } catch (Exception exception) {
+            log.debug("occupancy_snapshots primary key already matches hypertable requirements: {}", exception.getMessage());
+        }
+    }
+
+    private void prepareParkingSessionsTable() {
+        jdbc.execute("""
+            create table if not exists parking_sessions (
+                id uuid not null,
+                user_id uuid,
+                parking_lot_id uuid not null,
+                vehicle_id uuid,
+                zone_type text not null,
+                entry_time timestamptz not null,
+                exit_time timestamptz not null,
+                revenue_euros numeric(8, 2),
+                primary key (id, entry_time)
+            )
+            """);
+    }
+
+    private void prepareAlertsTable() {
+        jdbc.execute("""
+            create table if not exists alerts (
+                id uuid not null,
+                parking_lot_id uuid not null,
+                parking_lot_name text,
+                type text not null,
+                severity text not null,
+                state text not null,
+                zone text,
+                spot_number text,
+                sensor_id text,
+                plate text,
+                description text not null,
+                photo_url text,
+                attributed_to text,
+                notes text,
+                resolved_at timestamptz,
+                created_at timestamptz not null,
+                primary key (id, created_at)
+            )
+            """);
+        try {
+            jdbc.execute("alter table alerts add column if not exists parking_lot_name text");
+        } catch (Exception e) {
+            log.debug("alerts.parking_lot_name column already exists: {}", e.getMessage());
+        }
+    }
+
     private void createHypertables() {
-        jdbc.execute("select create_hypertable('occupancy_snapshots', 'recorded_at', if_not_exists => true, migrate_data => true)");
-        jdbc.execute("select create_hypertable('parking_sessions', 'entry_time', if_not_exists => true, migrate_data => true)");
-        jdbc.execute("select create_hypertable('alerts', 'created_at', if_not_exists => true, migrate_data => true)");
+        boolean occupancyHypertable = createHypertable("occupancy_snapshots", "recorded_at");
+        boolean parkingSessionsHypertable = createHypertable("parking_sessions", "entry_time");
+        boolean alertsHypertable = createHypertable("alerts", "created_at");
+        if (!occupancyHypertable || !parkingSessionsHypertable || !alertsHypertable) {
+            throw new IllegalStateException("One or more Timescale tables could not be converted to hypertables.");
+        }
         log.info("TimescaleDB hypertables ready.");
+    }
+
+    private boolean createHypertable(String tableName, String timeColumn) {
+        try {
+            jdbc.execute(
+                "select create_hypertable('%s', '%s', if_not_exists => true, migrate_data => true)"
+                    .formatted(tableName, timeColumn)
+            );
+            return true;
+        } catch (Exception exception) {
+            String message = exception.getMessage();
+            if (message != null && message.contains("TS103")) {
+                log.info(
+                    "Skipping hypertable conversion for {} because its unique key does not include {}.",
+                    tableName, timeColumn
+                );
+                return false;
+            }
+            throw exception;
+        }
     }
 
     private void createUdfs() {
@@ -102,7 +207,7 @@ public class TimescaleHypertableInitializer implements ApplicationRunner {
                 """);
             log.info("Continuous aggregate cagg_hourly_occupancy created.");
         } catch (Exception e) {
-            log.debug("cagg_hourly_occupancy already exists, skipping creation.");
+            log.debug("cagg_hourly_occupancy already exists or could not be created: {}", e.getMessage());
         }
     }
 
@@ -123,7 +228,7 @@ public class TimescaleHypertableInitializer implements ApplicationRunner {
                 )
                 """);
         } catch (Exception e) {
-            log.debug("Compression settings already applied: {}", e.getMessage());
+            log.debug("Compression settings skipped: {}", e.getMessage());
         }
     }
 
@@ -160,37 +265,6 @@ public class TimescaleHypertableInitializer implements ApplicationRunner {
                 """);
         } catch (Exception e) {
             log.debug("idx_alerts_active skipped: {}", e.getMessage());
-        }
-    }
-
-    private void createPaymentIndexes() {
-        try {
-            jdbc.execute("""
-                create index if not exists idx_payment_records_reservation_id
-                on payment_records (reservation_id, created_at desc)
-                """);
-            jdbc.execute("""
-                create index if not exists idx_payment_records_stripe_session_id
-                on payment_records (stripe_session_id)
-                where stripe_session_id is not null
-                """);
-            jdbc.execute("""
-                create index if not exists idx_payment_records_payment_intent_id
-                on payment_records (payment_intent_id)
-                where payment_intent_id is not null
-                """);
-            jdbc.execute("""
-                create index if not exists idx_payment_records_status
-                on payment_records (status, created_at desc)
-                where status in ('PENDING', 'COMPLETED')
-                """);
-            jdbc.execute("""
-                create index if not exists idx_stripe_events_processed_at
-                on processed_stripe_events (processed_at desc)
-                """);
-            log.info("Payment indexes ready.");
-        } catch (Exception e) {
-            log.debug("Payment indexes skipped: {}", e.getMessage());
         }
     }
 

@@ -11,7 +11,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import pt.ua.deti.apieasyspot.billing.repository.ParkingSessionRepository;
+import pt.ua.deti.apieasyspot.billing.repository.TimescaleParkingSessionRepository;
 import pt.ua.deti.apieasyspot.common.exception.ConflictException;
 import pt.ua.deti.apieasyspot.common.exception.ForbiddenException;
 import pt.ua.deti.apieasyspot.common.exception.ResourceNotFoundException;
@@ -32,7 +32,6 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -41,7 +40,7 @@ class ManagerTariffServiceTest {
     @Mock private TariffRepository tariffRepository;
     @Mock private TariffAuditRepository tariffAuditRepository;
     @Mock private ParkingLotRepository parkingLotRepository;
-    @Mock private ParkingSessionRepository parkingSessionRepository;
+    @Mock private TimescaleParkingSessionRepository parkingSessionRepository;
 
     @InjectMocks private ManagerTariffService managerTariffService;
 
@@ -90,7 +89,7 @@ class ManagerTariffServiceTest {
 
         when(parkingLotRepository.findByIdWithLock(lotId)).thenReturn(Optional.of(lot));
         when(tariffRepository.findFirstByParkingLotIdOrderByIdAsc(lotId)).thenReturn(Optional.of(existing));
-        when(parkingSessionRepository.countActiveSessionsByParkingLot(lotId)).thenReturn(0L);
+        when(parkingSessionRepository.countActiveByParkingLotId(lotId)).thenReturn(0L);
         when(tariffRepository.save(any(Tariff.class))).thenAnswer(i -> i.getArguments()[0]);
 
         TariffResponse response = managerTariffService.updateTariff(request, "mgr-1");
@@ -109,7 +108,7 @@ class ManagerTariffServiceTest {
 
         when(parkingLotRepository.findByIdWithLock(lotId)).thenReturn(Optional.of(lot));
         when(tariffRepository.findFirstByParkingLotIdOrderByIdAsc(lotId)).thenReturn(Optional.empty());
-        when(parkingSessionRepository.countActiveSessionsByParkingLot(lotId)).thenReturn(0L);
+        when(parkingSessionRepository.countActiveByParkingLotId(lotId)).thenReturn(0L);
         when(tariffRepository.save(any(Tariff.class))).thenAnswer(i -> i.getArguments()[0]);
 
         TariffResponse response = managerTariffService.updateTariff(request, "mgr-1");
@@ -139,7 +138,7 @@ class ManagerTariffServiceTest {
         );
 
         when(parkingLotRepository.findByIdWithLock(lotId)).thenReturn(Optional.of(lot));
-        when(parkingSessionRepository.countActiveSessionsByParkingLot(lotId)).thenReturn(3L);
+        when(parkingSessionRepository.countActiveByParkingLotId(lotId)).thenReturn(3L);
 
         assertThrows(ConflictException.class, () -> managerTariffService.updateTariff(request, "mgr-1"));
         verify(tariffRepository, never()).save(any());
@@ -180,7 +179,7 @@ class ManagerTariffServiceTest {
 
         when(parkingLotRepository.findByIdWithLock(lotId)).thenReturn(Optional.of(lot));
         when(tariffRepository.findFirstByParkingLotIdOrderByIdAsc(lotId)).thenReturn(Optional.of(existing));
-        when(parkingSessionRepository.countActiveSessionsByParkingLot(lotId)).thenReturn(0L);
+        when(parkingSessionRepository.countActiveByParkingLotId(lotId)).thenReturn(0L);
         when(tariffRepository.save(any(Tariff.class))).thenAnswer(i -> i.getArguments()[0]);
 
         TariffResponse response = managerTariffService.updateTariff(request, "mgr-1");
@@ -202,7 +201,7 @@ class ManagerTariffServiceTest {
 
         when(parkingLotRepository.findByIdWithLock(lotId)).thenReturn(Optional.of(lot));
         when(tariffRepository.findFirstByParkingLotIdOrderByIdAsc(lotId)).thenReturn(Optional.of(existing));
-        when(parkingSessionRepository.countActiveSessionsByParkingLot(lotId)).thenReturn(0L);
+        when(parkingSessionRepository.countActiveByParkingLotId(lotId)).thenReturn(0L);
         when(tariffRepository.save(any(Tariff.class))).thenAnswer(i -> i.getArguments()[0]);
 
         TariffResponse response = managerTariffService.updateTariff(request, "mgr-1");

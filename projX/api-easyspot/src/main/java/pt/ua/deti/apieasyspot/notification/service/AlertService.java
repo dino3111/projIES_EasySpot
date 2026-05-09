@@ -1,12 +1,11 @@
 package pt.ua.deti.apieasyspot.notification.service;
 
-
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import pt.ua.deti.apieasyspot.common.exception.ResourceNotFoundException;
 import pt.ua.deti.apieasyspot.notification.model.Alert;
 import pt.ua.deti.apieasyspot.notification.model.StateAlert;
-import pt.ua.deti.apieasyspot.notification.repository.AlertRepository;
+import pt.ua.deti.apieasyspot.notification.repository.TimescaleAlertRepository;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -17,11 +16,11 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class AlertService {
 
-    private final AlertRepository alertRepository;
+    private final TimescaleAlertRepository alertRepository;
 
-    public void updateState(UUID id, String rawState){
+    public void updateState(UUID id, String rawState) {
         Alert alert = alertRepository.findById(id)
-            .orElseThrow(()-> new ResourceNotFoundException("Alert not found: " + id));
+            .orElseThrow(() -> new ResourceNotFoundException("Alert not found: " + id));
 
         StateAlert newState = parseState(rawState);
         boolean becomingResolved = newState == StateAlert.RESOLVED && alert.getState() != StateAlert.RESOLVED;
@@ -35,7 +34,6 @@ public class AlertService {
         }
 
         alertRepository.save(alert);
-
     }
 
     private StateAlert parseState(String rawState) {

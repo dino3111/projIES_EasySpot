@@ -18,7 +18,7 @@ import pt.ua.deti.apieasyspot.notification.model.AlertSubscription;
 import pt.ua.deti.apieasyspot.notification.model.AlertType;
 import pt.ua.deti.apieasyspot.notification.model.SeverityAlert;
 import pt.ua.deti.apieasyspot.notification.model.StateAlert;
-import pt.ua.deti.apieasyspot.notification.repository.AlertRepository;
+import pt.ua.deti.apieasyspot.notification.repository.TimescaleAlertRepository;
 import pt.ua.deti.apieasyspot.notification.repository.AlertSubscriptionRepository;
 import pt.ua.deti.apieasyspot.auth.model.User;
 import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
@@ -43,7 +43,7 @@ class AlertControllerIT {
     WebApplicationContext wac;
 
     @Autowired
-    AlertRepository alertRepository;
+    TimescaleAlertRepository alertRepository;
 
     @Autowired
     AlertSubscriptionRepository alertSubscriptionRepository;
@@ -240,7 +240,7 @@ class AlertControllerIT {
         ParkingLot lot = parkingLotRepository.save(lot("Test Lot"));
 
         Alert alert = new Alert();
-        alert.setParkingLot(lot);
+        alert.setParkingLotId(lot.getId());
         alert.setType(AlertType.SENSOR);
         alert.setSeverity(SeverityAlert.CRITICAL);
         alert.setState(state);

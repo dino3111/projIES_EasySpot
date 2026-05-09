@@ -3,17 +3,26 @@ import { type SensorDevice, type MaintenanceOrder } from '../../../data/technici
 import { STATUS_COLOR, STATUS_ICON, STATUS_LABEL, PRIO_COLOR, PRIO_LABEL, type TarefaFiltro } from './maintenanceTypes';
 import { QuickStat, EmptyState } from './shared';
 
+type TasksTabProps = Readonly<{
+  orders: ReadonlyArray<MaintenanceOrder>;
+  sensors: ReadonlyArray<SensorDevice>;
+  onUpdate: (id: string, estado: 'em-progresso' | 'concluida') => void;
+  onNewOrder: () => void;
+}>;
+
+type TarefaCardProps = Readonly<{
+  order: MaintenanceOrder;
+  sensor?: SensorDevice;
+  onUpdate: (id: string, estado: 'em-progresso' | 'concluida') => void;
+  hasBorder: boolean;
+}>;
+
 export function TasksTab({
   orders,
   sensors,
   onUpdate,
   onNewOrder,
-}: {
-  orders: MaintenanceOrder[];
-  sensors: SensorDevice[];
-  onUpdate: (id: string, estado: 'em-progresso' | 'concluida') => void;
-  onNewOrder: () => void;
-}) {
+}: TasksTabProps) {
   const [tarefaFil, setTarefaFil] = useState<TarefaFiltro>('urgente');
 
   const urgentes   = orders.filter(o => (o.prioridade === 'critica' || o.prioridade === 'alta') && o.estado === 'pendente');
@@ -21,11 +30,21 @@ export function TasksTab({
   const pendentes  = orders.filter(o => (o.prioridade === 'media' || o.prioridade === 'baixa') && o.estado === 'pendente');
   const concluidas = orders.filter(o => o.estado === 'concluida');
 
-  const visibleOrders =
-    tarefaFil === 'urgente'      ? urgentes   :
-    tarefaFil === 'em-progresso' ? emCurso    :
-    tarefaFil === 'pendente'     ? pendentes  :
-                                   concluidas;
+  let visibleOrders: MaintenanceOrder[];
+  switch (tarefaFil) {
+    case 'urgente':
+      visibleOrders = urgentes;
+      break;
+    case 'em-progresso':
+      visibleOrders = emCurso;
+      break;
+    case 'pendente':
+      visibleOrders = pendentes;
+      break;
+    case 'concluida':
+      visibleOrders = concluidas;
+      break;
+  }
 
   const filterConfig = {
     urgente:        { icon: 'fa-circle-exclamation', label: 'Urgente',    borderColor: 'border-red-500/30',   bg: 'rgba(212,24,61,0.04)' },
@@ -89,12 +108,7 @@ export function TasksTab({
 
 function TarefaCard({
   order, sensor, onUpdate, hasBorder,
-}: {
-  order: MaintenanceOrder;
-  sensor?: SensorDevice;
-  onUpdate: (id: string, estado: 'em-progresso' | 'concluida') => void;
-  hasBorder: boolean;
-}) {
+}: TarefaCardProps) {
   const priColor = PRIO_COLOR[order.prioridade];
   return (
     <div className={`bg-card px-4 py-3.5 flex items-start gap-3 ${hasBorder ? 'border-b border-border' : ''}`}>
@@ -108,11 +122,11 @@ function TarefaCard({
         </div>
         <p className="text-foreground/75" style={{ fontSize: '0.78rem', lineHeight: 1.4 }}>{order.descricao}</p>
         <div className="flex flex-wrap gap-3 mt-1" style={{ fontSize: '0.7rem', color: 'var(--color-muted-foreground)' }}>
-          <span><i className="fas fa-location-dot mr-1" aria-hidden="true"></i>{order.parque}</span>
-          <span style={{ fontFamily: 'monospace' }}><i className="fas fa-microchip mr-1" aria-hidden="true"></i>{order.sensorId}</span>
+          <span><i className="fas fa-location-dot mr-1" aria-hidden="true"></i>{' '}{order.parque}</span>
+          <span style={{ fontFamily: 'monospace' }}><i className="fas fa-microchip mr-1" aria-hidden="true"></i>{' '}{order.sensorId}</span>
           {order.prazo && (
             <span className="text-amber-600 dark:text-amber-400">
-              <i className="fas fa-clock mr-1" aria-hidden="true"></i>
+              <i className="fas fa-clock mr-1" aria-hidden="true"></i>{' '}
               {new Date(order.prazo).toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
             </span>
           )}
@@ -126,7 +140,7 @@ function TarefaCard({
         )}
         {order.notas && (
           <p className="mt-1 text-muted-foreground" style={{ fontSize: '0.7rem' }}>
-            <i className="fas fa-note-sticky mr-1" aria-hidden="true"></i>{order.notas}
+            <i className="fas fa-note-sticky mr-1" aria-hidden="true"></i>{' '}{order.notas}
           </p>
         )}
       </div>

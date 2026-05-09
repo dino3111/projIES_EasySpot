@@ -151,6 +151,7 @@ public class DriverSpendingService {
         try {
             return new ParsedDate(OffsetDateTime.parse(raw), false);
         } catch (DateTimeParseException ignored) {
+            // Fallback to LocalDate if OffsetDateTime fails
         }
         try {
             LocalDate date = LocalDate.parse(raw);

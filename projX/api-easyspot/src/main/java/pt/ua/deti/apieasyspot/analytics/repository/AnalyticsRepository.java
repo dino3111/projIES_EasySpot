@@ -1,6 +1,7 @@
 package pt.ua.deti.apieasyspot.analytics.repository;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import pt.ua.deti.apieasyspot.analytics.dto.*;
@@ -8,74 +9,69 @@ import pt.ua.deti.apieasyspot.analytics.dto.*;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.format.TextStyle;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Repository
 @RequiredArgsConstructor
 public class AnalyticsRepository {
 
-    private final JdbcTemplate jdbc;
+    private final @Qualifier("jdbcTemplate") JdbcTemplate jdbc;
+    private final @Qualifier("timescaleJdbcTemplate") JdbcTemplate timescaleJdbc;
 
     public long countEntriesToday() {
-        Long result = jdbc.queryForObject(
+        return timescaleJdbc.queryForObject(
             "select COUNT(*) from parking_sessions where entry_time >= current_date and entry_time < current_date + interval '1 day'",
             Long.class);
-        return result != null ? result : 0L;
     }
 
     public Long countEntriesYesterday() {
-        Long result = jdbc.queryForObject(
+        return timescaleJdbc.queryForObject(
             "select count(*) from parking_sessions where entry_time >= current_date - interval '1 day' and entry_time < current_date",
             Long.class);
-        return result != null ? result : 0L;
     }
 
     public BigDecimal revenueToday() {
-        BigDecimal result = jdbc.queryForObject(
+        return timescaleJdbc.queryForObject(
             "select coalesce(sum(revenue_euros), 0) from parking_sessions where exit_time >= current_date AND exit_time < current_date + interval '1 day'",
             BigDecimal.class);
-        return result != null ? result : BigDecimal.ZERO;
     }
 
     public BigDecimal revenueYesterday() {
-        BigDecimal result = jdbc.queryForObject(
+        return timescaleJdbc.queryForObject(
             "select coalesce(sum(revenue_euros), 0) from parking_sessions where exit_time >= current_date - interval '1 day' and exit_time < current_date",
             BigDecimal.class);
-        return result != null ? result : BigDecimal.ZERO;
     }
 
     public Double avgSessionDurationMinutes() {
-        return jdbc.queryForObject(
+        return timescaleJdbc.queryForObject(
             "select avg(extract(epoch from (exit_time - entry_time)) / 60) from parking_sessions where exit_time >= current_date and exit_time < current_date + interval '1 day' and exit_time is not null",
             Double.class);
     }
 
     public long countOpenAlerts() {
-        Long result = jdbc.queryForObject("select count(*) from alerts where state = 'OPEN'", Long.class);
-        return result != null ? result : 0L;
+        return timescaleJdbc.queryForObject("select count(*) from alerts where state = 'OPEN'", Long.class);
     }
 
     public int countActiveLots() {
-        Long result = jdbc.queryForObject("select count(*) from parking_lots", Long.class);
-        return result != null ? result.intValue() : 0;
+        return jdbc.queryForObject("select count(*) from parking_lots", Long.class).intValue();
     }
 
     public int[] currentOccupancy() {
-        Integer[] result = jdbc.queryForObject(
+        Integer[] result = timescaleJdbc.queryForObject(
             "select coalesce(sum(occupied_count), 0), coalesce(sum(total_count), 0) from v_latest_occupancy",
             (rs, rowNum) -> new Integer[]{rs.getObject(1, Integer.class), rs.getObject(2, Integer.class)});
-        if (result == null || result[0] == null) return new int[]{0, 0};
         return new int[]{result[0], result[1]};
     }
 
     public List<DailyMetric> last7DaysMetrics() {
-        return jdbc.query(
+        return timescaleJdbc.query(
             """
             select date(entry_time) as day,
                    count(*) as entries,
@@ -96,7 +92,7 @@ public class AnalyticsRepository {
     }
 
     public List<ZoneOccupancyDto> zoneOccupancy() {
-        return jdbc.query(
+        return timescaleJdbc.query(
             """
             select zone_type, sum(occupied_count) as occupied, sum(total_count) as total
             from v_latest_occupancy
@@ -110,7 +106,7 @@ public class AnalyticsRepository {
     }
 
     public List<HourlyOccupancyDto> hourlyOccupancy() {
-        return jdbc.query(
+        return timescaleJdbc.query(
             """
             select date_trunc('hour', recorded_at) as hour_bucket,
                    avg(fn_occupancy_pct(occupied_count, total_count)) as occupancy_pct
@@ -128,13 +124,12 @@ public class AnalyticsRepository {
     }
 
     public List<AlertSummary> last5Alerts() {
-        return jdbc.query(
+        return timescaleJdbc.query(
             """
-            select a.id, a.type, pl.name as park, a.zone, a.sensor_id, a.plate,
-                   a.description, a.severity, a.state, a.created_at, a.attributed_to, a.notes
-            from alerts a
-            join parking_lots pl on pl.id = a.parking_lot_id
-            order by a.created_at desc
+            select id, type, parking_lot_name as park, zone, sensor_id, plate,
+                   description, severity, state, created_at, attributed_to, notes
+            from alerts
+            order by created_at desc
             limit 5
             """,
             (rs, rowNum) -> new AlertSummary(
@@ -153,34 +148,62 @@ public class AnalyticsRepository {
     }
 
     public List<ParkSummary> parkPerformance() {
-        return jdbc.query(
+        Map<UUID, String[]> lots = jdbc.query(
+            "select id, name, city from parking_lots",
+            (rs, rowNum) -> Map.entry(
+                UUID.fromString(rs.getString("id")),
+                new String[]{rs.getString("name"), rs.getString("city")}
+            )
+        ).stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+        record SessionAgg(UUID parkId, long entries, BigDecimal revenue) {}
+        Map<UUID, SessionAgg> sessionsByPark = timescaleJdbc.query(
             """
-            select pl.name, pl.city,
-                   count(ps.id) as entries,
-                   coalesce(sum(ps.revenue_euros), 0) as revenue,
-                   coalesce(round(avg(fn_occupancy_pct(snap.occupied::int, snap.total_spots::int))), 0) as occ_pct
-            from parking_lots pl
-            left join parking_sessions ps
-                on ps.parking_lot_id = pl.id
-                and ps.entry_time >= current_date
-                and ps.entry_time < current_date + interval '1 day'
-            left join (
-                select parking_lot_id,
-                       sum(occupied_count) as occupied,
-                       sum(total_count) as total_spots
-                from v_latest_occupancy
-                group by parking_lot_id
-            ) snap on snap.parking_lot_id = pl.id
-            group by pl.id, pl.name, pl.city
-            order by revenue desc
+            select parking_lot_id,
+                   count(*) as entries,
+                   coalesce(sum(revenue_euros), 0) as revenue
+            from parking_sessions
+            where entry_time >= current_date
+              and entry_time < current_date + interval '1 day'
+            group by parking_lot_id
             """,
-            (rs, rowNum) -> new ParkSummary(
-                rs.getString("name"),
-                rs.getString("city"),
+            (rs, rowNum) -> new SessionAgg(
+                UUID.fromString(rs.getString("parking_lot_id")),
                 rs.getLong("entries"),
-                rs.getInt("occ_pct"),
-                rs.getBigDecimal("revenue")));
+                rs.getBigDecimal("revenue")
+            )
+        ).stream().collect(Collectors.toMap(SessionAgg::parkId, a -> a));
+
+        List<ParkRevenueRow> revenueRows = lots.entrySet().stream()
+            .map(e -> {
+                SessionAgg agg = sessionsByPark.getOrDefault(e.getKey(), new SessionAgg(e.getKey(), 0L, BigDecimal.ZERO));
+                return new ParkRevenueRow(e.getKey(), e.getValue()[0], e.getValue()[1], agg.entries(), agg.revenue());
+            })
+            .sorted((a, b) -> b.revenue().compareTo(a.revenue()))
+            .toList();
+
+        Map<UUID, Integer> occupancyByParkId = timescaleJdbc.query(
+            """
+            select parking_lot_id,
+                   coalesce(round(avg(fn_occupancy_pct(occupied_count::int, total_count::int))), 0) as occ_pct
+            from v_latest_occupancy
+            group by parking_lot_id
+            """,
+            (rs, rowNum) -> Map.entry(UUID.fromString(rs.getString("parking_lot_id")), rs.getInt("occ_pct"))
+        ).stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+        return revenueRows.stream()
+            .map(row -> new ParkSummary(
+                row.name(),
+                row.city(),
+                row.entries(),
+                occupancyByParkId.getOrDefault(row.parkId(), 0),
+                row.revenue()
+            ))
+            .toList();
     }
+
+    private record ParkRevenueRow(UUID parkId, String name, String city, long entries, BigDecimal revenue) {}
 
     private String zoneLabel(String zoneType) {
         return switch (zoneType) {

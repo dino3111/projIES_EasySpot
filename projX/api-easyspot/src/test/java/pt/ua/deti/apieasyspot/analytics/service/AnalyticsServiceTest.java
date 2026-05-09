@@ -33,7 +33,7 @@ class AnalyticsServiceTest {
     @Test
     @DisplayName("percentChange returns 0 when previous is zero (safe division)")
     void percentChange_zeroPrevious_returnsZero() {
-        assertThat(service.percentChange(BigDecimal.ZERO, BigDecimal.valueOf(100))).isEqualTo(0.0);
+        assertThat(service.percentChange(BigDecimal.ZERO, BigDecimal.valueOf(100))).isZero();
     }
 
     @ParameterizedTest
@@ -47,7 +47,7 @@ class AnalyticsServiceTest {
     @Test
     @DisplayName("safeRate returns 0 when total is zero")
     void safeRate_zeroTotal_returnsZero() {
-        assertThat(service.safeRate(50, 0)).isEqualTo(0);
+        assertThat(service.safeRate(50, 0)).isZero();
     }
 
     @Test

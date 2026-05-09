@@ -2,7 +2,6 @@ package pt.ua.deti.apieasyspot.auth.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -28,12 +27,10 @@ public class AccountTypeController {
     private final UserProfileService userProfileService;
 
     @Operation(summary = "Set or update the authenticated user's role")
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Role updated successfully"),
-        @ApiResponse(responseCode = "400", description = "Invalid or missing role"),
-        @ApiResponse(responseCode = "401", description = "Unauthenticated"),
-        @ApiResponse(responseCode = "404", description = "User not found")
-    })
+    @ApiResponse(responseCode = "200", description = "Role updated successfully")
+    @ApiResponse(responseCode = "400", description = "Invalid or missing role")
+    @ApiResponse(responseCode = "401", description = "Unauthenticated")
+    @ApiResponse(responseCode = "404", description = "User not found")
     @PostMapping("/type")
     public ResponseEntity<AccountTypeResponse> updateAccountType(
         @RequestBody @Valid AccountTypeUpdateRequest request,

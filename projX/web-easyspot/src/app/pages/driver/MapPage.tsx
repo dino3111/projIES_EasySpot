@@ -1,9 +1,11 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { mockParkingLots, simulateRealTimeUpdate, type ParkingLot } from '../../data/parkingData';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import type { ParkingLot } from '../../data/parkingTypes';
 import { LeafletMap } from '../../components/parking/LeafletMap';
 import { VehiclePicker } from '../../components/shared/VehiclePicker';
 import { useProfile } from '../../context/ProfileContext';
 import { ParkPanel } from './components/ParkPanel';
+import { fetchParkDetails, fetchParksList } from '../../services/parksApi';
+import { subscribeSpaceAvailableAlerts } from '../../services/parksApi';
 
 type FilterType = 'all' | 'ev' | 'accessible' | 'available';
 
@@ -15,7 +17,8 @@ const FILTERS: { id: FilterType; icon: string; label: string }[] = [
 ];
 
 function getStatusInfo(lot: ParkingLot) {
-  const pct = lot.availableSpots / lot.totalSpots;
+  const safeTotal = Math.max(1, lot.totalSpots);
+  const pct = lot.availableSpots / safeTotal;
   if (lot.availableSpots === 0) return { label: 'Lotado',     hex: '#ef4444', iconCls: 'fa-circle-xmark',          labelColor: 'text-destructive' };
   if (pct < 0.2)               return { label: 'Quase cheio', hex: '#f59e0b', iconCls: 'fa-triangle-exclamation', labelColor: 'text-warning' };
   return                              { label: 'Disponível', hex: '#22c55e', iconCls: 'fa-circle-check',          labelColor: 'text-success' };
@@ -25,11 +28,14 @@ export function MapPage() {
   const { vehicles } = useProfile();
   const primaryVehicle = vehicles.find((v) => v.isPrimary) ?? vehicles[0] ?? null;
 
-  const [parkingLots, setParkingLots] = useState<ParkingLot[]>(mockParkingLots);
+  const [parkingLots, setParkingLots] = useState<ParkingLot[]>([]);
   const [selectedLotId, setSelectedLotId] = useState<string | null>(null);
+  const [selectedLotDetails, setSelectedLotDetails] = useState<ParkingLot | null>(null);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(primaryVehicle?.id ?? null);
+  const [subscribeMessage, setSubscribeMessage] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -40,40 +46,73 @@ export function MapPage() {
   }, [selectedVehicleId, vehicles]);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setParkingLots((current) =>
-        current.map((lot) => (Math.random() > 0.7 ? simulateRealTimeUpdate(lot) : lot))
-      );
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const selectedVehicle = useMemo(
-    () => vehicles.find((v) => v.id === selectedVehicleId) ?? null,
-    [vehicles, selectedVehicleId],
-  );
-
-  const filteredLots = useMemo(() => {
-    return parkingLots.filter((lot) => {
-      if (activeFilter === 'ev') {
-        if (!lot.hasEVCharger || !lot.evChargers?.length) return false;
-        if (selectedVehicle?.isEV && selectedVehicle.chargerTypes?.length) {
-          const hasCompatible = lot.evChargers.some((c) => selectedVehicle.chargerTypes!.includes(c.type));
-          if (!hasCompatible) return false;
-        }
+    let mounted = true;
+    const load = async () => {
+      try {
+        setLoading(true);
+        const data = await fetchParksList({
+          page: 1,
+          pageSize: 200,
+          textQuery: searchQuery || undefined,
+          vehicleId: selectedVehicleId,
+          evOnly: activeFilter === 'ev',
+          accessibleOnly: activeFilter === 'accessible',
+          availableOnly: activeFilter === 'available',
+        });
+        if (mounted) setParkingLots(data.items);
+      } finally {
+        if (mounted) setLoading(false);
       }
-      if (activeFilter === 'accessible' && (!lot.hasAccessible || !lot.accessibleSpots?.length)) return false;
-      if (activeFilter === 'available' && lot.availableSpots === 0) return false;
-      if (searchQuery) {
-        const q = searchQuery.toLowerCase();
-        if (!lot.name.toLowerCase().includes(q) && !lot.address.toLowerCase().includes(q)) return false;
-      }
-      return true;
-    });
-  }, [parkingLots, activeFilter, searchQuery, selectedVehicle]);
+    };
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, [searchQuery, activeFilter, selectedVehicleId]);
 
-  const selectedLot = parkingLots.find((l) => l.id === selectedLotId) ?? null;
+  useEffect(() => {
+    if (!selectedLotId) {
+      setSelectedLotDetails(null);
+      return;
+    }
+    let active = true;
+    fetchParkDetails(selectedLotId)
+      .then((details) => {
+        if (!active) return;
+        setSelectedLotDetails(details);
+      })
+      .catch(() => {
+        if (!active) return;
+        setSelectedLotDetails(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [selectedLotId]);
+
+  useEffect(() => {
+    if (!selectedLotId) return;
+    const hasSelectedLot = parkingLots.some((lot) => lot.id === selectedLotId);
+    if (!hasSelectedLot) {
+      setSelectedLotId(null);
+      setSelectedLotDetails(null);
+    }
+  }, [parkingLots, selectedLotId]);
+
+  const filteredLots = parkingLots;
+
+  const selectedLot = selectedLotDetails ?? (parkingLots.find((l) => l.id === selectedLotId) ?? null);
   const handleSelectLot = useCallback((id: string) => setSelectedLotId(id), []);
+  const handleSubscribeSelected = useCallback(async () => {
+    if (!selectedLotId) return;
+    try {
+      setSubscribeMessage(null);
+      await subscribeSpaceAvailableAlerts([selectedLotId]);
+      setSubscribeMessage('Alerta ativado para este parque.');
+    } catch {
+      setSubscribeMessage('Não foi possível ativar alerta para este parque.');
+    }
+  }, [selectedLotId]);
 
   return (
     <div className="relative w-full flex overflow-hidden bg-background overscroll-none" style={{ height: 'calc(100vh - 56px)' }}>
@@ -90,7 +129,9 @@ export function MapPage() {
         onVehicleSelect={setSelectedVehicleId}
         activeFilter={activeFilter}
         onFilterChange={setActiveFilter}
-        filteredCount={filteredLots.length}
+        filteredCount={loading ? 0 : filteredLots.length}
+        onSubscribeSelected={selectedLot ? () => void handleSubscribeSelected() : undefined}
+        subscribeMessage={subscribeMessage}
       />
 
       {selectedLot ? (
@@ -123,18 +164,20 @@ export function MapPage() {
 }
 
 interface ControlBarProps {
-  searchQuery: string;
-  onSearchChange: (q: string) => void;
-  searchRef: React.RefObject<HTMLInputElement>;
-  vehicles: ReturnType<typeof useProfile>['vehicles'];
-  selectedVehicleId: string | null;
-  onVehicleSelect: (id: string | null) => void;
-  activeFilter: FilterType;
-  onFilterChange: (f: FilterType) => void;
-  filteredCount: number;
+  readonly searchQuery: string;
+  readonly onSearchChange: (q: string) => void;
+  readonly searchRef: React.RefObject<HTMLInputElement>;
+  readonly vehicles: ReturnType<typeof useProfile>['vehicles'];
+  readonly selectedVehicleId: string | null;
+  readonly onVehicleSelect: (id: string | null) => void;
+  readonly activeFilter: FilterType;
+  readonly onFilterChange: (f: FilterType) => void;
+  readonly filteredCount: number;
+  readonly onSubscribeSelected?: () => void;
+  readonly subscribeMessage: string | null;
 }
 
-function ControlBar({ searchQuery, onSearchChange, searchRef, vehicles, selectedVehicleId, onVehicleSelect, activeFilter, onFilterChange, filteredCount }: ControlBarProps) {
+function ControlBar({ searchQuery, onSearchChange, searchRef, vehicles, selectedVehicleId, onVehicleSelect, activeFilter, onFilterChange, filteredCount, onSubscribeSelected, subscribeMessage }: ControlBarProps) {
   return (
     <div className="absolute top-3 left-3 right-3 z-10 pointer-events-none">
       <div className="flex flex-col gap-2">
@@ -147,12 +190,26 @@ function ControlBar({ searchQuery, onSearchChange, searchRef, vehicles, selected
           )}
         </div>
         <FilterRow activeFilter={activeFilter} onFilterChange={onFilterChange} filteredCount={filteredCount} />
+        {onSubscribeSelected && (
+          <div className="pointer-events-auto">
+            <button type="button" className="btn btn-xs btn-outline" onClick={onSubscribeSelected}>
+              <i className="fas fa-bell" aria-hidden="true" /> Alertar-me deste parque
+            </button>
+            {subscribeMessage && <span className="ml-2 text-xs text-muted-foreground">{subscribeMessage}</span>}
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-function SearchBox({ searchQuery, onSearchChange, searchRef }: { searchQuery: string; onSearchChange: (q: string) => void; searchRef: React.RefObject<HTMLInputElement> }) {
+interface SearchBoxProps {
+  readonly searchQuery: string;
+  readonly onSearchChange: (q: string) => void;
+  readonly searchRef: React.RefObject<HTMLInputElement>;
+}
+
+function SearchBox({ searchQuery, onSearchChange, searchRef }: SearchBoxProps) {
   return (
     <div className="flex items-center gap-2 bg-card/95 backdrop-blur-md rounded-2xl px-4 py-2.5 shadow-xl border border-border pointer-events-auto flex-1 min-w-0">
       <i className="fas fa-magnifying-glass text-primary flex-shrink-0 text-sm" aria-hidden="true" />
@@ -174,7 +231,13 @@ function SearchBox({ searchQuery, onSearchChange, searchRef }: { searchQuery: st
   );
 }
 
-function FilterRow({ activeFilter, onFilterChange, filteredCount }: { activeFilter: FilterType; onFilterChange: (f: FilterType) => void; filteredCount: number }) {
+interface FilterRowProps {
+  readonly activeFilter: FilterType;
+  readonly onFilterChange: (f: FilterType) => void;
+  readonly filteredCount: number;
+}
+
+function FilterRow({ activeFilter, onFilterChange, filteredCount }: FilterRowProps) {
   return (
     <div className="flex gap-2 pointer-events-auto overflow-x-auto scrollbar-none overscroll-x-contain">
       {FILTERS.map((f) => (

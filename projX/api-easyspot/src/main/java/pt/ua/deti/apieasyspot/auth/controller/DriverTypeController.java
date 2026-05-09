@@ -2,7 +2,6 @@ package pt.ua.deti.apieasyspot.auth.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -28,13 +27,11 @@ public class DriverTypeController {
     private final UserProfileService userProfileService;
 
     @Operation(summary = "Update authenticated driver type")
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Driver type updated"),
-        @ApiResponse(responseCode = "400", description = "Invalid driver type payload"),
-        @ApiResponse(responseCode = "401", description = "Unauthenticated"),
-        @ApiResponse(responseCode = "403", description = "Only DRIVER role can update this value"),
-        @ApiResponse(responseCode = "404", description = "Authenticated user not found")
-    })
+    @ApiResponse(responseCode = "200", description = "Driver type updated")
+    @ApiResponse(responseCode = "400", description = "Invalid driver type payload")
+    @ApiResponse(responseCode = "401", description = "Unauthenticated")
+    @ApiResponse(responseCode = "403", description = "Only DRIVER role can update this value")
+    @ApiResponse(responseCode = "404", description = "Authenticated user not found")
     @PostMapping("/type")
     @PreAuthorize("hasRole('DRIVER')")
     public ResponseEntity<DriverTypeResponse> updateDriverType(

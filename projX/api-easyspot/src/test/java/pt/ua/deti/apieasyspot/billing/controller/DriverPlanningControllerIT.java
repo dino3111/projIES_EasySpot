@@ -11,7 +11,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
-import pt.ua.deti.apieasyspot.billing.dto.ParkingPlanningRequest.OrderBy;
 import pt.ua.deti.apieasyspot.billing.dto.ParkingPlanningResponse;
 import pt.ua.deti.apieasyspot.billing.service.ParkingPlanningService;
 import pt.ua.deti.apieasyspot.billing.service.StripeService;

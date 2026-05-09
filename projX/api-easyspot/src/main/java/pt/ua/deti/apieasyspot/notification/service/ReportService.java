@@ -16,7 +16,7 @@ import pt.ua.deti.apieasyspot.notification.model.Alert;
 import pt.ua.deti.apieasyspot.notification.model.AlertType;
 import pt.ua.deti.apieasyspot.notification.model.SeverityAlert;
 import pt.ua.deti.apieasyspot.notification.model.StateAlert;
-import pt.ua.deti.apieasyspot.notification.repository.AlertRepository;
+import pt.ua.deti.apieasyspot.notification.repository.TimescaleAlertRepository;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingLotRepository;
 
@@ -35,14 +35,14 @@ public class ReportService {
         "accessible", "reserved", "ev", "double-parked", "blocking", "other"
     );
 
-    private final AlertRepository alertRepository;
+    private final TimescaleAlertRepository alertRepository;
     private final UserRepository userRepository;
     private final ParkingLotRepository parkingLotRepository;
     private final R2StorageService r2StorageService;
     private final SimpMessagingTemplate messagingTemplate;
 
     @Transactional
-    public ReportResponse create(String authentikUserId, CreateReportRequest request, MultipartFile photo){
+    public ReportResponse create(String authentikUserId, CreateReportRequest request, MultipartFile photo) {
         validateViolationType(request.violationType());
 
         User driver = findUser(authentikUserId);
@@ -53,31 +53,30 @@ public class ReportService {
         Alert alert = buildAlert(request, parkingLot, driver, photoUrl);
         Alert saved = alertRepository.save(alert);
 
-        ReportResponse response = toResponse(saved);
+        ReportResponse response = toResponse(saved, parkingLot);
         messagingTemplate.convertAndSend("/topic/reports", response);
         return response;
     }
 
-    private void validateViolationType(String violationType){
-        if(!VALID_VIOLATION_TYPES.contains(violationType)){
+    private void validateViolationType(String violationType) {
+        if (!VALID_VIOLATION_TYPES.contains(violationType)) {
             throw new IllegalArgumentException("Invalid violation type: " + violationType);
         }
     }
 
-    private void validatePhoto(MultipartFile photo){
-        if(photo.getSize() > MAX_PHOTO_BYTES){
+    private void validatePhoto(MultipartFile photo) {
+        if (photo.getSize() > MAX_PHOTO_BYTES) {
             throw new IllegalArgumentException("Photo size exceeds the limit of 10 MB");
         }
         String contentType = photo.getContentType();
-
-        if(contentType == null || !contentType.startsWith("image/")){
+        if (contentType == null || !contentType.startsWith("image/")) {
             throw new IllegalArgumentException("Only image files are accepted");
         }
     }
 
-    private String uploadPhoto(MultipartFile photo){
+    private String uploadPhoto(MultipartFile photo) {
         validatePhoto(photo);
-        try{
+        try {
             String key = "reports/" + UUID.randomUUID() + "_" + photo.getOriginalFilename();
             return r2StorageService.upload(key, photo.getBytes(), photo.getContentType());
         } catch (IOException e) {
@@ -85,9 +84,10 @@ public class ReportService {
         }
     }
 
-    private Alert buildAlert(CreateReportRequest request, ParkingLot park, User driver, String photoUrl){
+    private Alert buildAlert(CreateReportRequest request, ParkingLot park, User driver, String photoUrl) {
         Alert alert = new Alert();
-        alert.setParkingLot(park);
+        alert.setParkingLotId(park.getId());
+        alert.setParkingLotName(park.getName());
         alert.setType(AlertType.CLIENT);
         alert.setSeverity(toSeverity(request.violationType()));
         alert.setState(StateAlert.OPEN);
@@ -101,29 +101,29 @@ public class ReportService {
         return alert;
     }
 
-    private SeverityAlert toSeverity(String violationType){
-        return switch (violationType){
+    private SeverityAlert toSeverity(String violationType) {
+        return switch (violationType) {
             case "blocking" -> SeverityAlert.CRITICAL;
             default -> SeverityAlert.WARNING;
         };
     }
 
-    private User findUser(String authentikUserId){
+    private User findUser(String authentikUserId) {
         return userRepository.findByAuthentikUserId(authentikUserId)
             .orElseThrow(() -> new ResourceNotFoundException("Authenticated user not found"));
     }
 
-    private ParkingLot findPark(UUID parkingLotId){
+    private ParkingLot findPark(UUID parkingLotId) {
         return parkingLotRepository.findById(parkingLotId)
             .orElseThrow(() -> new ResourceNotFoundException("Parking lot not found: " + parkingLotId));
     }
 
-    private ReportResponse toResponse(Alert alert){
+    private ReportResponse toResponse(Alert alert, ParkingLot parkingLot) {
         return new ReportResponse(
             alert.getId(),
             alert.getType().name(),
-            alert.getParkingLot().getId(),
-            alert.getParkingLot().getName(),
+            parkingLot.getId(),
+            parkingLot.getName(),
             alert.getZone(),
             alert.getSpotNumber(),
             alert.getPlate(),
@@ -134,5 +134,4 @@ public class ReportService {
             alert.getCreatedAt()
         );
     }
-
 }

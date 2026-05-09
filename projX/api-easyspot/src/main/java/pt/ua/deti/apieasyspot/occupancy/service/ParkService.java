@@ -1,18 +1,22 @@
 package pt.ua.deti.apieasyspot.occupancy.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import pt.ua.deti.apieasyspot.common.exception.ResourceNotFoundException;
 import pt.ua.deti.apieasyspot.occupancy.dto.ParkingLotDetailsResponse;
 import pt.ua.deti.apieasyspot.occupancy.dto.ParkingLotSummaryResponse;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
+import pt.ua.deti.apieasyspot.occupancy.model.Tariff;
+import pt.ua.deti.apieasyspot.occupancy.model.ZoneType;
+import pt.ua.deti.apieasyspot.occupancy.repository.TimescaleOccupancySnapshotRepository.ZoneSnapshot;
 import pt.ua.deti.apieasyspot.occupancy.repository.*;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.ArrayList;
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -24,97 +28,107 @@ public class ParkService {
     private final EVChargerRepository evChargerRepository;
     private final AccessibleSpotRepository accessibleSpotRepository;
     private final ParkingSpotRepository parkingSpotRepository;
-    private final JdbcTemplate jdbc;
+    private final @Qualifier("jdbcTemplate") JdbcTemplate jdbc;
+    private final TimescaleOccupancySnapshotRepository timescaleOccupancySnapshotRepository;
 
-    public ParkingLotSummaryResponse searchParks(String textQuery, Integer minAvailableSpaces, List<String> filters, int page, int pageSize) {
+    public ParkingLotSummaryResponse searchParks(String textQuery, Integer minAvailableSpaces, String city, List<String> filters, int page, int pageSize) {
         boolean filterEV = filters != null && filters.contains("EV");
         boolean filterAcc = filters != null && filters.contains("ACCESSIBLE");
-        int offset = (page - 1) * pageSize;
+        List<ParkingLot> allLots = parkingLotRepository.findAll().stream()
+            .filter(lot -> matchesText(lot, textQuery))
+            .filter(lot -> matchesCity(lot, city))
+            .toList();
 
-        StringBuilder sql = buildBaseSql();
-        List<Object> params = new ArrayList<>();
-        appendFilters(sql, params, textQuery, minAvailableSpaces, filterEV, filterAcc);
-        sql.append(" GROUP BY p.id, pa.total_spaces, pa.free_spaces, pa.ev_free, pa.ev_total, pa.acc_free, pa.acc_total");
-        sql.append(" ORDER BY p.name ASC LIMIT ? OFFSET ?");
-        params.add(pageSize);
-        params.add(offset);
-
-        long[] totalItems = {0};
-        List<ParkingLotSummaryResponse.ParkingLotSummary> items = jdbc.query(
-            sql.toString(),
-            (rs, rowNum) -> mapRow(rs, totalItems),
-            params.toArray()
+        Map<UUID, List<ZoneSnapshot>> snapshotsByLot = timescaleOccupancySnapshotRepository.latestByLotIds(
+            allLots.stream().map(ParkingLot::getId).toList()
         );
 
-        int totalPages = totalItems[0] == 0 ? 0 : (int) Math.ceil((double) totalItems[0] / pageSize);
+        List<ParkingLotSummaryResponse.ParkingLotSummary> filtered = allLots.stream()
+            .map(lot -> toSummary(lot, snapshotsByLot.getOrDefault(lot.getId(), List.of())))
+            .filter(summary -> minAvailableSpaces == null || summary.freeSpaces() >= minAvailableSpaces)
+            .filter(summary -> !filterEV || summary.evChargers().total() > 0)
+            .filter(summary -> !filterAcc || summary.accessibleSpaces().total() > 0)
+            .sorted(java.util.Comparator.comparing(ParkingLotSummaryResponse.ParkingLotSummary::name))
+            .toList();
+
+        long totalItems = filtered.size();
+        int offset = Math.max(0, (page - 1) * pageSize);
+        int toIndex = Math.min(filtered.size(), offset + pageSize);
+        List<ParkingLotSummaryResponse.ParkingLotSummary> items =
+            offset >= filtered.size() ? List.of() : filtered.subList(offset, toIndex);
+
+        int totalPages = totalItems == 0 ? 0 : (int) Math.ceil((double) totalItems / pageSize);
         return new ParkingLotSummaryResponse(
             items,
-            new ParkingLotSummaryResponse.PaginationInfo(page, pageSize, totalItems[0], totalPages)
+            new ParkingLotSummaryResponse.PaginationInfo(page, pageSize, totalItems, totalPages)
         );
     }
 
-    private StringBuilder buildBaseSql() {
-        return new StringBuilder("""
-            WITH latest_snapshots AS (
-                SELECT parking_lot_id, zone_type, occupied_count, total_count,
-                    ROW_NUMBER() OVER (PARTITION BY parking_lot_id, zone_type ORDER BY recorded_at DESC) as rn
-                FROM occupancy_snapshots
-            ),
-            latest_only AS (SELECT * FROM latest_snapshots WHERE rn = 1),
-            park_availability AS (
-                SELECT parking_lot_id,
-                    SUM(total_count) as total_spaces,
-                    SUM(total_count - occupied_count) as free_spaces,
-                    SUM(CASE WHEN zone_type = 'EV' THEN total_count ELSE 0 END) as ev_total,
-                    SUM(CASE WHEN zone_type = 'EV' THEN total_count - occupied_count ELSE 0 END) as ev_free,
-                    SUM(CASE WHEN zone_type = 'ACCESSIBLE' THEN total_count ELSE 0 END) as acc_total,
-                    SUM(CASE WHEN zone_type = 'ACCESSIBLE' THEN total_count - occupied_count ELSE 0 END) as acc_free
-                FROM latest_only GROUP BY parking_lot_id
-            )
-            SELECT p.id, p.name, p.address, MIN(t.price_per_hour) as price,
-                   COALESCE(pa.total_spaces, p.total_spaces) as total_spaces,
-                   COALESCE(pa.free_spaces, p.total_spaces) as free_spaces,
-                   COALESCE(pa.ev_free, 0) as ev_free, COALESCE(pa.ev_total, 0) as ev_total,
-                   COALESCE(pa.acc_free, 0) as acc_free, COALESCE(pa.acc_total, 0) as acc_total,
-                   COUNT(*) OVER() as full_count
-            FROM parking_lots p
-            LEFT JOIN park_availability pa ON p.id = pa.parking_lot_id
-            LEFT JOIN tariffs t ON p.id = t.parking_lot_id
-            WHERE 1=1
-            """);
+    public List<String> listCities() {
+        return jdbc.query(
+            "SELECT DISTINCT city FROM parking_lots WHERE city IS NOT NULL AND city <> '' ORDER BY city ASC",
+            (rs, rowNum) -> rs.getString("city")
+        );
     }
 
-    private void appendFilters(StringBuilder sql, List<Object> params, String textQuery, Integer minAvailableSpaces, boolean filterEV, boolean filterAcc) {
-        if (textQuery != null && !textQuery.isBlank()) {
-            sql.append(" AND (p.name ILIKE ? OR p.city ILIKE ? OR p.address ILIKE ?)");
-            String q = "%" + textQuery + "%";
-            params.add(q);
-            params.add(q);
-            params.add(q);
-        }
-        if (minAvailableSpaces != null) {
-            sql.append(" AND COALESCE(pa.free_spaces, p.total_spaces) >= ?");
-            params.add(minAvailableSpaces);
-        }
-        if (filterEV) sql.append(" AND COALESCE(pa.ev_total, 0) > 0");
-        if (filterAcc) sql.append(" AND COALESCE(pa.acc_total, 0) > 0");
-    }
-
-    private ParkingLotSummaryResponse.ParkingLotSummary mapRow(ResultSet rs, long[] totalItems) throws SQLException {
-        totalItems[0] = rs.getLong("full_count");
-        int free = rs.getInt("free_spaces");
-        int total = rs.getInt("total_spaces");
+    private ParkingLotSummaryResponse.ParkingLotSummary toSummary(ParkingLot lot, List<ZoneSnapshot> snapshots) {
+        Availability availability = availabilityFor(lot, snapshots);
         return new ParkingLotSummaryResponse.ParkingLotSummary(
-            UUID.fromString(rs.getString("id")),
-            rs.getString("name"),
-            rs.getString("address"),
-            rs.getBigDecimal("price"),
-            total,
-            free,
-            new ParkingLotSummaryResponse.CountInfo(rs.getInt("ev_free"), rs.getInt("ev_total")),
-            new ParkingLotSummaryResponse.CountInfo(rs.getInt("acc_free"), rs.getInt("acc_total")),
-            classifyAvailability(free, total)
+            lot.getId(),
+            lot.getName(),
+            lot.getCity(),
+            lot.getAddress(),
+            lot.getLatitude(),
+            lot.getLongitude(),
+            lot.getOpeningHours(),
+            minPrice(lot.getId()),
+            availability.totalSpaces(),
+            availability.freeSpaces(),
+            new ParkingLotSummaryResponse.CountInfo(availability.evFree(), availability.evTotal()),
+            new ParkingLotSummaryResponse.CountInfo(availability.accFree(), availability.accTotal()),
+            classifyAvailability(availability.freeSpaces(), availability.totalSpaces())
         );
+    }
+
+    private BigDecimal minPrice(UUID lotId) {
+        return tariffRepository.findByParkingLotId(lotId).stream()
+            .map(Tariff::getPricePerHour)
+            .filter(Objects::nonNull)
+            .min(BigDecimal::compareTo)
+            .orElse(null);
+    }
+
+    private Availability availabilityFor(ParkingLot lot, List<ZoneSnapshot> snapshots) {
+        if (snapshots.isEmpty()) {
+            return new Availability(lot.getTotalSpaces(), lot.getTotalSpaces(), 0, 0, 0, 0);
+        }
+        int totalSpaces = snapshots.stream().mapToInt(ZoneSnapshot::totalCount).sum();
+        int freeSpaces = snapshots.stream().mapToInt(s -> Math.max(0, s.totalCount() - s.occupiedCount())).sum();
+        int evTotal = sumForZone(snapshots, ZoneType.EV, ZoneSnapshot::totalCount);
+        int evFree = sumForZone(snapshots, ZoneType.EV, s -> Math.max(0, s.totalCount() - s.occupiedCount()));
+        int accTotal = sumForZone(snapshots, ZoneType.ACCESSIBLE, ZoneSnapshot::totalCount);
+        int accFree = sumForZone(snapshots, ZoneType.ACCESSIBLE, s -> Math.max(0, s.totalCount() - s.occupiedCount()));
+        return new Availability(totalSpaces, freeSpaces, evTotal, evFree, accTotal, accFree);
+    }
+
+    private int sumForZone(List<ZoneSnapshot> snapshots, ZoneType zoneType, java.util.function.ToIntFunction<ZoneSnapshot> extractor) {
+        return snapshots.stream()
+            .filter(snapshot -> snapshot.zoneType() == zoneType)
+            .mapToInt(extractor)
+            .sum();
+    }
+
+    private boolean matchesText(ParkingLot lot, String textQuery) {
+        if (textQuery == null || textQuery.isBlank()) return true;
+        String query = textQuery.toLowerCase();
+        return lot.getName().toLowerCase().contains(query)
+            || lot.getCity().toLowerCase().contains(query)
+            || lot.getAddress().toLowerCase().contains(query);
+    }
+
+    private boolean matchesCity(ParkingLot lot, String city) {
+        if (city == null || city.isBlank()) return true;
+        return lot.getCity().equalsIgnoreCase(city.trim());
     }
 
     private String classifyAvailability(int free, int total) {
@@ -127,8 +141,9 @@ public class ParkService {
         ParkingLot lot = parkingLotRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Parking lot not found: " + id));
 
-        List<ParkingLotDetailsResponse.ZoneResponse> zones = fetchZones(id);
-        int freeSpaces = zones.stream().mapToInt(ParkingLotDetailsResponse.ZoneResponse::free).sum();
+        List<ZoneSnapshot> snapshots = timescaleOccupancySnapshotRepository.latestByLot(id);
+        Availability availability = availabilityFor(lot, snapshots);
+        List<ParkingLotDetailsResponse.ZoneResponse> zones = toZoneResponses(snapshots);
 
         return new ParkingLotDetailsResponse(
             lot.getId(),
@@ -136,8 +151,8 @@ public class ParkService {
             lot.getAddress(),
             new ParkingLotDetailsResponse.CoordinatesResponse(lot.getLatitude(), lot.getLongitude()),
             lot.getOpeningHours(),
-            lot.getTotalSpaces(),
-            freeSpaces,
+            availability.totalSpaces(),
+            availability.freeSpaces(),
             zones,
             fetchSpots(id),
             fetchEVChargers(id),
@@ -147,30 +162,18 @@ public class ParkService {
         );
     }
 
-    private List<ParkingLotDetailsResponse.ZoneResponse> fetchZones(UUID lotId) {
-        return jdbc.query(
-            """
-            select zone_type, occupied_count, total_count
-            from (
-                select zone_type, occupied_count, total_count,
-                       row_number() over (
-                           partition by zone_type
-                           order by recorded_at desc
-                       ) as rn
-                from occupancy_snapshots
-                where parking_lot_id = ?
-            ) latest
-            where rn = 1
-            """,
-            (rs, rowNum) -> {
-                int occupied = rs.getInt("occupied_count");
-                int total = rs.getInt("total_count");
-                int free = Math.max(0, total - occupied);
-                int pct = total > 0 ? (int) Math.round((double) occupied / total * 100) : 0;
-                return new ParkingLotDetailsResponse.ZoneResponse(rs.getString("zone_type"), total, free, pct);
-            },
-            lotId
-        );
+    private List<ParkingLotDetailsResponse.ZoneResponse> toZoneResponses(List<ZoneSnapshot> snapshots) {
+        return snapshots.stream()
+            .map(snapshot -> {
+                int free = Math.max(0, snapshot.totalCount() - snapshot.occupiedCount());
+                int pct = snapshot.totalCount() > 0
+                    ? (int) Math.round((double) snapshot.occupiedCount() / snapshot.totalCount() * 100)
+                    : 0;
+                return new ParkingLotDetailsResponse.ZoneResponse(
+                    snapshot.zoneType().name(), snapshot.totalCount(), free, pct
+                );
+            })
+            .toList();
     }
 
     private List<ParkingLotDetailsResponse.SpotResponse> fetchSpots(UUID lotId) {
@@ -200,4 +203,13 @@ public class ParkService {
                 t.getName(), t.getDescription(), t.getPricePerHour(), t.getMaxDaily(), t.getMonthly(), t.getPricePerKwh()))
             .toList();
     }
+
+    private record Availability(
+        int totalSpaces,
+        int freeSpaces,
+        int evTotal,
+        int evFree,
+        int accTotal,
+        int accFree
+    ) {}
 }

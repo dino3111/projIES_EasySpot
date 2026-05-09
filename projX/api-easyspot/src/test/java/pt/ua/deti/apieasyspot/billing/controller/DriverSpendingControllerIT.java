@@ -13,7 +13,7 @@ import org.springframework.web.context.WebApplicationContext;
 import pt.ua.deti.apieasyspot.auth.model.User;
 import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
 import pt.ua.deti.apieasyspot.billing.model.ParkingSession;
-import pt.ua.deti.apieasyspot.billing.repository.ParkingSessionRepository;
+import pt.ua.deti.apieasyspot.billing.repository.TimescaleParkingSessionRepository;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
 import pt.ua.deti.apieasyspot.occupancy.model.ZoneType;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingLotRepository;
@@ -38,7 +38,7 @@ class DriverSpendingControllerIT {
     @Autowired private UserRepository userRepository;
     @Autowired private VehicleRepository vehicleRepository;
     @Autowired private ParkingLotRepository parkingLotRepository;
-    @Autowired private ParkingSessionRepository parkingSessionRepository;
+    @Autowired private TimescaleParkingSessionRepository parkingSessionRepository;
     @MockitoBean private JwtDecoder jwtDecoder;
 
     private MockMvc mockMvc;
@@ -167,9 +167,9 @@ class DriverSpendingControllerIT {
 
     private ParkingSession session(Vehicle vehicle, ZoneType zoneType, OffsetDateTime entry, long durationMinutes, String amount) {
         ParkingSession s = new ParkingSession();
-        s.setUser(driver);
-        s.setVehicle(vehicle);
-        s.setParkingLot(lot);
+        s.setUserId(driver.getId());
+        s.setVehicleId(vehicle.getId());
+        s.setParkingLotId(lot.getId());
         s.setZoneType(zoneType);
         s.setEntryTime(entry);
         s.setExitTime(entry.plusMinutes(durationMinutes));

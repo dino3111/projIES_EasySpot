@@ -1,13 +1,13 @@
 import { useMemo, useState } from 'react';
-import { mockExpenses } from '../../data/parkingData';
-import type { Expense } from '../../data/parkingData';
+import { mockExpenses } from './costs/costsHelpers';
+import type { Expense } from '../../data/parkingTypes';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar,
 } from 'recharts';
 
 type Period = '7d' | '30d' | '3m';
-type VehicleFilter = 'all' | string;
+type VehicleFilter = string;
 
 // Enriquecer mock com mais entradas para os gráficos
 const allExpenses: (Expense & { vehicle?: string })[] = [
@@ -16,11 +16,11 @@ const allExpenses: (Expense & { vehicle?: string })[] = [
   { id: 'exp-7',  parkingLotName: 'Estação Ferroviária de Ovar', date: '2026-03-04', duration: '2h 00m', amount: 1.60, vehicle: 'Seat Ibiza' },
   {
     id: 'exp-8',  parkingLotName: 'Fórum Aveiro', date: '2026-03-03', duration: '1h 15m', amount: 1.88, vehicle: 'Renault Zoe',
-    evCharging: { kWh: 14.0, chargerType: 'Type 2 (7kW)', chargingAmount: 3.92 },
+    evCharging: { kWh: 14, chargerType: 'Type 2 (7kW)', chargingAmount: 3.92 },
   },
   {
     id: 'exp-9',  parkingLotName: 'Estádio Municipal Dr. Magalhães Pessoa', date: '2026-02-27', duration: '4h 00m', amount: 7.20, vehicle: 'Renault Zoe',
-    evCharging: { kWh: 22.0, chargerType: 'CCS (50kW)', chargingAmount: 9.24 },
+    evCharging: { kWh: 22, chargerType: 'CCS (50kW)', chargingAmount: 9.24 },
   },
   { id: 'exp-10', parkingLotName: 'Estação Ferroviária de Ovar', date: '2026-02-22', duration: '1h 00m', amount: 0.80, vehicle: 'Seat Ibiza' },
   { id: 'exp-11', parkingLotName: 'Parque das Gaivotas', date: '2026-02-18', duration: '6h 00m', amount: 8.40, vehicle: 'Seat Ibiza' },
@@ -32,7 +32,7 @@ const allExpenses: (Expense & { vehicle?: string })[] = [
   { id: 'exp-14', parkingLotName: 'Parque de São Domingos', date: '2026-01-28', duration: '4h 30m', amount: 7.20, vehicle: 'Seat Ibiza' },
   {
     id: 'exp-15', parkingLotName: 'Fórum Aveiro', date: '2026-01-20', duration: '2h 00m', amount: 3.00, vehicle: 'Renault Zoe',
-    evCharging: { kWh: 8.0, chargerType: 'Type 2 (7kW)', chargingAmount: 2.24 },
+    evCharging: { kWh: 8, chargerType: 'Type 2 (7kW)', chargingAmount: 2.24 },
   },
 ];
 
@@ -101,7 +101,15 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
   return null;
 };
 
-const uniqueVehicles = [...new Set(allExpenses.map((e) => e.vehicle).filter(Boolean))] as string[];
+const uniqueVehicles = Array.from(
+  new Set(allExpenses.flatMap((e) => (e.vehicle ? [e.vehicle] : []))),
+);
+
+function getXAxisInterval(period: Period) {
+  if (period === '7d') return 0;
+  if (period === '30d') return 5;
+  return 14;
+}
 
 export function ExpensesPage() {
   const [period, setPeriod] = useState<Period>('30d');
@@ -247,7 +255,7 @@ export function ExpensesPage() {
             <XAxis
               dataKey="date"
               tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
-              interval={period === '7d' ? 0 : period === '30d' ? 5 : 14}
+              interval={getXAxisInterval(period)}
               tickLine={false}
               axisLine={false}
             />
@@ -292,8 +300,8 @@ export function ExpensesPage() {
                 dataKey="value"
                 strokeWidth={0}
               >
-                {pieData.map((_, i) => (
-                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                {pieData.map((entry, i) => (
+                  <Cell key={entry.name} fill={COLORS[i % COLORS.length]} />
                 ))}
               </Pie>
               <Tooltip
@@ -342,8 +350,8 @@ export function ExpensesPage() {
               />
               <Tooltip content={<CustomTooltip />} />
               <Bar dataKey="total" radius={[6, 6, 0, 0]} maxBarSize={60}>
-                {vehicleData.map((_, i) => (
-                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                {vehicleData.map((entry, i) => (
+                  <Cell key={entry.name} fill={COLORS[i % COLORS.length]} />
                 ))}
               </Bar>
             </BarChart>
@@ -360,8 +368,9 @@ export function ExpensesPage() {
           .slice()
           .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
           .map((expense, idx) => {
-            const hasEV = !!expense.evCharging;
-            const totalAmount = expense.amount + (expense.evCharging?.chargingAmount ?? 0);
+            const evCharging = expense.evCharging;
+            const hasEV = evCharging !== undefined;
+            const totalAmount = expense.amount + (evCharging?.chargingAmount ?? 0);
             return (
               <div
                 key={expense.id}
@@ -396,7 +405,7 @@ export function ExpensesPage() {
                             <span className="text-muted-foreground/30">•</span>
                             <span className="flex items-center gap-1 text-success text-xs font-semibold">
                               <i className="fas fa-bolt" aria-hidden="true" />
-                              {expense.evCharging!.kWh} kWh · {expense.evCharging!.chargerType}
+                              {evCharging.kWh} kWh · {evCharging.chargerType}
                             </span>
                           </>
                         )}
@@ -410,11 +419,11 @@ export function ExpensesPage() {
                     {hasEV ? (
                       <div className="text-right">
                         <span className="text-muted-foreground font-medium text-[0.6rem] block">
-                          Park €{expense.amount.toFixed(2)} + EV €{expense.evCharging!.chargingAmount.toFixed(2)}
+                          Park €{expense.amount.toFixed(2)} + EV €{evCharging.chargingAmount.toFixed(2)}
                         </span>
                       </div>
                     ) : (
-                      <span className="text-muted-foreground font-medium uppercase text-[0.6rem]">Via RFID</span>
+                      <span className="text-muted-foreground font-medium uppercase text-[0.6rem]">Via OCR</span>
                     )}
                   </div>
                 </div>
@@ -429,7 +438,7 @@ export function ExpensesPage() {
         <div className="leading-relaxed text-xs">
           <p className="font-bold mb-1 text-foreground">Faturação Automática</p>
           <p className="text-muted-foreground">
-            As suas despesas são processadas automaticamente à saída através do sistema OCR/RFID.
+            As suas despesas são processadas automaticamente à saída através do sistema OCR.
             As faturas são enviadas para o seu email registado.
           </p>
         </div>
@@ -442,7 +451,7 @@ export function ExpensesPage() {
           <p className="font-bold mb-1 text-foreground">Carregamento de Veículos Elétricos</p>
           <p className="text-muted-foreground">
             O custo de carregamento EV é faturado separadamente com base nos kWh consumidos.
-            A sessão de carregamento é registada automaticamente via RFID e aparece discriminada na fatura.
+            A sessão de carregamento é registada automaticamente via OCR e aparece discriminada na fatura.
           </p>
         </div>
       </div>

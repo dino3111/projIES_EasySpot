@@ -1,38 +1,53 @@
 package pt.ua.deti.apieasyspot.billing.service;
 
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-import org.springframework.stereotype.Service;
-import pt.ua.deti.apieasyspot.billing.dto.ParkingPlanningRequest;
-import pt.ua.deti.apieasyspot.billing.dto.ParkingPlanningResponse;
-
 import java.math.BigDecimal;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
-import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import pt.ua.deti.apieasyspot.billing.dto.ParkingPlanningRequest;
+import pt.ua.deti.apieasyspot.billing.dto.ParkingPlanningResponse;
+import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
+import pt.ua.deti.apieasyspot.occupancy.model.Tariff;
+import pt.ua.deti.apieasyspot.occupancy.model.ZoneType;
+import pt.ua.deti.apieasyspot.occupancy.repository.ParkingLotRepository;
+import pt.ua.deti.apieasyspot.occupancy.repository.TariffRepository;
+import pt.ua.deti.apieasyspot.occupancy.repository.TimescaleOccupancySnapshotRepository;
+import pt.ua.deti.apieasyspot.occupancy.repository.TimescaleOccupancySnapshotRepository.HourlyOccupancyPoint;
+import pt.ua.deti.apieasyspot.occupancy.repository.TimescaleOccupancySnapshotRepository.ZoneSnapshot;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class ParkingPlanningService {
 
-    private final JdbcTemplate jdbc;
-    private final NamedParameterJdbcTemplate namedJdbc;
-
     private static final ZoneId LISBON = ZoneId.of("Europe/Lisbon");
     private static final double MAX_PRICE_REFERENCE_EUR = 5.0;
 
+    private final ParkingLotRepository parkingLotRepository;
+    private final TariffRepository tariffRepository;
+    private final TimescaleOccupancySnapshotRepository occupancyRepository;
+
     public ParkingPlanningResponse plan(ParkingPlanningRequest req) {
-        List<LotCandidate> candidates = fetchCandidates(req);
-        candidates = candidates.stream()
+        List<ParkingLot> lots = parkingLotRepository.findAll().stream()
+            .filter(lot -> lot.getCity() != null && lot.getCity().toLowerCase().startsWith(req.city().toLowerCase()))
+            .toList();
+
+        Map<UUID, List<ZoneSnapshot>> snapshotsByLot = occupancyRepository.latestByLotIds(
+            lots.stream().map(ParkingLot::getId).toList()
+        );
+        Map<UUID, List<HourlyOccupancyPoint>> hourlyByLot = occupancyRepository.hourlyOccupancyLast7Days(
+            lots.stream().map(ParkingLot::getId).toList()
+        );
+
+        List<LotCandidate> candidates = lots.stream()
+            .map(lot -> toCandidate(lot, snapshotsByLot.getOrDefault(lot.getId(), List.of()), hourlyByLot.getOrDefault(lot.getId(), List.of()), req))
             .filter(c -> c.distanceMeters <= req.maxDistanceMeters())
             .filter(c -> isOpen(c.openingHours, c.id))
             .filter(c -> !needsEv(req) || c.hasEv)
@@ -55,119 +70,54 @@ public class ParkingPlanningService {
         return new ParkingPlanningResponse(summaries);
     }
 
-    private List<LotCandidate> fetchCandidates(ParkingPlanningRequest req) {
-        boolean needEv  = needsEv(req);
-        boolean needAcc = needsAccessible(req);
-
-        String sql = """
-            WITH latest_snapshots AS (
-                SELECT parking_lot_id, zone_type, occupied_count, total_count,
-                       ROW_NUMBER() OVER (PARTITION BY parking_lot_id, zone_type ORDER BY recorded_at DESC) AS rn
-                FROM occupancy_snapshots
-            ),
-            latest_only AS (SELECT * FROM latest_snapshots WHERE rn = 1),
-            park_agg AS (
-                SELECT parking_lot_id,
-                       SUM(occupied_count) AS occ_total,
-                       SUM(total_count) AS cap_total,
-                       SUM(CASE WHEN zone_type = 'EV' THEN total_count ELSE 0 END) AS ev_total,
-                       SUM(CASE WHEN zone_type = 'ACCESSIBLE' THEN total_count ELSE 0 END) AS acc_total
-                FROM latest_only
-                GROUP BY parking_lot_id
-            )
-            SELECT p.id, p.name, p.address, p.opening_hours, p.latitude, p.longitude,
-                   MIN(t.price_per_hour) AS price_per_hour,
-                   COALESCE(pa.occ_total, 0) AS occ_total,
-                   COALESCE(pa.cap_total, p.total_spaces) AS cap_total,
-                   COALESCE(pa.ev_total, 0) AS ev_total,
-                   COALESCE(pa.acc_total, 0) AS acc_total,
-                   (6371000 * acos(
-                       LEAST(1.0, cos(radians(?)) * cos(radians(p.latitude))
-                           * cos(radians(p.longitude) - radians(?))
-                           + sin(radians(?)) * sin(radians(p.latitude))
-                   )) AS distance_meters
-            FROM parking_lots p
-            LEFT JOIN park_agg pa ON p.id = pa.parking_lot_id
-            LEFT JOIN tariffs t ON p.id = t.parking_lot_id AND t.status = 'ACTIVE'
-            WHERE p.city ILIKE ?
-              AND (? OR COALESCE(pa.ev_total, 0) > 0)
-              AND (? OR COALESCE(pa.acc_total, 0) > 0)
-            GROUP BY p.id, p.name, p.address, p.opening_hours, p.latitude, p.longitude,
-                     pa.occ_total, pa.cap_total, pa.ev_total, pa.acc_total
-            HAVING (6371000 * acos(
-                       LEAST(1.0, cos(radians(?)) * cos(radians(p.latitude))
-                           * cos(radians(p.longitude) - radians(?))
-                           + sin(radians(?)) * sin(radians(p.latitude))
-                   )) <= ?
-            ORDER BY distance_meters ASC
-            """;
-
-        double lat = req.location().lat();
-        double lng = req.location().lng();
-        String cityPrefix = req.city() + "%";
-
-        List<LotCandidate> candidates = jdbc.query(sql,
-            (rs, rowNum) -> mapCandidateWithoutHourly(rs),
-            lat, lng, lat, cityPrefix, !needEv, !needAcc,
-            lat, lng, lat, req.maxDistanceMeters()
-        );
-
-        if (candidates.isEmpty()) return candidates;
-
-        List<UUID> ids = candidates.stream().map(c -> c.id).toList();
-        Map<UUID, List<ParkingPlanningResponse.HourlyOccupancy>> hourlyByLot = fetchAllHourlyOccupancy(ids);
-
-        return candidates.stream()
-            .map(c -> new LotCandidate(c.id, c.name, c.address, c.openingHours, c.distanceMeters,
-                c.pricePerHour, c.occTotal, c.capTotal, c.currentOccupancyPct, c.hasEv, c.hasAccessible,
-                hourlyByLot.getOrDefault(c.id, List.of())))
-            .toList();
-    }
-
-    private LotCandidate mapCandidateWithoutHourly(ResultSet rs) throws SQLException {
-        UUID id = UUID.fromString(rs.getString("id"));
-        int occTotal = rs.getInt("occ_total");
-        int capTotal = rs.getInt("cap_total");
+    private LotCandidate toCandidate(
+        ParkingLot lot,
+        List<ZoneSnapshot> snapshots,
+        List<HourlyOccupancyPoint> hourlyPoints,
+        ParkingPlanningRequest req
+    ) {
+        int occTotal = snapshots.stream().mapToInt(ZoneSnapshot::occupiedCount).sum();
+        int capTotal = snapshots.isEmpty() ? lot.getTotalSpaces() : snapshots.stream().mapToInt(ZoneSnapshot::totalCount).sum();
         int pct = capTotal > 0 ? (int) Math.round((double) occTotal / capTotal * 100) : 0;
+        boolean hasEv = snapshots.stream().anyMatch(s -> s.zoneType() == ZoneType.EV && s.totalCount() > 0);
+        boolean hasAccessible = snapshots.stream().anyMatch(s -> s.zoneType() == ZoneType.ACCESSIBLE && s.totalCount() > 0);
 
         return new LotCandidate(
-            id,
-            rs.getString("name"),
-            rs.getString("address"),
-            rs.getString("opening_hours"),
-            rs.getDouble("distance_meters"),
-            rs.getBigDecimal("price_per_hour"),
+            lot.getId(),
+            lot.getName(),
+            lot.getAddress(),
+            lot.getOpeningHours(),
+            distanceMeters(req.location().lat(), req.location().lng(), lot.getLatitude(), lot.getLongitude()),
+            minPrice(lot.getId()),
             occTotal,
             capTotal,
             pct,
-            rs.getInt("ev_total") > 0,
-            rs.getInt("acc_total") > 0,
-            List.of()
+            hasEv,
+            hasAccessible,
+            hourlyPoints.stream()
+                .sorted(Comparator.comparingInt(HourlyOccupancyPoint::hourOfDay))
+                .map(point -> new ParkingPlanningResponse.HourlyOccupancy(String.format("%02dh", point.hourOfDay()), point.occupancyPercent()))
+                .toList()
         );
     }
 
-    private Map<UUID, List<ParkingPlanningResponse.HourlyOccupancy>> fetchAllHourlyOccupancy(List<UUID> lotIds) {
-        String sql = """
-            SELECT parking_lot_id,
-                   EXTRACT(HOUR FROM recorded_at AT TIME ZONE 'Europe/Lisbon') AS hour_of_day,
-                   ROUND(AVG(CASE WHEN total_count > 0
-                       THEN occupied_count::numeric / total_count * 100 ELSE 0 END)) AS occ_pct
-            FROM occupancy_snapshots
-            WHERE parking_lot_id IN (:ids)
-              AND recorded_at >= NOW() - INTERVAL '7 days'
-            GROUP BY parking_lot_id, hour_of_day
-            ORDER BY parking_lot_id, hour_of_day
-            """;
+    private BigDecimal minPrice(UUID lotId) {
+        return tariffRepository.findByParkingLotId(lotId).stream()
+            .map(Tariff::getPricePerHour)
+            .filter(Objects::nonNull)
+            .min(BigDecimal::compareTo)
+            .orElse(null);
+    }
 
-        return namedJdbc.query(sql, Map.of("ids", lotIds), (rs, rowNum) -> {
-            UUID lotId = UUID.fromString(rs.getString("parking_lot_id"));
-            String hour = String.format("%02dh", rs.getInt("hour_of_day"));
-            int pct = rs.getInt("occ_pct");
-            return Map.entry(lotId, new ParkingPlanningResponse.HourlyOccupancy(hour, pct));
-        }).stream().collect(Collectors.groupingBy(
-            Map.Entry::getKey,
-            Collectors.mapping(Map.Entry::getValue, Collectors.toList())
-        ));
+    private double distanceMeters(double lat1, double lng1, double lat2, double lng2) {
+        double earthRadius = 6371000.0;
+        double deltaLat = Math.toRadians(lat2 - lat1);
+        double deltaLng = Math.toRadians(lng2 - lng1);
+        double a = Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2)
+            + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+            * Math.sin(deltaLng / 2) * Math.sin(deltaLng / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return earthRadius * c;
     }
 
     private ParkingPlanningResponse.ParkingSummary toSummary(LotCandidate c) {
@@ -184,7 +134,6 @@ public class ParkingPlanningService {
         );
     }
 
-    // Composite score: 50% availability, 30% price (inverse), 20% distance (inverse)
     double score(LotCandidate c, double maxDistanceMeters) {
         double availScore = 1.0 - (c.currentOccupancyPct / 100.0);
 
@@ -215,17 +164,16 @@ public class ParkingPlanningService {
         }
 
         try {
-            int nowMinutes   = nowMinutesOfDay();
-            int openMinutes  = parseTimeToMinutes(parts[0]);
+            int nowMinutes = nowMinutesOfDay();
+            int openMinutes = parseTimeToMinutes(parts[0]);
             int closeMinutes = parseTimeToMinutes(parts[1]);
 
             if (closeMinutes <= openMinutes) {
-                // Overnight schedule (e.g. 22:00–06:00): open if after opening OR before closing
                 return nowMinutes >= openMinutes || nowMinutes < closeMinutes;
             }
             return nowMinutes >= openMinutes && nowMinutes < closeMinutes;
-        } catch (Exception e) {
-            log.warn("Failed to parse opening_hours '{}' for lot {}: {}", openingHours, lotId, e.getMessage());
+        } catch (Exception exception) {
+            log.warn("Failed to parse opening_hours '{}' for lot {}: {}", openingHours, lotId, exception.getMessage());
             return true;
         }
     }
