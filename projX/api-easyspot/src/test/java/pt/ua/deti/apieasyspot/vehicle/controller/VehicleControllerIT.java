@@ -78,7 +78,7 @@ class VehicleControllerIT {
     @Test
     @DisplayName("POST /api/vehicles - success - response includes brandLogoUrl from R2")
     void createVehicle_success_responseIncludesBrandLogoUrl() throws Exception {
-        VehicleCreateRequest request = new VehicleCreateRequest("BB-00-BB", "RFID-1", null, null, null, null, null, null, null, null);
+        VehicleCreateRequest request = new VehicleCreateRequest("BB-00-BB", null, null, null, null, null, null, null, null);
         VehicleData data = new VehicleData(
             "BB-00-BB", "VIN123", "Tesla", "Model 3",
             null, null, null, "Elétrico",
@@ -107,7 +107,7 @@ class VehicleControllerIT {
     @Test
     @DisplayName("POST /api/vehicles - unknown brand - brandLogoUrl is null in response")
     void createVehicle_unknownBrand_brandLogoUrlNullInResponse() throws Exception {
-        VehicleCreateRequest request = new VehicleCreateRequest("CC-00-CC", null, null, null, null, null, "Lada", "Niva", "Gasolina", 2000);
+        VehicleCreateRequest request = new VehicleCreateRequest("CC-00-CC", null, null, null, null, "Lada", "Niva", "Gasolina", 2000);
 
         when(brandLogoStorage.mirror("Lada")).thenReturn(null);
 
@@ -122,7 +122,7 @@ class VehicleControllerIT {
     @Test
     @DisplayName("POST /api/vehicles - IMT not found, no manual data - returns 422")
     void createVehicle_imtNotFound_noManualData_returns422() throws Exception {
-        VehicleCreateRequest request = new VehicleCreateRequest("CC-00-CC", null, null, null, null, null, null, null, null, null);
+        VehicleCreateRequest request = new VehicleCreateRequest("CC-00-CC", null, null, null, null, null, null, null, null);
 
         when(vehicleLookupClient.lookup("CC-00-CC")).thenThrow(new PlateNotFoundException("Not found"));
 
@@ -137,7 +137,7 @@ class VehicleControllerIT {
     @Test
     @DisplayName("POST /api/vehicles - IMT unavailable, no manual data - returns 503")
     void createVehicle_imtUnavailable_noManualData_returns503() throws Exception {
-        VehicleCreateRequest request = new VehicleCreateRequest("DD-00-DD", null, null, null, null, null, null, null, null, null);
+        VehicleCreateRequest request = new VehicleCreateRequest("DD-00-DD", null, null, null, null, null, null, null, null);
 
         when(vehicleLookupClient.lookup("DD-00-DD")).thenThrow(new ExternalServiceException("Service down"));
 
@@ -151,7 +151,7 @@ class VehicleControllerIT {
     @Test
     @DisplayName("POST /api/vehicles - manual data - saves without lookup, mirrors brand logo")
     void createVehicle_manualData_savesWithoutLookupMirrorsBrandLogo() throws Exception {
-        VehicleCreateRequest request = new VehicleCreateRequest("FR-123-AB", null, null, null, null, null, "Renault", "Megane", "Gasolina", 2019);
+        VehicleCreateRequest request = new VehicleCreateRequest("FR-123-AB", null, null, null, null, "Renault", "Megane", "Gasolina", 2019);
 
         when(brandLogoStorage.mirror("Renault")).thenReturn("https://r2.example.com/brand-logos/renault.png");
 

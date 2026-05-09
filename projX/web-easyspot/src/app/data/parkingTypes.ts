@@ -67,7 +67,7 @@ export interface ParkingLot {
   phone: string;
   techFeatures: {
     hasOCR: boolean;
-    hasRFID: boolean;
+    hasOcrIdentification: boolean;
     hasIRSensors: boolean;
     hasLEDs: boolean;
   };

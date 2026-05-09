@@ -52,9 +52,11 @@ async function readErrorBody(res: Response): Promise<string> {
   }
 }
 
-function throwUnauthorizedError(): never {
-  clearAuthStorage();
-  redirectToWelcomeIfNeeded();
+function throwUnauthorizedError(hadToken: boolean): never {
+  if (hadToken) {
+    clearAuthStorage();
+    redirectToWelcomeIfNeeded();
+  }
   throw new Error('Sessão expirada ou inválida. Por favor, tente entrar novamente.');
 }
 
@@ -97,7 +99,7 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
   if (!res.ok) {
     if (res.status === Number(401)) {
       console.warn('[API-401] giving up', method, url, 'bearer:', token ? 'yes' : 'no');
-      throwUnauthorizedError();
+      throwUnauthorizedError(token !== null);
     }
     const errorText = await readErrorBody(res);
     console.warn('[API-ERR]', method, url, 'status:', res.status, 'body:', errorText.slice(0, 500));
@@ -219,9 +221,7 @@ export interface InsuranceLookupResponse {
 }
 
 export interface VehicleCreateRequest {
-  licensePlate: string;
-  externalIdentifier?: string;
-  nickname?: string;
+  licensePlate: string;  nickname?: string;
   isAccessible?: boolean;
   isPrimary?: boolean;
   chargerTypes?: string[];
@@ -267,7 +267,7 @@ export const profileApi = {
       body: formData,
     }));
     if (!res.ok) {
-      if (res.status === Number(401)) throwUnauthorizedError();
+      if (res.status === Number(401)) throwUnauthorizedError(token !== null);
       const errorText = await readErrorBody(res);
       throwHttpError(res.status, errorText);
     }

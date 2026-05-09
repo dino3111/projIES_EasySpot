@@ -423,7 +423,7 @@ export function ExpensesPage() {
                         </span>
                       </div>
                     ) : (
-                      <span className="text-muted-foreground font-medium uppercase text-[0.6rem]">Via RFID</span>
+                      <span className="text-muted-foreground font-medium uppercase text-[0.6rem]">Via OCR</span>
                     )}
                   </div>
                 </div>
@@ -438,7 +438,7 @@ export function ExpensesPage() {
         <div className="leading-relaxed text-xs">
           <p className="font-bold mb-1 text-foreground">Faturação Automática</p>
           <p className="text-muted-foreground">
-            As suas despesas são processadas automaticamente à saída através do sistema OCR/RFID.
+            As suas despesas são processadas automaticamente à saída através do sistema OCR.
             As faturas são enviadas para o seu email registado.
           </p>
         </div>
@@ -451,7 +451,7 @@ export function ExpensesPage() {
           <p className="font-bold mb-1 text-foreground">Carregamento de Veículos Elétricos</p>
           <p className="text-muted-foreground">
             O custo de carregamento EV é faturado separadamente com base nos kWh consumidos.
-            A sessão de carregamento é registada automaticamente via RFID e aparece discriminada na fatura.
+            A sessão de carregamento é registada automaticamente via OCR e aparece discriminada na fatura.
           </p>
         </div>
       </div>

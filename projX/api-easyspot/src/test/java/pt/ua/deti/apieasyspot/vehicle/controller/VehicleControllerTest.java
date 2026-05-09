@@ -48,7 +48,7 @@ class VehicleControllerTest {
     @DisplayName("createVehicle - calls service and returns 200")
     void createVehicle_success() {
         when(jwt.getSubject()).thenReturn("auth-sub-123");
-        VehicleCreateRequest request = new VehicleCreateRequest("BB-00-BB", "RFID-1", null, null, null, null, null, null, null, null);
+        VehicleCreateRequest request = new VehicleCreateRequest("BB-00-BB", null, null, null, null, null, null, null, null);
         when(vehicleService.createVehicle("auth-sub-123", request)).thenReturn(vehicleResponse);
 
         ResponseEntity<VehicleResponse> response = vehicleController.createVehicle(request, jwt);
@@ -62,7 +62,7 @@ class VehicleControllerTest {
     @DisplayName("createVehicle - response includes brandLogoUrl")
     void createVehicle_responseIncludesBrandLogoUrl() {
         when(jwt.getSubject()).thenReturn("auth-sub-123");
-        VehicleCreateRequest request = new VehicleCreateRequest("BB-00-BB", null, null, null, null, null, null, null, null, null);
+        VehicleCreateRequest request = new VehicleCreateRequest("BB-00-BB", null, null, null, null, null, null, null, null);
         when(vehicleService.createVehicle("auth-sub-123", request)).thenReturn(vehicleResponse);
 
         ResponseEntity<VehicleResponse> response = vehicleController.createVehicle(request, jwt);
