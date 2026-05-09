@@ -1,10 +1,7 @@
 import { API_BASE } from './apiBase';
 import { withGlobalLoading } from '../app/context/LoadingContext';
+import { getAccessToken } from '../app/services/authToken';
 const AUTH_STORAGE_KEYS = ['es_access_token', 'es_id_token', 'es_refresh_token', 'es_pkce_verifier', 'es_pkce_state'] as const;
-
-function getAccessToken(): string | null {
-  return sessionStorage.getItem('es_access_token');
-}
 
 function clearAuthStorage() {
   for (const key of AUTH_STORAGE_KEYS) sessionStorage.removeItem(key);

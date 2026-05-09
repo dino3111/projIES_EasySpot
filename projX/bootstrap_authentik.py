@@ -66,11 +66,7 @@ def _load_env_file(env_path: str) -> None:
             value = value.strip()
             if value and value[0] not in {'"', "'"} and " #" in value:
                 value = value.split(" #", 1)[0].rstrip()
-            if (
-                len(value) >= 2
-                and value[0] == value[-1]
-                and value[0] in {'"', "'"}
-            ):
+            if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
                 value = value[1:-1]
 
             os.environ[key] = value
@@ -111,15 +107,18 @@ def _refresh_runtime_config() -> None:
     global _AUTHENTIK_HOST
     global ISSUER_URI
 
-    BASE_URL = os.environ.get("AUTHENTIK_URL", "http://localhost:9000/authentik").rstrip("/")
+    BASE_URL = os.environ.get(
+        "AUTHENTIK_URL", "http://localhost:9000/authentik"
+    ).rstrip("/")
     TOKEN = (
         os.environ.get("AUTHENTIK_TOKEN")
         or os.environ.get("AUTHENTIK_BOOTSTRAP_TOKEN")
         or ""
     )
     REDIRECT_URI = os.environ.get("REDIRECT_URI", "http://localhost/callback")
-    _AUTHENTIK_HOST = os.environ.get("AUTHENTIK_URL", "http://localhost:9000").rstrip("/").removesuffix("/authentik")
-    ISSUER_URI = f"{_AUTHENTIK_HOST}/application/o/{APP_SLUG}/"
+    _AUTHENTIK_HOST = BASE_URL.removesuffix("/authentik")
+    ISSUER_URI = f"{BASE_URL}/application/o/{APP_SLUG}/"
+
 
 APP_SLUG = "easyspot"
 APP_NAME = "EasySpot"
@@ -139,14 +138,20 @@ TEST_USERS = [
         "username": "test_manager",
         "email": "manager@easyspot.local",
         "name": "Test Manager",
-        "password": os.environ.get("EASYSPOT_TEST_MANAGER_PASSWORD", "change-me-manager"),
+        "password": os.environ.get(
+            "EASYSPOT_TEST_MANAGER_PASSWORD",
+            "change-me-manager",
+        ),
         "role": "MANAGER",
     },
     {
         "username": "test_technical",
         "email": "technical@easyspot.local",
         "name": "Test Technical",
-        "password": os.environ.get("EASYSPOT_TEST_TECHNICAL_PASSWORD", "change-me-technical"),
+        "password": os.environ.get(
+            "EASYSPOT_TEST_TECHNICAL_PASSWORD",
+            "change-me-technical",
+        ),
         "role": "TECHNICAL",
     },
 ]
@@ -230,10 +235,7 @@ def api(method: str, path: str, **kwargs: object) -> dict:
         method, f"{BASE_URL}/api/v3{path}", headers=headers, **kwargs
     )
     if not resp.ok:
-        print(
-            f"  ERROR {resp.status_code} on {method} {path}:"
-            f" {resp.text[:300]}"
-        )
+        print(f"  ERROR {resp.status_code} on {method} {path}:" f" {resp.text[:300]}")
         resp.raise_for_status()
     return resp.json() if resp.text else {}
 
@@ -243,9 +245,7 @@ def wait_ready(timeout: int = 120) -> None:
     deadline = time.time() + timeout
     while time.time() < deadline:
         try:
-            r = requests.get(
-                f"{BASE_URL}/-/health/ready/", timeout=5
-            )
+            r = requests.get(f"{BASE_URL}/-/health/ready/", timeout=5)
             if r.status_code in (200, 204):
                 print("  Authentik is ready.")
                 return
@@ -276,14 +276,14 @@ def setup_akadmin_if_needed() -> str:
         pass
 
     try:
-        print(
-            "  Attempting initial setup via /api/v3/core/install/..."
-        )
+        print("  Attempting initial setup via /api/v3/core/install/...")
         install_payload = {
             "username": "akadmin",
             "email": "admin@easyspot.local",
             "name": "EasySpot Admin",
-            "password": os.environ.get("EASYSPOT_AKADMIN_PASSWORD", "change-me-akadmin"),
+            "password": os.environ.get(
+                "EASYSPOT_AKADMIN_PASSWORD", "change-me-akadmin"
+            ),
         }
         resp = requests.post(
             f"{BASE_URL}/api/v3/core/install/",
@@ -365,15 +365,18 @@ def get_default_scope_mappings() -> list[str]:
     resp = api("GET", "/propertymappings/provider/scope/?scope_name=openid")
     pks = [m["pk"] for m in resp.get("results", [])]
     for name in ("email", "profile"):
-        r = api(
-            "GET", f"/propertymappings/provider/scope/?scope_name={name}"
-        )
+        r = api("GET", f"/propertymappings/provider/scope/?scope_name={name}")
         pks += [m["pk"] for m in r.get("results", [])]
     return pks
 
 
 def _build_redirect_uris(primary: str) -> list[dict]:
-    uris = {primary, primary.replace(":5173", ""), "http://localhost", "http://localhost:5173"}
+    uris = {
+        primary,
+        primary.replace(":5173", ""),
+        "http://localhost",
+        "http://localhost:5173",
+    }
     return [{"matching_mode": "strict", "url": u} for u in uris if u]
 
 
@@ -499,9 +502,7 @@ def create_test_users(group_ids: dict[str, str]) -> None:
             f"/core/users/{uid}/set_password/",
             json={"password": u["password"]},
         )
-        print(
-            f"  User '{u['username']}' (role={u['role']}) → pk={uid}"
-        )
+        print(f"  User '{u['username']}' (role={u['role']}) → pk={uid}")
 
 
 def apply_branding(app_slug: str) -> None:
@@ -603,7 +604,7 @@ def print_summary(provider_pk: str) -> None:
     print(f"  Issuer URI:   {ISSUER_URI}")
     client_id = provider.get("client_id", "see Authentik UI")
     print(f"  Client ID:    {client_id}")
-    print(f"  Client type:  public (PKCE)")
+    print("  Client type:  public (PKCE)")
     print(f"  Redirect URI: {REDIRECT_URI}")
     print()
     print("Test users (all at http://localhost:9000):")
@@ -661,51 +662,66 @@ def _get_or_create_enrollment_prompt_stage() -> str:
     name = "easyspot-enrollment-prompt"
 
     field_pks = [
-        _get_or_create_prompt("easyspot-enrollment-name", {
-            "field_key": "name",
-            "label": "Nome completo",
-            "type": "text",
-            "required": True,
-            "placeholder": "",
-            "order": 100,
-            "sub_text": "",
-        }),
-        _get_or_create_prompt("easyspot-enrollment-username", {
-            "field_key": "username",
-            "label": "Nome de utilizador",
-            "type": "username",
-            "required": True,
-            "placeholder": "",
-            "order": 200,
-            "sub_text": "",
-        }),
-        _get_or_create_prompt("easyspot-enrollment-email", {
-            "field_key": "email",
-            "label": "Email",
-            "type": "email",
-            "required": True,
-            "placeholder": "",
-            "order": 300,
-            "sub_text": "",
-        }),
-        _get_or_create_prompt("easyspot-enrollment-password", {
-            "field_key": "password",
-            "label": "Palavra-passe",
-            "type": "password",
-            "required": True,
-            "placeholder": "",
-            "order": 400,
-            "sub_text": "",
-        }),
-        _get_or_create_prompt("easyspot-enrollment-password-repeat", {
-            "field_key": "password_repeat",
-            "label": "Repetir palavra-passe",
-            "type": "password",
-            "required": True,
-            "placeholder": "",
-            "order": 500,
-            "sub_text": "",
-        }),
+        _get_or_create_prompt(
+            "easyspot-enrollment-name",
+            {
+                "field_key": "name",
+                "label": "Nome completo",
+                "type": "text",
+                "required": True,
+                "placeholder": "",
+                "order": 100,
+                "sub_text": "",
+            },
+        ),
+        _get_or_create_prompt(
+            "easyspot-enrollment-username",
+            {
+                "field_key": "username",
+                "label": "Nome de utilizador",
+                "type": "username",
+                "required": True,
+                "placeholder": "",
+                "order": 200,
+                "sub_text": "",
+            },
+        ),
+        _get_or_create_prompt(
+            "easyspot-enrollment-email",
+            {
+                "field_key": "email",
+                "label": "Email",
+                "type": "email",
+                "required": True,
+                "placeholder": "",
+                "order": 300,
+                "sub_text": "",
+            },
+        ),
+        _get_or_create_prompt(
+            "easyspot-enrollment-password",
+            {
+                "field_key": "password",
+                "label": "Palavra-passe",
+                "type": "password",
+                "required": True,
+                "placeholder": "",
+                "order": 400,
+                "sub_text": "",
+            },
+        ),
+        _get_or_create_prompt(
+            "easyspot-enrollment-password-repeat",
+            {
+                "field_key": "password_repeat",
+                "label": "Repetir palavra-passe",
+                "type": "password",
+                "required": True,
+                "placeholder": "",
+                "order": 500,
+                "sub_text": "",
+            },
+        ),
     ]
 
     existing = api("GET", f"/stages/prompt/stages/?name={name}")
@@ -718,11 +734,15 @@ def _get_or_create_enrollment_prompt_stage() -> str:
         )
         return str(stage["pk"])
 
-    stage = api("POST", "/stages/prompt/stages/", json={
-        "name": name,
-        "fields": field_pks,
-        "validation_policies": [],
-    })
+    stage = api(
+        "POST",
+        "/stages/prompt/stages/",
+        json={
+            "name": name,
+            "fields": field_pks,
+            "validation_policies": [],
+        },
+    )
     return str(stage["pk"])
 
 
@@ -739,12 +759,16 @@ def _get_or_create_enrollment_write_stage() -> str:
     existing = api("GET", f"/stages/user_write/?name={name}")
     if existing.get("results"):
         return str(existing["results"][0]["pk"])
-    stage = api("POST", "/stages/user_write/", json={
-        "name": name,
-        "user_creation_mode": "always_create",
-        "create_users_as_inactive": False,
-        "create_users_group": None,
-    })
+    stage = api(
+        "POST",
+        "/stages/user_write/",
+        json={
+            "name": name,
+            "user_creation_mode": "always_create",
+            "create_users_as_inactive": False,
+            "create_users_group": None,
+        },
+    )
     return str(stage["pk"])
 
 
@@ -753,12 +777,16 @@ def _get_or_create_enrollment_login_stage() -> str:
     existing = api("GET", f"/stages/user_login/?name={name}")
     if existing.get("results"):
         return str(existing["results"][0]["pk"])
-    stage = api("POST", "/stages/user_login/", json={
-        "name": name,
-        "session_duration": "seconds=0",
-        "terminate_other_sessions": False,
-        "remember_me_offset": "seconds=0",
-    })
+    stage = api(
+        "POST",
+        "/stages/user_login/",
+        json={
+            "name": name,
+            "session_duration": "seconds=0",
+            "terminate_other_sessions": False,
+            "remember_me_offset": "seconds=0",
+        },
+    )
     return str(stage["pk"])
 
 
@@ -766,13 +794,17 @@ def _bind_stage(flow_pk: str, stage_pk: str, order: int) -> None:
     existing = api("GET", f"/flows/bindings/?target={flow_pk}&stage={stage_pk}")
     if existing.get("results"):
         return
-    api("POST", "/flows/bindings/", json={
-        "target": flow_pk,
-        "stage": stage_pk,
-        "order": order,
-        "enabled": True,
-        "policy_engine_mode": "any",
-    })
+    api(
+        "POST",
+        "/flows/bindings/",
+        json={
+            "target": flow_pk,
+            "stage": stage_pk,
+            "order": order,
+            "enabled": True,
+            "policy_engine_mode": "any",
+        },
+    )
 
 
 def main() -> None:

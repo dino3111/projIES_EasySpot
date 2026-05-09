@@ -2,10 +2,11 @@ import { createContext, useContext, useState, useEffect, useCallback, useMemo, t
 import { withGlobalLoading } from './LoadingContext';
 import type { AppProfile } from './ProfileContext';
 
-const AUTHENTIK_BASE = (import.meta.env.VITE_AUTHENTIK_URL ?? 'http://localhost:9000/authentik').replaceAll(/\/$/g, '');
+const AUTHENTIK_BASE = (import.meta.env.VITE_AUTHENTIK_URL ?? 'http://localhost/authentik').replaceAll(/\/$/g, '');
 const CLIENT_ID      = import.meta.env.VITE_AUTHENTIK_CLIENT_ID ?? '';
 const REDIRECT_URI   = import.meta.env.VITE_AUTHENTIK_REDIRECT_URI ?? 'http://localhost/callback';
 
+const EXPECTED_ISSUER = `${AUTHENTIK_BASE}/application/o/easyspot/`;
 const AUTHORIZE_URL  = `${AUTHENTIK_BASE}/application/o/authorize/`;
 const TOKEN_URL      = `${AUTHENTIK_BASE}/application/o/token/`;
 const LOGOUT_URL     = `${AUTHENTIK_BASE}/application/o/easyspot/end-session/`;
@@ -65,6 +66,14 @@ function parseJwtClaims(token: string): Record<string, unknown> {
   }
 }
 
+function tokenIssuerMatches(claims: Record<string, unknown>): boolean {
+  return claims['iss'] === EXPECTED_ISSUER;
+}
+
+function clearAuthStorage() {
+  Object.values(SK).forEach((k) => sessionStorage.removeItem(k));
+}
+
 function extractRole(claims: Record<string, unknown>): AppProfile {
   const groups = claims['groups'];
   if (Array.isArray(groups) && groups.length > 0) {
@@ -106,8 +115,14 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
     console.log('[AUTH] AuthProvider init — token:', token ? 'EXISTS' : 'MISSING');
     if (token) {
       const claims = parseJwtClaims(token);
+      if (!tokenIssuerMatches(claims)) {
+        console.warn('[AUTH] clearing token with unexpected issuer:', claims['iss'], 'expected:', EXPECTED_ISSUER);
+        clearAuthStorage();
+        setIsLoading(false);
+        return;
+      }
       const u = buildUser(claims);
-      console.log('[AUTH] AuthProvider restoring user:', u.sub, 'role:', u.role);
+      console.log('[AUTH] AuthProvider restoring user:', u.sub, 'role:', u.role, 'issuer:', claims['iss']);
       setUser(u);
       setAccessToken(token);
     }
@@ -138,11 +153,17 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
       refresh_token?: string;
     };
 
+    const claims = parseJwtClaims(data.access_token);
+    if (!tokenIssuerMatches(claims)) {
+      console.warn('[AUTH] refreshed token has unexpected issuer:', claims['iss'], 'expected:', EXPECTED_ISSUER);
+      clearAuthStorage();
+      return null;
+    }
+
     sessionStorage.setItem(SK.accessToken, data.access_token);
     if (data.id_token) sessionStorage.setItem(SK.idToken, data.id_token);
     if (data.refresh_token) sessionStorage.setItem(SK.refreshToken, data.refresh_token);
 
-    const claims = parseJwtClaims(data.id_token ?? data.access_token);
     setUser(buildUser(claims));
     setAccessToken(data.access_token);
     return data.access_token;
@@ -159,7 +180,7 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
       if (msUntilExpiry <= 60_000) {
         const refreshed = await refreshAccessToken();
         if (!refreshed) {
-          Object.values(SK).forEach((k) => sessionStorage.removeItem(k));
+          clearAuthStorage();
           setUser(null);
           setAccessToken(null);
           globalThis.location.href = '/welcome?session=expired';
@@ -264,20 +285,26 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
       refresh_token?: string;
     };
 
+    const claims = parseJwtClaims(data.access_token);
+    if (!tokenIssuerMatches(claims)) {
+      console.warn('[AUTH] callback token has unexpected issuer:', claims['iss'], 'expected:', EXPECTED_ISSUER);
+      clearAuthStorage();
+      throw new Error('Token issuer does not match the configured Authentik URL. Please sign in again.');
+    }
+
     sessionStorage.setItem(SK.accessToken, data.access_token);
     if (data.id_token)      sessionStorage.setItem(SK.idToken,      data.id_token);
     if (data.refresh_token) sessionStorage.setItem(SK.refreshToken, data.refresh_token);
 
-    const claims     = parseJwtClaims(data.id_token ?? data.access_token);
     const authedUser = buildUser(claims);
-    console.log('[AUTH] handleCallback — setUser:', authedUser.sub, 'role:', authedUser.role);
+    console.log('[AUTH] handleCallback — setUser:', authedUser.sub, 'role:', authedUser.role, 'issuer:', claims['iss']);
     setUser(authedUser);
     setAccessToken(data.access_token);
   }, []);
 
   const logout = useCallback(() => {
     const idToken = sessionStorage.getItem(SK.idToken);
-    Object.values(SK).forEach((k) => sessionStorage.removeItem(k));
+    clearAuthStorage();
     setUser(null);
     setAccessToken(null);
 
