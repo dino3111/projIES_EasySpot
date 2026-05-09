@@ -12,12 +12,16 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
+import pt.ua.deti.apieasyspot.notification.dto.AlertResponse;
 import pt.ua.deti.apieasyspot.notification.dto.AlertSubscriptionResponse;
 import pt.ua.deti.apieasyspot.notification.dto.AlertStateUpdate;
 import pt.ua.deti.apieasyspot.notification.dto.CreateAlertSubscriptionRequest;
+import pt.ua.deti.apieasyspot.notification.model.SeverityAlert;
+import pt.ua.deti.apieasyspot.notification.model.StateAlert;
 import pt.ua.deti.apieasyspot.notification.service.AlertService;
 import pt.ua.deti.apieasyspot.notification.service.AlertSubscriptionService;
 
+import java.util.List;
 import java.util.UUID;
 
 @Tag(name = "Alerts", description = "Alert state management")
@@ -28,6 +32,35 @@ public class AlertController {
 
     private final AlertService alertService;
     private final AlertSubscriptionService alertSubscriptionService;
+
+    @Operation(summary = "List all alerts (with filters)")
+    @ApiResponse(responseCode = "200", description = "List of alerts")
+    @ApiResponse(responseCode = "401", description = "Not authenticated")
+    @ApiResponse(responseCode = "403", description = "Not a technical or manager")
+    @GetMapping
+    @PreAuthorize("hasAnyRole('TECHNICAL', 'MANAGER')")
+    public ResponseEntity<List<AlertResponse>> listAlerts(
+        @RequestParam(required = false) UUID parkId,
+        @RequestParam(required = false) StateAlert state,
+        @RequestParam(required = false) SeverityAlert severity
+    ) {
+        return ResponseEntity.ok(alertService.listAlerts(parkId, state, severity).stream()
+            .map(a -> new AlertResponse(
+                a.getId(),
+                a.getType().name(),
+                a.getParkingLotName(),
+                a.getZone(),
+                a.getSpotNumber(),
+                a.getSensorId(),
+                a.getPlate(),
+                a.getDescription(),
+                a.getSeverity().name(),
+                a.getState().name(),
+                a.getCreatedAt(),
+                a.getAttributedTo(),
+                a.getNotes()
+            )).toList());
+    }
 
     @Operation(summary = "Create an alert subscription")
     @ApiResponse(responseCode = "200", description = "Alert subscription created successfully")

@@ -33,9 +33,9 @@ export function IncidentsTab({
   onSelect,
 }: IncidentsTabProps) {
   const estadoCounts = {
-    aberto: mockIssues.filter(i => i.estado === 'aberto').length,
-    'em-progresso': mockIssues.filter(i => i.estado === 'em-progresso').length,
-    resolvido: mockIssues.filter(i => i.estado === 'resolvido').length,
+    aberto: issues.filter(i => i.estado === 'aberto').length,
+    'em-progresso': issues.filter(i => i.estado === 'em-progresso').length,
+    resolvido: issues.filter(i => i.estado === 'resolvido').length,
   };
 
   return (
