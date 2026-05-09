@@ -13,8 +13,12 @@ function parseJwtClaims(token: string): Record<string, unknown> {
   }
 }
 
+function normalizeIssuer(issuer: unknown): string {
+  return String(issuer ?? '').replace(/\/+$/g, '');
+}
+
 function isExpectedIssuer(token: string): boolean {
-  return parseJwtClaims(token)['iss'] === EXPECTED_ISSUER;
+  return normalizeIssuer(parseJwtClaims(token)['iss']) === normalizeIssuer(EXPECTED_ISSUER);
 }
 
 function clearSessionAuthStorage() {

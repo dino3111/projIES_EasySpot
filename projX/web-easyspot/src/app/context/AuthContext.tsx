@@ -66,8 +66,12 @@ function parseJwtClaims(token: string): Record<string, unknown> {
   }
 }
 
+function normalizeIssuer(issuer: unknown): string {
+  return String(issuer ?? '').replace(/\/+$/g, '');
+}
+
 function tokenIssuerMatches(claims: Record<string, unknown>): boolean {
-  return claims['iss'] === EXPECTED_ISSUER;
+  return normalizeIssuer(claims['iss']) === normalizeIssuer(EXPECTED_ISSUER);
 }
 
 function clearAuthStorage() {
@@ -289,7 +293,7 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
     if (!tokenIssuerMatches(claims)) {
       console.warn('[AUTH] callback token has unexpected issuer:', claims['iss'], 'expected:', EXPECTED_ISSUER);
       clearAuthStorage();
-      throw new Error('Token issuer does not match the configured Authentik URL. Please sign in again.');
+      throw new Error('Sessão inválida para este ambiente. Inicie sessão novamente.');
     }
 
     sessionStorage.setItem(SK.accessToken, data.access_token);
