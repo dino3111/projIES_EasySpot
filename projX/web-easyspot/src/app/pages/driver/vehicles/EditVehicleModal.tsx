@@ -1,14 +1,12 @@
 import { useState } from 'react';
 import { detectChargerTypes } from '../../../utils/brandLogo';
 import type { Vehicle } from '../../../context/ProfileContext';
-import { BrandLogo, NicknameInput, RfidInput, EVOptions } from './vehiclesShared';
+import { BrandLogo, NicknameInput, EVOptions } from './vehiclesShared';
 
 export function EditVehicleModal({
   vehicle, onClose, onUpdate,
 }: Readonly<{ vehicle: Vehicle; onClose: () => void; onUpdate: (updates: Partial<Vehicle>) => void }>) {
-  const [nickname, setNickname] = useState(vehicle.nickname || '');
-  const [rfid, setRfid] = useState(vehicle.rfid || '');
-  const [isEV, setIsEV] = useState(vehicle.isEV);
+  const [nickname, setNickname] = useState(vehicle.nickname || '');  const [isEV, setIsEV] = useState(vehicle.isEV);
   const [isAccessible, setIsAccessible] = useState(vehicle.isAccessible);
   const [chargerTypes, setChargerTypes] = useState<string[]>(vehicle.chargerTypes || []);
 
@@ -20,23 +18,21 @@ export function EditVehicleModal({
 
   const handleSave = () =>
     onUpdate({
-      nickname: nickname.trim() || undefined,
-      rfid: rfid.trim() || undefined,
-      isEV,
+      nickname: nickname.trim() || undefined,      isEV,
       chargerTypes: isEV ? chargerTypes : undefined,
       isAccessible,
     });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-background rounded-3xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-0 sm:p-4">
+      <div className="bg-background w-full max-w-md shadow-2xl h-[100dvh] sm:h-auto sm:max-h-[90vh] sm:rounded-3xl flex flex-col overflow-hidden">
         <div className="border-b border-border px-5 py-4 flex items-center justify-between rounded-t-3xl">
           <h2 className="text-foreground font-extrabold" style={{ fontSize: '1.2rem' }}>Editar Veículo</h2>
           <button type="button" aria-label="Fechar" onClick={onClose} className="w-8 h-8 rounded-full hover:bg-muted transition-colors flex items-center justify-center">
             <i className="fas fa-times text-muted-foreground" style={{ fontSize: '0.9rem' }} />
           </button>
         </div>
-        <div className="px-5 py-5 space-y-4">
+        <div className="px-5 py-5 space-y-4 overflow-y-auto flex-1">
           <div>
             <p className="block text-muted-foreground font-bold mb-2" style={{ fontSize: '0.875rem' }}>Matrícula</p>
             <div className="input input-bordered w-full rounded-xl bg-muted cursor-not-allowed font-mono flex items-center" style={{ fontSize: '0.95rem', letterSpacing: '0.1em' }}>
@@ -78,16 +74,17 @@ export function EditVehicleModal({
               </div>
             </div>
           )}
-          <NicknameInput nickname={nickname} setNickname={setNickname} />
-          <RfidInput rfid={rfid} setRfid={setRfid} />
-          <EVOptions
+          <NicknameInput nickname={nickname} setNickname={setNickname} />          <EVOptions
             isEV={isEV} setIsEV={handleIsEVChange}
             chargerTypes={chargerTypes} setChargerTypes={setChargerTypes}
             isAccessible={isAccessible} setIsAccessible={setIsAccessible}
             make={vehicle.make}
           />
         </div>
-        <div className="border-t border-border px-5 py-4 flex items-center gap-3 rounded-b-3xl">
+        <div
+          className="border-t border-border px-5 py-4 flex items-center gap-3 sm:rounded-b-3xl"
+          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }}
+        >
           <button onClick={onClose} className="btn btn-ghost flex-1 rounded-full" style={{ fontSize: '0.875rem' }}>Cancelar</button>
           <button onClick={handleSave} className="btn btn-primary flex-1 rounded-full" style={{ fontSize: '0.875rem' }}>
             <i className="fas fa-save mr-2" style={{ fontSize: '0.8rem' }} />Guardar

@@ -67,6 +67,13 @@ export function ParkingCard({ lot, highlightAccessible = false, filterMode = nul
     : null;
 
   const getSingleCtx = (): AvailabilityContext => {
+    const lotIsFull = availableSpots === 0;
+    if (lotIsFull) {
+      return buildAvailabilityContext(
+        0, Math.max(1, totalSpots), 'Livres', null,
+        'Lotado', 'Lotado', 'Lotado', '#ef4444'
+      );
+    }
     if (filterMode === 'ev' && evTotal > 0) {
       return buildAvailabilityContext(
         evAvail, evTotal, 'Carregadores', 'fa-charging-station',

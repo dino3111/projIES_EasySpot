@@ -175,26 +175,31 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
   useEffect(() => {
     if (!accessToken) return;
 
+    let refreshing = false;
+
     const tick = async () => {
+      if (refreshing) return;
       const expMs = getTokenExpirationMs(sessionStorage.getItem(SK.accessToken) ?? accessToken);
       if (!expMs) return;
-      const nowMs = Date.now();
-      const msUntilExpiry = expMs - nowMs;
-      if (msUntilExpiry <= 60_000) {
+      const secLeft = Math.round((expMs - Date.now()) / 1000);
+      console.debug('[AUTH] tick — token expires in', secLeft, 's');
+      if (secLeft > 60) return;
+      refreshing = true;
+      try {
         const refreshed = await refreshAccessToken();
         if (!refreshed) {
+          console.warn('[AUTH] refresh returned null — logging out');
           Object.values(SK).forEach((k) => sessionStorage.removeItem(k));
           setUser(null);
           setAccessToken(null);
           globalThis.location.href = '/welcome?session=expired';
         }
+      } finally {
+        refreshing = false;
       }
     };
 
-    const id = globalThis.setInterval(() => {
-      void tick();
-    }, 15_000);
-    void tick();
+    const id = globalThis.setInterval(() => { void tick(); }, 15_000);
     return () => globalThis.clearInterval(id);
   }, [accessToken, refreshAccessToken]);
 
@@ -210,7 +215,7 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
       response_type:         'code',
       client_id:             CLIENT_ID,
       redirect_uri:          REDIRECT_URI,
-      scope:                 'openid profile email groups',
+      scope:                 'openid profile email groups offline_access',
       state:                 stateVal,
       code_challenge:        challenge,
       code_challenge_method: 'S256',
@@ -231,7 +236,7 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
       response_type:         'code',
       client_id:             CLIENT_ID,
       redirect_uri:          REDIRECT_URI,
-      scope:                 'openid profile email groups',
+      scope:                 'openid profile email groups offline_access',
       state:                 stateVal,
       code_challenge:        challenge,
       code_challenge_method: 'S256',

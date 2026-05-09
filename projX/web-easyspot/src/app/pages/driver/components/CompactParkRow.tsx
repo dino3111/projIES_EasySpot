@@ -111,6 +111,17 @@ function buildContext({ lot, filterMode, evAvail, evTotal, accAvail, accTotal }:
   lot: ParkingLot; filterMode: FilterMode;
   evAvail: number; evTotal: number; accAvail: number; accTotal: number;
 }): CtxData {
+  if (lot.availableSpots === 0) {
+    return {
+      avail: 0,
+      total: Math.max(1, lot.totalSpots),
+      color: '#ef4444',
+      label: 'Lotado',
+      icon: null,
+      borderCls: 'border-red-400/40',
+    };
+  }
+
   if (filterMode === 'ev' && evTotal > 0) {
     const isFull = evAvail === 0;
     return {

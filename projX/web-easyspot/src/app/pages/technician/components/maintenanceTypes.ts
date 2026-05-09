@@ -21,7 +21,7 @@ export const STATUS_ICON: Record<SensorStatus, string> = {
 };
 export const TIPO_ICON: Record<string, string> = {
   IR:      'fa-microchip',
-  RFID:    'fa-wifi',
+  OCR: 'fa-camera',
   OCR:     'fa-camera',
   EV:      'fa-bolt',
   Gateway: 'fa-network-wired',

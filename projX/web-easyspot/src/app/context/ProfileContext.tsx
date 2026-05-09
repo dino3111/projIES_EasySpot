@@ -19,9 +19,7 @@ export interface Vehicle {
   isEV: boolean;
   chargerTypes?: string[];
   isAccessible: boolean;
-  isPrimary: boolean;
-  rfid?: string;
-  imageUrl?: string;
+  isPrimary: boolean;  imageUrl?: string;
   brandLogoUrl?: string;
 }
 

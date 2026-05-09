@@ -45,27 +45,8 @@ export function NicknameInput({ nickname, setNickname }: Readonly<{ nickname: st
   );
 }
 
-export function RfidInput({ rfid, setRfid }: Readonly<{ rfid: string; setRfid: (v: string) => void }>) {
-  return (
-    <div>
-      <label htmlFor="rfid-input" className="block text-foreground font-bold mb-2" style={{ fontSize: '0.875rem' }}>
-        Identificador Via Verde / RFID (opcional)
-      </label>
-      <div className="relative">
-        <i className="fas fa-id-card absolute left-3 top-1/2 -translate-y-1/2 text-primary" style={{ fontSize: '0.85rem' }} />
-        <input
-          id="rfid-input"
-          type="text"
-          value={rfid}
-          onChange={(e) => setRfid(e.target.value)}
-          placeholder="Ex: VV-123456789"
-          className="input input-bordered w-full rounded-xl pl-9"
-          style={{ fontSize: '0.875rem' }}
-        />
-      </div>
-      <p className="text-muted-foreground mt-1" style={{ fontSize: '0.72rem' }}>Usado para identificação automática na entrada/saída</p>
-    </div>
-  );
+export function OcrInfo() {
+  return null;
 }
 
 export function VehicleDataCard({ vehicleData, insuranceData }: Readonly<{ vehicleData: VehicleData; insuranceData: InsuranceData | null }>) {
