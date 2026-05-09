@@ -4,9 +4,17 @@ const AUTH_STORAGE_KEYS = ['es_access_token', 'es_id_token', 'es_refresh_token',
 
 type RefreshFn = () => Promise<string | null>;
 let refreshTokenFn: RefreshFn | null = null;
+let refreshInFlight: Promise<string | null> | null = null;
 
 export function registerRefreshTokenFn(fn: RefreshFn | null): void {
   refreshTokenFn = fn;
+}
+
+function refreshOnce(): Promise<string | null> {
+  if (refreshInFlight !== null) return refreshInFlight;
+  if (!refreshTokenFn) return Promise.resolve(null);
+  refreshInFlight = refreshTokenFn().finally(() => { refreshInFlight = null; });
+  return refreshInFlight;
 }
 
 function getAccessToken(): string | null {
@@ -97,7 +105,7 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
 
   if (res.status === Number(401) && refreshTokenFn) {
     console.warn('[API-401] attempting refresh', method, url);
-    const refreshed = await refreshTokenFn().catch((err: unknown) => {
+    const refreshed = await refreshOnce().catch((err: unknown) => {
       console.error('[API-401] refresh threw', err);
       return null;
     });
