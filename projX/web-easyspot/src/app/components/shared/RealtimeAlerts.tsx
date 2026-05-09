@@ -35,6 +35,7 @@ export function RealtimeAlerts() {
     });
 
     client.onConnect = () => {
+      console.info('[WS] connected sub=', user.sub);
       client.subscribe(`/topic/alerts/${user.sub}`, (frame) => {
         try {
           const event = JSON.parse(frame.body) as AlertTriggerEvent;
@@ -45,6 +46,16 @@ export function RealtimeAlerts() {
           toast.info('Novo alerta', { description: 'Recebeu uma notificação em tempo real.' });
         }
       });
+    };
+
+    client.onStompError = (frame) => {
+      console.warn('[WS] STOMP error', { headers: frame.headers, body: frame.body });
+    };
+    client.onWebSocketError = (event) => {
+      console.warn('[WS] socket error', event);
+    };
+    client.onWebSocketClose = (event) => {
+      console.info('[WS] socket close', { code: event?.code, reason: event?.reason });
     };
 
     client.activate();
