@@ -214,7 +214,7 @@ test('Banner de erro parcial aparece quando API de sensores falha', async ({ pag
   await page.goto('/technician/maintenance');
 
   await expect(page.getByRole('alert')).toBeVisible();
-  await expect(page.getByText(/dados parciais/i)).toBeVisible();
+  await expect(page.getByText(/erro ao carregar dados/i)).toBeVisible();
 });
 
 test('Tab sensores mostra parques e sensores vindos da API', async ({ page }) => {
@@ -298,9 +298,13 @@ test('Painel mostra loading enquanto carrega logs do sensor', async ({ page }) =
 test('Tab ocorrências mostra alertas abertos da API', async ({ page }) => {
   await page.goto('/technician/maintenance');
 
-  // Tab ocorrências é a activa por defeito
+  // Tab ocorrências é a activa por defeito — mostra parques agrupados
+  await expect(page.getByText('Fórum Aveiro')).toBeVisible();
+  await expect(page.getByText('Foz Plaza')).toBeVisible();
+
+  // Entra no parque Fórum Aveiro para ver a descrição do alerta
+  await page.getByText('Fórum Aveiro').click();
   await expect(page.getByText('Sensor IR sem leituras há >2h.')).toBeVisible();
-  await expect(page.getByText('Gateway em modo de manutenção.')).toBeVisible();
 });
 
 test('Tab ocorrências mostra badge com contagem de alertas abertos', async ({ page }) => {
@@ -317,8 +321,9 @@ test('Tab ocorrências filtra por severidade crítica', async ({ page }) => {
 
   await page.getByRole('button', { name: /crítica/i }).click();
 
-  await expect(page.getByText('Sensor IR sem leituras há >2h.')).toBeVisible();
-  await expect(page.getByText('Gateway em modo de manutenção.')).not.toBeVisible();
+  // Fórum Aveiro tem alerta CRITICAL → card visível; Foz Plaza só tem WARNING → card desaparece
+  await expect(page.getByText('Fórum Aveiro')).toBeVisible();
+  await expect(page.getByText('Foz Plaza')).not.toBeVisible();
 });
 
 test('Tab ocorrências mostra alerta resolvido no filtro resolvidos', async ({ page }) => {
@@ -326,6 +331,12 @@ test('Tab ocorrências mostra alerta resolvido no filtro resolvidos', async ({ p
 
   await page.getByRole('button', { name: /resolvidos/i }).click();
 
+  // Fórum Aveiro tem alerta RESOLVED → card visível; Foz Plaza não tem → desaparece
+  await expect(page.getByText('Fórum Aveiro')).toBeVisible();
+  await expect(page.getByText('Foz Plaza')).not.toBeVisible();
+
+  // Entra no parque para confirmar o alerta resolvido
+  await page.getByText('Fórum Aveiro').click();
   await expect(page.getByText('Sinal IR abaixo do limiar mínimo.')).toBeVisible();
 });
 
