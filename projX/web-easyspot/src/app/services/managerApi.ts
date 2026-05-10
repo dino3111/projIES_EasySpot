@@ -79,7 +79,7 @@ export interface TariffResponse {
   maxDaily: number;
   monthlyPrice: number;
   pricePerKwh: number;
-  status: 'ACTIVE' | 'REVIEW' | 'SUSPENDED';
+  status: 'ACTIVE' | 'INACTIVE';
 }
 
 export interface AlertResponse {
@@ -123,11 +123,11 @@ export const fetchManagerAlerts = async (parkId?: string, state?: string, severi
 export const updateTariff = async (tariff: Partial<TariffEntry>) => {
   const body = {
     parkId: tariff.parqueId,
-    pricePerHour: tariff.tarifaHora,
-    maxDaily: tariff.maxDiario,
-    monthlyPrice: tariff.mensalidade,
-    pricePerKwh: tariff.tarifaEV,
-    status: tariff.estado?.toUpperCase()
+    pricePerHour: tariff.tarifaHora ?? 0,
+    maxDaily: tariff.maxDiario ?? 0,
+    monthlyPrice: tariff.mensalidade ?? 0,
+    pricePerKwh: tariff.tarifaEV ?? 0,
+    status: 'ACTIVE',
   };
   return await request<TariffResponse>('/api/manager/tariffs', {
     method: 'PUT',

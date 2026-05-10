@@ -1,13 +1,51 @@
+import { useState } from 'react';
 import type { TariffEntry } from '../../../data/gestorData';
 import { LegendBadge } from './shared';
 
+const PAGE_SIZE = 10;
+
 export function TariffsTab({ onEdit, tariffs }: { readonly onEdit: (t: TariffEntry) => void; readonly tariffs: TariffEntry[] }) {
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(0);
+
+  const filtered = tariffs.filter(t =>
+    t.parqueNome.toLowerCase().includes(search.toLowerCase()) ||
+    t.cidade.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages - 1);
+  const paged = filtered.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
+
+  const handleSearch = (v: string) => {
+    setSearch(v);
+    setPage(0);
+  };
+
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
-        <LegendBadge color="#22c55e" label="Ativo" />
-        <LegendBadge color="#f59e0b" label="Em Revisão" />
-        <LegendBadge color="#9ca3af" label="Suspenso" />
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2 flex-1 min-w-[200px] px-3 py-2 rounded-lg bg-card border border-border">
+          <i className="fas fa-search text-muted-foreground" style={{ fontSize: '0.85rem' }}></i>
+          <input
+            type="text"
+            placeholder="Pesquisar parque ou cidade..."
+            value={search}
+            onChange={e => handleSearch(e.target.value)}
+            className="flex-1 bg-transparent text-foreground outline-none"
+            style={{ fontSize: '0.875rem' }}
+          />
+          {search && (
+            <button onClick={() => handleSearch('')} className="text-muted-foreground hover:text-foreground">
+              <i className="fas fa-xmark" style={{ fontSize: '0.8rem' }}></i>
+            </button>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <LegendBadge color="#22c55e" label="Ativo" />
+          <LegendBadge color="#f59e0b" label="Em Revisão" />
+          <LegendBadge color="#9ca3af" label="Suspenso" />
+        </div>
       </div>
 
       <div className="bg-card border border-border rounded-2xl overflow-hidden">
@@ -26,19 +64,59 @@ export function TariffsTab({ onEdit, tariffs }: { readonly onEdit: (t: TariffEnt
               </tr>
             </thead>
             <tbody>
-              {tariffs.map((t) => (
-                <TariffRow key={t.id ?? t.parqueId} tariff={t} onEdit={onEdit} />
-              ))}
+              {paged.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground" style={{ fontSize: '0.875rem' }}>
+                    Nenhum tarifário encontrado
+                  </td>
+                </tr>
+              ) : (
+                paged.map((t) => (
+                  <TariffRow key={t.id ?? t.parqueId} tariff={t} onEdit={onEdit} />
+                ))
+              )}
             </tbody>
           </table>
         </div>
       </div>
 
-      <p className="text-muted-foreground" style={{ fontSize: '0.72rem' }}>
-        <i className="fas fa-info-circle mr-1" aria-hidden="true"></i>
-        As alterações de tarifário requerem aprovação antes de entrarem em vigor.
-        Última sincronização: 09/03/2026 às 08:00.
-      </p>
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <p className="text-muted-foreground" style={{ fontSize: '0.78rem' }}>
+            {filtered.length} tarifários · página {currentPage + 1} de {totalPages}
+          </p>
+          <div className="flex gap-1">
+            <button
+              onClick={() => setPage(p => Math.max(0, p - 1))}
+              disabled={currentPage === 0}
+              className="px-3 py-1.5 rounded-lg border border-border bg-card text-muted-foreground hover:bg-muted disabled:opacity-40 transition-colors"
+              style={{ fontSize: '0.78rem' }}
+            >
+              <i className="fas fa-chevron-left"></i>
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i)
+              .filter(i => Math.abs(i - currentPage) <= 2)
+              .map(i => (
+                <button
+                  key={i}
+                  onClick={() => setPage(i)}
+                  className={`px-3 py-1.5 rounded-lg border transition-colors ${i === currentPage ? 'border-primary bg-primary text-white' : 'border-border bg-card text-muted-foreground hover:bg-muted'}`}
+                  style={{ fontSize: '0.78rem' }}
+                >
+                  {i + 1}
+                </button>
+              ))}
+            <button
+              onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+              disabled={currentPage === totalPages - 1}
+              className="px-3 py-1.5 rounded-lg border border-border bg-card text-muted-foreground hover:bg-muted disabled:opacity-40 transition-colors"
+              style={{ fontSize: '0.78rem' }}
+            >
+              <i className="fas fa-chevron-right"></i>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

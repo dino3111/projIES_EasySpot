@@ -108,9 +108,21 @@ export function DashboardManagerPage() {
   const { kpis, seriesLast7Days, occupancyPerZone, occupancyPerHour, lastAlerts, performancePerPark } = data;
   const alertasAbertos = lastAlerts.filter(a => a.state?.toLowerCase() === 'open' || a.state?.toLowerCase() === 'aberto');
 
+  const handleExport = () => {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url  = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `dashboard-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="px-4 py-5 max-w-screen-xl mx-auto space-y-6">
-      <PageHeader />
+      <PageHeader onExport={handleExport} />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiCard icon="fa-arrow-right-to-bracket" label="Entradas Hoje"   value={kpis.todayEntrances.toString()} subValue={formatVariation(kpis.entranceVariance)} trend={getTrendFromVariation(kpis.entranceVariance)} color="#7357ec" />
@@ -133,7 +145,7 @@ export function DashboardManagerPage() {
   );
 }
 
-function PageHeader() {
+function PageHeader({ onExport }: { readonly onExport: () => void }) {
   return (
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
       <div>
@@ -143,6 +155,7 @@ function PageHeader() {
         </p>
       </div>
       <button
+        onClick={onExport}
         className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-card border border-border hover:bg-muted transition-colors text-foreground"
         style={{ fontSize: '0.8rem', fontWeight: 600 }}
         aria-label="Exportar relatório"
