@@ -25,9 +25,15 @@ export interface SpendingTimeseriesPoint {
   totalSpent: number;
 }
 
-export interface SpendingBreakdown {
-  id: string;
-  name: string;
+export interface ParkBreakdown {
+  parkId: string;
+  parkName: string;
+  totalSpent: number;
+}
+
+export interface VehicleBreakdown {
+  vehicleId: string;
+  licensePlate: string;
   totalSpent: number;
 }
 
@@ -44,9 +50,10 @@ export interface DriverSpendingResponse {
   totals: SpendingTotals;
   insights: SpendingInsights;
   timeseries: SpendingTimeseriesPoint[];
-  breakdownByPark: SpendingBreakdown[];
-  breakdownByVehicle: SpendingBreakdown[];
+  breakdownByPark: ParkBreakdown[];
+  breakdownByVehicle: VehicleBreakdown[];
   history: SpendingHistoryItem[];
+  historyTotal: number;
 }
 
 export interface PlanningRecommendation {
