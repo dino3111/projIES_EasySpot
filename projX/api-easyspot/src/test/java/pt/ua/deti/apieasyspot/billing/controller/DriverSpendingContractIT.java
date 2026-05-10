@@ -58,6 +58,7 @@ class DriverSpendingContractIT {
             .andExpect(jsonPath("$.timeseries").isArray())
             .andExpect(jsonPath("$.breakdownByPark").isArray())
             .andExpect(jsonPath("$.breakdownByVehicle").isArray())
-            .andExpect(jsonPath("$.history").isArray());
+            .andExpect(jsonPath("$.history").isArray())
+            .andExpect(jsonPath("$.historyTotal").isNumber());
     }
 }

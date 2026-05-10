@@ -3,16 +3,27 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   AreaChart, Area, PieChart, Pie, Cell,
 } from 'recharts';
-import {
-  mockDailyMetrics,
-  mockHourlyOccupancy,
-  mockZoneOccupancy,
-  mockManagerKPIs,
-  mockIssues,
-} from '../../data/gestorData';
+import type { IssueReport } from '../../data/gestorData';
 import { KpiCard, AlertRow, OccBar } from './components/shared';
 
 type ChartTab = 'entradas' | 'receita';
+
+const emptyDailyMetrics: Array<{ day: string; entradas: number; receita: number }> = [];
+const emptyHourlyOccupancy: Array<{ hora: string; ocupacao: number }> = [];
+const emptyZoneOccupancy: Array<{ name: string; total: number; ocupados: number; color: string }> = [];
+const emptyIssues: IssueReport[] = [];
+
+const kpis = {
+  entradasHoje: 0,
+  variacaoEntradas: 0,
+  taxaOcupacaoMedia: 0,
+  totalLugares: 0,
+  lugaresLivres: 0,
+  receitaHoje: 0,
+  variacaoReceita: 0,
+  tempoMedioEstadia: '0 min',
+  alertasAbertos: 0,
+};
 
 const parkSummaryRows = [
   { nome: 'Fórum Aveiro',      cidade: 'Aveiro',   entradas: 58, ocupacao: 74, receita: 342.50 },
@@ -44,8 +55,7 @@ function formatVariation(variation: number) {
 
 export function DashboardManagerPage() {
   const [chartTab, setChartTab] = useState<ChartTab>('entradas');
-  const kpis = mockManagerKPIs;
-  const alertasAbertos = mockIssues.filter((i) => i.estado === 'aberto');
+  const alertasAbertos = emptyIssues.filter((i) => i.estado === 'aberto');
 
   return (
     <div className="px-4 py-5 max-w-screen-xl mx-auto space-y-6">
@@ -120,7 +130,7 @@ function DailyChart({ chartTab, onTabChange }: { readonly chartTab: ChartTab; re
       </div>
       <div style={{ height: 200 }}>
         <ResponsiveContainer width="100%" height="100%" key={`bar-container-${chartTab}`}>
-          <BarChart key={`bar-chart-${chartTab}`} data={mockDailyMetrics} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+          <BarChart key={`bar-chart-${chartTab}`} data={emptyDailyMetrics} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
             <XAxis dataKey="day" tick={{ fill: 'var(--color-muted-foreground)', fontSize: 12 }} axisLine={false} tickLine={false} />
             <YAxis tick={{ fill: 'var(--color-muted-foreground)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={yAxisTickFormatter} />
@@ -134,21 +144,28 @@ function DailyChart({ chartTab, onTabChange }: { readonly chartTab: ChartTab; re
 }
 
 function ZoneDonut() {
+  const hasData = emptyZoneOccupancy.length > 0;
   return (
     <div className="bg-card border border-border rounded-2xl p-4">
       <h2 className="text-foreground mb-4" style={{ fontSize: '1rem', fontWeight: 700 }}>Ocupação por Zona</h2>
       <div style={{ height: 160 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie data={mockZoneOccupancy} dataKey="ocupados" nameKey="name" cx="50%" cy="50%" innerRadius={45} outerRadius={70} paddingAngle={3}>
-              {mockZoneOccupancy.map((zone) => <Cell key={zone.name} fill={zone.color} />)}
-            </Pie>
-            <Tooltip contentStyle={{ ...tooltipStyle, borderRadius: '10px', fontSize: '0.78rem' }} formatter={(v: number, name: string) => [`${v} ocupados`, name]} />
-          </PieChart>
-        </ResponsiveContainer>
+        {hasData ? (
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie data={emptyZoneOccupancy} dataKey="ocupados" nameKey="name" cx="50%" cy="50%" innerRadius={45} outerRadius={70} paddingAngle={3}>
+                {emptyZoneOccupancy.map((zone) => <Cell key={zone.name} fill={zone.color} />)}
+              </Pie>
+              <Tooltip contentStyle={{ ...tooltipStyle, borderRadius: '10px', fontSize: '0.78rem' }} formatter={(v: number, name: string) => [`${v} ocupados`, name]} />
+            </PieChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-border text-muted-foreground" style={{ fontSize: '0.8rem' }}>
+            Sem dados disponíveis
+          </div>
+        )}
       </div>
       <div className="space-y-1.5 mt-1">
-        {mockZoneOccupancy.map((zone) => {
+        {emptyZoneOccupancy.map((zone) => {
           const pct = Math.round((zone.ocupados / zone.total) * 100);
           return (
             <div key={zone.name} className="flex items-center gap-2">
@@ -170,7 +187,7 @@ function HourlyChart() {
       <h2 className="text-foreground mb-4" style={{ fontSize: '1rem', fontWeight: 700 }}>Ocupação por Hora — Hoje</h2>
       <div style={{ height: 160 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={mockHourlyOccupancy} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+          <AreaChart data={emptyHourlyOccupancy} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
             <defs>
               <linearGradient id="gradOcup" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%"  stopColor="#7357ec" stopOpacity={0.3} />
@@ -189,7 +206,7 @@ function HourlyChart() {
   );
 }
 
-function AlertsSection({ alertasAbertos }: { readonly alertasAbertos: typeof mockIssues }) {
+function AlertsSection({ alertasAbertos }: { readonly alertasAbertos: IssueReport[] }) {
   return (
     <div className="bg-card border border-border rounded-2xl p-4">
       <div className="flex items-center justify-between mb-4">
@@ -199,7 +216,13 @@ function AlertsSection({ alertasAbertos }: { readonly alertasAbertos: typeof moc
         </span>
       </div>
       <div className="space-y-2">
-        {mockIssues.slice(0, 5).map((issue) => <AlertRow key={issue.id} issue={issue} />)}
+        {alertasAbertos.length > 0 ? (
+          alertasAbertos.slice(0, 5).map((issue) => <AlertRow key={issue.id} issue={issue} />)
+        ) : (
+          <div className="rounded-xl border border-dashed border-border px-3 py-4 text-center text-muted-foreground" style={{ fontSize: '0.8rem' }}>
+            Sem alertas em aberto
+          </div>
+        )}
       </div>
       <a href="/manager/tariffs-incidents" className="mt-3 flex items-center gap-1.5 text-primary hover:opacity-80 transition-opacity" style={{ fontSize: '0.8rem', fontWeight: 600 }}>
         Ver todos os registos

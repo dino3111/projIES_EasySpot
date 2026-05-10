@@ -20,7 +20,9 @@ public record DriverSpendingResponse(
     @Schema(description = "Total spent grouped by vehicle")
     List<VehicleBreakdown> breakdownByVehicle,
     @Schema(description = "Detailed session history")
-    List<HistoryItem> history
+    List<HistoryItem> history,
+    @Schema(description = "Total number of history items (for pagination)", example = "47")
+    long historyTotal
 ) {
 
     public record Totals(

@@ -11,6 +11,15 @@ const PERIODS: { id: SpendingTimeWindow; label: string }[] = [
   { id: '7D', label: '7 dias' }, { id: '30D', label: '30 dias' }, { id: '3M', label: '3 meses' },
 ];
 
+const STATUS_LABELS: Record<string, string> = {
+  COMPLETED: 'Concluído',
+  PENDING: 'Pendente',
+  CANCELLED: 'Cancelado',
+  ACTIVE: 'Ativo',
+};
+
+const PAGE_SIZE = 10;
+
 interface SpendTooltipProps {
   readonly active?: boolean;
   readonly payload?: readonly { readonly value: number }[];
@@ -31,9 +40,14 @@ export function ExpensesTab() {
   const { vehicles } = useProfile();
   const [period, setPeriod] = useState<SpendingTimeWindow>('30D');
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
+  const [historyPage, setHistoryPage] = useState(0);
   const [data, setData] = useState<DriverSpendingResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setHistoryPage(0);
+  }, [period, selectedVehicleId]);
 
   useEffect(() => {
     let mounted = true;
@@ -44,6 +58,8 @@ export function ExpensesTab() {
         const resp = await fetchDriverSpending({
           timeWindow: period,
           vehicleId: selectedVehicleId,
+          page: historyPage,
+          size: PAGE_SIZE,
         });
         if (mounted) setData(resp);
       } catch (err) {
@@ -55,7 +71,7 @@ export function ExpensesTab() {
     };
     load();
     return () => { mounted = false; };
-  }, [period, selectedVehicleId]);
+  }, [period, selectedVehicleId, historyPage]);
 
   const chartData = useMemo(() => {
     if (!data?.timeseries) return [];
@@ -67,13 +83,20 @@ export function ExpensesTab() {
 
   const pieData = useMemo(() => {
     if (!data?.breakdownByPark) return [];
-    return data.breakdownByPark.map(b => ({ name: b.name, value: b.totalSpent }));
+    return data.breakdownByPark.map(b => ({ name: b.parkName, value: b.totalSpent }));
   }, [data]);
 
   const vehicleData = useMemo(() => {
     if (!data?.breakdownByVehicle) return [];
-    return data.breakdownByVehicle.map(b => ({ name: b.name, total: b.totalSpent }));
+    return data.breakdownByVehicle.map(b => ({ name: b.licensePlate, total: b.totalSpent }));
   }, [data]);
+
+  const isEmpty = !!data
+    && data.totals.totalSpent === 0
+    && data.timeseries.length === 0
+    && data.breakdownByPark.length === 0
+    && data.breakdownByVehicle.length === 0
+    && data.history.length === 0;
 
   if (loading && !data) {
     return <div className="py-20 text-center text-muted-foreground">A carregar os seus gastos...</div>;
@@ -90,7 +113,8 @@ export function ExpensesTab() {
 
   if (!data) return null;
 
-  const { totals, insights, history } = data;
+  const { totals, insights, history, historyTotal } = data;
+  const totalPages = Math.ceil(historyTotal / PAGE_SIZE);
 
   return (
     <div className="animate-in fade-in duration-200">
@@ -144,6 +168,15 @@ export function ExpensesTab() {
           </div>
         ))}
       </div>
+
+      {isEmpty && (
+        <div className="rounded-2xl border border-dashed border-border/60 bg-card/70 p-8 text-center mb-6">
+          <p className="text-foreground font-bold">Ainda não tem gastos registados</p>
+          <p className="text-muted-foreground text-sm mt-1">
+            Quando existir a primeira sessão faturada, os totais e gráficos aparecem aqui automaticamente.
+          </p>
+        </div>
+      )}
 
       {(totals.chargingSpent > 0) && (
         <div className="grid grid-cols-2 gap-3 mb-4">
@@ -255,51 +288,76 @@ export function ExpensesTab() {
       </div>
 
       <h2 className="text-foreground font-bold mb-3" style={{ fontSize: '1rem' }}>Histórico de Estacionamento</h2>
-      <div className="rounded-2xl border border-border/40 overflow-hidden mb-6 bg-card shadow-sm">
+      <div className="rounded-2xl border border-border/40 overflow-hidden mb-3 bg-card shadow-sm">
         {history.length === 0 ? (
           <div className="p-10 text-center text-muted-foreground">Sem histórico para este período.</div>
         ) : (
-          history.map((expense, idx) => {
-            return (
-              <div key={`${expense.date}-${idx}`} className={`px-4 py-3.5 ${idx < history.length - 1 ? 'border-b border-border/40' : ''}`}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 bg-primary/10">
-                      <i className="fas fa-receipt text-primary text-xs" aria-hidden="true" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-foreground font-semibold text-sm truncate">{expense.parkName}</p>
-                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                        <span className="text-muted-foreground text-xs whitespace-nowrap">
-                          {new Date(expense.date).toLocaleDateString('pt-PT', { day: '2-digit', month: 'short', year: '2-digit' })}
-                        </span>
-                        <span className="text-muted-foreground/30">•</span>
-                        <span className="text-muted-foreground text-xs whitespace-nowrap">
-                          {Math.floor(expense.durationMinutes / 60)}h{expense.durationMinutes % 60}m
-                        </span>
-                        {expense.vehicle && (
-                          <>
-                            <span className="text-muted-foreground/30">•</span>
-                            <span className="flex items-center gap-1 text-muted-foreground text-xs truncate">
-                              <i className="fas fa-car" aria-hidden="true" style={{fontSize: '0.65rem'}} />{expense.vehicle}
-                            </span>
-                          </>
-                        )}
-                      </div>
-                    </div>
+          history.map((expense, idx) => (
+            <div key={`${expense.date}-${idx}`} className={`px-4 py-3.5 ${idx < history.length - 1 ? 'border-b border-border/40' : ''}`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 bg-primary/10">
+                    <i className="fas fa-receipt text-primary text-xs" aria-hidden="true" />
                   </div>
-                  <div className="text-right flex-shrink-0 ml-3">
-                    <p className="font-extrabold text-sm" style={{ color: 'var(--color-primary-purple)' }}>
-                      €{expense.totalSpent.toFixed(2)}
-                    </p>
-                    <span className="text-muted-foreground font-medium uppercase text-[0.6rem]">{expense.status}</span>
+                  <div className="min-w-0">
+                    <p className="text-foreground font-semibold text-sm truncate">{expense.parkName}</p>
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                      <span className="text-muted-foreground text-xs whitespace-nowrap">
+                        {new Date(expense.date).toLocaleDateString('pt-PT', { day: '2-digit', month: 'short', year: '2-digit' })}
+                      </span>
+                      <span className="text-muted-foreground/30">•</span>
+                      <span className="text-muted-foreground text-xs whitespace-nowrap">
+                        {Math.floor(expense.durationMinutes / 60)}h{expense.durationMinutes % 60}m
+                      </span>
+                      {expense.vehicle && (
+                        <>
+                          <span className="text-muted-foreground/30">•</span>
+                          <span className="flex items-center gap-1 text-muted-foreground text-xs truncate">
+                            <i className="fas fa-car" aria-hidden="true" style={{fontSize: '0.65rem'}} />{expense.vehicle}
+                          </span>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
+                <div className="text-right flex-shrink-0 ml-3">
+                  <p className="font-extrabold text-sm" style={{ color: 'var(--color-primary-purple)' }}>
+                    €{expense.totalSpent.toFixed(2)}
+                  </p>
+                  <span className="text-muted-foreground font-medium uppercase text-[0.6rem]">
+                    {STATUS_LABELS[expense.status] ?? expense.status}
+                  </span>
+                </div>
               </div>
-            );
-          })
+            </div>
+          ))
         )}
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mb-6">
+          <span className="text-muted-foreground text-xs">
+            Página {historyPage + 1} de {totalPages} · {historyTotal} sessões
+          </span>
+          <div className="flex gap-1">
+            <button
+              onClick={() => setHistoryPage(p => p - 1)}
+              disabled={historyPage === 0}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-border/40 bg-card text-foreground disabled:opacity-40 disabled:cursor-not-allowed hover:bg-muted transition-colors"
+            >
+              <i className="fas fa-chevron-left mr-1" style={{ fontSize: '0.6rem' }} />Anterior
+            </button>
+            <button
+              onClick={() => setHistoryPage(p => p + 1)}
+              disabled={historyPage >= totalPages - 1}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-border/40 bg-card text-foreground disabled:opacity-40 disabled:cursor-not-allowed hover:bg-muted transition-colors"
+            >
+              Seguinte<i className="fas fa-chevron-right ml-1" style={{ fontSize: '0.6rem' }} />
+            </button>
+          </div>
+        </div>
+      )}
+      {totalPages <= 1 && <div className="mb-6" />}
 
       <div className="rounded-xl p-4 flex items-start gap-3 bg-primary/5 border border-primary/20 mb-4">
         <i className="fas fa-circle-info mt-0.5 text-primary" aria-hidden="true" />
