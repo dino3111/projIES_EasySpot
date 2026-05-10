@@ -1,4 +1,8 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
+
+async function waitForLoaded(page: Page) {
+  await page.waitForSelector('[aria-busy="true"]', { state: 'hidden', timeout: 10000 }).catch(() => {});
+}
 
 const jwt = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1MSIsIm5hbWUiOiJBbmEiLCJlbWFpbCI6ImFuYUBlYXN5c3BvdC5wdCIsImdyb3VwcyI6WyJEUklWRVIiXX0.sig';
 
@@ -27,6 +31,9 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript((token) => {
     sessionStorage.setItem('es_access_token', token);
     sessionStorage.setItem('es_id_token', token);
+    localStorage.setItem('easyspot_vehicles', JSON.stringify([
+      { id: 'v1', plate: 'AA-11-BB', isEV: true, isAccessible: false, isPrimary: true, chargerTypes: ['Type 2', 'CCS'] },
+    ]));
   }, jwt);
 
   await page.route('**/api/vehicles', async (route) => {
@@ -43,6 +50,10 @@ test.beforeEach(async ({ page }) => {
   await page.route('**/api/parks/park-1/favorite', async (route) => {
     if (route.request().method() === 'POST') await route.fulfill({ json: { parkId: 'park-1', isFavorite: true } });
     else await route.fulfill({ json: { parkId: 'park-1', isFavorite: true } });
+  });
+
+  await page.route('**/api/payments/setup-status', async (route) => {
+    await route.fulfill({ json: { configured: true } });
   });
 
   await page.route('**/api/profile', async (route) => {
@@ -69,7 +80,7 @@ test('Detalhe de parque', async ({ page }) => {
 test('Mapa do driver', async ({ page }) => {
   await page.goto('/map');
   await expect(page.getByLabel('Pesquisar parque')).toBeVisible();
-  await expect(page.getByText('1')).toBeVisible();
+  await expect(page.getByText('1', { exact: true }).first()).toBeVisible();
 });
 
 test('Favoritos', async ({ page }) => {
@@ -88,10 +99,11 @@ test('Perfil', async ({ page }) => {
 
 test('Tab EV - mostra carregadores com disponibilidade e preço', async ({ page }) => {
   await page.goto('/parking/park-1');
+  await waitForLoaded(page);
   await page.getByRole('button', { name: /EV/i }).click();
   // Both chargers visible
-  await expect(page.getByText('Type 2')).toBeVisible();
-  await expect(page.getByText('CCS')).toBeVisible();
+  await expect(page.getByText('Type 2', { exact: true })).toBeVisible();
+  await expect(page.getByText('CCS', { exact: true })).toBeVisible();
   // Price shown
   await expect(page.getByText(/€0\.30/)).toBeVisible();
   await expect(page.getByText(/€0\.45/)).toBeVisible();
@@ -102,6 +114,7 @@ test('Tab EV - mostra carregadores com disponibilidade e preço', async ({ page 
 
 test('Tab EV - mostra velocidade correta dos carregadores', async ({ page }) => {
   await page.goto('/parking/park-1');
+  await waitForLoaded(page);
   await page.getByRole('button', { name: /EV/i }).click();
   await expect(page.getByText(/22\s*kW/)).toBeVisible();
   await expect(page.getByText(/50\s*kW/)).toBeVisible();
@@ -109,6 +122,7 @@ test('Tab EV - mostra velocidade correta dos carregadores', async ({ page }) => 
 
 test('Tab EV - compatibilidade com veículo EV do utilizador', async ({ page }) => {
   await page.goto('/parking/park-1');
+  await waitForLoaded(page);
   await page.getByRole('button', { name: /EV/i }).click();
   // Compatibility banner should appear (user vehicle is EV with Type 2)
   await expect(page.getByText(/Compatibilidade/i)).toBeVisible();
@@ -116,6 +130,7 @@ test('Tab EV - compatibilidade com veículo EV do utilizador', async ({ page }) 
 
 test('Tab Acessibilidade - mostra lugares com distância e dimensão', async ({ page }) => {
   await page.goto('/parking/park-1');
+  await waitForLoaded(page);
   await page.getByRole('button', { name: /Acess/i }).click();
   // Both spots visible
   await expect(page.getByText('Zona A - Piso 0')).toBeVisible();
@@ -127,6 +142,7 @@ test('Tab Acessibilidade - mostra lugares com distância e dimensão', async ({ 
 
 test('Tab Acessibilidade - mostra estado do sensor online e avariado', async ({ page }) => {
   await page.goto('/parking/park-1');
+  await waitForLoaded(page);
   await page.getByRole('button', { name: /Acess/i }).click();
   await expect(page.getByText('Sensor online')).toBeVisible();
   await expect(page.getByText('Sensor avariado')).toBeVisible();
@@ -134,6 +150,7 @@ test('Tab Acessibilidade - mostra estado do sensor online e avariado', async ({ 
 
 test('Tab Acessibilidade - mostra disponibilidade correta dos lugares', async ({ page }) => {
   await page.goto('/parking/park-1');
+  await waitForLoaded(page);
   await page.getByRole('button', { name: /Acess/i }).click();
   // First spot available, second occupied
   const badges = page.getByText(/^(Livre|Ocupado)$/);
@@ -142,6 +159,7 @@ test('Tab Acessibilidade - mostra disponibilidade correta dos lugares', async ({
 
 test('Tab Acessibilidade - mostra legenda de distância e dimensão', async ({ page }) => {
   await page.goto('/parking/park-1');
+  await waitForLoaded(page);
   await page.getByRole('button', { name: /Acess/i }).click();
   await expect(page.getByText(/DISTÂNCIA À ENTRADA/i)).toBeVisible();
   await expect(page.getByText(/DIMENSÃO DO LUGAR/i)).toBeVisible();
@@ -149,6 +167,7 @@ test('Tab Acessibilidade - mostra legenda de distância e dimensão', async ({ p
 
 test('Tab Acessibilidade - link de reporte de ocupação irregular', async ({ page }) => {
   await page.goto('/parking/park-1');
+  await waitForLoaded(page);
   await page.getByRole('button', { name: /Acess/i }).click();
   await expect(page.getByRole('link', { name: /Reportar/i })).toBeVisible();
 });

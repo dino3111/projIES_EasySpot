@@ -259,3 +259,5 @@ crash.log
 package-lock.json
 CLAUDE.md
 pnpm-lock.yaml
+test-results
+.claude
