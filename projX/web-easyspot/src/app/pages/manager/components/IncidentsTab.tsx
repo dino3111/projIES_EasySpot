@@ -106,9 +106,10 @@ function IssueCard({ issue, onClick }: IssueCardProps) {
     sensor: { icon: 'fa-microchip', label: 'Sensor' },
     sistema: { icon: 'fa-server', label: 'Sistema' },
     cliente: { icon: 'fa-user', label: 'Cliente' },
+    billing: { icon: 'fa-credit-card', label: 'Faturação' },
   };
-  const severityInfo = severityMap[issue.severidade];
-  const typeInfo = typeMap[issue.tipo];
+  const severityInfo = severityMap[issue.severidade] ?? severityMap.info;
+  const typeInfo = typeMap[issue.tipo] ?? { icon: 'fa-circle-question', label: 'Outra' };
 
   const estadoBadge = ISSUE_STATUS_BADGES[issue.estado];
 
