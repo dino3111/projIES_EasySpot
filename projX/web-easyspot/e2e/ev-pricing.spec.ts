@@ -89,7 +89,7 @@ test.describe('US#7 — Combined Parking + Charging Fee', () => {
     await evSpot.click();
 
     // Após selecionar spot EV, CostSummary deve mostrar carregamento
-    await expect(page.getByText(/Carregamento EV/i)).toBeVisible();
+    await expect(page.getByText(/Carregamento EV/i).first()).toBeVisible();
     await expect(page.getByText(/Estacionamento/i)).toBeVisible();
     await expect(page.getByText(/Total estimado/i)).toBeVisible();
 
@@ -118,6 +118,8 @@ test.describe('US#7 — Combined Parking + Charging Fee', () => {
     await page.goto('/parking/park-ev');
 
     await expect(page.getByText(/Parque EV/i)).toBeVisible();
+    // Navegar para o separador de carregamento EV
+    await page.getByRole('button', { name: /EV/i }).click();
     // Charger info — tipo e preço devem aparecer
     await expect(page.getByText(/Type 2/i)).toBeVisible();
     await expect(page.getByText(/0\.35/)).toBeVisible();

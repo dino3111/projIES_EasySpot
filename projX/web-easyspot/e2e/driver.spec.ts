@@ -105,7 +105,7 @@ test('Tarifas do parque — mostra taxa horária do backend', async ({ page }) =
   await expect(page.getByRole('heading', { name: 'Parque Central' })).toBeVisible();
   await page.getByRole('button', { name: /Tarifas/i }).click();
   await expect(page.getByText('Por Hora').first()).toBeVisible();
-  await expect(page.getByText('€1.50')).toBeVisible();
+  await expect(page.getByText('€1.50').first()).toBeVisible();
 });
 
 test('Tarifas do parque — mostra gráfico de ocupação histórica', async ({ page }) => {
