@@ -71,8 +71,24 @@ public class PaymentController {
             @AuthenticationPrincipal Jwt jwt) throws StripeException {
         try {
             return ResponseEntity.ok(stripeService.createSetupIntent(jwt.getSubject(), jwt.getClaimAsString(CLAIM_EMAIL)));
+        } catch (IllegalStateException ex) {
+            log.warn(
+                "Stripe setup-intent misconfigured for user={} type={} message={}",
+                jwt.getSubject(),
+                ex.getClass().getSimpleName(),
+                ex.getMessage()
+            );
+            log.debug("Stripe setup-intent misconfiguration stacktrace for user={}", jwt.getSubject(), ex);
+            return ResponseEntity.status(503).body("Stripe setup is temporarily unavailable");
         } catch (StripeException ex) {
-            log.warn("Stripe setup-intent unavailable for user={}: {}", jwt.getSubject(), ex.getMessage());
+            log.warn(
+                "Stripe setup-intent unavailable for user={} type={} code={} message={}",
+                jwt.getSubject(),
+                ex.getClass().getSimpleName(),
+                ex.getCode(),
+                ex.getMessage()
+            );
+            log.debug("Stripe setup-intent stacktrace for user={}", jwt.getSubject(), ex);
             return ResponseEntity.status(503).body("Stripe setup is temporarily unavailable");
         }
     }

@@ -314,9 +314,11 @@ public class StripeService {
     public List<PaymentMethodSummaryResponse> listPaymentMethods(String authentikUserId, String tokenEmail) throws StripeException {
         ensureStripeConfigured();
         String customerEmail = resolveCustomerEmail(authentikUserId, tokenEmail);
+        log.info("Listing Stripe payment methods for user={} email={}", authentikUserId, customerEmail);
         String customerId = findCustomerIdByEmail(customerEmail);
 
         if (customerId == null) {
+            log.info("No Stripe customer found for user={} email={}, returning empty list", authentikUserId, customerEmail);
             return List.of();
         }
 
@@ -332,6 +334,12 @@ public class StripeService {
                 .build()
         );
 
+        log.info(
+            "Stripe payment methods loaded for user={} customer={} count={}",
+            authentikUserId,
+            customerId,
+            paymentMethods.getData().size()
+        );
         return paymentMethods.getData().stream()
             .map(method -> toSummary(method, defaultPaymentMethodId))
             .toList();

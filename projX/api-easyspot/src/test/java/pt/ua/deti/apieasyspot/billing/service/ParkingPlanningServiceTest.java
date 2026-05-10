@@ -43,8 +43,8 @@ class ParkingPlanningServiceTest {
 
     @BeforeEach
     void setUp() {
-        availableLot = lot("Central Park", "Rua A", 40.6440, -8.6510, 100, "08:00-22:00");
-        fullLot = lot("Full Park", "Rua B", 40.6410, -8.6520, 100, "08:00-22:00");
+        availableLot = lot("Central Park", "Rua A", 40.6440, -8.6510, 100, "24h");
+        fullLot = lot("Full Park", "Rua B", 40.6410, -8.6520, 100, "24h");
         cheapLot = lot("Cheap Park", "Rua C", 40.6500, -8.6500, 100, "24h");
         nearLot = lot("Near Park", "Rua D", 40.6406, -8.6537, 100, "24h");
     }
@@ -223,7 +223,7 @@ class ParkingPlanningServiceTest {
         assertThat(s.id()).isNotNull();
         assertThat(s.name()).isEqualTo("Central Park");
         assertThat(s.address()).isEqualTo("Rua A");
-        assertThat(s.openingHours()).isEqualTo("08:00-22:00");
+        assertThat(s.openingHours()).isEqualTo("24h");
         assertThat(s.distanceMeters()).isEqualTo(455.3);
         assertThat(s.pricePerHour()).isEqualTo(BigDecimal.valueOf(1.20));
         assertThat(s.currentOccupancy().occupied()).isEqualTo(20);

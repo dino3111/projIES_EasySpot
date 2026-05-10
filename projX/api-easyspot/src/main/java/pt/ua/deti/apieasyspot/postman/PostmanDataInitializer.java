@@ -1,6 +1,8 @@
 package pt.ua.deti.apieasyspot.postman;
 
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Profile;
@@ -36,6 +38,7 @@ import java.util.UUID;
 @Component
 @Profile("postman")
 @Order(2)
+@Slf4j
 class PostmanDataInitializer implements ApplicationRunner {
 
     private final UserRepository userRepository;
@@ -90,9 +93,17 @@ class PostmanDataInitializer implements ApplicationRunner {
         User driver = seedUser();
         List<ParkingLot> lots = seedLots();
         seedDetails(lots);
-        seedSessions(lots, driver);
-        seedAlerts(lots);
-        seedHourlySnapshots(lots);
+        runBestEffort("timeseries parking sessions", () -> seedSessions(lots, driver));
+        runBestEffort("timeseries alerts", () -> seedAlerts(lots));
+        runBestEffort("timeseries occupancy snapshots", () -> seedHourlySnapshots(lots));
+    }
+
+    private void runBestEffort(String datasetName, Runnable seedAction) {
+        try {
+            seedAction.run();
+        } catch (DataAccessException ex) {
+            log.warn("Postman seed skipped for {}: {}", datasetName, ex.getMostSpecificCause().getMessage());
+        }
     }
 
     private User seedUser() {

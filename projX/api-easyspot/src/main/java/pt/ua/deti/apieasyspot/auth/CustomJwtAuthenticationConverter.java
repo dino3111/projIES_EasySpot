@@ -39,7 +39,14 @@ public class CustomJwtAuthenticationConverter implements Converter<Jwt, Abstract
         List<String> groups = jwt.getClaimAsStringList("groups");
         String role = (groups != null && !groups.isEmpty()) ? groups.get(0) : "DRIVER";
 
-        User user = userRepository.findByAuthentikUserId(subject).orElseGet(User::new);
+        var existing = userRepository.findByAuthentikUserId(subject);
+        if (existing.isEmpty() && (email == null || name == null)) {
+            // Some synthetic/test tokens don't provide profile fields.
+            // Skip persistence and keep JWT-based auth working.
+            return;
+        }
+
+        User user = existing.orElseGet(User::new);
         boolean changed = false;
 
         if (user.getAuthentikUserId() == null) {
