@@ -150,6 +150,10 @@ test('Planeamento — condutor expande previsão de ocupação', async ({ page }
 
 // ── Reservation E2E tests ────────────────────────────────────────────────────
 
+async function waitForLoaded(page: import('@playwright/test').Page) {
+  await page.waitForSelector('[role="status"][aria-busy="true"]', { state: 'hidden', timeout: 10000 }).catch(() => {});
+}
+
 test.describe('Reserva de lugar', () => {
   test.beforeEach(async ({ page }) => {
     await page.route('**/api/reservations', async (route) => {
@@ -171,6 +175,7 @@ test.describe('Reserva de lugar', () => {
 
   test('Lugares reservados/ocupados não são selecionáveis', async ({ page }) => {
     await page.goto('/reservation?parkId=park-1');
+    await waitForLoaded(page);
     await expect(page.getByRole('heading', { name: 'Reservar Lugar' })).toBeVisible();
 
     // Avança para step 2 — selecionar parque já está pré-definido pelo parkId
@@ -188,6 +193,7 @@ test.describe('Reserva de lugar', () => {
 
   test('Lugar livre pode ser selecionado e reservado com sucesso', async ({ page }) => {
     await page.goto('/reservation?parkId=park-1');
+    await waitForLoaded(page);
     await expect(page.getByRole('heading', { name: 'Reservar Lugar' })).toBeVisible();
 
     // Step 1: avança (parque já pré-selecionado via parkId)
@@ -217,6 +223,7 @@ test.describe('Reserva de lugar', () => {
     });
 
     await page.goto('/reservation?parkId=park-1');
+    await waitForLoaded(page);
     await page.getByRole('button', { name: /Escolher Lugar/i }).first().click();
     await expect(page.getByRole('button', { name: 'Lugar A1' })).toBeVisible();
     await page.getByRole('button', { name: 'Lugar A1' }).click();
