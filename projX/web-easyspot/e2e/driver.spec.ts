@@ -28,7 +28,7 @@ test.beforeEach(async ({ page }) => {
   }, jwt);
 
   await page.route('**/api/vehicles', async (route) => {
-    await route.fulfill({ json: [{ id: 'v1', plate: 'AA-11-BB', isEv: true, isAccessible: false, isPrimary: true }] });
+    await route.fulfill({ json: [{ id: 'v1', plate: 'AA-11-BB', isEv: false, isAccessible: false, isPrimary: true }] });
   });
 
   await page.route('**/api/parks/cities', async (route) => { await route.fulfill({ json: ['Coimbra'] }); });
@@ -150,6 +150,10 @@ test('Planeamento — condutor expande previsão de ocupação', async ({ page }
 
 // ── Reservation E2E tests ────────────────────────────────────────────────────
 
+async function waitForLoaded(page: import('@playwright/test').Page) {
+  await page.waitForSelector('[role="status"][aria-busy="true"]', { state: 'hidden', timeout: 10000 }).catch(() => {});
+}
+
 test.describe('Reserva de lugar', () => {
   test.beforeEach(async ({ page }) => {
     await page.route('**/api/reservations', async (route) => {
@@ -171,10 +175,11 @@ test.describe('Reserva de lugar', () => {
 
   test('Lugares reservados/ocupados não são selecionáveis', async ({ page }) => {
     await page.goto('/reservation?parkId=park-1');
+    await waitForLoaded(page);
     await expect(page.getByRole('heading', { name: 'Reservar Lugar' })).toBeVisible();
 
     // Avança para step 2 — selecionar parque já está pré-definido pelo parkId
-    await page.getByRole('button', { name: /Escolher Lugar/i }).first().click();
+    await page.getByRole('button', { name: /Avançar para escolha do lugar/i }).click();
 
     // Aguarda que o mapa de lugares carregue (selectedLot disponível)
     await expect(page.getByRole('button', { name: 'Lugar A1' })).toBeVisible();
@@ -188,10 +193,11 @@ test.describe('Reserva de lugar', () => {
 
   test('Lugar livre pode ser selecionado e reservado com sucesso', async ({ page }) => {
     await page.goto('/reservation?parkId=park-1');
+    await waitForLoaded(page);
     await expect(page.getByRole('heading', { name: 'Reservar Lugar' })).toBeVisible();
 
     // Step 1: avança (parque já pré-selecionado via parkId)
-    await page.getByRole('button', { name: /Escolher Lugar/i }).first().click();
+    await page.getByRole('button', { name: /Avançar para escolha do lugar/i }).click();
 
     // Step 2: aguarda que o mapa de lugares carregue e seleciona lugar livre A1
     await expect(page.getByRole('button', { name: 'Lugar A1' })).toBeVisible();
@@ -201,7 +207,7 @@ test.describe('Reserva de lugar', () => {
 
     // Step 3: aceitar termos e confirmar
     await page.getByRole('checkbox').click();
-    await page.getByRole('button', { name: /Confirmar Reserva/i }).click();
+    await page.getByRole('button', { name: /Confirmar e reservar lugar/i }).click();
 
     // Step 4: confirmação
     await expect(page.getByText('ES-ABCD-EFGH')).toBeVisible();
@@ -217,13 +223,14 @@ test.describe('Reserva de lugar', () => {
     });
 
     await page.goto('/reservation?parkId=park-1');
-    await page.getByRole('button', { name: /Escolher Lugar/i }).first().click();
+    await waitForLoaded(page);
+    await page.getByRole('button', { name: /Avançar para escolha do lugar/i }).click();
     await expect(page.getByRole('button', { name: 'Lugar A1' })).toBeVisible();
     await page.getByRole('button', { name: 'Lugar A1' }).click();
     await page.getByRole('button', { name: 'Confirmar Lugar' }).click();
     await page.getByRole('checkbox').click();
-    await page.getByRole('button', { name: /Confirmar Reserva/i }).click();
+    await page.getByRole('button', { name: /Confirmar e reservar lugar/i }).click();
 
-    await expect(page.getByRole('alert')).toContainText(/not available|indisponível|conflito/i);
+    await expect(page.locator('.alert-error')).toContainText(/not available|indisponível|conflito/i);
   });
 });

@@ -1,4 +1,8 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
+
+async function waitForLoaded(page: Page) {
+  await page.waitForSelector('[role="status"][aria-busy="true"]', { state: 'hidden', timeout: 10000 }).catch(() => {});
+}
 
 const jwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1MSIsIm5hbWUiOiJBbmEiLCJlbWFpbCI6ImFuYUBlYXN5c3BvdC5wdCIsImdyb3VwcyI6WyJEUklWRVIiXSwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdC9hdXRoZW50aWsvYXBwbGljYXRpb24vby9lYXN5c3BvdC8iLCJleHAiOjk5OTk5OTk5OTl9.fake-sig';
 
@@ -83,6 +87,7 @@ test.describe('US#7 — Combined Parking + Charging Fee', () => {
 
   test('lugar EV — reserva mostra custo estacionamento + carregamento + total', async ({ page }) => {
     await page.goto('/reservation?parkId=park-ev');
+    await waitForLoaded(page);
 
     // Step 1: avançar
     const nextBtn = page.locator('button:has-text("Escolher Lugar")');
@@ -96,7 +101,7 @@ test.describe('US#7 — Combined Parking + Charging Fee', () => {
 
     // Após selecionar spot EV, CostSummary deve mostrar carregamento
     await expect(page.getByText(/Carregamento EV/i).first()).toBeVisible();
-    await expect(page.getByText(/Estacionamento/i)).toBeVisible();
+    await expect(page.getByText(/Estacionamento/i).first()).toBeVisible();
     await expect(page.getByText(/Total estimado/i)).toBeVisible();
 
     // Valores numéricos presentes (€ prefix)
@@ -105,10 +110,15 @@ test.describe('US#7 — Combined Parking + Charging Fee', () => {
 
   test('lugar padrão — reserva não mostra taxa de carregamento', async ({ page }) => {
     await page.goto('/reservation?parkId=park-std');
+    await waitForLoaded(page);
 
     const nextBtn = page.locator('button:has-text("Escolher Lugar")');
     await expect(nextBtn).toBeVisible();
     await nextBtn.click();
+
+    // O perfil ativo é EV; o teste quer validar um lugar standard, por isso
+    // mudamos o filtro para mostrar todos os lugares.
+    await page.getByRole('button', { name: /Todos/i }).click();
 
     // Selecionar lugar standard (A1)
     const stdSpot = page.getByRole('button', { name: /Lugar A1/i });
@@ -127,7 +137,7 @@ test.describe('US#7 — Combined Parking + Charging Fee', () => {
     // Navegar para o separador de carregamento EV
     await page.getByRole('button', { name: /EV/i }).click();
     // Charger info — tipo e preço devem aparecer
-    await expect(page.getByText(/Type 2/i)).toBeVisible();
+    await expect(page.getByText('Type 2', { exact: true })).toBeVisible();
     await expect(page.getByText(/0\.35/)).toBeVisible();
   });
 });
