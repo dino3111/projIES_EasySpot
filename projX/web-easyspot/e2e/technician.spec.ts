@@ -104,6 +104,8 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript((token) => {
     sessionStorage.setItem('es_access_token', token);
     sessionStorage.setItem('es_id_token', token);
+    localStorage.setItem('easyspot_profile', 'TECHNICAL');
+    localStorage.setItem('easyspot_account_type', 'TECHNICAL');
   }, jwt);
 
   await page.route('**/api/profile', (route) => route.fulfill({ json: mockProfile }));
@@ -125,7 +127,7 @@ test('Painel técnico mostra KPIs da API', async ({ page }) => {
 test('Painel técnico mostra ordens urgentes', async ({ page }) => {
   await page.goto('/technician/dashboard');
 
-  await expect(page.getByText(/ordens urgentes/i)).toBeVisible();
+  await expect(page.getByText(/ordens urgentes/i).first()).toBeVisible();
   await expect(page.getByText('Falha de leitura IR sem sinal')).toBeVisible();
   await expect(page.getByText('Fórum Aveiro')).toBeVisible();
 });
@@ -220,7 +222,7 @@ test('Fechar painel de diagnóstico remove o modal', async ({ page }) => {
 
   await expect(page.getByRole('dialog')).toBeVisible();
 
-  await page.getByRole('button', { name: /fechar/i }).click();
+  await page.getByRole('button', { name: /fechar/i }).first().click();
 
   await expect(page.getByRole('dialog')).not.toBeVisible();
 });

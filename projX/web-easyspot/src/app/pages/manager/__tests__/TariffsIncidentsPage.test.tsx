@@ -39,7 +39,7 @@ describe('TariffsIncidentsPage', () => {
       </ProfileProvider>
     );
 
-    expect(screen.getByRole('img', { hidden: true, name: '' }) || screen.getByClassName('fa-spin')).toBeTruthy();
+    expect(document.querySelector('.fa-spin')).toBeTruthy();
   });
 
   it('renders data after fetching', async () => {

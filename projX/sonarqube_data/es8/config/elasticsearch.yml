@@ -13,7 +13,7 @@ http.cors.enabled: 'true'
 xpack.security.enabled: 'false'
 http.host: 127.0.0.1
 path.logs: /opt/sonarqube/logs
-transport.port: '42183'
+transport.port: '34075'
 path.data: /opt/sonarqube/data/es8
 node.name: sonarqube
 network.tcp.reuse_address: 'true'
