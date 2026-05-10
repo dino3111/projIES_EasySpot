@@ -62,7 +62,7 @@ test.describe('Manager Dashboard - Tariffs & Incidents', () => {
       await route.fulfill({ json: [] });
     });
 
-    await page.goto('/manager/tarifas-ocorrencias');
+    await page.goto('/manager/tariffs-incidents');
   });
 
   test('should display tariffs correctly', async ({ page }) => {
