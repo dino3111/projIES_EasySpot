@@ -38,6 +38,18 @@ test.beforeEach(async ({ page }) => {
   await page.route('**/api/parks/park-1/details', async (route) => {
     await route.fulfill({ json: parkDetails });
   });
+  await page.route('**/api/parks/park-1/occupancy/hourly', async (route) => {
+    await route.fulfill({ json: [
+      { hour: '08h', occupancyPercent: 35 },
+      { hour: '09h', occupancyPercent: 65 },
+      { hour: '10h', occupancyPercent: 82 },
+      { hour: '11h', occupancyPercent: 90 },
+      { hour: '12h', occupancyPercent: 88 },
+      { hour: '13h', occupancyPercent: 80 },
+      { hour: '14h', occupancyPercent: 75 },
+      { hour: '15h', occupancyPercent: 85 },
+    ] });
+  });
   await page.route('**/api/parks/park-1/favorite', async (route) => {
     if (route.request().method() === 'POST') await route.fulfill({ json: { parkId: 'park-1', isFavorite: true } });
     else await route.fulfill({ json: { parkId: 'park-1', isFavorite: true } });
@@ -80,6 +92,56 @@ test('Perfil', async ({ page }) => {
   await page.goto('/profile');
   await expect(page.getByRole('heading', { name: 'Perfil' })).toBeVisible();
   await expect(page.getByText('Ana Silva')).toBeVisible();
+});
+
+// ── US#2 Price Transparency & Planning E2E tests ────────────────────────────
+
+test('Tarifas do parque — mostra taxa horária do backend', async ({ page }) => {
+  await page.goto('/parking/park-1');
+  await expect(page.getByRole('heading', { name: 'Parque Central' })).toBeVisible();
+  await page.getByRole('button', { name: /Tarifas/i }).click();
+  await expect(page.getByText('Por Hora')).toBeVisible();
+  await expect(page.getByText('€1.50')).toBeVisible();
+});
+
+test('Tarifas do parque — mostra gráfico de ocupação histórica', async ({ page }) => {
+  await page.goto('/parking/park-1');
+  await page.getByRole('button', { name: /Tarifas/i }).click();
+  await expect(page.getByText('Tendência de ocupação')).toBeVisible();
+});
+
+test('Planeamento — condutor vê recomendações com preços', async ({ page }) => {
+  await page.route('**/api/driver/costs/planning**', async (route) => {
+    await route.fulfill({ json: { recommendations: [{
+      id: 'park-1', name: 'Parque Central', address: 'Rua A, Coimbra',
+      openingHours: '24h', distanceMeters: 500, pricePerHour: 1.5,
+      currentOccupancy: { occupied: 30, total: 50, occupancyPercent: 60, status: 'AVAILABLE' },
+      occupancyByHour: [
+        { hour: '08h', occupancyPercent: 35 },
+        { hour: '10h', occupancyPercent: 82 },
+      ],
+    }] } });
+  });
+  await page.goto('/costs?tab=planeamento');
+  await expect(page.getByText('Parque Central')).toBeVisible();
+  await expect(page.getByText(/€1\.50/)).toBeVisible();
+});
+
+test('Planeamento — condutor expande previsão de ocupação', async ({ page }) => {
+  await page.route('**/api/driver/costs/planning**', async (route) => {
+    await route.fulfill({ json: { recommendations: [{
+      id: 'park-1', name: 'Parque Central', address: 'Rua A, Coimbra',
+      openingHours: '24h', distanceMeters: 500, pricePerHour: 1.5,
+      currentOccupancy: { occupied: 30, total: 50, occupancyPercent: 60, status: 'AVAILABLE' },
+      occupancyByHour: [
+        { hour: '08h', occupancyPercent: 35 },
+        { hour: '10h', occupancyPercent: 82 },
+      ],
+    }] } });
+  });
+  await page.goto('/costs?tab=planeamento');
+  await page.getByRole('button', { name: /Ver previsão/i }).click();
+  await expect(page.getByText('Previsão de ocupação')).toBeVisible();
 });
 
 // ── Reservation E2E tests ────────────────────────────────────────────────────

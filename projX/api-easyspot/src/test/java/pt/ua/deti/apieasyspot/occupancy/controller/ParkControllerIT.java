@@ -13,7 +13,10 @@ import pt.ua.deti.apieasyspot.occupancy.model.ParkingSpot;
 import pt.ua.deti.apieasyspot.occupancy.model.ZoneType;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingLotRepository;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingSpotRepository;
+import pt.ua.deti.apieasyspot.occupancy.repository.TimescaleOccupancySnapshotRepository;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 
@@ -29,6 +32,7 @@ class ParkControllerIT {
     @Autowired private MockMvc mockMvc;
     @Autowired private ParkingLotRepository parkingLotRepository;
     @Autowired private ParkingSpotRepository parkingSpotRepository;
+    @Autowired private TimescaleOccupancySnapshotRepository occupancyRepository;
 
     private ParkingLot lot;
 
@@ -191,6 +195,41 @@ class ParkControllerIT {
         mockMvc.perform(get("/api/parks/{id}/details", lot.getId())
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void getHourlyOccupancy_noData_returnsEmptyArray() throws Exception {
+        mockMvc.perform(get("/api/parks/{id}/occupancy/hourly", lot.getId())
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(jwtWithRole("sub", "DRIVER")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
+    void getHourlyOccupancy_withHistoricalData_returnsHourlyPoints() throws Exception {
+        // Insert 3 snapshots at different hours within last 7 days
+        Instant base = Instant.now().minus(2, ChronoUnit.DAYS);
+        occupancyRepository.insert(UUID.randomUUID(), lot.getId(), ZoneType.STANDARD, 50, 100, base.minus(2, ChronoUnit.HOURS));
+        occupancyRepository.insert(UUID.randomUUID(), lot.getId(), ZoneType.STANDARD, 80, 100, base.minus(1, ChronoUnit.HOURS));
+        occupancyRepository.insert(UUID.randomUUID(), lot.getId(), ZoneType.STANDARD, 20, 100, base);
+
+        mockMvc.perform(get("/api/parks/{id}/occupancy/hourly", lot.getId())
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(jwtWithRole("sub", "DRIVER")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$[0].hour").isString())
+                .andExpect(jsonPath("$[0].occupancyPercent").isNumber());
+    }
+
+    @Test
+    void getHourlyOccupancy_notFound_returns404() throws Exception {
+        mockMvc.perform(get("/api/parks/{id}/occupancy/hourly", UUID.randomUUID())
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(jwtWithRole("sub", "DRIVER")))
+                .andExpect(status().isNotFound());
     }
 
     @Test

@@ -120,7 +120,10 @@ export async function fetchParkingPlanning(query: PlanningQuery): Promise<Planni
   if (query.isElectric !== undefined) params.set('isElectric', String(query.isElectric));
   if (query.isAccessible !== undefined) params.set('isAccessible', String(query.isAccessible));
   if (query.maxDistanceMeters !== undefined) params.set('maxDistanceMeters', String(query.maxDistanceMeters));
-  if (query.orderBy) params.set('orderBy', query.orderBy.toUpperCase());
+  if (query.orderBy) {
+    const orderByMap: Record<string, string> = { ratio: 'BEST', price: 'LOWEST_PRICE', distance: 'NEAREST' };
+    params.set('orderBy', orderByMap[query.orderBy] ?? 'BEST');
+  }
 
   const token = getAccessToken();
   const resp = await withGlobalLoading(() => fetch(`${API_BASE}/api/driver/costs/planning?${params.toString()}`, {

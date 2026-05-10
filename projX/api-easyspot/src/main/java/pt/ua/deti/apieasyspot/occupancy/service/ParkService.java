@@ -14,6 +14,8 @@ import pt.ua.deti.apieasyspot.occupancy.repository.TimescaleOccupancySnapshotRep
 import pt.ua.deti.apieasyspot.occupancy.repository.*;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -202,6 +204,26 @@ public class ParkService {
             .map(t -> new ParkingLotDetailsResponse.TariffResponse(
                 t.getName(), t.getDescription(), t.getPricePerHour(), t.getMaxDaily(), t.getMonthly(), t.getPricePerKwh()))
             .toList();
+    }
+
+    public List<Map<String, Object>> getHourlyOccupancy(UUID id) {
+        if (!parkingLotRepository.existsById(id)) {
+            throw new pt.ua.deti.apieasyspot.common.exception.ResourceNotFoundException("Parking lot not found: " + id);
+        }
+        List<TimescaleOccupancySnapshotRepository.HourlyOccupancyPoint> points =
+            timescaleOccupancySnapshotRepository.hourlyOccupancyLast7Days(List.of(id))
+                .getOrDefault(id, List.of());
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (TimescaleOccupancySnapshotRepository.HourlyOccupancyPoint p : points.stream()
+                .sorted(Comparator.comparingInt(TimescaleOccupancySnapshotRepository.HourlyOccupancyPoint::hourOfDay))
+                .toList()) {
+            result.add(Map.of(
+                "hour", String.format("%02dh", p.hourOfDay()),
+                "occupancyPercent", p.occupancyPercent()
+            ));
+        }
+        return result;
     }
 
     private record Availability(

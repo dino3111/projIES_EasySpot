@@ -376,6 +376,15 @@ export async function fetchFavoriteParks(): Promise<ParkingLot[]> {
   return checks.filter((park): park is ParkingLot => park !== null);
 }
 
+export async function fetchParkHourlyOccupancy(parkId: string): Promise<Array<{ hour: string; occupancyPercent: number }>> {
+  const token = getAccessToken();
+  const resp = await fetch(`${API_BASE}/api/parks/${parkId}/occupancy/hourly`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  });
+  if (!resp.ok) return [];
+  return (await resp.json()) as Array<{ hour: string; occupancyPercent: number }>;
+}
+
 export async function subscribeSpaceAvailableAlerts(parkIds: string[]): Promise<AlertSubscriptionResponse> {
   const token = getAccessToken();
   const uniqueParkIds = [...new Set(parkIds.filter(Boolean))];
