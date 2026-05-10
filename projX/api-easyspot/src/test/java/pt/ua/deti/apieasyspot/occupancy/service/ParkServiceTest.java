@@ -127,6 +127,7 @@ class ParkServiceTest {
         when(accessibleSpotRepository.findByParkingLotId(lotId)).thenReturn(List.of(acc));
 
         ParkingSpot spot = new ParkingSpot();
+        spot.setId(UUID.randomUUID());
         spot.setSpotNumber("A1");
         spot.setZone(ZoneType.STANDARD);
         spot.setSpotRow(1);
