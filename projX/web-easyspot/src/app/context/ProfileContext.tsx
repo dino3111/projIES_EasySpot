@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { fetchVehicles } from '../services/vehiclesApi';
+import { useAuth } from './AuthContext';
 
 export type AppProfile = 'DRIVER' | 'MANAGER' | 'TECHNICAL';
 export type DriverType = 'regular' | 'ev' | 'reduced_mobility' | null;
@@ -64,6 +65,7 @@ function readJSON<T>(key: string, fallback: T): T {
 }
 
 export function ProfileProvider({ children }: { readonly children: ReactNode }) {
+  const { user, isLoading: authLoading } = useAuth();
   const [profile, setProfile] = useState<AppProfile>(() => {
     const stored = localStorage.getItem(STORAGE_KEYS.profile);
     return stored === 'MANAGER' || stored === 'DRIVER' || stored === 'TECHNICAL' ? stored : 'DRIVER';
@@ -86,6 +88,12 @@ export function ProfileProvider({ children }: { readonly children: ReactNode }) 
   );
 
   useEffect(() => {
+    if (authLoading) return;
+
+    if (user?.role !== 'DRIVER') {
+      return;
+    }
+
     let mounted = true;
     fetchVehicles().then((list) => {
       if (!mounted || list.length === 0) return;
@@ -97,7 +105,7 @@ export function ProfileProvider({ children }: { readonly children: ReactNode }) 
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [authLoading, user?.role]);
 
   const [managerParks, setManagerParks] = useState<string[]>(() => {
     const stored = readJSON<string[]>(STORAGE_KEYS.managerParks, []);
