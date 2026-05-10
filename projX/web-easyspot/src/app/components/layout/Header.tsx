@@ -114,8 +114,9 @@ function UserMenu({ user, meta, onLogout }: UserMenuProps) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (!user) return;
     profileApi.get().then((data) => setPhotoUrl(data.photoUrl)).catch(() => setPhotoUrl(null));
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     function handleOutside(e: MouseEvent) {

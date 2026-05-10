@@ -159,8 +159,38 @@ public class ParkService {
         ParkingLot lot = parkingLotRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Parking lot not found: " + id));
 
-        List<ParkingLotDetailsResponse.ZoneResponse> zones = fetchZones(id);
+        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime windowEnd = now.plusMinutes(30);
+
+        List<ParkingSpot> spots = parkingSpotRepository.findByParkingLotId(id);
+        List<UUID> freeSpotIds = spots.stream()
+            .filter(s -> "free".equalsIgnoreCase(s.getStatus()))
+            .map(ParkingSpot::getId)
+            .toList();
+        Set<UUID> reservedSpotIds = freeSpotIds.isEmpty()
+            ? Set.of()
+            : Set.copyOf(reservationRepository.findReservedSpotIds(freeSpotIds, now, windowEnd));
+
+        // Count reservations per zone using spot zone info so fetchZones can subtract them
+        Map<ZoneType, Long> reservedCountByZone = reservedSpotIds.isEmpty()
+            ? Map.of()
+            : spots.stream()
+                .filter(s -> reservedSpotIds.contains(s.getId()))
+                .collect(Collectors.groupingBy(ParkingSpot::getZone, Collectors.counting()));
+
+        List<ParkingLotDetailsResponse.ZoneResponse> zones = fetchZones(id, reservedCountByZone);
         int freeSpaces = zones.stream().mapToInt(ParkingLotDetailsResponse.ZoneResponse::free).sum();
+
+        List<ParkingLotDetailsResponse.SpotResponse> spotResponses = spots.stream()
+            .map(s -> {
+                String status = s.getStatus();
+                if ("free".equalsIgnoreCase(status) && reservedSpotIds.contains(s.getId())) {
+                    status = "reserved";
+                }
+                return new ParkingLotDetailsResponse.SpotResponse(
+                    s.getSpotNumber(), s.getZone().name(), s.getSpotRow(), s.getSpotCol(), status);
+            })
+            .toList();
 
         return new ParkingLotDetailsResponse(
             lot.getId(),
@@ -171,7 +201,7 @@ public class ParkService {
             lot.getTotalSpaces(),
             freeSpaces,
             zones,
-            fetchSpots(id),
+            spotResponses,
             fetchEVChargers(id),
             fetchAccessibility(id),
             fetchTariffs(id),
@@ -179,43 +209,19 @@ public class ParkService {
         );
     }
 
-    private List<ParkingLotDetailsResponse.ZoneResponse> fetchZones(UUID lotId) {
+    private List<ParkingLotDetailsResponse.ZoneResponse> fetchZones(UUID lotId, Map<ZoneType, Long> reservedCountByZone) {
         return timescaleOccupancySnapshotRepository.latestByLot(lotId).stream()
             .map(snapshot -> {
-                int free = Math.max(0, snapshot.totalCount() - snapshot.occupiedCount());
+                int sensorFree = Math.max(0, snapshot.totalCount() - snapshot.occupiedCount());
+                int reserved = reservedCountByZone.getOrDefault(snapshot.zoneType(), 0L).intValue();
+                int free = Math.max(0, sensorFree - reserved);
+                int effectiveOccupied = snapshot.totalCount() - free;
                 int pct = snapshot.totalCount() > 0
-                    ? (int) Math.round((double) snapshot.occupiedCount() / snapshot.totalCount() * 100)
+                    ? (int) Math.round((double) effectiveOccupied / snapshot.totalCount() * 100)
                     : 0;
                 return new ParkingLotDetailsResponse.ZoneResponse(
                     snapshot.zoneType().name(), snapshot.totalCount(), free, pct
                 );
-            })
-            .toList();
-    }
-
-    private List<ParkingLotDetailsResponse.SpotResponse> fetchSpots(UUID lotId) {
-        List<ParkingSpot> spots = parkingSpotRepository.findByParkingLotId(lotId);
-
-        OffsetDateTime now = OffsetDateTime.now();
-        OffsetDateTime windowEnd = now.plusMinutes(30);
-
-        List<UUID> freeSpotIds = spots.stream()
-            .filter(s -> "free".equalsIgnoreCase(s.getStatus()))
-            .map(ParkingSpot::getId)
-            .toList();
-
-        Set<UUID> reservedSpotIds = freeSpotIds.isEmpty()
-            ? Set.of()
-            : Set.copyOf(reservationRepository.findReservedSpotIds(freeSpotIds, now, windowEnd));
-
-        return spots.stream()
-            .map(s -> {
-                String status = s.getStatus();
-                if ("free".equalsIgnoreCase(status) && reservedSpotIds.contains(s.getId())) {
-                    status = "reserved";
-                }
-                return new ParkingLotDetailsResponse.SpotResponse(
-                    s.getSpotNumber(), s.getZone().name(), s.getSpotRow(), s.getSpotCol(), status);
             })
             .toList();
     }

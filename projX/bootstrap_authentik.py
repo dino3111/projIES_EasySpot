@@ -38,7 +38,6 @@ import struct
 import sys
 import time
 import zlib
-from urllib.parse import urlparse
 
 import requests  # type: ignore[import]
 
@@ -381,18 +380,6 @@ def _build_redirect_uris(primary: str) -> list[dict]:
     }
     return [{"matching_mode": "strict", "url": u} for u in uris if u]
 
-    uris = {
-        primary,
-        origin_no_port,
-        "http://localhost",
-        "http://localhost:5173",
-        f"{origin}/welcome",
-        f"{origin_no_port}/welcome",
-        "http://localhost/welcome",
-        "http://localhost:5173/welcome",
-    }
-    return [{"matching_mode": "strict", "url": u} for u in uris if u]
-
 
 def get_default_flow(designation: str) -> str:
     resp = api("GET", f"/flows/instances/?designation={designation}")
@@ -416,7 +403,10 @@ def get_signing_key_pk() -> str:
     resp = api("GET", "/crypto/certificatekeypairs/")
     results = resp.get("results", [])
     for keypair in results:
-        if keypair.get("private_key_available") and keypair.get("private_key_type") == "rsa":
+        if (
+            keypair.get("private_key_available")
+            and keypair.get("private_key_type") == "rsa"
+        ):
             return str(keypair["pk"])
     sys.exit(
         "No RSA certificate keypair with private key found in Authentik. "
@@ -432,11 +422,6 @@ def create_provider(groups_mapping_pk: str) -> str:
     invalidation_flow = get_default_flow("invalidation")
     signing_key_pk = get_signing_key_pk()
 
-    # Get the default self-signed certificate for RS256 signing
-    cert_resp = api("GET", "/crypto/certificatekeypairs/?name=authentik Self-signed Certificate")
-    cert_results = cert_resp.get("results", [])
-    signing_key = cert_results[0]["pk"] if cert_results else None
-
     payload = {
         "name": PROVIDER_NAME,
         "authentication_flow": auth_flow,
@@ -444,7 +429,7 @@ def create_provider(groups_mapping_pk: str) -> str:
         "invalidation_flow": invalidation_flow,
         "client_type": "public",
         "redirect_uris": _build_redirect_uris(REDIRECT_URI),
-        "signing_key": signing_key,
+        "signing_key": signing_key_pk,
         "access_code_validity": "minutes=1",
         "access_token_validity": "minutes=5",
         "refresh_token_validity": "days=30",

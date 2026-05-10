@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import '@testing-library/jest-dom/vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { TariffsIncidentsPage } from '../TariffsIncidentsPage';
 import { ProfileProvider } from '../../../context/ProfileContext';
@@ -39,7 +40,7 @@ describe('TariffsIncidentsPage', () => {
       </ProfileProvider>
     );
 
-    expect(document.querySelector('.fa-spin')).toBeTruthy();
+    expect(screen.getByRole('status', { name: /a carregar/i })).toBeInTheDocument();
   });
 
   it('renders data after fetching', async () => {
