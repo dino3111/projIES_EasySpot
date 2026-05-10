@@ -22,11 +22,19 @@ public class TimescaleHypertableInitializer implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args) {
         try {
-            jdbc.execute("create extension if not exists timescaledb cascade");
-            jdbc.execute("create extension if not exists pg_stat_statements");
+            // Keep the core tables available even when TimescaleDB extension is missing
+            // (e.g., CI jobs using plain PostgreSQL for Postman/Newman flows).
             prepareOccupancySnapshotTable();
             prepareParkingSessionsTable();
             prepareAlertsTable();
+        } catch (Exception e) {
+            log.warn("TimescaleDB base table initialization skipped: {}", e.getMessage());
+            return;
+        }
+
+        try {
+            jdbc.execute("create extension if not exists timescaledb cascade");
+            jdbc.execute("create extension if not exists pg_stat_statements");
             createHypertables();
             createUdfs();
             createTriggers();

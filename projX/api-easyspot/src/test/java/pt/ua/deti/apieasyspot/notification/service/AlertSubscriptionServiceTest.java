@@ -9,7 +9,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import pt.ua.deti.apieasyspot.auth.model.User;
 import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
-import pt.ua.deti.apieasyspot.common.exception.ConflictException;
 import pt.ua.deti.apieasyspot.notification.dto.AlertScheduleRequest;
 import pt.ua.deti.apieasyspot.notification.dto.CreateAlertSubscriptionRequest;
 import pt.ua.deti.apieasyspot.notification.model.AlertSubscription;
@@ -60,8 +59,8 @@ class AlertSubscriptionServiceTest {
     }
 
     @Test
-    @DisplayName("create - duplicate (same user/type/sorted parkIds) - throws ConflictException")
-    void create_duplicateSortedParkIds_throwsConflict() {
+    @DisplayName("create - duplicate (same user/type/sorted parkIds) - updates existing subscription")
+    void create_duplicateSortedParkIds_updatesExisting() {
         CreateAlertSubscriptionRequest request = new CreateAlertSubscriptionRequest(
             AlertSubscriptionType.SPACE_AVAILABLE,
             List.of("park-b", "park-a"),
@@ -70,15 +69,24 @@ class AlertSubscriptionServiceTest {
             null
         );
 
-        when(alertSubscriptionRepository.existsByUser_IdAndAlertTypeAndParkScopeKey(
+        AlertSubscription existing = new AlertSubscription();
+        existing.setId(UUID.randomUUID());
+        existing.setUser(driver);
+        existing.setAlertType(AlertSubscriptionType.SPACE_AVAILABLE);
+        existing.setParkScopeKey("park-a|park-b");
+        existing.setParkIdsCsv("park-a,park-b");
+        existing.setEnabled(false);
+
+        when(alertSubscriptionRepository.findFirstByUser_IdAndAlertTypeAndParkScopeKey(
             eq(driver.getId()),
             eq(AlertSubscriptionType.SPACE_AVAILABLE),
             eq("park-a|park-b")
-        )).thenReturn(true);
+        )).thenReturn(Optional.of(existing));
 
-        assertThatThrownBy(() -> service.create("driver-sub-1", request))
-            .isInstanceOf(ConflictException.class)
-            .hasMessageContaining("already exists");
+        var response = service.create("driver-sub-1", request);
+
+        assertThat(response.alertSubscription().id()).isEqualTo(existing.getId());
+        verify(alertSubscriptionRepository).save(existing);
     }
 
     @Test
@@ -139,10 +147,6 @@ class AlertSubscriptionServiceTest {
             null,
             null
         );
-
-        when(alertSubscriptionRepository.existsByUser_IdAndAlertTypeAndParkScopeKey(
-            eq(driver.getId()), eq(AlertSubscriptionType.LOT_FULL), eq("park-a")
-        )).thenReturn(false);
 
         var response = service.create("driver-sub-1", request);
 

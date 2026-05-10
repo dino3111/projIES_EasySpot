@@ -116,8 +116,12 @@ def _refresh_runtime_config() -> None:
         or ""
     )
     REDIRECT_URI = os.environ.get("REDIRECT_URI", "http://localhost/callback")
-    _AUTHENTIK_HOST = BASE_URL.removesuffix("/authentik")
-    ISSUER_URI = f"{BASE_URL}/application/o/{APP_SLUG}/"
+    _AUTHENTIK_HOST = (
+        os.environ.get("AUTHENTIK_URL", "http://localhost:9000")
+        .rstrip("/")
+        .removesuffix("/authentik")
+    )
+    ISSUER_URI = f"{_AUTHENTIK_HOST}/application/o/{APP_SLUG}/"
 
 
 APP_SLUG = "easyspot"
@@ -139,8 +143,7 @@ TEST_USERS = [
         "email": "manager@easyspot.local",
         "name": "Test Manager",
         "password": os.environ.get(
-            "EASYSPOT_TEST_MANAGER_PASSWORD",
-            "change-me-manager",
+            "EASYSPOT_TEST_MANAGER_PASSWORD", "change-me-manager"
         ),
         "role": "MANAGER",
     },
@@ -149,8 +152,7 @@ TEST_USERS = [
         "email": "technical@easyspot.local",
         "name": "Test Technical",
         "password": os.environ.get(
-            "EASYSPOT_TEST_TECHNICAL_PASSWORD",
-            "change-me-technical",
+            "EASYSPOT_TEST_TECHNICAL_PASSWORD", "change-me-technical"
         ),
         "role": "TECHNICAL",
     },
