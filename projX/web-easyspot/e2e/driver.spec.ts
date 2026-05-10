@@ -62,6 +62,10 @@ test.beforeEach(async ({ page }) => {
       emailNotificationsEnabled: true, spending: { totalEuros: 0, sessionCount: 0, avgEuros: 0 }, favoritesCount: 1,
     } });
   });
+
+  await page.route('**/api/payments/setup-status', async (route) => {
+    await route.fulfill({ json: { configured: true } });
+  });
 });
 
 test('Lista de parques', async ({ page }) => {
@@ -166,7 +170,7 @@ test.describe('Reserva de lugar', () => {
   });
 
   test('Lugares reservados/ocupados não são selecionáveis', async ({ page }) => {
-    await page.goto('/reservar?parkId=park-1');
+    await page.goto('/reservation?parkId=park-1');
     await expect(page.getByRole('heading', { name: 'Reservar Lugar' })).toBeVisible();
 
     // Avança para step 2 — selecionar parque já está pré-definido pelo parkId
@@ -180,7 +184,7 @@ test.describe('Reserva de lugar', () => {
   });
 
   test('Lugar livre pode ser selecionado e reservado com sucesso', async ({ page }) => {
-    await page.goto('/reservar?parkId=park-1');
+    await page.goto('/reservation?parkId=park-1');
     await expect(page.getByRole('heading', { name: 'Reservar Lugar' })).toBeVisible();
 
     // Step 1: avança (parque já pré-selecionado via parkId)
@@ -208,7 +212,7 @@ test.describe('Reserva de lugar', () => {
       });
     });
 
-    await page.goto('/reservar?parkId=park-1');
+    await page.goto('/reservation?parkId=park-1');
     await page.getByRole('button', { name: /Seguinte|Próximo|Continuar/i }).first().click();
     await page.getByRole('button', { name: 'Lugar A1' }).click();
     await page.getByRole('button', { name: 'Confirmar Lugar' }).click();
