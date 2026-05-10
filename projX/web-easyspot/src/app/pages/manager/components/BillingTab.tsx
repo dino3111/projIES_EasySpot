@@ -56,7 +56,6 @@ function BillingRow({ record }: { readonly record: BillingRecord }) {
   };
   const metodoIconMap = {
     OCR: 'fa-camera',
-    OCR: 'fa-camera',
     Manual: 'fa-user',
   };
   const estadoInfo = estadoMap[record.estado];
