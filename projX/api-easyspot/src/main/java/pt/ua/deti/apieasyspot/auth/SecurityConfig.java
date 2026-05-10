@@ -51,6 +51,8 @@ public class SecurityConfig {
 
     @Bean
     @Order(1)
+    // WebSocket upgrade requests cannot carry an Authorization header; the token is passed
+    // as a query param and validated at the application layer by the WebSocket handler.
     public SecurityFilterChain wsFilterChain(HttpSecurity http) throws Exception {
         http
             .securityMatcher("/ws/**")

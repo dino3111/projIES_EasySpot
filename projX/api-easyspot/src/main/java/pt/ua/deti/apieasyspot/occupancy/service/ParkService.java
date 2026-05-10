@@ -4,20 +4,27 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import pt.ua.deti.apieasyspot.booking.repository.ReservationRepository;
 import pt.ua.deti.apieasyspot.common.exception.ResourceNotFoundException;
 import pt.ua.deti.apieasyspot.occupancy.dto.ParkingLotDetailsResponse;
 import pt.ua.deti.apieasyspot.occupancy.dto.ParkingLotSummaryResponse;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
+import pt.ua.deti.apieasyspot.occupancy.model.ParkingSpot;
 import pt.ua.deti.apieasyspot.occupancy.model.Tariff;
 import pt.ua.deti.apieasyspot.occupancy.model.ZoneType;
 import pt.ua.deti.apieasyspot.occupancy.repository.TimescaleOccupancySnapshotRepository.ZoneSnapshot;
 import pt.ua.deti.apieasyspot.occupancy.repository.*;
 
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
+import java.util.function.ToIntFunction;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -30,7 +37,7 @@ public class ParkService {
     private final ParkingSpotRepository parkingSpotRepository;
     private final @Qualifier("jdbcTemplate") JdbcTemplate jdbc;
     private final TimescaleOccupancySnapshotRepository timescaleOccupancySnapshotRepository;
-    private final pt.ua.deti.apieasyspot.booking.repository.ReservationRepository reservationRepository;
+    private final ReservationRepository reservationRepository;
 
     public ParkingLotSummaryResponse searchParks(String textQuery, Integer minAvailableSpaces, String city, List<String> filters, int page, int pageSize) {
         boolean filterEV = filters != null && filters.contains("EV");
@@ -49,7 +56,7 @@ public class ParkService {
             .filter(summary -> minAvailableSpaces == null || summary.freeSpaces() >= minAvailableSpaces)
             .filter(summary -> !filterEV || summary.evChargers().total() > 0)
             .filter(summary -> !filterAcc || summary.accessibleSpaces().total() > 0)
-            .sorted(java.util.Comparator.comparing(ParkingLotSummaryResponse.ParkingLotSummary::name))
+            .sorted(Comparator.comparing(ParkingLotSummaryResponse.ParkingLotSummary::name))
             .toList();
 
         long totalItems = filtered.size();
@@ -100,9 +107,8 @@ public class ParkService {
     }
 
     private Availability availabilityFor(ParkingLot lot, List<ZoneSnapshot> snapshots) {
-        long activeRes = reservationRepository.countLotReservations(
-            lot.getId(), java.time.OffsetDateTime.now(), java.time.OffsetDateTime.now().plusMinutes(30)
-        );
+        OffsetDateTime now = OffsetDateTime.now();
+        long activeRes = reservationRepository.countLotReservations(lot.getId(), now, now.plusMinutes(30));
 
         if (snapshots.isEmpty()) {
             int free = Math.max(0, lot.getTotalSpaces() - (int) activeRes);
@@ -114,15 +120,16 @@ public class ParkService {
         int freeSpaces = Math.max(0, sensorFree - (int) activeRes);
 
         int evTotal = sumForZone(snapshots, ZoneType.EV, ZoneSnapshot::totalCount);
-        int evFree = Math.max(0, sumForZone(snapshots, ZoneType.EV, s -> Math.max(0, s.totalCount() - s.occupiedCount())) - (int) activeRes / 3); // Rough estimate for zones
-        
+        // Sensor already reflects physical occupancy for EV zone; no reservation offset at zone level
+        int evFree = sumForZone(snapshots, ZoneType.EV, s -> Math.max(0, s.totalCount() - s.occupiedCount()));
+
         int accTotal = sumForZone(snapshots, ZoneType.ACCESSIBLE, ZoneSnapshot::totalCount);
         int accFree = sumForZone(snapshots, ZoneType.ACCESSIBLE, s -> Math.max(0, s.totalCount() - s.occupiedCount()));
-        
+
         return new Availability(totalSpaces, freeSpaces, evTotal, evFree, accTotal, accFree);
     }
 
-    private int sumForZone(List<ZoneSnapshot> snapshots, ZoneType zoneType, java.util.function.ToIntFunction<ZoneSnapshot> extractor) {
+    private int sumForZone(List<ZoneSnapshot> snapshots, ZoneType zoneType, ToIntFunction<ZoneSnapshot> extractor) {
         return snapshots.stream()
             .filter(snapshot -> snapshot.zoneType() == zoneType)
             .mapToInt(extractor)
@@ -187,21 +194,25 @@ public class ParkService {
     }
 
     private List<ParkingLotDetailsResponse.SpotResponse> fetchSpots(UUID lotId) {
-        List<pt.ua.deti.apieasyspot.occupancy.model.ParkingSpot> spots = parkingSpotRepository.findByParkingLotId(lotId);
-        
-        // Get all active reservations for this park in the current window
-        java.time.OffsetDateTime now = java.time.OffsetDateTime.now();
-        java.time.OffsetDateTime windowEnd = now.plusMinutes(30);
-        
+        List<ParkingSpot> spots = parkingSpotRepository.findByParkingLotId(lotId);
+
+        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime windowEnd = now.plusMinutes(30);
+
+        List<UUID> freeSpotIds = spots.stream()
+            .filter(s -> "free".equalsIgnoreCase(s.getStatus()))
+            .map(ParkingSpot::getId)
+            .toList();
+
+        Set<UUID> reservedSpotIds = freeSpotIds.isEmpty()
+            ? Set.of()
+            : Set.copyOf(reservationRepository.findReservedSpotIds(freeSpotIds, now, windowEnd));
+
         return spots.stream()
             .map(s -> {
                 String status = s.getStatus();
-                // If spot is free in sensor, check if it's reserved
-                if ("free".equalsIgnoreCase(status)) {
-                    long conflicts = reservationRepository.countSpotConflicts(s.getId(), now, windowEnd);
-                    if (conflicts > 0) {
-                        status = "reserved";
-                    }
+                if ("free".equalsIgnoreCase(status) && reservedSpotIds.contains(s.getId())) {
+                    status = "reserved";
                 }
                 return new ParkingLotDetailsResponse.SpotResponse(
                     s.getSpotNumber(), s.getZone().name(), s.getSpotRow(), s.getSpotCol(), status);

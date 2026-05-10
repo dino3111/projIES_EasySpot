@@ -12,6 +12,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -88,7 +89,7 @@ public class TimescaleAlertRepository {
             from alerts
             where 1=1
             """);
-        java.util.List<Object> params = new java.util.ArrayList<>();
+        List<Object> params = new ArrayList<>();
 
         if (parkId != null) {
             sql.append(" and parking_lot_id = ?::uuid");
