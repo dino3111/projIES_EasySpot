@@ -133,7 +133,7 @@ test.describe('US#7 — Combined Parking + Charging Fee', () => {
     // Navegar para o separador de carregamento EV
     await page.getByRole('button', { name: /EV/i }).click();
     // Charger info — tipo e preço devem aparecer
-    await expect(page.getByText(/Type 2/i)).toBeVisible();
+    await expect(page.getByText('Type 2', { exact: true })).toBeVisible();
     await expect(page.getByText(/0\.35/)).toBeVisible();
   });
 });

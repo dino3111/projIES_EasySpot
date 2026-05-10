@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router';
 import type { ParkingLot } from '../../../data/parkingTypes';
 import { useProfile } from '../../../context/ProfileContext';
@@ -25,6 +25,7 @@ export function ReservationPage() {
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>(
     () => vehicles.find((v) => v.isPrimary)?.id ?? ''
   );
+  const didInitVehicleSelection = useRef(false);
   const selectedVehicle = useMemo(
     () => vehicles.find((v) => v.id === selectedVehicleId) ?? null,
     [vehicles, selectedVehicleId]
@@ -43,6 +44,21 @@ export function ReservationPage() {
     else if (selectedVehicle?.isAccessible) setSpotFilter('accessible');
     else setSpotFilter('todos');
   }, [selectedVehicleId]);
+
+  useEffect(() => {
+    if (didInitVehicleSelection.current) return;
+    if (selectedVehicleId && vehicles.some((v) => v.id === selectedVehicleId)) {
+      didInitVehicleSelection.current = true;
+      return;
+    }
+    if (vehicles.length === 0) return;
+
+    const initialVehicle = vehicles.find((v) => v.isPrimary) ?? vehicles[0];
+    if (!initialVehicle) return;
+
+    setSelectedVehicleId(initialVehicle.id);
+    didInitVehicleSelection.current = true;
+  }, [vehicles, selectedVehicleId]);
 
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [bookingCode, setBookingCode] = useState<string>('');

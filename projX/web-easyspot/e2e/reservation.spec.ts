@@ -91,7 +91,7 @@ test('Fluxo de reserva completa passo-a-passo', async ({ page }) => {
   });
 
   // Confirmar Final
-  const confirmBtn = page.locator('button:has-text("Confirmar Reserva")');
+  const confirmBtn = page.getByRole('button', { name: /Confirmar e reservar lugar/i });
   await expect(confirmBtn).toBeEnabled();
   await confirmBtn.click();
 
