@@ -66,6 +66,8 @@ public class DriverSpendingService {
         DriverSpendingRepository.CostliestSessionRow costliest =
             repository.costliestSession(user.getId(), vehicleId, range.fromInclusive(), range.toExclusive());
 
+        long historyTotal = repository.countHistory(user.getId(), vehicleId, range.fromInclusive(), range.toExclusive());
+
         return new DriverSpendingResponse(
             new DriverSpendingResponse.Totals(
                 safe(totals.totalSpent()),
@@ -93,7 +95,8 @@ public class DriverSpendingService {
                 .map(row -> new DriverSpendingResponse.HistoryItem(
                     row.parkName(), row.date(), row.durationMinutes(), row.vehicle(), safe(row.totalSpent()), row.status()
                 ))
-                .toList()
+                .toList(),
+            historyTotal
         );
     }
 
