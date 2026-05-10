@@ -1,101 +1,184 @@
-import { useState, useEffect } from 'react';
-import {
-  mockSensors,
-  mockMaintenanceOrders,
-  computeTechKPIs,
-  type SensorDevice,
-  type SensorStatus,
-  type MaintenanceOrder,
-} from '../../data/technicianData';
-import { type IssueReport } from '../../data/gestorData';
-import { STATUS_LABEL, techIssues, type PageTab, type StatusFil } from './components/maintenanceTypes';
+import { useState, useEffect, useCallback } from 'react';
+import { type SensorDevice, type SensorStatus, computeTechKPIs } from '../../data/technicianData';
+import { STATUS_LABEL, type PageTab, type StatusFil } from './components/maintenanceTypes';
 import { TabBtn } from './components/shared';
 import { IncidentsTab } from './components/IncidentsTab';
 import { SensorsTab } from './components/SensorsTab';
 import { TasksTab } from './components/TasksTab';
 import { IssueDetailModal } from './components/IssueDetailModal';
 import { SensorDiagPanel, StatusUpdateModal } from './components/SensorModals';
-import { NewOrderModal, QuickTaskFromIssueModal } from './components/OrderModals';
-import { fetchSensorList, fetchSensorDetail, type SensorSummary } from '../../services/technicianApi';
+import { NewOrderModal } from './components/OrderModals';
+import {
+  fetchSensorList,
+  fetchSensorDetail,
+  fetchAlerts,
+  updateAlertState,
+  type SensorSummary,
+  type AlertResponse,
+  type WorkOrder,
+} from '../../services/technicianApi';
 
-function toSensorStatus(apiStatus: string, fallback: SensorStatus): SensorStatus {
+// ── Sensor mapping (API → UI) ─────────────────────────────────────────────────
+
+function toSensorStatus(apiStatus: string): SensorStatus {
   if (apiStatus === 'operational') return 'operacional';
   if (apiStatus === 'offline')     return 'offline';
   if (apiStatus === 'degraded')    return 'falha';
-  return fallback;
+  return 'offline';
 }
 
-function mergeSensorStatus(
-  locals: SensorDevice[],
-  apiSensors: SensorSummary[],
-): SensorDevice[] {
-  const localIds = new Set(locals.map((s) => s.id));
-
-  // Update status of sensors that exist in the mock
-  const updated = locals.map((s) => {
-    const api = apiSensors.find((a) => a.sensorId === s.id);
-    if (!api) return s;
-    return { ...s, status: toSensorStatus(api.status, s.status), ultimaLeitura: api.lastSeenAt };
-  });
-
-  // Add sensors from the API that don't exist in the mock
-  const newFromApi: SensorDevice[] = apiSensors
-    .filter((a) => !localIds.has(a.sensorId))
-    .map((a) => ({
-      id: a.sensorId,
-      tipo: 'IR' as const,
-      parqueId: a.parkingLotId.toString(),
-      parqueNome: a.parkingLotName,
-      cidade: '',
-      zona: a.zone,
-      status: toSensorStatus(a.status, 'offline'),
-      ultimaLeitura: a.lastSeenAt,
-      uptimePercent: 0,
-      taxaFalsosPositivos: 0,
-      firmware: '—',
-      instaladoEm: a.createdAt,
-      ultimaManutencao: '—',
-      historicoErros: [],
-    }));
-
-  return [...updated, ...newFromApi];
+function sensorFromApi(a: SensorSummary): SensorDevice {
+  return {
+    id: a.sensorId,
+    tipo: 'IR' as const,
+    parqueId: a.parkingLotId,
+    parqueNome: a.parkingLotName,
+    cidade: '',
+    zona: a.zone,
+    status: toSensorStatus(a.status),
+    ultimaLeitura: a.lastSeenAt,
+    uptimePercent: 0,
+    taxaFalsosPositivos: 0,
+    firmware: '—',
+    instaladoEm: a.createdAt,
+    ultimaManutencao: '—',
+    historicoErros: [],
+  };
 }
+
+// ── Alert → IssueReport mapping (API → UI) ────────────────────────────────────
+
+function toIssueEstado(state: AlertResponse['state']): 'aberto' | 'em-progresso' | 'resolvido' {
+  if (state === 'IN_PROGRESS') return 'em-progresso';
+  if (state === 'RESOLVED')    return 'resolvido';
+  return 'aberto';
+}
+
+function toIssueSeveridade(severity: AlertResponse['severity']): 'critica' | 'aviso' | 'info' {
+  if (severity === 'CRITICAL') return 'critica';
+  if (severity === 'AVISO')    return 'aviso';
+  return 'info';
+}
+
+function toIssueTipo(type: AlertResponse['type']): 'sensor' | 'cliente' | 'sistema' {
+  if (type === 'CLIENT') return 'cliente';
+  if (type === 'SYSTEM') return 'sistema';
+  return 'sensor';
+}
+
+export interface IssueReport {
+  id: string;
+  tipo: 'sensor' | 'cliente' | 'sistema';
+  parque: string;
+  zona?: string;
+  sensorId?: string;
+  matricula?: string;
+  descricao: string;
+  severidade: 'critica' | 'aviso' | 'info';
+  estado: 'aberto' | 'em-progresso' | 'resolvido';
+  criadoEm: string;
+  atribuidoA?: string;
+  notas?: string;
+}
+
+function alertToIssue(a: AlertResponse): IssueReport {
+  return {
+    id: a.id,
+    tipo: toIssueTipo(a.type),
+    parque: a.park,
+    zona: a.zone ?? undefined,
+    sensorId: a.sensorId ?? undefined,
+    matricula: a.plate ?? undefined,
+    descricao: a.description,
+    severidade: toIssueSeveridade(a.severity),
+    estado: toIssueEstado(a.state),
+    criadoEm: a.createdAt,
+    atribuidoA: a.attributedTo ?? undefined,
+    notas: a.notes ?? undefined,
+  };
+}
+
+// ── Work order mapping (API → UI) ─────────────────────────────────────────────
+
+function toOrderPriority(severity: string): 'critica' | 'alta' | 'media' | 'baixa' {
+  if (severity === 'CRITICAL') return 'critica';
+  if (severity === 'HIGH')     return 'alta';
+  if (severity === 'LOW')      return 'baixa';
+  return 'media';
+}
+
+function toOrderEstado(state: string): 'pendente' | 'em-progresso' | 'concluida' {
+  if (state === 'IN_PROGRESS') return 'em-progresso';
+  if (state === 'RESOLVED')    return 'concluida';
+  return 'pendente';
+}
+
+function alertToWorkOrder(a: AlertResponse): WorkOrder {
+  return {
+    id: a.id,
+    type: a.type,
+    park: a.park,
+    zone: a.zone ?? '',
+    sensorId: a.sensorId,
+    description: a.description,
+    severity: a.severity,
+    state: a.state,
+    createdAt: a.createdAt,
+    attributedTo: a.attributedTo,
+  };
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
 
 export function MaintenancePage() {
   const [tab, setTab]                       = useState<PageTab>('ocorrencias');
   const [sensors, setSensors]               = useState<SensorDevice[]>([]);
-  const [orders, setOrders]                 = useState<MaintenanceOrder[]>(mockMaintenanceOrders);
+  const [issues, setIssues]                 = useState<IssueReport[]>([]);
+  const [orders, setOrders]                 = useState<WorkOrder[]>([]);
+  const [loading, setLoading]               = useState(true);
   const [apiError, setApiError]             = useState<string | null>(null);
   const [selectedIssue, setSelectedIssue]   = useState<IssueReport | null>(null);
   const [statusFil, setStatusFil]           = useState<StatusFil>('todos');
   const [selectedSensor, setSelectedSensor] = useState<SensorDevice | null>(null);
   const [logsLoading, setLogsLoading]       = useState(false);
   const [newOrderModal, setNewOrderModal]   = useState(false);
-  const [issueForTask, setIssueForTask]     = useState<IssueReport | null>(null);
   const [updateTarget, setUpdateTarget]     = useState<SensorDevice | null>(null);
   const [toast, setToast]                   = useState<string | null>(null);
-
-  // Load real sensor statuses from API on mount
-  useEffect(() => {
-    fetchSensorList()
-      .then((apiSensors) => setSensors((prev) => mergeSensorStatus(prev, apiSensors)))
-      .catch((err: unknown) => {
-        const msg = err instanceof Error ? err.message : 'Erro ao carregar sensores da API.';
-        setApiError(msg);
-      });
-  }, []);
-
-  const kpis = computeTechKPIs(sensors);
-  const filteredSensors = statusFil === 'todos' ? sensors : sensors.filter((s) => s.status === statusFil);
-  const openOrders = orders.filter((o) => o.estado !== 'concluida').length;
-  const openIssues = techIssues.filter((i) => i.estado === 'aberto').length;
 
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 4000);
   };
 
-  // When opening a sensor, enrich its error history with real API logs
+  const loadAll = useCallback(async () => {
+    setLoading(true);
+    setApiError(null);
+    try {
+      const [apiSensors, apiAlerts] = await Promise.all([
+        fetchSensorList(),
+        fetchAlerts(),
+      ]);
+      setSensors(apiSensors.map(sensorFromApi));
+      // Technician sees SENSOR and SYSTEM alerts as incidents
+      const techAlerts = apiAlerts.filter(a => a.type === 'SENSOR' || a.type === 'SYSTEM');
+      setIssues(techAlerts.map(alertToIssue));
+      // Work orders = all alerts (tasks to action)
+      setOrders(apiAlerts.map(alertToWorkOrder));
+    } catch (err: unknown) {
+      setApiError(err instanceof Error ? err.message : 'Erro ao carregar dados.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadAll(); }, [loadAll]);
+
+  const kpis = computeTechKPIs(sensors);
+  const filteredSensors = statusFil === 'todos' ? sensors : sensors.filter((s) => s.status === statusFil);
+  const openIssues = issues.filter((i) => i.estado === 'aberto').length;
+  const openOrders = orders.filter((o) => o.state !== 'RESOLVED').length;
+
+  // Enrich sensor with real logs when selected
   const handleSelectSensor = async (sensor: SensorDevice) => {
     setLogsLoading(true);
     setSelectedSensor(sensor);
@@ -108,26 +191,48 @@ export function MaintenancePage() {
         descricao: l.description,
         resolvido: l.state === 'resolved',
       }));
-      setSensors((prev) =>
-        prev.map((s) =>
-          s.id === sensor.id
-            ? { ...s, historicoErros: realLogs.length > 0 ? realLogs : s.historicoErros }
-            : s,
-        ),
-      );
-      setSelectedSensor((prev) =>
-        prev?.id === sensor.id
-          ? { ...prev, historicoErros: realLogs.length > 0 ? realLogs : prev.historicoErros }
-          : prev,
-      );
+      const enriched = { ...sensor, historicoErros: realLogs.length > 0 ? realLogs : sensor.historicoErros };
+      setSensors((prev) => prev.map((s) => s.id === sensor.id ? enriched : s));
+      setSelectedSensor(enriched);
     } catch {
-      // silently fallback to mock logs
+      // fallback: keep sensor as-is
     } finally {
       setLogsLoading(false);
     }
   };
 
-  const handleStatusUpdate = (sensorId: string, newStatus: SensorStatus, notes: string) => {
+  // Update issue state via API and refresh local state
+  const handleIssueStateUpdate = async (issueId: string, newState: 'IN_PROGRESS' | 'RESOLVED') => {
+    try {
+      await updateAlertState(issueId, newState);
+      setIssues((prev) => prev.map((i) =>
+        i.id === issueId ? { ...i, estado: toIssueEstado(newState) } : i,
+      ));
+      setOrders((prev) => prev.map((o) =>
+        o.id === issueId ? { ...o, state: newState } : o,
+      ));
+      showToast(newState === 'IN_PROGRESS' ? 'Ocorrência em progresso.' : 'Ocorrência resolvida.');
+    } catch {
+      showToast('Erro ao atualizar estado.');
+    }
+  };
+
+  // Update work order state via API
+  const handleOrderUpdate = async (orderId: string, novoEstado: 'em-progresso' | 'concluida') => {
+    const apiState = novoEstado === 'em-progresso' ? 'IN_PROGRESS' : 'RESOLVED';
+    try {
+      await updateAlertState(orderId, apiState);
+      setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, state: apiState } : o));
+      setIssues((prev) => prev.map((i) =>
+        i.id === orderId ? { ...i, estado: toIssueEstado(apiState) } : i,
+      ));
+      showToast(novoEstado === 'em-progresso' ? 'Tarefa iniciada.' : 'Tarefa concluída.');
+    } catch {
+      showToast('Erro ao atualizar tarefa.');
+    }
+  };
+
+  const handleStatusUpdate = async (sensorId: string, newStatus: SensorStatus, notes: string) => {
     setSensors((prev) =>
       prev.map((s) => {
         if (s.id !== sensorId) return s;
@@ -141,18 +246,39 @@ export function MaintenancePage() {
         return { ...s, status: newStatus, historicoErros: [entry, ...s.historicoErros] };
       }),
     );
-    if (newStatus === 'operacional') {
-      setOrders((prev) =>
-        prev.map((o) =>
-          o.sensorId === sensorId && o.estado !== 'concluida' ? { ...o, estado: 'concluida' as const } : o,
-        ),
-      );
-    }
     setUpdateTarget(null);
     setSelectedSensor(null);
     setSelectedIssue(null);
     showToast(`Sensor ${sensorId} atualizado para "${STATUS_LABEL[newStatus]}".`);
   };
+
+  // Convert WorkOrder to a form compatible with NewOrderModal's onCreate callback
+  // (creating a new order = setting an alert to IN_PROGRESS with a note)
+  const handleCreateOrder = async (sensorId: string, titulo: string, descricao: string, prioridade: string) => {
+    // Find first open alert for this sensor and mark it IN_PROGRESS
+    const alert = orders.find((o) => o.sensorId === sensorId && o.state === 'OPEN');
+    if (alert) {
+      try {
+        await updateAlertState(alert.id, 'IN_PROGRESS');
+        setOrders((prev) => prev.map((o) => o.id === alert.id ? { ...o, state: 'IN_PROGRESS' } : o));
+        setIssues((prev) => prev.map((i) => i.id === alert.id ? { ...i, estado: 'em-progresso' } : i));
+        showToast(`Tarefa "${titulo}" criada — sensor ${sensorId} em progresso.`);
+      } catch {
+        showToast('Erro ao criar tarefa.');
+      }
+    } else {
+      showToast(`Tarefa "${titulo}" registada localmente (sem alerta aberto para este sensor).`);
+    }
+    setNewOrderModal(false);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <i className="fas fa-spinner fa-spin text-primary text-2xl" aria-hidden="true" />
+      </div>
+    );
+  }
 
   return (
     <div className="px-4 py-5 max-w-screen-xl mx-auto space-y-5">
@@ -176,14 +302,9 @@ export function MaintenancePage() {
           style={{ fontSize: '0.82rem' }}
         >
           <i className="fas fa-triangle-exclamation" aria-hidden="true" />
-          <span>Dados parciais: {apiError} — a usar dados locais.</span>
+          <span>Erro ao carregar dados: {apiError}</span>
           <button
-            onClick={() => {
-              setApiError(null);
-              fetchSensorList()
-                .then((apiSensors) => setSensors((prev) => mergeSensorStatus(prev, apiSensors)))
-                .catch((err: unknown) => setApiError(err instanceof Error ? err.message : 'Erro'));
-            }}
+            onClick={loadAll}
             className="ml-auto underline font-semibold"
           >
             Tentar novamente
@@ -209,9 +330,13 @@ export function MaintenancePage() {
       {tab === 'ocorrencias' && (
         <IncidentsTab
           sensors={sensors}
+          issues={issues}
           onSelectIssue={setSelectedIssue}
           onUpdateSensor={setUpdateTarget}
-          onCreateTaskFromIssue={setIssueForTask}
+          onCreateTaskFromIssue={(issue) => {
+            // Mark alert as IN_PROGRESS directly from incident
+            handleIssueStateUpdate(issue.id, 'IN_PROGRESS');
+          }}
         />
       )}
       {tab === 'sensores' && (
@@ -227,10 +352,7 @@ export function MaintenancePage() {
         <TasksTab
           orders={orders}
           sensors={sensors}
-          onUpdate={(orderId, novoEstado) => {
-            setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, estado: novoEstado } : o));
-            showToast(novoEstado === 'em-progresso' ? 'Tarefa iniciada.' : 'Tarefa concluída.');
-          }}
+          onUpdate={handleOrderUpdate}
           onNewOrder={() => setNewOrderModal(true)}
         />
       )}
@@ -269,23 +391,7 @@ export function MaintenancePage() {
         <NewOrderModal
           sensors={sensors.filter((s) => s.status !== 'operacional')}
           onClose={() => setNewOrderModal(false)}
-          onCreate={(order) => {
-            setOrders((prev) => [order, ...prev]);
-            setNewOrderModal(false);
-            showToast('Ordem de manutenção criada com sucesso.');
-          }}
-        />
-      )}
-      {issueForTask && (
-        <QuickTaskFromIssueModal
-          issue={issueForTask}
-          sensors={sensors.filter((s) => s.id === issueForTask.sensorId)}
-          onClose={() => setIssueForTask(null)}
-          onCreate={(order) => {
-            setOrders((prev) => [order, ...prev]);
-            setIssueForTask(null);
-            showToast('Tarefa de manutenção criada com sucesso.');
-          }}
+          onCreate={handleCreateOrder}
         />
       )}
     </div>

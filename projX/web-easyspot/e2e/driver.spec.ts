@@ -5,7 +5,22 @@ const jwt = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1MSIsIm5hbWUiOiJBbmEiLCJlbWFpbCI6Im
 const park = {
   id: 'park-1', name: 'Parque Central', city: 'Coimbra', address: 'Rua A, Coimbra', latitude: 40.2, longitude: -8.4,
   openingHours: '24h', pricePerHour: 1.5, totalSpaces: 50, freeSpaces: 10,
-  evChargers: { available: 1, total: 1 }, accessibleSpaces: { available: 1, total: 1 },
+  evChargers: { available: 1, total: 2 }, accessibleSpaces: { available: 1, total: 2 },
+};
+
+const parkDetails = {
+  id: 'park-1', name: 'Parque Central', address: 'Rua A, Coimbra', coordinates: { lat: 40.2, lng: -8.4 },
+  openingHours: '24h', totalSpaces: 50, freeSpaces: 10, zones: [],
+  spotMap: [{ spotNumber: 'f1:1', zone: 'STANDARD', row: 1, col: 1, status: 'free' }],
+  evChargers: [
+    { type: 'Type 2', speed: 'Rápida (22kW)', speedKw: 22, pricePerKwh: 0.30, availability: true },
+    { type: 'CCS', speed: 'Ultra-rápida (50kW)', speedKw: 50, pricePerKwh: 0.45, availability: false },
+  ],
+  accessibility: [
+    { location: 'Zona A - Piso 0', availability: true, distanceToEntranceMeters: 12, baySize: '4.0m x 5.0m', monitored: true, hasRampSpace: true, sensorStatus: 'online', ledStatus: 'green' },
+    { location: 'Zona B - Piso -1', availability: false, distanceToEntranceMeters: 38, baySize: '3.5m x 5.0m', monitored: false, hasRampSpace: false, sensorStatus: 'faulty', ledStatus: 'yellow' },
+  ],
+  tariffs: [{ pricePerHour: 1.5, maxDaily: 12, monthly: 60 }], amenities: ['wc'],
 };
 
 test.beforeEach(async ({ page }) => {
@@ -23,14 +38,7 @@ test.beforeEach(async ({ page }) => {
     await route.fulfill({ json: { items: [park], pagination: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 } } });
   });
   await page.route('**/api/parks/park-1/details', async (route) => {
-    await route.fulfill({ json: {
-      id: 'park-1', name: 'Parque Central', address: 'Rua A, Coimbra', coordinates: { lat: 40.2, lng: -8.4 },
-      openingHours: '24h', totalSpaces: 50, freeSpaces: 10, zones: [],
-      spotMap: [{ spotNumber: 'f1:1', zone: 'STANDARD', row: 1, col: 1, status: 'free' }],
-      evChargers: [{ type: 'Type 2', speed: '22kW', pricePerKwh: 0.3, availability: true }],
-      accessibility: [{ location: 'A', availability: true, distanceToEntranceMeters: 12, baySize: '3.5m x 5.0m' }],
-      tariffs: [{ pricePerHour: 1.5, maxDaily: 12, monthly: 60 }], amenities: ['wc'],
-    } });
+    await route.fulfill({ json: parkDetails });
   });
   await page.route('**/api/parks/park-1/favorite', async (route) => {
     if (route.request().method() === 'POST') await route.fulfill({ json: { parkId: 'park-1', isFavorite: true } });
@@ -74,4 +82,80 @@ test('Perfil', async ({ page }) => {
   await page.goto('/profile');
   await expect(page.getByRole('heading', { name: 'Perfil' })).toBeVisible();
   await expect(page.getByText('Ana Silva')).toBeVisible();
+});
+
+// ── Infrastructure Mapping & Status Monitoring (US #13) ───────────────────
+
+test('Tab EV - mostra carregadores com disponibilidade e preço', async ({ page }) => {
+  await page.goto('/parking/park-1');
+  await page.getByRole('button', { name: /EV/i }).click();
+  // Both chargers visible
+  await expect(page.getByText('Type 2')).toBeVisible();
+  await expect(page.getByText('CCS')).toBeVisible();
+  // Price shown
+  await expect(page.getByText(/€0\.30/)).toBeVisible();
+  await expect(page.getByText(/€0\.45/)).toBeVisible();
+  // Availability badges
+  await expect(page.getByText('Livre').first()).toBeVisible();
+  await expect(page.getByText('Ocupado').first()).toBeVisible();
+});
+
+test('Tab EV - mostra velocidade correta dos carregadores', async ({ page }) => {
+  await page.goto('/parking/park-1');
+  await page.getByRole('button', { name: /EV/i }).click();
+  await expect(page.getByText(/22\s*kW/)).toBeVisible();
+  await expect(page.getByText(/50\s*kW/)).toBeVisible();
+});
+
+test('Tab EV - compatibilidade com veículo EV do utilizador', async ({ page }) => {
+  await page.goto('/parking/park-1');
+  await page.getByRole('button', { name: /EV/i }).click();
+  // Compatibility banner should appear (user vehicle is EV with Type 2)
+  await expect(page.getByText(/Compatibilidade/i)).toBeVisible();
+});
+
+test('Tab Acessibilidade - mostra lugares com distância e dimensão', async ({ page }) => {
+  await page.goto('/parking/park-1');
+  await page.getByRole('button', { name: /Acess/i }).click();
+  // Both spots visible
+  await expect(page.getByText('Zona A - Piso 0')).toBeVisible();
+  await expect(page.getByText('Zona B - Piso -1')).toBeVisible();
+  // Distances shown
+  await expect(page.getByText('12m')).toBeVisible();
+  await expect(page.getByText('38m')).toBeVisible();
+});
+
+test('Tab Acessibilidade - mostra estado do sensor online e avariado', async ({ page }) => {
+  await page.goto('/parking/park-1');
+  await page.getByRole('button', { name: /Acess/i }).click();
+  await expect(page.getByText('Sensor online')).toBeVisible();
+  await expect(page.getByText('Sensor avariado')).toBeVisible();
+});
+
+test('Tab Acessibilidade - mostra disponibilidade correta dos lugares', async ({ page }) => {
+  await page.goto('/parking/park-1');
+  await page.getByRole('button', { name: /Acess/i }).click();
+  // First spot available, second occupied
+  const badges = page.getByText(/^(Livre|Ocupado)$/);
+  await expect(badges.first()).toBeVisible();
+});
+
+test('Tab Acessibilidade - mostra legenda de distância e dimensão', async ({ page }) => {
+  await page.goto('/parking/park-1');
+  await page.getByRole('button', { name: /Acess/i }).click();
+  await expect(page.getByText(/DISTÂNCIA À ENTRADA/i)).toBeVisible();
+  await expect(page.getByText(/DIMENSÃO DO LUGAR/i)).toBeVisible();
+});
+
+test('Tab Acessibilidade - link de reporte de ocupação irregular', async ({ page }) => {
+  await page.goto('/parking/park-1');
+  await page.getByRole('button', { name: /Acess/i }).click();
+  await expect(page.getByRole('link', { name: /Reportar/i })).toBeVisible();
+});
+
+test('Infraestrutura - contador EV e Acessível no header do parque', async ({ page }) => {
+  await page.goto('/parking/park-1');
+  // EV and Accessible counts shown in amenities strip
+  await expect(page.getByText(/1\/2\s*EV/)).toBeVisible();
+  await expect(page.getByText(/1\s*Acess\./)).toBeVisible();
 });

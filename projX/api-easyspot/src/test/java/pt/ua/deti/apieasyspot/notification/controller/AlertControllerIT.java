@@ -32,7 +32,10 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static pt.ua.deti.apieasyspot.support.TestJwtRequests.jwtWithRole;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
@@ -150,12 +153,74 @@ class AlertControllerIT {
         assertThat(updated.getResolvedAt()).isNull();
     }
 
+    // ── GET /api/alerts ──────────────────────────────────────────────────────────
+
     @Test
-    @DisplayName("POST /api/alerts - DRIVER role - creates subscription")
+    @DisplayName("GET /api/alerts - unauthenticated - returns 401")
+    void listAlerts_unauthenticated_returns401() throws Exception {
+        mockMvc.perform(get("/api/alerts")
+                .contentType(MediaType.APPLICATION_JSON))
+            .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("GET /api/alerts - DRIVER role - returns 403")
+    void listAlerts_driverRole_returns403() throws Exception {
+        mockMvc.perform(get("/api/alerts")
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(jwtWithRole("sub-driver", "DRIVER")))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("GET /api/alerts - TECHNICAL role - returns list")
+    void listAlerts_technicalRole_returnsList() throws Exception {
+        savedAlert(StateAlert.OPEN);
+        savedAlert(StateAlert.RESOLVED);
+
+        mockMvc.perform(get("/api/alerts")
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(jwtWithRole("sub-tech", "TECHNICAL")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$").isArray())
+            .andExpect(jsonPath("$.length()").value(org.hamcrest.Matchers.greaterThanOrEqualTo(2)));
+    }
+
+    @Test
+    @DisplayName("GET /api/alerts - MANAGER role - returns list")
+    void listAlerts_managerRole_returnsList() throws Exception {
+        savedAlert(StateAlert.OPEN);
+
+        mockMvc.perform(get("/api/alerts")
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(jwtWithRole("sub-manager", "MANAGER")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$").isArray());
+    }
+
+    @Test
+    @DisplayName("GET /api/alerts - filter by state=OPEN - returns only open alerts")
+    void listAlerts_filterByState_returnsOnlyMatching() throws Exception {
+        savedAlert(StateAlert.OPEN);
+        savedAlert(StateAlert.RESOLVED);
+
+        mockMvc.perform(get("/api/alerts")
+                .param("state", "OPEN")
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(jwtWithRole("sub-tech", "TECHNICAL")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$").isArray())
+            .andExpect(jsonPath("$[0].state").value("OPEN"));
+    }
+
+    // ── POST /api/alerts/subscriptions ───────────────────────────────────────────
+
+    @Test
+    @DisplayName("POST /api/alerts/subscriptions - DRIVER role - creates subscription")
     void createSubscription_driverRole_creates() throws Exception {
         ParkingLot lot = parkingLotRepository.save(lot("Sub lot"));
 
-        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/alerts")
+        mockMvc.perform(post("/api/alerts/subscriptions")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -173,9 +238,9 @@ class AlertControllerIT {
     }
 
     @Test
-    @DisplayName("POST /api/alerts - invalid email - returns 400")
+    @DisplayName("POST /api/alerts/subscriptions - invalid email - returns 400")
     void createSubscription_invalidEmail_returns400() throws Exception {
-        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/alerts")
+        mockMvc.perform(post("/api/alerts/subscriptions")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -188,7 +253,7 @@ class AlertControllerIT {
     }
 
     @Test
-    @DisplayName("POST /api/alerts - duplicate subscription - returns 409")
+    @DisplayName("POST /api/alerts/subscriptions - duplicate subscription - returns 409")
     void createSubscription_duplicate_returns409() throws Exception {
         ParkingLot lot = parkingLotRepository.save(lot("Dedup lot"));
         String payload = """
@@ -198,13 +263,13 @@ class AlertControllerIT {
             }
             """.formatted(lot.getId());
 
-        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/alerts")
+        mockMvc.perform(post("/api/alerts/subscriptions")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(payload)
                 .with(jwtWithRole("auth-sub-postman-driver", "DRIVER")))
             .andExpect(status().isOk());
 
-        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/alerts")
+        mockMvc.perform(post("/api/alerts/subscriptions")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(payload)
                 .with(jwtWithRole("auth-sub-postman-driver", "DRIVER")))
@@ -212,9 +277,9 @@ class AlertControllerIT {
     }
 
     @Test
-    @DisplayName("POST /api/alerts - DAILY_SUMMARY with invalid schedule timezone - returns 400")
+    @DisplayName("POST /api/alerts/subscriptions - invalid timezone - returns 400")
     void createSubscription_invalidScheduleTimezone_returns400() throws Exception {
-        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/alerts")
+        mockMvc.perform(post("/api/alerts/subscriptions")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -227,9 +292,9 @@ class AlertControllerIT {
     }
 
     @Test
-    @DisplayName("POST /api/alerts - TECHNICAL role - returns 403")
+    @DisplayName("POST /api/alerts/subscriptions - TECHNICAL role - returns 403")
     void createSubscription_nonDriver_returns403() throws Exception {
-        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/alerts")
+        mockMvc.perform(post("/api/alerts/subscriptions")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"alertType\":\"LOT_FULL\"}")
                 .with(jwtWithRole("sub-tech", "TECHNICAL")))

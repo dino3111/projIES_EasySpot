@@ -63,6 +63,54 @@ const mockSensors = [
   },
 ];
 
+const mockAlerts = [
+  {
+    id: 'alert-uuid-001',
+    type: 'SENSOR',
+    park: 'Fórum Aveiro',
+    zone: 'Piso 0 – Zona B',
+    spotNumber: 'B7',
+    sensorId: 'IR-AV1-B07',
+    plate: null,
+    description: 'Sensor IR sem leituras há >2h.',
+    severity: 'CRITICAL',
+    state: 'OPEN',
+    createdAt: '2026-05-08T08:12:00Z',
+    attributedTo: null,
+    notes: null,
+  },
+  {
+    id: 'alert-uuid-002',
+    type: 'SYSTEM',
+    park: 'Foz Plaza',
+    zone: 'Sala Técnica',
+    spotNumber: null,
+    sensorId: 'GW-FI2-01',
+    plate: null,
+    description: 'Gateway em modo de manutenção.',
+    severity: 'AVISO',
+    state: 'OPEN',
+    createdAt: '2026-05-08T09:30:00Z',
+    attributedTo: 'Laura Farias',
+    notes: 'Atualização em curso.',
+  },
+  {
+    id: 'alert-uuid-003',
+    type: 'SENSOR',
+    park: 'Fórum Aveiro',
+    zone: 'Piso 0 – Zona B',
+    spotNumber: 'B7',
+    sensorId: 'IR-AV1-B07',
+    plate: null,
+    description: 'Sinal IR abaixo do limiar mínimo.',
+    severity: 'AVISO',
+    state: 'RESOLVED',
+    createdAt: '2026-05-06T14:30:00Z',
+    attributedTo: 'Laura Farias',
+    notes: 'Emissor IR substituído.',
+  },
+];
+
 const mockSensorDetail = {
   ...mockSensors[0],
   logs: [
@@ -112,6 +160,7 @@ test.beforeEach(async ({ page }) => {
   await page.route('**/api/technician/dashboard', (route) => route.fulfill({ json: mockDashboard }));
   await page.route('**/api/technician/sensors', (route) => route.fulfill({ json: mockSensors }));
   await page.route('**/api/technician/sensors/IR-AV1-B07/logs', (route) => route.fulfill({ json: mockSensorDetail }));
+  await page.route('**/api/alerts', (route) => route.fulfill({ json: mockAlerts }));
   await page.route('**/api/alerts/**/state', (route) => route.fulfill({ status: 204, body: '' }));
 });
 
@@ -228,7 +277,6 @@ test('Fechar painel de diagnóstico remove o modal', async ({ page }) => {
 });
 
 test('Painel mostra loading enquanto carrega logs do sensor', async ({ page }) => {
-  // Atrasa a resposta de logs para confirmar o estado de loading
   await page.unroute('**/api/technician/sensors/IR-AV1-B07/logs');
   await page.route('**/api/technician/sensors/IR-AV1-B07/logs', async (route) => {
     await new Promise((r) => setTimeout(r, 800));
@@ -240,10 +288,88 @@ test('Painel mostra loading enquanto carrega logs do sensor', async ({ page }) =
   await page.getByText('Fórum Aveiro').click();
   await page.getByText('IR-AV1-B07').click();
 
-  // Loading overlay aparece antes dos logs chegarem
   await expect(page.getByText(/a carregar logs do sensor/i)).toBeVisible();
-
-  // Depois dos logs chegarem o overlay desaparece
   await expect(page.getByText('Sensor IR sem leituras há >2h.')).toBeVisible();
   await expect(page.getByText(/a carregar logs do sensor/i)).not.toBeVisible();
+});
+
+// ── Ocorrências tab ───────────────────────────────────────────────────────────
+
+test('Tab ocorrências mostra alertas abertos da API', async ({ page }) => {
+  await page.goto('/technician/maintenance');
+
+  // Tab ocorrências é a activa por defeito
+  await expect(page.getByText('Sensor IR sem leituras há >2h.')).toBeVisible();
+  await expect(page.getByText('Gateway em modo de manutenção.')).toBeVisible();
+});
+
+test('Tab ocorrências mostra badge com contagem de alertas abertos', async ({ page }) => {
+  await page.goto('/technician/maintenance');
+
+  // 2 alertas OPEN no mock → badge "2" no tab
+  const tab = page.getByRole('tab', { name: /ocorrências/i });
+  await expect(tab).toBeVisible();
+  await expect(tab.getByText('2')).toBeVisible();
+});
+
+test('Tab ocorrências filtra por severidade crítica', async ({ page }) => {
+  await page.goto('/technician/maintenance');
+
+  await page.getByRole('button', { name: /crítica/i }).click();
+
+  await expect(page.getByText('Sensor IR sem leituras há >2h.')).toBeVisible();
+  await expect(page.getByText('Gateway em modo de manutenção.')).not.toBeVisible();
+});
+
+test('Tab ocorrências mostra alerta resolvido no filtro resolvidos', async ({ page }) => {
+  await page.goto('/technician/maintenance');
+
+  await page.getByRole('button', { name: /resolvidos/i }).click();
+
+  await expect(page.getByText('Sinal IR abaixo do limiar mínimo.')).toBeVisible();
+});
+
+test('Banner de erro aparece quando API de alertas falha', async ({ page }) => {
+  await page.unroute('**/api/alerts');
+  await page.route('**/api/alerts', (route) => route.fulfill({ status: 503, body: 'Unavailable' }));
+
+  await page.goto('/technician/maintenance');
+
+  await expect(page.getByRole('alert')).toBeVisible();
+});
+
+// ── Tarefas tab ───────────────────────────────────────────────────────────────
+
+test('Tab tarefas mostra badge com contagem de tarefas abertas', async ({ page }) => {
+  await page.goto('/technician/maintenance');
+
+  const tab = page.getByRole('tab', { name: /tarefas/i });
+  await expect(tab).toBeVisible();
+  // 2 alertas não-RESOLVED no mock
+  await expect(tab.getByText('2')).toBeVisible();
+});
+
+test('Tab tarefas mostra tarefas urgentes da API', async ({ page }) => {
+  await page.goto('/technician/maintenance');
+
+  await page.getByRole('tab', { name: /tarefas/i }).click();
+
+  // Alerta CRITICAL OPEN aparece como urgente
+  await expect(page.getByText('Sensor IR sem leituras há >2h.')).toBeVisible();
+});
+
+test('Tab tarefas permite iniciar tarefa e chama API de estado', async ({ page }) => {
+  let patchCalled = false;
+  await page.unroute('**/api/alerts/**/state');
+  await page.route('**/api/alerts/**/state', (route) => {
+    patchCalled = true;
+    route.fulfill({ status: 204, body: '' });
+  });
+
+  await page.goto('/technician/maintenance');
+  await page.getByRole('tab', { name: /tarefas/i }).click();
+
+  await page.getByRole('button', { name: /iniciar/i }).first().click();
+
+  expect(patchCalled).toBe(true);
 });

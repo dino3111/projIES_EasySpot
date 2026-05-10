@@ -29,4 +29,16 @@ public class AccessibleSpot {
 
     @Column(length = 50)
     private String baySize;
+
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean monitored;
+
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean hasRampSpace;
+
+    @Column(length = 20, columnDefinition = "varchar(20) default 'online'")
+    private String sensorStatus = "online";
+
+    @Column(length = 10, columnDefinition = "varchar(10) default 'green'")
+    private String ledStatus = "green";
 }

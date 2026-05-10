@@ -229,15 +229,24 @@ public class ParkService {
     private List<ParkingLotDetailsResponse.EVChargerResponse> fetchEVChargers(UUID lotId) {
         return evChargerRepository.findByParkingLotId(lotId).stream()
             .map(c -> new ParkingLotDetailsResponse.EVChargerResponse(
-                c.getType(), c.getSpeed(), c.getPricePerKwh(), c.isAvailable()))
+                c.getType(), c.getSpeed(), parseSpeedKw(c.getSpeed()), c.getPricePerKwh(), c.isAvailable()))
             .toList();
     }
 
     private List<ParkingLotDetailsResponse.AccessibilityResponse> fetchAccessibility(UUID lotId) {
         return accessibleSpotRepository.findByParkingLotId(lotId).stream()
             .map(a -> new ParkingLotDetailsResponse.AccessibilityResponse(
-                a.getLocation(), a.isAvailable(), a.getDistanceToEntranceMeters(), a.getBaySize()))
+                a.getLocation(), a.isAvailable(), a.getDistanceToEntranceMeters(), a.getBaySize(),
+                a.isMonitored(), a.isHasRampSpace(),
+                a.getSensorStatus() != null ? a.getSensorStatus() : "online",
+                a.getLedStatus() != null ? a.getLedStatus() : (a.isAvailable() ? "green" : "red")))
             .toList();
+    }
+
+    private int parseSpeedKw(String speed) {
+        if (speed == null) return 0;
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("(\\d+)\\s*[kK][wW]").matcher(speed);
+        return m.find() ? Integer.parseInt(m.group(1)) : 0;
     }
 
     private List<ParkingLotDetailsResponse.TariffResponse> fetchTariffs(UUID lotId) {

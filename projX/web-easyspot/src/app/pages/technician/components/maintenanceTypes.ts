@@ -1,5 +1,4 @@
-import { mockSensors, type SensorDevice, type SensorStatus } from '../../../data/technicianData';
-import { mockIssues } from '../../../data/gestorData';
+import { type SensorStatus } from '../../../data/technicianData';
 
 export const STATUS_COLOR: Record<SensorStatus, string> = {
   operacional: '#22c55e',
@@ -60,10 +59,8 @@ export const parkManagers: ParkManager[] = [
   { parkId: 'leiria-2',  parkName: 'CentroLeiriaShopping',        managerName: 'Dr. Nuno Ferreira',    email: 'nuno.ferreira@centroleiria.pt',      phone: '+351 244 800 111' },
 ];
 
-export const techIssues = mockIssues.filter(i => i.tipo === 'sensor' || i.tipo === 'sistema');
-
-export const parkCityMapFromSensors = (): Map<string, string> => {
+export const parkCityMapFromSensors = (sensors: { parqueNome: string; cidade: string }[]): Map<string, string> => {
   const map = new Map<string, string>();
-  mockSensors.forEach(s => { if (!map.has(s.parqueNome)) map.set(s.parqueNome, s.cidade); });
+  sensors.forEach(s => { if (!map.has(s.parqueNome)) map.set(s.parqueNome, s.cidade); });
   return map;
 };
