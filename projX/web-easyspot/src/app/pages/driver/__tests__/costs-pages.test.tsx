@@ -50,11 +50,20 @@ const mockSpending = {
   totals: { totalSpent: 100.50, avgPerSession: 10.05, parkingSpent: 80.00, chargingSpent: 20.50 },
   insights: { mostUsedPark: 'Parque Central', costliestSession: null, sessionCount: 10 },
   timeseries: [{ date: '2026-03-01', totalSpent: 10.50 }],
-  breakdownByPark: [{ id: 'p1', name: 'Parque Central', totalSpent: 100.50 }],
+  breakdownByPark: [{ id: 'p1', parkName: 'Parque Central', totalSpent: 100.50 }],
   breakdownByVehicle: [{ id: 'v1', name: 'AA-11-BB', totalSpent: 100.50 }],
   history: [
     { parkName: 'Parque Central', date: '2026-03-01T10:00:00Z', durationMinutes: 60, vehicle: 'AA-11-BB', totalSpent: 10.50, status: 'COMPLETED' }
   ]
+};
+
+const emptySpending = {
+  totals: { totalSpent: 0, avgPerSession: 0, parkingSpent: 0, chargingSpent: 0 },
+  insights: { mostUsedPark: null, costliestSession: null, sessionCount: 0 },
+  timeseries: [],
+  breakdownByPark: [],
+  breakdownByVehicle: [],
+  history: [],
 };
 
 describe('CostsPage', () => {
@@ -77,6 +86,19 @@ describe('CostsPage', () => {
       expect(screen.getAllByText(/Parque Central/i)[0]).toBeInTheDocument();
     });
     expect(costsApiMock.fetchDriverSpending).toHaveBeenCalled();
+  });
+
+  it('shows an empty-state message when there are no expenses', async () => {
+    costsApiMock.fetchDriverSpending.mockResolvedValue(emptySpending);
+
+    render(
+      <MemoryRouter initialEntries={['/costs']}>
+        <CostsPage />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText(/Ainda não tem gastos registados/i)).toBeInTheDocument();
+    expect(screen.getByText(/Sem histórico para este período/i)).toBeInTheDocument();
   });
 
   it('switches to PlanningTab and loads recommendations', async () => {

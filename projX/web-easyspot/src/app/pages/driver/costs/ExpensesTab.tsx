@@ -67,13 +67,20 @@ export function ExpensesTab() {
 
   const pieData = useMemo(() => {
     if (!data?.breakdownByPark) return [];
-    return data.breakdownByPark.map(b => ({ name: b.name, value: b.totalSpent }));
+    return data.breakdownByPark.map(b => ({ name: b.parkName, value: b.totalSpent }));
   }, [data]);
 
   const vehicleData = useMemo(() => {
     if (!data?.breakdownByVehicle) return [];
     return data.breakdownByVehicle.map(b => ({ name: b.name, total: b.totalSpent }));
   }, [data]);
+
+  const isEmpty = !!data
+    && data.totals.totalSpent === 0
+    && data.timeseries.length === 0
+    && data.breakdownByPark.length === 0
+    && data.breakdownByVehicle.length === 0
+    && data.history.length === 0;
 
   if (loading && !data) {
     return <div className="py-20 text-center text-muted-foreground">A carregar os seus gastos...</div>;
@@ -144,6 +151,15 @@ export function ExpensesTab() {
           </div>
         ))}
       </div>
+
+      {isEmpty && (
+        <div className="rounded-2xl border border-dashed border-border/60 bg-card/70 p-8 text-center mb-6">
+          <p className="text-foreground font-bold">Ainda não tem gastos registados</p>
+          <p className="text-muted-foreground text-sm mt-1">
+            Quando existir a primeira sessão faturada, os totais e gráficos aparecem aqui automaticamente.
+          </p>
+        </div>
+      )}
 
       {(totals.chargingSpent > 0) && (
         <div className="grid grid-cols-2 gap-3 mb-4">
