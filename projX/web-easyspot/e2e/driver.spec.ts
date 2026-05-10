@@ -104,7 +104,7 @@ test('Tarifas do parque — mostra taxa horária do backend', async ({ page }) =
   await page.goto('/parking/park-1');
   await expect(page.getByRole('heading', { name: 'Parque Central' })).toBeVisible();
   await page.getByRole('button', { name: /Tarifas/i }).click();
-  await expect(page.getByText('Por Hora')).toBeVisible();
+  await expect(page.getByText('Por Hora').first()).toBeVisible();
   await expect(page.getByText('€1.50')).toBeVisible();
 });
 
@@ -145,7 +145,7 @@ test('Planeamento — condutor expande previsão de ocupação', async ({ page }
   });
   await page.goto('/costs?tab=planeamento');
   await page.getByRole('button', { name: /Ver previsão/i }).click();
-  await expect(page.getByText('Previsão de ocupação')).toBeVisible();
+  await expect(page.getByText(/Previsão de ocupação/).first()).toBeVisible();
 });
 
 // ── Reservation E2E tests ────────────────────────────────────────────────────
@@ -174,7 +174,7 @@ test.describe('Reserva de lugar', () => {
     await expect(page.getByRole('heading', { name: 'Reservar Lugar' })).toBeVisible();
 
     // Avança para step 2 — selecionar parque já está pré-definido pelo parkId
-    await page.getByRole('button', { name: /Seguinte|Próximo|Continuar/i }).first().click();
+    await page.getByRole('button', { name: /Escolher Lugar/i }).first().click();
 
     // Spots ocupados/reservados devem estar desabilitados
     const reservedSpot = page.getByRole('button', { name: 'Lugar A2' });
@@ -188,11 +188,11 @@ test.describe('Reserva de lugar', () => {
     await expect(page.getByRole('heading', { name: 'Reservar Lugar' })).toBeVisible();
 
     // Step 1: avança (parque já pré-selecionado via parkId)
-    await page.getByRole('button', { name: /Seguinte|Próximo|Continuar/i }).first().click();
+    await page.getByRole('button', { name: /Escolher Lugar/i }).first().click();
 
     // Step 2: selecionar lugar livre A1
     await page.getByRole('button', { name: 'Lugar A1' }).click();
-    await expect(page.getByText('A1 selecionado')).toBeVisible();
+    await expect(page.getByText('Lugar A1 selecionado')).toBeVisible();
     await page.getByRole('button', { name: 'Confirmar Lugar' }).click();
 
     // Step 3: aceitar termos e confirmar
@@ -213,7 +213,7 @@ test.describe('Reserva de lugar', () => {
     });
 
     await page.goto('/reservation?parkId=park-1');
-    await page.getByRole('button', { name: /Seguinte|Próximo|Continuar/i }).first().click();
+    await page.getByRole('button', { name: /Escolher Lugar/i }).first().click();
     await page.getByRole('button', { name: 'Lugar A1' }).click();
     await page.getByRole('button', { name: 'Confirmar Lugar' }).click();
     await page.getByRole('checkbox').click();
