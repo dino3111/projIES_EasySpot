@@ -46,7 +46,9 @@ export function CallbackPage() {
         let role: AppProfile = 'DRIVER';
         if (parts.length === 3) {
           try {
-            const claims = JSON.parse(globalThis.atob(parts[1].replaceAll('-', '+').replaceAll('_', '/')));
+            const b64 = parts[1].replaceAll('-', '+').replaceAll('_', '/');
+            const padded = b64 + '='.repeat((4 - (b64.length % 4)) % 4);
+            const claims = JSON.parse(globalThis.atob(padded));
             const groups = claims['groups'];
             if (Array.isArray(groups) && groups.length > 0) {
               const r = String(groups[0]).toUpperCase();

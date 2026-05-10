@@ -55,21 +55,9 @@ type AlertSubscriptionResponse = {
   };
 };
 
-let cachedCoords: { lat: number; lng: number } | null = null;
-
 function is24Hours(openingHours: string): boolean {
   const normalized = openingHours.toLowerCase();
   return normalized.includes('24h') || normalized.includes('24 h');
-}
-
-function clampNonNegative(value: number): number {
-  return Number.isFinite(value) ? Math.max(0, value) : 0;
-}
-
-function normalizeAvailability(available: number, total: number): { available: number; total: number } {
-  const safeTotal = clampNonNegative(total);
-  const safeAvailable = Math.min(clampNonNegative(available), safeTotal);
-  return { available: safeAvailable, total: safeTotal };
 }
 
 function toLocalidade(address: string): string {
@@ -87,60 +75,6 @@ function normalizeZone(zone: string): ParkingZone['type'] {
 function mapSpotLabel(spotNumber: string): string {
   const idx = spotNumber.indexOf(':');
   return idx >= 0 ? spotNumber.slice(idx + 1) : spotNumber;
-}
-
-function formatDistance(distanceMeters: number): string {
-  if (distanceMeters < 1000) return `${Math.round(distanceMeters)} m`;
-  return `${(distanceMeters / 1000).toFixed(1)} km`;
-}
-
-function formatWalkingTime(distanceMeters: number): string {
-  const walkingSpeedMetersPerMinute = 80;
-  const minutes = Math.max(1, Math.round(distanceMeters / walkingSpeedMetersPerMinute));
-  return `${minutes} min`;
-}
-
-function estimateDrivingMeters(straightLineMeters: number): number {
-  return straightLineMeters * 1.35;
-}
-
-function formatDrivingTime(distanceMeters: number): string {
-  const urbanDrivingMetersPerMinute = 500;
-  const minutes = Math.max(1, Math.round(distanceMeters / urbanDrivingMetersPerMinute));
-  return `${minutes} min`;
-}
-
-function toRad(value: number): number {
-  return (value * Math.PI) / 180;
-}
-
-function haversineMeters(from: { lat: number; lng: number }, to: { lat: number; lng: number }): number {
-  const earthRadius = 6371000;
-  const dLat = toRad(to.lat - from.lat);
-  const dLng = toRad(to.lng - from.lng);
-  const lat1 = toRad(from.lat);
-  const lat2 = toRad(to.lat);
-
-  const a = Math.sin(dLat / 2) ** 2
-    + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return earthRadius * c;
-}
-
-async function getUserCoords(): Promise<{ lat: number; lng: number } | null> {
-  if (cachedCoords) return cachedCoords;
-  if (typeof navigator === 'undefined' || !navigator.geolocation) return null;
-
-  return new Promise((resolve) => {
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        cachedCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        resolve(cachedCoords);
-      },
-      () => resolve(null),
-      { enableHighAccuracy: false, timeout: 5000, maximumAge: 120000 },
-    );
-  });
 }
 
 function mapFloors(spots: ParkDetailsResponse['spotMap']): ParkingFloor[] {
@@ -170,6 +104,31 @@ function mapFloors(spots: ParkDetailsResponse['spotMap']): ParkingFloor[] {
       spots: floorSpots,
     };
   });
+}
+
+function buildPlaceholderEvChargers(total: number, available: number): EVCharger[] {
+  return Array.from({ length: total }).map((_, idx) => ({
+    id: `ev-${idx + 1}`,
+    type: 'Type 2',
+    speed: 'Rápida (22kW)',
+    speedKW: 22,
+    available: idx < available,
+    price: 0,
+  }));
+}
+
+function buildPlaceholderAccessible(total: number, available: number): AccessibleSpot[] {
+  return Array.from({ length: total }).map((_, idx) => ({
+    id: `acc-${idx + 1}`,
+    zone: `Zona ${idx + 1}`,
+    available: idx < available,
+    monitored: false,
+    distanceToEntrance: 0,
+    hasRampSpace: false,
+    dimensions: '3.5m x 5.0m',
+    sensorStatus: 'online',
+    ledStatus: idx < available ? 'green' : 'red',
+  }));
 }
 
 export type FetchParksQuery = {
@@ -207,48 +166,36 @@ export async function fetchParksList(query: FetchParksQuery = {}): Promise<Paged
   }));
   if (!resp.ok) throw new Error(`Failed to fetch parks list (${resp.status})`);
   const data = (await resp.json()) as ParkListResponse;
-  const coords = await getUserCoords();
 
   return {
-    items: data.items.map((item) => {
-      const normalizedLot = normalizeAvailability(item.freeSpaces, item.totalSpaces);
-      const normalizedEv = normalizeAvailability(item.evChargers.available, item.evChargers.total);
-      const normalizedAccessible = normalizeAvailability(item.accessibleSpaces.available, item.accessibleSpaces.total);
-      const lotCoords = { lat: item.latitude, lng: item.longitude };
-      const distanceMeters = coords ? haversineMeters(coords, lotCoords) : null;
-      const drivingMeters = distanceMeters !== null ? estimateDrivingMeters(distanceMeters) : null;
-
-      return {
-        id: item.id,
-        name: item.name,
-        address: item.address,
-        localidade: item.city || toLocalidade(item.address),
-        availableSpots: normalizedLot.available,
-        totalSpots: normalizedLot.total,
-        hourlyRate: item.pricePerHour ?? 0,
-        dailyMax: 0,
-        monthlyRate: 0,
-        distance: distanceMeters !== null ? formatDistance(distanceMeters) : 'N/D',
-        walkingTime: distanceMeters !== null ? formatWalkingTime(distanceMeters) : 'N/D',
-        drivingDistance: drivingMeters !== null ? formatDistance(drivingMeters) : 'N/D',
-        drivingTime: drivingMeters !== null ? formatDrivingTime(drivingMeters) : 'N/D',
-        hasEVCharger: normalizedEv.total > 0,
-        hasAccessible: normalizedAccessible.total > 0,
-        latitude: item.latitude,
-        longitude: item.longitude,
-        evChargers: [],
-        accessibleSpots: [],
-        rating: 0,
-        reviewCount: 0,
-        openingHours: item.openingHours ?? '',
-        is24h: is24Hours(item.openingHours ?? ''),
-        amenities: [],
-        zones: [],
-        floors: [],
-        phone: 'N/D',
-        techFeatures: { hasOCR: false, hasOcrIdentification: false, hasIRSensors: false, hasLEDs: false },
-      };
-    }),
+    items: data.items.map((item) => ({
+    id: item.id,
+    name: item.name,
+    address: item.address,
+    localidade: item.city || toLocalidade(item.address),
+    availableSpots: item.freeSpaces,
+    totalSpots: item.totalSpaces,
+    hourlyRate: item.pricePerHour ?? 0,
+    dailyMax: 0,
+    monthlyRate: 0,
+    distance: 'N/D',
+    walkingTime: 'N/D',
+    hasEVCharger: item.evChargers.total > 0,
+    hasAccessible: item.accessibleSpaces.total > 0,
+    latitude: item.latitude,
+    longitude: item.longitude,
+    evChargers: buildPlaceholderEvChargers(item.evChargers.total, item.evChargers.available),
+    accessibleSpots: buildPlaceholderAccessible(item.accessibleSpaces.total, item.accessibleSpaces.available),
+    rating: 0,
+    reviewCount: 0,
+    openingHours: item.openingHours ?? '',
+    is24h: is24Hours(item.openingHours ?? ''),
+    amenities: [],
+    zones: [],
+    floors: [],
+    phone: 'N/D',
+    techFeatures: { hasOCR: false, hasRFID: false, hasIRSensors: false, hasLEDs: false },
+    })),
     pagination: data.pagination,
   };
 }
@@ -290,37 +237,27 @@ export async function fetchParkDetails(parkId: string): Promise<ParkingLot> {
     sensorStatus: 'online',
     ledStatus: a.availability ? 'green' : 'red',
   }));
-  const zones: ParkingZone[] = data.zones.map((z, idx) => {
-    const normalized = normalizeAvailability(z.free, z.total);
-    return {
-      id: `${data.id}-zone-${idx + 1}`,
-      name: z.zoneName,
-      totalSpots: normalized.total,
-      availableSpots: normalized.available,
-      type: normalizeZone(z.zoneName),
-      floor: 'N/D',
-    };
-  });
-  const lotAvailability = normalizeAvailability(data.freeSpaces, data.totalSpaces);
-  const coords = await getUserCoords();
-  const lotCoords = { lat: data.coordinates.lat, lng: data.coordinates.lng };
-  const distanceMeters = coords ? haversineMeters(coords, lotCoords) : null;
-  const drivingMeters = distanceMeters !== null ? estimateDrivingMeters(distanceMeters) : null;
+  const zones: ParkingZone[] = data.zones.map((z, idx) => ({
+    id: `${data.id}-zone-${idx + 1}`,
+    name: z.zoneName,
+    totalSpots: z.total,
+    availableSpots: z.free,
+    type: normalizeZone(z.zoneName),
+    floor: 'N/D',
+  }));
 
   return {
     id: data.id,
     name: data.name,
     address: data.address,
     localidade: toLocalidade(data.address),
-    availableSpots: lotAvailability.available,
-    totalSpots: lotAvailability.total,
+    availableSpots: data.freeSpaces,
+    totalSpots: data.totalSpaces,
     hourlyRate: primaryTariff?.pricePerHour ?? 0,
     dailyMax: primaryTariff?.maxDaily ?? 0,
     monthlyRate: primaryTariff?.monthly ?? 0,
-    distance: distanceMeters !== null ? formatDistance(distanceMeters) : 'N/D',
-    walkingTime: distanceMeters !== null ? formatWalkingTime(distanceMeters) : 'N/D',
-    drivingDistance: drivingMeters !== null ? formatDistance(drivingMeters) : 'N/D',
-    drivingTime: drivingMeters !== null ? formatDrivingTime(drivingMeters) : 'N/D',
+    distance: 'N/D',
+    walkingTime: 'N/D',
     hasEVCharger: evChargers.length > 0,
     hasAccessible: accessibleSpots.length > 0,
     latitude: data.coordinates.lat,
@@ -335,7 +272,7 @@ export async function fetchParkDetails(parkId: string): Promise<ParkingLot> {
     zones,
     floors: mapFloors(data.spotMap ?? []),
     phone: 'N/D',
-    techFeatures: { hasOCR: false, hasOcrIdentification: false, hasIRSensors: false, hasLEDs: false },
+    techFeatures: { hasOCR: false, hasRFID: false, hasIRSensors: false, hasLEDs: false },
   };
 }
 
@@ -400,6 +337,8 @@ export async function subscribeSpaceAvailableAlerts(parkIds: string[]): Promise<
     }),
   }));
   if (!resp.ok) {
+    // Subscription uniqueness is enforced server-side. A 409 means "already subscribed",
+    // which is a successful outcome from the user's perspective.
     if (resp.status === 409) {
       return {
         subscription: {

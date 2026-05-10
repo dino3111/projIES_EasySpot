@@ -51,6 +51,10 @@ export const router = createBrowserRouter([
         element: <ProtectedRoute allowedRoles={['MANAGER']}><TariffsIncidentsPage /></ProtectedRoute>,
       },
       {
+        path: 'manager/tarifas-ocorrencias',
+        element: <ProtectedRoute allowedRoles={['MANAGER']}><TariffsIncidentsPage /></ProtectedRoute>,
+      },
+      {
         path: 'technician/dashboard',
         element: <ProtectedRoute allowedRoles={['TECHNICAL']}><DashboardTechnicianPage /></ProtectedRoute>,
       },

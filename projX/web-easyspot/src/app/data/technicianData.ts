@@ -1,6 +1,6 @@
 // ── Dados mock para o painel do Técnico de Manutenção (Laura Farias) ─────────
 
-export type SensorTipo = 'IR' | 'OCR' | 'EV' | 'Gateway';
+export type SensorTipo = 'IR' | 'RFID' | 'OCR' | 'EV' | 'Gateway';
 export type SensorStatus = 'operacional' | 'falha' | 'offline' | 'manutencao';
 
 export interface ErrorLog {
@@ -140,8 +140,8 @@ export const mockSensors: SensorDevice[] = [
     historicoErros: [],
   },
   {
-    id: 'OCR-AV1-ENT1',
-    tipo: 'OCR',
+    id: 'RFID-AV1-ENT1',
+    tipo: 'RFID',
     parqueId: 'aveiro-1',
     parqueNome: 'Fórum Aveiro',
     cidade: 'Aveiro',
@@ -224,8 +224,8 @@ export const mockSensors: SensorDevice[] = [
     historicoErros: [],
   },
   {
-    id: 'OCR-AV2-ENT1',
-    tipo: 'OCR',
+    id: 'RFID-AV2-ENT1',
+    tipo: 'RFID',
     parqueId: 'aveiro-2',
     parqueNome: 'Glicínias Plaza',
     cidade: 'Aveiro',
@@ -313,8 +313,8 @@ export const mockSensors: SensorDevice[] = [
     historicoErros: [],
   },
   {
-    id: 'OCR-CO1-ENT1',
-    tipo: 'OCR',
+    id: 'RFID-CO1-ENT1',
+    tipo: 'RFID',
     parqueId: 'coimbra-1',
     parqueNome: 'Estádio Cidade de Coimbra',
     cidade: 'Coimbra',
@@ -384,8 +384,8 @@ export const mockSensors: SensorDevice[] = [
     historicoErros: [],
   },
   {
-    id: 'OCR-CO2-ENT1',
-    tipo: 'OCR',
+    id: 'RFID-CO2-ENT1',
+    tipo: 'RFID',
     parqueId: 'coimbra-2',
     parqueNome: 'CoimbraShopping',
     cidade: 'Coimbra',
@@ -418,8 +418,8 @@ export const mockSensors: SensorDevice[] = [
 
   // ── Europa – Leiria ──────────────────────────────────────────────────────────
   {
-    id: 'OCR-LE1-ENT1',
-    tipo: 'OCR',
+    id: 'RFID-LE1-ENT1',
+    tipo: 'RFID',
     parqueId: 'leiria-1',
     parqueNome: 'Europa – Leiria',
     cidade: 'Leiria',
@@ -507,8 +507,8 @@ export const mockSensors: SensorDevice[] = [
     historicoErros: [],
   },
   {
-    id: 'OCR-LE2-ENT1',
-    tipo: 'OCR',
+    id: 'RFID-LE2-ENT1',
+    tipo: 'RFID',
     parqueId: 'leiria-2',
     parqueNome: 'Est. Mag. Pessoa',
     cidade: 'Leiria',
@@ -669,11 +669,11 @@ export const mockMaintenanceOrders: MaintenanceOrder[] = [
   },
   {
     id: 'ORD-002',
-    sensorId: 'OCR-LE1-ENT1',
+    sensorId: 'RFID-LE1-ENT1',
     parque: 'Europa – Leiria',
     zona: 'Entrada Principal',
-    titulo: 'Restauro de comunicação – OCR Entrada',
-    descricao: 'Leitor OCR offline desde 06h45. Sem comunicação com servidor. Verificar cabo de rede e switch.',
+    titulo: 'Restauro de comunicação – RFID Entrada',
+    descricao: 'Leitor RFID offline desde 06h45. Sem comunicação com servidor. Verificar cabo de rede e switch.',
     prioridade: 'critica',
     estado: 'em-progresso',
     criadaEm: '2026-03-09T06:55:00',

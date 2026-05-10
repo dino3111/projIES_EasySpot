@@ -1,3 +1,6 @@
+-- Time-series seed for occupancy snapshots (TimescaleDB hypertable).
+-- Self-contained with real IDs to avoid cross-DB join issues in initialization.
+
 BEGIN;
 
 DELETE FROM occupancy_snapshots;

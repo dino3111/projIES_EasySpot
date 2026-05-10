@@ -77,10 +77,8 @@ export function ParkPanel({ lot, onClose, getStatusInfo, desktop = false }: Park
         <OccupancyBar occupied={occupied} availableSpots={lot.availableSpots} totalSpots={lot.totalSpots} occupancyPct={occupancyPct} statusHex={status.hex} />
 
         <div className="grid grid-cols-2 gap-2">
-          <InfoTile icon="fa-car"            label="Carro"     value={lot.drivingTime} />
-          <InfoTile icon="fa-route"          label="Dist. carro" value={lot.drivingDistance} />
-          <InfoTile icon="fa-person-walking" label="A pé"      value={lot.walkingTime} />
-          <InfoTile icon="fa-shoe-prints"    label="Dist. a pé" value={lot.distance} />
+          <InfoTile icon="fa-person-walking" label="A pé"     value={lot.walkingTime} />
+          <InfoTile icon="fa-route"          label="Distância" value={lot.distance} />
           <InfoTile icon="fa-clock"          label="Horário"   value={lot.is24h ? '24h' : lot.openingHours} />
           <InfoTile icon="fa-phone"          label="Contacto"  value={lot.phone} />
         </div>

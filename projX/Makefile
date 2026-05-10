@@ -1,6 +1,6 @@
 .PHONY: help up down logs bootstrap setup clean
 
-PYTHON := python3
+PYTHON := /usr/bin/python3
 COMPOSE := docker compose
 
 help:

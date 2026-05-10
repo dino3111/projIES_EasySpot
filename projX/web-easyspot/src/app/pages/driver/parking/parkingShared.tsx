@@ -49,10 +49,6 @@ export function ZoneTypeBadge({ type }: Readonly<{ type: string }>) {
   const cfg: Record<string, { label: string; cls: string }> = {
     ev: { label: 'EV', cls: 'bg-primary/20 text-primary' },
     accessible: { label: 'Acessível', cls: 'bg-info/20 text-info' },
-    ACCESSIBLE: { label: 'Acessível', cls: 'bg-info/20 text-info' },
-    EV: { label: 'EV', cls: 'bg-primary/20 text-primary' },
-    STANDARD: { label: 'Geral', cls: 'bg-muted text-muted-foreground' },
-    RESERVED: { label: 'Reservado', cls: 'bg-warning/20 text-warning' },
     standard: { label: 'Geral', cls: 'bg-muted text-muted-foreground' },
   };
   const c = cfg[type] || cfg.standard;

@@ -4,7 +4,7 @@ import { lookupVehicleData, lookupInsuranceData, type VehicleData, type Insuranc
 import { vehicleApi } from '../../../../services/apiService';
 import { isEVFuelType, detectChargerTypes } from '../../../utils/brandLogo';
 import type { Vehicle } from '../../../context/ProfileContext';
-import { PT_PLATE_REGEX, NicknameInput, VehicleDataCard, EVOptions } from './vehiclesShared';
+import { PT_PLATE_REGEX, NicknameInput, RfidInput, VehicleDataCard, EVOptions } from './vehiclesShared';
 
 function PlateInput({
   plate, setPlate, loading, inputRef,
@@ -51,7 +51,9 @@ export function AddVehicleModal({ onClose, onAdd }: Readonly<{ onClose: () => vo
     fuelType: '',
     year: '',
   });
-  const [nickname, setNickname] = useState('');  const [isEV, setIsEV] = useState(false);
+  const [nickname, setNickname] = useState('');
+  const [rfid, setRfid] = useState('');
+  const [isEV, setIsEV] = useState(false);
   const [isAccessible, setIsAccessible] = useState(false);
   const [chargerTypes, setChargerTypes] = useState<string[]>([]);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -125,7 +127,9 @@ export function AddVehicleModal({ onClose, onAdd }: Readonly<{ onClose: () => vo
     setSaving(true);
     try {
       const created = await vehicleApi.create({
-        licensePlate: plate,        nickname: nickname.trim() || undefined,
+        licensePlate: plate,
+        externalIdentifier: rfid.trim() || undefined,
+        nickname: nickname.trim() || undefined,
         isAccessible,
         isPrimary: false,
         chargerTypes: isEV ? chargerTypes : [],
@@ -146,7 +150,9 @@ export function AddVehicleModal({ onClose, onAdd }: Readonly<{ onClose: () => vo
         fuelType: created.fuelType ?? undefined,
         isEV: created.isEv,
         isAccessible,
-        isPrimary: created.isPrimary,      });
+        isPrimary: created.isPrimary,
+        rfid: rfid.trim() || undefined,
+      });
       toast.success('Veículo adicionado com sucesso');
       onClose();
     } catch (err) {
@@ -157,22 +163,24 @@ export function AddVehicleModal({ onClose, onAdd }: Readonly<{ onClose: () => vo
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-0 sm:p-4">
-      <div className="bg-background w-full max-w-md shadow-2xl h-[100dvh] sm:h-auto sm:max-h-[90vh] sm:rounded-3xl flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-background rounded-3xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl">
         <div className="sticky top-0 bg-background border-b border-border px-5 py-4 flex items-center justify-between rounded-t-3xl">
           <h2 className="text-foreground font-extrabold" style={{ fontSize: '1.2rem' }}>Adicionar Veículo</h2>
           <button type="button" aria-label="Fechar" onClick={onClose} className="w-8 h-8 rounded-full hover:bg-muted transition-colors flex items-center justify-center">
             <i className="fas fa-times text-muted-foreground" style={{ fontSize: '0.9rem' }} />
           </button>
         </div>
-        <div className="px-5 py-5 space-y-4 overflow-y-auto flex-1">
+        <div className="px-5 py-5 space-y-4">
           <PlateInput plate={plate} setPlate={setPlate} loading={loading} inputRef={inputRef} />
           {plateError && PT_PLATE_REGEX.test(plate) && (
             <div className="rounded-xl border border-error/30 bg-error/5 p-3 text-sm text-error">
               Falha na consulta automática: {plateError}
             </div>
           )}
-          <NicknameInput nickname={nickname} setNickname={setNickname} />          {vehicleData && <VehicleDataCard vehicleData={vehicleData} insuranceData={insuranceData} />}
+          <NicknameInput nickname={nickname} setNickname={setNickname} />
+          <RfidInput rfid={rfid} setRfid={setRfid} />
+          {vehicleData && <VehicleDataCard vehicleData={vehicleData} insuranceData={insuranceData} />}
           {showManualForm && (
             <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-2">
               <p className="text-foreground font-semibold text-sm">Preenchimento manual (fallback)</p>
@@ -211,10 +219,7 @@ export function AddVehicleModal({ onClose, onAdd }: Readonly<{ onClose: () => vo
             make={vehicleData?.make}
           />
         </div>
-        <div
-          className="sticky bottom-0 bg-background border-t border-border px-5 py-4 flex items-center gap-3 sm:rounded-b-3xl"
-          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)' }}
-        >
+        <div className="sticky bottom-0 bg-background border-t border-border px-5 py-4 flex items-center gap-3 rounded-b-3xl">
           <button onClick={onClose} className="btn btn-ghost flex-1 rounded-full" style={{ fontSize: '0.875rem' }}>Cancelar</button>
           <button onClick={handleAdd} disabled={!PT_PLATE_REGEX.test(plate) || saving} className="btn btn-primary flex-1 rounded-full" style={{ fontSize: '0.875rem' }}>
             {saving ? (

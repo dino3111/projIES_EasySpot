@@ -93,6 +93,25 @@ class DriverSpendingRepositoryIT {
 
         assertThat(repository.costliestSession(driver.getId(), null, from, to).totalSpent()).isEqualByComparingTo("10.00");
         assertThat(repository.history(driver.getId(), null, from, to, 0, 50)).hasSize(3);
+        assertThat(repository.countHistory(driver.getId(), null, from, to)).isEqualTo(3L);
+    }
+
+    @Test
+    @DisplayName("countHistory - pagination - page 0 returns first 2, historyTotal is 3")
+    void countHistory_matchesHistorySize() {
+        OffsetDateTime base = OffsetDateTime.now(ZoneOffset.UTC).minusDays(2);
+        parkingSessionRepository.saveAll(List.of(
+            session(lotA, vehicleA, ZoneType.STANDARD, base.plusHours(1), 30, "2.00"),
+            session(lotA, vehicleA, ZoneType.STANDARD, base.plusHours(3), 30, "3.00"),
+            session(lotB, vehicleA, ZoneType.STANDARD, base.plusHours(5), 30, "4.00")
+        ));
+
+        OffsetDateTime from = base.minusHours(1);
+        OffsetDateTime to = base.plusDays(3);
+
+        assertThat(repository.countHistory(driver.getId(), null, from, to)).isEqualTo(3L);
+        assertThat(repository.history(driver.getId(), null, from, to, 0, 2)).hasSize(2);
+        assertThat(repository.history(driver.getId(), null, from, to, 1, 2)).hasSize(1);
     }
 
     @Test
