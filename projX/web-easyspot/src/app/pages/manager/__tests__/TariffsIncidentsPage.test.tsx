@@ -3,20 +3,12 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { TariffsIncidentsPage } from '../TariffsIncidentsPage';
 import { ProfileProvider } from '../../../context/ProfileContext';
 import { fetchManagerTariffs, fetchManagerAlerts } from '../../../services/managerApi';
-import { fetchAllParksSummary } from '../../../services/parksCatalog';
 
-import { fetchVehicles } from '../../../services/vehiclesApi';
-
-// Mock services
 vi.mock('../../../services/managerApi', () => ({
   fetchManagerTariffs: vi.fn(),
   fetchManagerAlerts: vi.fn(),
   updateTariff: vi.fn(),
   updateAlertState: vi.fn(),
-}));
-
-vi.mock('../../../services/parksCatalog', () => ({
-  fetchAllParksSummary: vi.fn(),
 }));
 
 vi.mock('../../../services/vehiclesApi', () => ({
@@ -28,10 +20,9 @@ describe('TariffsIncidentsPage', () => {
     vi.clearAllMocks();
   });
 
-  it('renders loading state initially', async () => {
-    (fetchManagerTariffs as any).mockReturnValue(new Promise(() => {}));
-    (fetchManagerAlerts as any).mockReturnValue(new Promise(() => {}));
-    (fetchAllParksSummary as any).mockReturnValue(new Promise(() => {}));
+  it('renders loading state initially', () => {
+    (fetchManagerTariffs as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}));
+    (fetchManagerAlerts as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}));
 
     render(
       <ProfileProvider>
@@ -39,11 +30,12 @@ describe('TariffsIncidentsPage', () => {
       </ProfileProvider>
     );
 
-    expect(screen.getByRole('img', { hidden: true, name: '' }) || screen.getByClassName('fa-spin')).toBeTruthy();
+    const spinner = document.querySelector('.fa-spin');
+    expect(spinner).toBeTruthy();
   });
 
   it('renders data after fetching', async () => {
-    (fetchManagerTariffs as any).mockResolvedValue([
+    (fetchManagerTariffs as ReturnType<typeof vi.fn>).mockResolvedValue([
       {
         id: '1',
         parkId: 'park-1',
@@ -53,10 +45,10 @@ describe('TariffsIncidentsPage', () => {
         maxDaily: 12,
         monthlyPrice: 100,
         pricePerKwh: 0.3,
-        status: 'ACTIVE'
-      }
+        status: 'ACTIVE',
+      },
     ]);
-    (fetchManagerAlerts as any).mockResolvedValue([
+    (fetchManagerAlerts as ReturnType<typeof vi.fn>).mockResolvedValue([
       {
         id: 'alert-1',
         type: 'SENSOR',
@@ -70,11 +62,8 @@ describe('TariffsIncidentsPage', () => {
         state: 'OPEN',
         createdAt: new Date().toISOString(),
         attributedTo: 'Tech 1',
-        notes: ''
-      }
-    ]);
-    (fetchAllParksSummary as any).mockResolvedValue([
-      { id: 'park-1', name: 'Test Park', city: 'Aveiro' }
+        notes: '',
+      },
     ]);
 
     render(
