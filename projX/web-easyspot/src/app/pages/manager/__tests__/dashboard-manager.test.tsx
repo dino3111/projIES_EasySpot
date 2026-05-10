@@ -5,25 +5,6 @@ import { MemoryRouter } from 'react-router';
 import { DashboardManagerPage } from '../DashboardManagerPage';
 import type { ManagerDashboardResponse } from '../../../services/dashboardApi';
 
-vi.mock('recharts', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('recharts')>();
-  const MockChart = ({ children }: { children?: React.ReactNode }) => <div>{children}</div>;
-  return {
-    ...actual,
-    ResponsiveContainer: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
-    BarChart: MockChart,
-    AreaChart: MockChart,
-    PieChart: MockChart,
-    Bar: () => null,
-    Area: () => null,
-    Pie: () => null,
-    Cell: () => null,
-    XAxis: () => null,
-    YAxis: () => null,
-    CartesianGrid: () => null,
-    Tooltip: () => null,
-  };
-});
 
 const dashboardApiMock = vi.hoisted(() => ({
   dashboardApi: { getManagerDashboard: vi.fn() },
