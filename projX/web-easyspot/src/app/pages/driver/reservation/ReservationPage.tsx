@@ -63,8 +63,6 @@ export function ReservationPage() {
     }
     fetchParkDetailsById(selectedParkId).then(setSelectedLot).catch(() => setSelectedLot(null));
   }, [selectedParkId]);
-  const estimatedCost = calcCost(selectedLot, calcHours(arrivalTime, exitTime));
-
   const selectedFloor = useMemo(
     () => selectedLot?.floors.find(f => f.id === selectedFloorId) || selectedLot?.floors[0] || null,
     [selectedLot, selectedFloorId]
@@ -73,6 +71,8 @@ export function ReservationPage() {
     () => selectedFloor?.spots.find(s => s.id === selectedSpotId) || null,
     [selectedFloor, selectedSpotId]
   );
+  const isEVSpot = selectedSpot?.status === 'ev';
+  const estimatedCost = calcCost(selectedLot, calcHours(arrivalTime, exitTime), isEVSpot);
   const spotLabel = selectedSpot ? `${selectedFloor?.name} · Lugar ${selectedSpot.label}` : '';
 
   useEffect(() => {
@@ -213,7 +213,7 @@ export function ReservationPage() {
             <aside className="lg:w-80 lg:sticky lg:top-4 lg:self-start" aria-label="Resumo do custo">
               <CostSummary
                 lot={selectedLot} arrivalTime={arrivalTime} exitTime={exitTime}
-                cost={estimatedCost} spotLabel={spotLabel} step={step}
+                cost={estimatedCost} spotLabel={spotLabel} step={step} isEVSpot={isEVSpot}
               />
               {selectedLot && <div className="card bg-base-200 shadow-md mt-4" />}
             </aside>
