@@ -3,6 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   AreaChart, Area, PieChart, Pie, Cell,
 } from 'recharts';
+import type { IssueReport } from '../../data/gestorData';
 import { KpiCard, AlertRow, OccBar } from './components/shared';
 import {
   dashboardApi,
@@ -13,6 +14,35 @@ import {
 } from '../../services/dashboardApi';
 
 type ChartTab = 'entradas' | 'receita';
+
+const emptyDailyMetrics: Array<{ day: string; entradas: number; receita: number }> = [];
+const emptyHourlyOccupancy: Array<{ hora: string; ocupacao: number }> = [];
+const emptyZoneOccupancy: Array<{ name: string; total: number; ocupados: number; color: string }> = [];
+const emptyIssues: IssueReport[] = [];
+
+const kpis = {
+  entradasHoje: 0,
+  variacaoEntradas: 0,
+  taxaOcupacaoMedia: 0,
+  totalLugares: 0,
+  lugaresLivres: 0,
+  receitaHoje: 0,
+  variacaoReceita: 0,
+  tempoMedioEstadia: '0 min',
+  alertasAbertos: 0,
+};
+
+const parkSummaryRows = [
+  { nome: 'Fórum Aveiro',      cidade: 'Aveiro',   entradas: 58, ocupacao: 74, receita: 342.50 },
+  { nome: 'Glicínias Plaza',   cidade: 'Aveiro',   entradas: 42, ocupacao: 61, receita: 198.20 },
+  { nome: 'Estádio Coimbra',   cidade: 'Coimbra',  entradas: 37, ocupacao: 69, receita: 215.10 },
+  { nome: 'CoimbraShopping',   cidade: 'Coimbra',  entradas: 29, ocupacao: 55, receita: 131.40 },
+  { nome: 'Europa',            cidade: 'Leiria',   entradas: 44, ocupacao: 78, receita: 284 },
+  { nome: 'Foz Plaza',         cidade: 'Figueira', entradas: 61, ocupacao: 82, receita: 398.60 },
+  { nome: 'Mercado Arganil',   cidade: 'Arganil',  entradas: 18, ocupacao: 45, receita: 64.20  },
+  { nome: 'Furadouro',         cidade: 'Ovar',     entradas: 14, ocupacao: 30, receita: 32.10  },
+  { nome: 'Est. Mag. Pessoa',  cidade: 'Leiria',   entradas:  0, ocupacao:  0, receita: 79.5  },
+];
 
 const tooltipStyle = {
   background: 'var(--color-card)',
@@ -32,56 +62,7 @@ function formatVariation(variation: number) {
 
 export function DashboardManagerPage() {
   const [chartTab, setChartTab] = useState<ChartTab>('entradas');
-  const [data, setData] = useState<ManagerDashboardResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    dashboardApi
-      .getManagerDashboard()
-      .then((res) => {
-        if (!cancelled) setData(res);
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Erro ao carregar dados');
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="px-4 py-5 max-w-screen-xl mx-auto" aria-busy="true" aria-label="A carregar painel">
-        <div className="flex items-center justify-center h-64 text-muted-foreground">
-          <i className="fas fa-spinner fa-spin mr-2" aria-hidden="true" />
-          A carregar painel...
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="px-4 py-5 max-w-screen-xl mx-auto" role="alert">
-        <div className="flex items-center gap-3 p-4 rounded-2xl bg-destructive/10 text-destructive border border-destructive/20">
-          <i className="fas fa-triangle-exclamation" aria-hidden="true" />
-          <span>{error}</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (!data) return null;
-
-  const { kpis, seriesLast7Days, occupancyPerZone, occupancyPerHour, lastAlerts, performancePerPark } = data;
-  const alertasAbertos = lastAlerts.filter((a) => a.state === 'aberto');
+  const alertasAbertos = emptyIssues.filter((i) => i.estado === 'aberto');
 
   return (
     <div className="px-4 py-5 max-w-screen-xl mx-auto space-y-6">
@@ -191,7 +172,7 @@ function DailyChart({
       </div>
       <div style={{ height: 200 }}>
         <ResponsiveContainer width="100%" height="100%" key={`bar-container-${chartTab}`}>
-          <BarChart key={`bar-chart-${chartTab}`} data={seriesLast7Days} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+          <BarChart key={`bar-chart-${chartTab}`} data={emptyDailyMetrics} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
             <XAxis dataKey="day" tick={{ fill: 'var(--color-muted-foreground)', fontSize: 12 }} axisLine={false} tickLine={false} />
             <YAxis tick={{ fill: 'var(--color-muted-foreground)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={yAxisTickFormatter} />
@@ -204,24 +185,30 @@ function DailyChart({
   );
 }
 
-function ZoneDonut({ occupancyPerZone }: { readonly occupancyPerZone: ZoneOccupancy[] }) {
-  const zones = occupancyPerZone.map((z) => ({ ...z, color: ZONE_COLORS[z.type] ?? '#94a3b8' }));
+function ZoneDonut() {
+  const hasData = emptyZoneOccupancy.length > 0;
   return (
     <div className="bg-card border border-border rounded-2xl p-4">
       <h2 className="text-foreground mb-4" style={{ fontSize: '1rem', fontWeight: 700 }}>Ocupação por Zona</h2>
       <div style={{ height: 160 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie data={zones} dataKey="occupied" nameKey="name" cx="50%" cy="50%" innerRadius={45} outerRadius={70} paddingAngle={3}>
-              {zones.map((zone) => <Cell key={zone.name} fill={zone.color} />)}
-            </Pie>
-            <Tooltip contentStyle={{ ...tooltipStyle, borderRadius: '10px', fontSize: '0.78rem' }} formatter={(v: number, name: string) => [`${v} ocupados`, name]} />
-          </PieChart>
-        </ResponsiveContainer>
+        {hasData ? (
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie data={emptyZoneOccupancy} dataKey="ocupados" nameKey="name" cx="50%" cy="50%" innerRadius={45} outerRadius={70} paddingAngle={3}>
+                {emptyZoneOccupancy.map((zone) => <Cell key={zone.name} fill={zone.color} />)}
+              </Pie>
+              <Tooltip contentStyle={{ ...tooltipStyle, borderRadius: '10px', fontSize: '0.78rem' }} formatter={(v: number, name: string) => [`${v} ocupados`, name]} />
+            </PieChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-border text-muted-foreground" style={{ fontSize: '0.8rem' }}>
+            Sem dados disponíveis
+          </div>
+        )}
       </div>
       <div className="space-y-1.5 mt-1">
-        {zones.map((zone) => {
-          const pct = zone.total > 0 ? Math.round((zone.occupied / zone.total) * 100) : 0;
+        {emptyZoneOccupancy.map((zone) => {
+          const pct = Math.round((zone.ocupados / zone.total) * 100);
           return (
             <div key={zone.name} className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: zone.color }} aria-hidden="true" />
@@ -242,7 +229,7 @@ function HourlyChart({ occupancyPerHour }: { readonly occupancyPerHour: ManagerD
       <h2 className="text-foreground mb-4" style={{ fontSize: '1rem', fontWeight: 700 }}>Ocupação por Hora — Hoje</h2>
       <div style={{ height: 160 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={occupancyPerHour} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+          <AreaChart data={emptyHourlyOccupancy} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
             <defs>
               <linearGradient id="gradOcup" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#7357ec" stopOpacity={0.3} />
@@ -261,28 +248,7 @@ function HourlyChart({ occupancyPerHour }: { readonly occupancyPerHour: ManagerD
   );
 }
 
-function AlertsSection({
-  alertasAbertos,
-  allAlerts,
-}: {
-  readonly alertasAbertos: AlertSummary[];
-  readonly allAlerts: AlertSummary[];
-}) {
-  const adaptedAlerts = allAlerts.slice(0, 5).map((a) => ({
-    id: a.id,
-    tipo: a.type as 'sensor' | 'cliente' | 'sistema',
-    parque: a.park,
-    zona: a.zone ?? undefined,
-    sensorId: a.sensorId ?? undefined,
-    matricula: a.plate ?? undefined,
-    descricao: a.description,
-    severidade: a.severity as 'critica' | 'aviso' | 'info',
-    estado: a.state as 'aberto' | 'em-progresso' | 'resolvido',
-    criadoEm: a.createdAt,
-    atribuidoA: a.attributedTo ?? undefined,
-    notas: a.notes ?? undefined,
-  }));
-
+function AlertsSection({ alertasAbertos }: { readonly alertasAbertos: IssueReport[] }) {
   return (
     <div className="bg-card border border-border rounded-2xl p-4">
       <div className="flex items-center justify-between mb-4">
@@ -292,7 +258,13 @@ function AlertsSection({
         </span>
       </div>
       <div className="space-y-2">
-        {adaptedAlerts.map((issue) => <AlertRow key={issue.id} issue={issue} />)}
+        {alertasAbertos.length > 0 ? (
+          alertasAbertos.slice(0, 5).map((issue) => <AlertRow key={issue.id} issue={issue} />)
+        ) : (
+          <div className="rounded-xl border border-dashed border-border px-3 py-4 text-center text-muted-foreground" style={{ fontSize: '0.8rem' }}>
+            Sem alertas em aberto
+          </div>
+        )}
       </div>
       <a href="/manager/tariffs-incidents" className="mt-3 flex items-center gap-1.5 text-primary hover:opacity-80 transition-opacity" style={{ fontSize: '0.8rem', fontWeight: 600 }}>
         Ver todos os registos

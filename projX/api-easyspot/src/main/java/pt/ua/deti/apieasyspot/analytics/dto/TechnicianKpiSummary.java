@@ -5,7 +5,7 @@ public record TechnicianKpiSummary(
     int operationalSensors,
     double uptimePct,
     long failuresToday,
-    double failuresVariance,
+    double failuresTodayVariancePct,
     String meanTimeToRepair,
-    double mttrVariance
+    double mttrVariancePct
 ) {}

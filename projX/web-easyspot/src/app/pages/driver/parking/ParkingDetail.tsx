@@ -195,8 +195,6 @@ export function ParkingDetail() {
           <div className="grid grid-cols-2 gap-3">
             <InfoBox icon="fa-euro-sign" label="Por Hora"  value={`€${lot.hourlyRate.toFixed(2)}`} color="text-primary" />
             <InfoBox icon="fa-clock"     label="Horário"   value={lot.is24h ? '24h' : lot.openingHours} color="text-primary" />
-            <InfoBox icon="fa-car"       label="Carro"     value={lot.drivingTime} color="text-primary" />
-            <InfoBox icon="fa-person-walking" label="A pé" value={lot.walkingTime} color="text-primary" />
           </div>
 
           {(lot.amenities.length > 0 || totalEV > 0 || totalAcc > 0) && (

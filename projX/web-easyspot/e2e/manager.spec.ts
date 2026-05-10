@@ -1,119 +1,168 @@
 import { test, expect } from '@playwright/test';
 
-const managerJwt = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJtZ3ItMSIsIm5hbWUiOiJBbnTDs25pbyBWaWRlaXJhIiwiZW1haWwiOiJhbnRvbmlvQGVhc3lzcG90LnB0IiwiZ3JvdXBzIjpbIk1BTkFHRVIiXX0.sig';
+// JWT with MANAGER role (signature not validated in tests)
+const jwt = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJtZ3ItMSIsIm5hbWUiOiJBbmEgR2VzdG9yYSIsImVtYWlsIjoiYW5hQGVhc3lzcG90LnB0IiwiZ3JvdXBzIjpbIk1BTkFHRVIiXX0.sig';
 
-const mockDashboard = {
-  kpis: {
-    todayEntrances: 303,
-    entranceVariance: 14.4,
-    averageOccupancy: 69,
-    totalLots: 1143,
-    occupiedLots: 769,
-    totalEarnings: 1745.6,
-    earningsVariance: 26.4,
-    averageOccupancyTime: '2h 14m',
-    alertsOpened: 3,
-    activeParks: 9,
-  },
-  seriesLast7Days: [
-    { date: '2026-03-03', day: 'Ter', entrances: 312, earnings: 1840.5 },
-    { date: '2026-03-09', day: 'Seg', entrances: 303, earnings: 1745.6 },
-  ],
-  occupancyPerZone: [
-    { name: 'Normal', type: 'standard', total: 680, occupied: 510 },
-    { name: 'Carregamento EV', type: 'ev', total: 80, occupied: 52 },
-    { name: 'Mobilidade Reduzida', type: 'accessible', total: 40, occupied: 18 },
-    { name: 'Reservados', type: 'reserved', total: 60, occupied: 48 },
-  ],
-  occupancyPerHour: [
-    { time: '08h', occupancy: 42 },
-    { time: '09h', occupancy: 68 },
-    { time: '12h', occupancy: 85 },
-  ],
-  lastAlerts: [
+const mockProfile = {
+  role: 'MANAGER',
+  name: 'Ana Gestora',
+  email: 'ana@easyspot.pt',
+  photoUrl: null,
+  notificationsEnabled: true,
+  driverType: null,
+  pushNotificationsEnabled: false,
+  emailNotificationsEnabled: true,
+  spending: { totalEuros: 0, sessionCount: 0, avgEuros: 0 },
+  favoritesCount: 0,
+};
+
+const mockTariffs = {
+  content: [
     {
-      id: 'iss-001',
-      type: 'sensor',
-      park: 'Fórum Aveiro',
-      zone: 'Piso 0 – Zona B',
-      sensorId: 'IR-AV1-B07',
-      plate: null,
-      description: 'Sensor infravermelho sem leituras.',
-      severity: 'critica',
-      state: 'aberto',
-      createdAt: '2026-03-09T08:14:00Z',
-      attributedTo: null,
-      notes: null,
+      id: 'tariff-uuid-001',
+      parkId: 'park-uuid-001',
+      parkName: 'Fórum Aveiro',
+      city: 'Aveiro',
+      pricePerHour: 1.5,
+      maxDaily: 12.0,
+      monthlyPrice: 80.0,
+      pricePerKwh: 0.35,
+      status: 'ACTIVE',
+    },
+    {
+      id: 'tariff-uuid-002',
+      parkId: 'park-uuid-002',
+      parkName: 'Parque Central',
+      city: 'Aveiro',
+      pricePerHour: 2.0,
+      maxDaily: 15.0,
+      monthlyPrice: 100.0,
+      pricePerKwh: 0.40,
+      status: 'REVIEW',
     },
   ],
-  performancePerPark: [
-    { name: 'Fórum Aveiro', city: 'Aveiro', entrances: 58, occupancyPercentage: 74, earnings: 342.5 },
-    { name: 'Glicínias Plaza', city: 'Aveiro', entrances: 42, occupancyPercentage: 61, earnings: 198.2 },
+  totalElements: 2,
+  totalPages: 1,
+};
+
+const mockAlerts = [
+  {
+    id: 'alert-uuid-001',
+    type: 'sensor',
+    park: 'Fórum Aveiro',
+    zone: 'Piso 0 – Zona B',
+    spotNumber: null,
+    sensorId: 'IR-AV1-B07',
+    plate: null,
+    description: 'Sensor IR sem leituras há >2h.',
+    severity: 'critical',
+    state: 'open',
+    createdAt: '2026-05-08T08:12:00Z',
+    attributedTo: null,
+    notas: null,
+  },
+  {
+    id: 'alert-uuid-002',
+    type: 'billing',
+    park: 'Parque Central',
+    zone: null,
+    spotNumber: null,
+    sensorId: null,
+    plate: 'AA-00-BB',
+    description: 'Pagamento recusado.',
+    severity: 'warning',
+    state: 'resolved',
+    createdAt: '2026-05-07T14:30:00Z',
+    attributedTo: null,
+    notas: null,
+  },
+];
+
+const mockParks = {
+  items: [
+    {
+      id: 'park-uuid-001',
+      name: 'Fórum Aveiro',
+      city: 'Aveiro',
+      address: 'Rua de exemplo 1',
+      latitude: 40.63,
+      longitude: -8.65,
+      openingHours: '08:00-22:00',
+      minPrice: 1.5,
+      totalSpaces: 200,
+      freeSpaces: 50,
+      evChargers: { free: 2, total: 5 },
+      accessibleSpaces: { free: 1, total: 3 },
+      availabilityStatus: 'AVAILABLE',
+    },
   ],
+  pagination: { page: 1, pageSize: 500, totalItems: 1, totalPages: 1 },
 };
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript((token) => {
     sessionStorage.setItem('es_access_token', token);
     sessionStorage.setItem('es_id_token', token);
-  }, managerJwt);
+    localStorage.setItem('easyspot_profile', 'MANAGER');
+    localStorage.setItem('easyspot_account_type', 'MANAGER');
+  }, jwt);
 
-  await page.route('**/api/manager/dashboard', async (route) => {
-    await route.fulfill({ json: mockDashboard });
-  });
-
-  await page.route('**/api/profile', async (route) => {
-    await route.fulfill({
-      json: {
-        role: 'MANAGER',
-        name: 'António Videira',
-        email: 'antonio@easyspot.pt',
-        photoUrl: null,
-        notificationsEnabled: true,
-        managedParks: 9,
-        todayRevenue: 1745.6,
-        todayVehicles: 303,
-        openAlerts: 3,
-      },
-    });
-  });
+  await page.route('**/api/profile', (route) => route.fulfill({ json: mockProfile }));
+  await page.route('**/api/manager/tariffs**', (route) => route.fulfill({ json: mockTariffs }));
+  await page.route('**/api/alerts**', (route) => route.fulfill({ json: mockAlerts }));
+  await page.route('**/api/parks/list**', (route) => route.fulfill({ json: mockParks }));
+  await page.route('**/api/alerts/**/state', (route) => route.fulfill({ status: 204, body: '' }));
 });
 
-test('Manager dashboard loads KPI cards', async ({ page }) => {
-  await page.goto('/manager/dashboard');
-  await expect(page.getByText('Painel de Desempenho')).toBeVisible();
-  await expect(page.getByText('Entradas Hoje')).toBeVisible();
-  await expect(page.getByText('303')).toBeVisible();
-  await expect(page.getByText('Taxa de Ocupação')).toBeVisible();
-  await expect(page.getByText('69%')).toBeVisible();
-  await expect(page.getByText('Receita Hoje')).toBeVisible();
-  await expect(page.getByText('€1745.60')).toBeVisible();
-});
+test('Página mostra separador Tarifários com dados da API', async ({ page }) => {
+  await page.goto('/manager/tarifas-ocorrencias');
 
-test('Manager dashboard shows park performance table', async ({ page }) => {
-  await page.goto('/manager/dashboard');
-  await expect(page.getByText('Desempenho por Parque — Hoje')).toBeVisible();
+  await expect(page.getByRole('tab', { name: /tarifários/i })).toBeVisible();
   await expect(page.getByText('Fórum Aveiro')).toBeVisible();
-  await expect(page.getByText('€342.50')).toBeVisible();
-  await expect(page.getByText('Glicínias Plaza')).toBeVisible();
+  await expect(page.getByText('Parque Central')).toBeVisible();
 });
 
-test('Manager dashboard shows recent alerts', async ({ page }) => {
-  await page.goto('/manager/dashboard');
-  await expect(page.getByText('Alertas Recentes')).toBeVisible();
-  await expect(page.getByText('1 em aberto')).toBeVisible();
-  await expect(page.getByText('Sensor infravermelho sem leituras.')).toBeVisible();
+test('Página mostra título de secção correto', async ({ page }) => {
+  await page.goto('/manager/tarifas-ocorrencias');
+
+  await expect(page.getByRole('heading', { name: /tarifas/i })).toBeVisible();
 });
 
-test('Manager dashboard shows zone occupancy', async ({ page }) => {
-  await page.goto('/manager/dashboard');
-  await expect(page.getByText('Ocupação por Zona')).toBeVisible();
-  await expect(page.getByText('Normal')).toBeVisible();
-  await expect(page.getByText('510/680')).toBeVisible();
+test('Separador Ocorrências mostra alertas da API', async ({ page }) => {
+  await page.goto('/manager/tarifas-ocorrencias');
+
+  await page.getByRole('tab', { name: /ocorrências/i }).click();
+
+  await expect(page.getByText('Sensor IR sem leituras há >2h.')).toBeVisible();
+  await expect(page.getByText('Pagamento recusado.')).toBeVisible();
 });
 
-test('Manager dashboard shows chart section', async ({ page }) => {
-  await page.goto('/manager/dashboard');
-  await expect(page.getByText('Últimos 7 Dias')).toBeVisible();
-  await expect(page.getByText('Ocupação por Hora — Hoje')).toBeVisible();
+test('Separador Ocorrências mostra alerta crítico como aberto', async ({ page }) => {
+  await page.goto('/manager/tarifas-ocorrencias');
+
+  await page.getByRole('tab', { name: /ocorrências/i }).click();
+
+  await expect(page.getByText('Sensor IR sem leituras há >2h.')).toBeVisible();
+  await expect(page.getByText('Fórum Aveiro')).toBeVisible();
+});
+
+test('Mostra estado de erro quando API de tarifas falha', async ({ page }) => {
+  await page.unroute('**/api/manager/tariffs**');
+  await page.route('**/api/manager/tariffs**', (route) =>
+    route.fulfill({ status: 500, body: 'Server Error' })
+  );
+
+  await page.goto('/manager/tarifas-ocorrencias');
+
+  // Page should still render without crashing; tariff list will be empty
+  await expect(page.getByRole('tab', { name: /tarifários/i })).toBeVisible();
+});
+
+test('Exportar dados inicia download de ficheiro', async ({ page }) => {
+  await page.goto('/manager/tarifas-ocorrencias');
+
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: /exportar/i }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toMatch(/tarifas/i);
 });

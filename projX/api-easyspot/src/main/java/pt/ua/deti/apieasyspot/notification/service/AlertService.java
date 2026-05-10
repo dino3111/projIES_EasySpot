@@ -4,11 +4,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import pt.ua.deti.apieasyspot.common.exception.ResourceNotFoundException;
 import pt.ua.deti.apieasyspot.notification.model.Alert;
+import pt.ua.deti.apieasyspot.notification.model.SeverityAlert;
 import pt.ua.deti.apieasyspot.notification.model.StateAlert;
 import pt.ua.deti.apieasyspot.notification.repository.TimescaleAlertRepository;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -17,6 +19,10 @@ import java.util.UUID;
 public class AlertService {
 
     private final TimescaleAlertRepository alertRepository;
+
+    public List<Alert> listAlerts(UUID parkId, StateAlert state, SeverityAlert severity) {
+        return alertRepository.findAllFiltered(parkId, state, severity);
+    }
 
     public void updateState(UUID id, String rawState) {
         Alert alert = alertRepository.findById(id)

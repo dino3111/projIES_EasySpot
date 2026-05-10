@@ -106,7 +106,8 @@ class DriverSpendingControllerIT {
             .andExpect(jsonPath("$.totals.totalSpent").value(13.50))
             .andExpect(jsonPath("$.totals.chargingSpent").value(8.50))
             .andExpect(jsonPath("$.breakdownByVehicle.length()").value(2))
-            .andExpect(jsonPath("$.insights.costliestSession.totalSpent").value(8.50));
+            .andExpect(jsonPath("$.insights.costliestSession.totalSpent").value(8.50))
+            .andExpect(jsonPath("$.historyTotal").value(2));
     }
 
     @Test
@@ -118,7 +119,35 @@ class DriverSpendingControllerIT {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.totals.totalSpent").value(0.00))
             .andExpect(jsonPath("$.timeseries.length()").value(0))
-            .andExpect(jsonPath("$.history.length()").value(0));
+            .andExpect(jsonPath("$.history.length()").value(0))
+            .andExpect(jsonPath("$.historyTotal").value(0));
+    }
+
+    @Test
+    @DisplayName("historyPage and historySize - pagination returns correct page slice")
+    void spending_pagination_returnsCorrectSlice() throws Exception {
+        OffsetDateTime now = OffsetDateTime.now();
+        for (int i = 0; i < 15; i++) {
+            parkingSessionRepository.save(session(vehicleA, ZoneType.STANDARD, now.minusHours(i + 1), 30, "1.00"));
+        }
+
+        mockMvc.perform(get("/api/driver/costs/spending")
+                .with(jwtWithRole("driver-e2e-001", "DRIVER"))
+                .param("timeWindow", "30D")
+                .param("historyPage", "0")
+                .param("historySize", "10"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.history.length()").value(10))
+            .andExpect(jsonPath("$.historyTotal").value(15));
+
+        mockMvc.perform(get("/api/driver/costs/spending")
+                .with(jwtWithRole("driver-e2e-001", "DRIVER"))
+                .param("timeWindow", "30D")
+                .param("historyPage", "1")
+                .param("historySize", "10"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.history.length()").value(5))
+            .andExpect(jsonPath("$.historyTotal").value(15));
     }
 
     @Test

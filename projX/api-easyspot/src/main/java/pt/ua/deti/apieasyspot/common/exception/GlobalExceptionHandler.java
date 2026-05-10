@@ -79,7 +79,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(StripeException.class)
     public ProblemDetail handleStripeException(StripeException ex) {
-        log.error("Stripe API error [{}]: {}", ex.getCode(), ex.getMessage());
+        log.error("Stripe API error [{}]: {}", ex.getCode(), ex.getMessage(), ex);
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_GATEWAY, "Payment provider error");
     }
 

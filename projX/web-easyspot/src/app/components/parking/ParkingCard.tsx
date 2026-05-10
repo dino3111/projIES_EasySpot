@@ -49,7 +49,7 @@ function buildAvailabilityContext(
 }
 
 export function ParkingCard({ lot, highlightAccessible = false, filterMode = null }: ParkingCardProps) {
-  const { id, name, address, availableSpots, totalSpots, hourlyRate, walkingTime, drivingTime,
+  const { id, name, address, availableSpots, totalSpots, hourlyRate, walkingTime,
           hasEVCharger, hasAccessible, evChargers, accessibleSpots } = lot;
 
   const evAvail = evChargers?.filter((c) => c.available).length ?? 0;
@@ -67,13 +67,6 @@ export function ParkingCard({ lot, highlightAccessible = false, filterMode = nul
     : null;
 
   const getSingleCtx = (): AvailabilityContext => {
-    const lotIsFull = availableSpots === 0;
-    if (lotIsFull) {
-      return buildAvailabilityContext(
-        0, Math.max(1, totalSpots), 'Livres', null,
-        'Lotado', 'Lotado', 'Lotado', '#ef4444'
-      );
-    }
     if (filterMode === 'ev' && evTotal > 0) {
       return buildAvailabilityContext(
         evAvail, evTotal, 'Carregadores', 'fa-charging-station',
@@ -250,14 +243,9 @@ export function ParkingCard({ lot, highlightAccessible = false, filterMode = nul
                   </p>
                 </div>
               </div>
-              <div className="flex flex-col items-end gap-0.5 text-muted-foreground font-medium" style={{ fontSize: '0.68rem' }}>
-                <span className="flex items-center gap-1">
-                  <i className="fas fa-car" aria-hidden="true" /> {drivingTime}
-                </span>
-                <span className="flex items-center gap-1">
-                  <i className="fas fa-person-walking" aria-hidden="true" /> {walkingTime}
-                </span>
-              </div>
+              <span className="flex items-center gap-1 text-muted-foreground font-medium" style={{ fontSize: '0.7rem' }}>
+                <i className="fas fa-person-walking" aria-hidden="true" /> {walkingTime}
+              </span>
             </div>
 
             {filterMode === 'accessible' && closestAvailAcc && (

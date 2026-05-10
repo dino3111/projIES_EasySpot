@@ -122,6 +122,6 @@ class TechnicianServiceTest {
 
         assertThat(response.kpis().uptimePct()).isEqualTo(0.0);
         assertThat(response.kpis().meanTimeToRepair()).isEqualTo("N/A");
-        assertThat(response.kpis().mttrVariance()).isEqualTo(0.0);
+        assertThat(response.kpis().mttrVariancePct()).isEqualTo(0.0);
     }
 }

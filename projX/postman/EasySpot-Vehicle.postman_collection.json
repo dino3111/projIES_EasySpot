@@ -41,7 +41,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\"licensePlate\":\"CC-00-CC\"}"
+          "raw": "{\"licensePlate\":\"CC-00-CC\",\"externalIdentifier\":\"RFID-POSTMAN\"}"
         },
         "url": { "raw": "{{baseUrl}}/api/vehicles" }
       }

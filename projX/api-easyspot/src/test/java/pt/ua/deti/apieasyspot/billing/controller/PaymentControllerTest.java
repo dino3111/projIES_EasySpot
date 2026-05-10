@@ -70,4 +70,17 @@ class PaymentControllerTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
         verify(stripeService).detachPaymentMethod("sub-123", "user@test.com", "pm_123");
     }
+
+    @Test
+    @DisplayName("createSetupIntent - returns 503 when Stripe is misconfigured")
+    void createSetupIntent_misconfigured_returns503() throws Exception {
+        when(stripeService.createSetupIntent("sub-123", "user@test.com"))
+            .thenThrow(new IllegalStateException("Stripe is not configured on the server"));
+
+        ResponseEntity<String> response = paymentController.createSetupIntent(jwt);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+        assertThat(response.getBody()).isEqualTo("Stripe setup is temporarily unavailable");
+        verify(stripeService).createSetupIntent("sub-123", "user@test.com");
+    }
 }
