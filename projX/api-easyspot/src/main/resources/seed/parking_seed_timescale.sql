@@ -584,9 +584,27 @@ VALUES (
 );
 
 -- EasySpot EV Hub Aveiro — 8 spots EV todos livres, 4 STANDARD livres
-INSERT INTO occupancy_snapshots (id, parking_lot_id, zone_type, occupied_count, total_count, recorded_at)
-VALUES (gen_random_uuid(), 'ee000001-0000-0000-0000-000000000001', 'EV', 0, 8, now());
-INSERT INTO occupancy_snapshots (id, parking_lot_id, zone_type, occupied_count, total_count, recorded_at)
-VALUES (gen_random_uuid(), 'ee000001-0000-0000-0000-000000000001', 'STANDARD', 0, 4, now());
+INSERT INTO occupancy_snapshots (
+    id, parking_lot_id, zone_type, occupied_count, total_count, recorded_at
+)
+VALUES (
+    gen_random_uuid(),
+    'ee000001-0000-0000-0000-000000000001',
+    'EV',
+    0,
+    8,
+    now()
+);
+INSERT INTO occupancy_snapshots (
+    id, parking_lot_id, zone_type, occupied_count, total_count, recorded_at
+)
+VALUES (
+    gen_random_uuid(),
+    'ee000001-0000-0000-0000-000000000001',
+    'STANDARD',
+    0,
+    4,
+    now()
+);
 
 COMMIT;
