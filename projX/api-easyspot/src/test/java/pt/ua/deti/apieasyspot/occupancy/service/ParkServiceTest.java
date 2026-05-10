@@ -133,6 +133,7 @@ class ParkServiceTest {
         spot.setSpotCol(1);
         spot.setStatus("free");
         when(parkingSpotRepository.findByParkingLotId(lotId)).thenReturn(List.of(spot));
+        when(reservationRepository.findReservedSpotIds(anyList(), any(), any())).thenReturn(List.of());
 
         ParkingLotDetailsResponse response = parkService.getDetails(lotId);
 
