@@ -153,6 +153,22 @@ class AlertControllerIT {
         assertThat(updated.getResolvedAt()).isNull();
     }
 
+    @Test
+    @DisplayName("PATCH /api/alerts/{id}/state - with notes - persists notes")
+    void updateState_withNotes_persistsNotes() throws Exception {
+        Alert alert = savedAlert(StateAlert.OPEN);
+
+        mockMvc.perform(patch("/api/alerts/" + alert.getId() + "/state")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"state\":\"IN_PROGRESS\",\"notes\":\"sensor offline, checking cables\"}")
+                .with(jwtWithRole("sub-tech", "TECHNICAL")))
+            .andExpect(status().isNoContent());
+
+        Alert updated = alertRepository.findById(alert.getId()).orElseThrow();
+        assertThat(updated.getState()).isEqualTo(StateAlert.IN_PROGRESS);
+        assertThat(updated.getNotes()).isEqualTo("sensor offline, checking cables");
+    }
+
     // ── GET /api/alerts ──────────────────────────────────────────────────────────
 
     @Test

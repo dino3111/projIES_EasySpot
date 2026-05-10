@@ -33,7 +33,7 @@ function sensorFromApi(a: SensorSummary): SensorDevice {
     tipo: 'IR' as const,
     parqueId: a.parkingLotId,
     parqueNome: a.parkingLotName,
-    cidade: '',
+    cidade: a.parkingLotCity ?? '',
     zona: a.zone,
     status: toSensorStatus(a.status),
     ultimaLeitura: a.lastSeenAt,
@@ -239,14 +239,11 @@ export function MaintenancePage() {
     showToast(`Sensor ${sensorId} atualizado para "${STATUS_LABEL[newStatus]}".`);
   };
 
-  // Moves the first OPEN alert for the sensor to IN_PROGRESS.
-  // description/priority from the modal are not persisted — the backend has no endpoint for it yet.
-  const handleCreateOrder = async (sensorId: string, titulo: string, _descricao: string, _prioridade: string) => {
-    // Find first open alert for this sensor and mark it IN_PROGRESS
+  const handleCreateOrder = async (sensorId: string, titulo: string, descricao: string, _prioridade: string) => {
     const alert = orders.find((o) => o.sensorId === sensorId && o.state === 'OPEN');
     if (alert) {
       try {
-        await updateAlertState(alert.id, 'IN_PROGRESS');
+        await updateAlertState(alert.id, 'IN_PROGRESS', descricao || undefined);
         setOrders((prev) => prev.map((o) => o.id === alert.id ? { ...o, state: 'IN_PROGRESS' } : o));
         setIssues((prev) => prev.map((i) => i.id === alert.id ? { ...i, estado: 'em-progresso' } : i));
         showToast(`Tarefa "${titulo}" criada — sensor ${sensorId} em progresso.`);

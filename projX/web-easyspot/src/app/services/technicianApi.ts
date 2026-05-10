@@ -8,6 +8,7 @@ export interface SensorSummary {
   sensorId: string;
   parkingLotId: string;
   parkingLotName: string;
+  parkingLotCity: string;
   zone: string;
   status: SensorStatus;
   lastSeenAt: string;
@@ -104,10 +105,10 @@ export const fetchSensorList = (): Promise<SensorSummary[]> =>
 export const fetchSensorDetail = (sensorId: string): Promise<SensorDetail> =>
   request<SensorDetail>(`/api/technician/sensors/${encodeURIComponent(sensorId)}/logs`);
 
-export const updateAlertState = (alertId: string, state: AlertState): Promise<void> =>
+export const updateAlertState = (alertId: string, state: AlertState, notes?: string): Promise<void> =>
   request<void>(`/api/alerts/${alertId}/state`, {
     method: 'PATCH',
-    body: JSON.stringify({ state }),
+    body: JSON.stringify({ state, notes }),
   });
 
 export type FetchAlertsQuery = {

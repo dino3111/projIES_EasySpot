@@ -77,7 +77,7 @@ public class AlertController {
         @PathVariable UUID id,
         @RequestBody AlertStateUpdate body
     ) {
-        alertService.updateState(id, body.state());
+        alertService.updateState(id, body.state(), body.notes());
         return ResponseEntity.noContent().build();
     }
 
