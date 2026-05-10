@@ -52,6 +52,12 @@ test.describe('US#7 — Combined Parking + Charging Fee', () => {
     await page.route('**/api/payments/setup-status', async (route) => {
       await route.fulfill({ json: { configured: true } });
     });
+    await page.route('**/api/parks/list**', async (route) => {
+      await route.fulfill({ json: { items: [
+        { id: 'park-ev', name: 'Parque EV', city: 'Aveiro', address: 'Rua EV, Aveiro', latitude: 40.64, longitude: -8.65, openingHours: '24h', pricePerHour: 1.5, totalSpaces: 50, freeSpaces: 15, evChargers: { available: 1, total: 1 }, accessibleSpaces: { available: 0, total: 0 }, availabilityStatus: 'AVAILABLE' },
+        { id: 'park-std', name: 'Parque Padrão', city: 'Aveiro', address: 'Rua Normal, Aveiro', latitude: 40.64, longitude: -8.65, openingHours: '24h', pricePerHour: 1.0, totalSpaces: 30, freeSpaces: 10, evChargers: { available: 0, total: 0 }, accessibleSpaces: { available: 0, total: 0 }, availabilityStatus: 'AVAILABLE' },
+      ], pagination: { page: 1, pageSize: 500, totalItems: 2, totalPages: 1 } } });
+    });
     await page.route('**/api/parks/catalog/summary', async (route) => {
       await route.fulfill({ json: [parkWithEV, parkWithoutEV] });
     });

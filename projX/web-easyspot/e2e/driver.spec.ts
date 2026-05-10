@@ -176,6 +176,9 @@ test.describe('Reserva de lugar', () => {
     // Avança para step 2 — selecionar parque já está pré-definido pelo parkId
     await page.getByRole('button', { name: /Escolher Lugar/i }).first().click();
 
+    // Aguarda que o mapa de lugares carregue (selectedLot disponível)
+    await expect(page.getByRole('button', { name: 'Lugar A1' })).toBeVisible();
+
     // Spots ocupados/reservados devem estar desabilitados
     const reservedSpot = page.getByRole('button', { name: 'Lugar A2' });
     const occupiedSpot = page.getByRole('button', { name: 'Lugar A3' });
@@ -190,7 +193,8 @@ test.describe('Reserva de lugar', () => {
     // Step 1: avança (parque já pré-selecionado via parkId)
     await page.getByRole('button', { name: /Escolher Lugar/i }).first().click();
 
-    // Step 2: selecionar lugar livre A1
+    // Step 2: aguarda que o mapa de lugares carregue e seleciona lugar livre A1
+    await expect(page.getByRole('button', { name: 'Lugar A1' })).toBeVisible();
     await page.getByRole('button', { name: 'Lugar A1' }).click();
     await expect(page.getByText('Lugar A1 selecionado')).toBeVisible();
     await page.getByRole('button', { name: 'Confirmar Lugar' }).click();
@@ -214,6 +218,7 @@ test.describe('Reserva de lugar', () => {
 
     await page.goto('/reservation?parkId=park-1');
     await page.getByRole('button', { name: /Escolher Lugar/i }).first().click();
+    await expect(page.getByRole('button', { name: 'Lugar A1' })).toBeVisible();
     await page.getByRole('button', { name: 'Lugar A1' }).click();
     await page.getByRole('button', { name: 'Confirmar Lugar' }).click();
     await page.getByRole('checkbox').click();
