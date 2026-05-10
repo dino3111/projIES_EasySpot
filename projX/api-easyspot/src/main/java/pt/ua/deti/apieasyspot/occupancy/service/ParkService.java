@@ -16,6 +16,7 @@ import pt.ua.deti.apieasyspot.occupancy.repository.TimescaleOccupancySnapshotRep
 import pt.ua.deti.apieasyspot.occupancy.repository.*;
 
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -188,7 +189,7 @@ public class ParkService {
                     status = "reserved";
                 }
                 return new ParkingLotDetailsResponse.SpotResponse(
-                    s.getSpotNumber(), s.getZone().name(), s.getSpotRow(), s.getSpotCol(), status);
+                    s.getId(), s.getSpotNumber(), s.getZone().name(), s.getSpotRow(), s.getSpotCol(), status);
             })
             .toList();
 
