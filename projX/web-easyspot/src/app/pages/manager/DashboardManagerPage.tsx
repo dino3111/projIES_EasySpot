@@ -1,30 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   AreaChart, Area, PieChart, Pie, Cell,
 } from 'recharts';
-import {
-  mockDailyMetrics,
-  mockHourlyOccupancy,
-  mockZoneOccupancy,
-  mockManagerKPIs,
-  mockIssues,
-} from '../../data/gestorData';
 import { KpiCard, AlertRow, OccBar } from './components/shared';
+import {
+  dashboardApi,
+  ZONE_COLORS,
+  type ManagerDashboardResponse,
+  type AlertSummary,
+  type ZoneOccupancy,
+} from '../../services/dashboardApi';
 
 type ChartTab = 'entradas' | 'receita';
-
-const parkSummaryRows = [
-  { nome: 'Fórum Aveiro',      cidade: 'Aveiro',   entradas: 58, ocupacao: 74, receita: 342.50 },
-  { nome: 'Glicínias Plaza',   cidade: 'Aveiro',   entradas: 42, ocupacao: 61, receita: 198.20 },
-  { nome: 'Estádio Coimbra',   cidade: 'Coimbra',  entradas: 37, ocupacao: 69, receita: 215.10 },
-  { nome: 'CoimbraShopping',   cidade: 'Coimbra',  entradas: 29, ocupacao: 55, receita: 131.40 },
-  { nome: 'Europa',            cidade: 'Leiria',   entradas: 44, ocupacao: 78, receita: 284 },
-  { nome: 'Foz Plaza',         cidade: 'Figueira', entradas: 61, ocupacao: 82, receita: 398.60 },
-  { nome: 'Mercado Arganil',   cidade: 'Arganil',  entradas: 18, ocupacao: 45, receita: 64.20  },
-  { nome: 'Furadouro',         cidade: 'Ovar',     entradas: 14, ocupacao: 30, receita: 32.10  },
-  { nome: 'Est. Mag. Pessoa',  cidade: 'Leiria',   entradas:  0, ocupacao:  0, receita: 79.5  },
-];
 
 const tooltipStyle = {
   background: 'var(--color-card)',
@@ -39,45 +27,122 @@ function getTrendFromVariation(variation: number): 'up' | 'down' {
 }
 
 function formatVariation(variation: number) {
-  return `${variation > 0 ? '+' : ''}${variation}% vs ontem`;
+  return `${variation > 0 ? '+' : ''}${variation.toFixed(1)}% vs ontem`;
 }
 
 export function DashboardManagerPage() {
   const [chartTab, setChartTab] = useState<ChartTab>('entradas');
-  const kpis = mockManagerKPIs;
-  const alertasAbertos = mockIssues.filter((i) => i.estado === 'aberto');
+  const [data, setData] = useState<ManagerDashboardResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    dashboardApi
+      .getManagerDashboard()
+      .then((res) => {
+        if (!cancelled) setData(res);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Erro ao carregar dados');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="px-4 py-5 max-w-screen-xl mx-auto" aria-busy="true" aria-label="A carregar painel">
+        <div className="flex items-center justify-center h-64 text-muted-foreground">
+          <i className="fas fa-spinner fa-spin mr-2" aria-hidden="true" />
+          A carregar painel...
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="px-4 py-5 max-w-screen-xl mx-auto" role="alert">
+        <div className="flex items-center gap-3 p-4 rounded-2xl bg-destructive/10 text-destructive border border-destructive/20">
+          <i className="fas fa-triangle-exclamation" aria-hidden="true" />
+          <span>{error}</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!data) return null;
+
+  const { kpis, seriesLast7Days, occupancyPerZone, occupancyPerHour, lastAlerts, performancePerPark } = data;
+  const alertasAbertos = lastAlerts.filter((a) => a.state === 'aberto');
 
   return (
     <div className="px-4 py-5 max-w-screen-xl mx-auto space-y-6">
       <PageHeader />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KpiCard icon="fa-arrow-right-to-bracket" label="Entradas Hoje"   value={kpis.entradasHoje.toString()} subValue={formatVariation(kpis.variacaoEntradas)} trend={getTrendFromVariation(kpis.variacaoEntradas)} color="#7357ec" />
-        <KpiCard icon="fa-chart-pie"              label="Taxa de Ocupação" value={`${kpis.taxaOcupacaoMedia}%`}  subValue={`${kpis.totalLugares - kpis.lugaresLivres} / ${kpis.totalLugares} lugares`}    trend="neutral"                                        color="#5948a6" />
-        <KpiCard icon="fa-euro-sign"              label="Receita Hoje"    value={`€${kpis.receitaHoje.toFixed(2)}`} subValue={formatVariation(kpis.variacaoReceita)} trend={getTrendFromVariation(kpis.variacaoReceita)} color="#22c55e" />
-        <KpiCard icon="fa-clock"                  label="Tempo Médio"     value={kpis.tempoMedioEstadia}       subValue={`${kpis.alertasAbertos} alerta${kpis.alertasAbertos !== 1 ? 's' : ''} em aberto`} trend={kpis.alertasAbertos > 0 ? 'warn' : 'neutral'} color="#f59e0b" />
+        <KpiCard
+          icon="fa-arrow-right-to-bracket"
+          label="Entradas Hoje"
+          value={kpis.todayEntrances.toString()}
+          subValue={formatVariation(kpis.entranceVariance)}
+          trend={getTrendFromVariation(kpis.entranceVariance)}
+          color="#7357ec"
+        />
+        <KpiCard
+          icon="fa-chart-pie"
+          label="Taxa de Ocupação"
+          value={`${kpis.averageOccupancy}%`}
+          subValue={`${kpis.occupiedLots} / ${kpis.totalLots} lugares`}
+          trend="neutral"
+          color="#5948a6"
+        />
+        <KpiCard
+          icon="fa-euro-sign"
+          label="Receita Hoje"
+          value={`€${kpis.totalEarnings.toFixed(2)}`}
+          subValue={formatVariation(kpis.earningsVariance)}
+          trend={getTrendFromVariation(kpis.earningsVariance)}
+          color="#22c55e"
+        />
+        <KpiCard
+          icon="fa-clock"
+          label="Tempo Médio"
+          value={kpis.averageOccupancyTime}
+          subValue={`${kpis.alertsOpened} alerta${kpis.alertsOpened !== 1 ? 's' : ''} em aberto`}
+          trend={kpis.alertsOpened > 0 ? 'warn' : 'neutral'}
+          color="#f59e0b"
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <DailyChart chartTab={chartTab} onTabChange={setChartTab} />
-        <ZoneDonut />
+        <DailyChart chartTab={chartTab} onTabChange={setChartTab} seriesLast7Days={seriesLast7Days} />
+        <ZoneDonut occupancyPerZone={occupancyPerZone} />
       </div>
 
-      <HourlyChart />
+      <HourlyChart occupancyPerHour={occupancyPerHour} />
 
-      <AlertsSection alertasAbertos={alertasAbertos} />
+      <AlertsSection alertasAbertos={alertasAbertos} allAlerts={lastAlerts} />
 
-      <ParkTable />
+      <ParkTable performancePerPark={performancePerPark} />
     </div>
   );
 }
 
 function PageHeader() {
+  const today = new Date().toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   return (
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
       <div>
         <h1 className="text-foreground" style={{ fontSize: '1.5rem', fontWeight: 800, lineHeight: 1.2 }}>Painel de Desempenho</h1>
-        <p className="text-muted-foreground mt-1" style={{ fontSize: '0.875rem' }}>Segunda-feira, 9 de março de 2026 · Todos os parques</p>
+        <p className="text-muted-foreground mt-1" style={{ fontSize: '0.875rem' }}>{today} · Todos os parques</p>
       </div>
       <button
         className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-card border border-border hover:bg-muted transition-colors text-foreground"
@@ -91,15 +156,21 @@ function PageHeader() {
   );
 }
 
-function DailyChart({ chartTab, onTabChange }: { readonly chartTab: ChartTab; readonly onTabChange: (t: ChartTab) => void }) {
+function DailyChart({
+  chartTab,
+  onTabChange,
+  seriesLast7Days,
+}: {
+  readonly chartTab: ChartTab;
+  readonly onTabChange: (t: ChartTab) => void;
+  readonly seriesLast7Days: ManagerDashboardResponse['seriesLast7Days'];
+}) {
   const yAxisTickFormatter = chartTab === 'receita' ? (v: number) => `€${v}` : undefined;
   const tooltipFormatter = (v: number) => {
-    if (chartTab === 'receita') {
-      return [`€${v.toFixed(2)}`, 'Receita'];
-    }
+    if (chartTab === 'receita') return [`€${v.toFixed(2)}`, 'Receita'];
     return [v, 'Entradas'];
   };
-  const dataKey = chartTab === 'entradas' ? 'entradas' : 'receita';
+  const dataKey = chartTab === 'entradas' ? 'entrances' : 'earnings';
 
   return (
     <div className="lg:col-span-2 bg-card border border-border rounded-2xl p-4">
@@ -120,7 +191,7 @@ function DailyChart({ chartTab, onTabChange }: { readonly chartTab: ChartTab; re
       </div>
       <div style={{ height: 200 }}>
         <ResponsiveContainer width="100%" height="100%" key={`bar-container-${chartTab}`}>
-          <BarChart key={`bar-chart-${chartTab}`} data={mockDailyMetrics} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+          <BarChart key={`bar-chart-${chartTab}`} data={seriesLast7Days} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
             <XAxis dataKey="day" tick={{ fill: 'var(--color-muted-foreground)', fontSize: 12 }} axisLine={false} tickLine={false} />
             <YAxis tick={{ fill: 'var(--color-muted-foreground)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={yAxisTickFormatter} />
@@ -133,28 +204,29 @@ function DailyChart({ chartTab, onTabChange }: { readonly chartTab: ChartTab; re
   );
 }
 
-function ZoneDonut() {
+function ZoneDonut({ occupancyPerZone }: { readonly occupancyPerZone: ZoneOccupancy[] }) {
+  const zones = occupancyPerZone.map((z) => ({ ...z, color: ZONE_COLORS[z.type] ?? '#94a3b8' }));
   return (
     <div className="bg-card border border-border rounded-2xl p-4">
       <h2 className="text-foreground mb-4" style={{ fontSize: '1rem', fontWeight: 700 }}>Ocupação por Zona</h2>
       <div style={{ height: 160 }}>
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
-            <Pie data={mockZoneOccupancy} dataKey="ocupados" nameKey="name" cx="50%" cy="50%" innerRadius={45} outerRadius={70} paddingAngle={3}>
-              {mockZoneOccupancy.map((zone) => <Cell key={zone.name} fill={zone.color} />)}
+            <Pie data={zones} dataKey="occupied" nameKey="name" cx="50%" cy="50%" innerRadius={45} outerRadius={70} paddingAngle={3}>
+              {zones.map((zone) => <Cell key={zone.name} fill={zone.color} />)}
             </Pie>
             <Tooltip contentStyle={{ ...tooltipStyle, borderRadius: '10px', fontSize: '0.78rem' }} formatter={(v: number, name: string) => [`${v} ocupados`, name]} />
           </PieChart>
         </ResponsiveContainer>
       </div>
       <div className="space-y-1.5 mt-1">
-        {mockZoneOccupancy.map((zone) => {
-          const pct = Math.round((zone.ocupados / zone.total) * 100);
+        {zones.map((zone) => {
+          const pct = zone.total > 0 ? Math.round((zone.occupied / zone.total) * 100) : 0;
           return (
             <div key={zone.name} className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: zone.color }} aria-hidden="true" />
               <span className="text-foreground flex-1" style={{ fontSize: '0.72rem' }}>{zone.name}</span>
-              <span className="text-muted-foreground" style={{ fontSize: '0.72rem' }}>{zone.ocupados}/{zone.total}</span>
+              <span className="text-muted-foreground" style={{ fontSize: '0.72rem' }}>{zone.occupied}/{zone.total}</span>
               <span className="px-1.5 py-0.5 rounded-full" style={{ fontSize: '0.65rem', fontWeight: 700, background: `${zone.color}22`, color: zone.color }}>{pct}%</span>
             </div>
           );
@@ -164,24 +236,24 @@ function ZoneDonut() {
   );
 }
 
-function HourlyChart() {
+function HourlyChart({ occupancyPerHour }: { readonly occupancyPerHour: ManagerDashboardResponse['occupancyPerHour'] }) {
   return (
     <div className="bg-card border border-border rounded-2xl p-4">
       <h2 className="text-foreground mb-4" style={{ fontSize: '1rem', fontWeight: 700 }}>Ocupação por Hora — Hoje</h2>
       <div style={{ height: 160 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={mockHourlyOccupancy} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+          <AreaChart data={occupancyPerHour} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
             <defs>
               <linearGradient id="gradOcup" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%"  stopColor="#7357ec" stopOpacity={0.3} />
+                <stop offset="5%" stopColor="#7357ec" stopOpacity={0.3} />
                 <stop offset="95%" stopColor="#7357ec" stopOpacity={0.02} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-            <XAxis dataKey="hora" tick={{ fill: 'var(--color-muted-foreground)', fontSize: 11 }} axisLine={false} tickLine={false} />
+            <XAxis dataKey="time" tick={{ fill: 'var(--color-muted-foreground)', fontSize: 11 }} axisLine={false} tickLine={false} />
             <YAxis domain={[0, 100]} tick={{ fill: 'var(--color-muted-foreground)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} />
             <Tooltip contentStyle={{ ...tooltipStyle, borderRadius: '10px', fontSize: '0.78rem' }} formatter={(v: number) => [`${v}%`, 'Ocupação']} />
-            <Area type="monotone" dataKey="ocupacao" stroke="#7357ec" strokeWidth={2.5} fill="url(#gradOcup)" />
+            <Area type="monotone" dataKey="occupancy" stroke="#7357ec" strokeWidth={2.5} fill="url(#gradOcup)" />
           </AreaChart>
         </ResponsiveContainer>
       </div>
@@ -189,7 +261,28 @@ function HourlyChart() {
   );
 }
 
-function AlertsSection({ alertasAbertos }: { readonly alertasAbertos: typeof mockIssues }) {
+function AlertsSection({
+  alertasAbertos,
+  allAlerts,
+}: {
+  readonly alertasAbertos: AlertSummary[];
+  readonly allAlerts: AlertSummary[];
+}) {
+  const adaptedAlerts = allAlerts.slice(0, 5).map((a) => ({
+    id: a.id,
+    tipo: a.type as 'sensor' | 'cliente' | 'sistema',
+    parque: a.park,
+    zona: a.zone ?? undefined,
+    sensorId: a.sensorId ?? undefined,
+    matricula: a.plate ?? undefined,
+    descricao: a.description,
+    severidade: a.severity as 'critica' | 'aviso' | 'info',
+    estado: a.state as 'aberto' | 'em-progresso' | 'resolvido',
+    criadoEm: a.createdAt,
+    atribuidoA: a.attributedTo ?? undefined,
+    notas: a.notes ?? undefined,
+  }));
+
   return (
     <div className="bg-card border border-border rounded-2xl p-4">
       <div className="flex items-center justify-between mb-4">
@@ -199,7 +292,7 @@ function AlertsSection({ alertasAbertos }: { readonly alertasAbertos: typeof moc
         </span>
       </div>
       <div className="space-y-2">
-        {mockIssues.slice(0, 5).map((issue) => <AlertRow key={issue.id} issue={issue} />)}
+        {adaptedAlerts.map((issue) => <AlertRow key={issue.id} issue={issue} />)}
       </div>
       <a href="/manager/tariffs-incidents" className="mt-3 flex items-center gap-1.5 text-primary hover:opacity-80 transition-opacity" style={{ fontSize: '0.8rem', fontWeight: 600 }}>
         Ver todos os registos
@@ -209,7 +302,7 @@ function AlertsSection({ alertasAbertos }: { readonly alertasAbertos: typeof moc
   );
 }
 
-function ParkTable() {
+function ParkTable({ performancePerPark }: { readonly performancePerPark: ManagerDashboardResponse['performancePerPark'] }) {
   return (
     <div className="bg-card border border-border rounded-2xl p-4">
       <h2 className="text-foreground mb-4" style={{ fontSize: '1rem', fontWeight: 700 }}>Desempenho por Parque — Hoje</h2>
@@ -224,15 +317,15 @@ function ParkTable() {
             </tr>
           </thead>
           <tbody>
-            {parkSummaryRows.map((row) => (
-              <tr key={row.nome} className="border-b border-border/50 last:border-0">
+            {performancePerPark.map((row) => (
+              <tr key={row.name} className="border-b border-border/50 last:border-0">
                 <td className="py-2.5 text-foreground" style={{ fontWeight: 500 }}>
-                  {row.nome}
-                  <span className="ml-1.5 text-muted-foreground" style={{ fontSize: '0.7rem' }}>{row.cidade}</span>
+                  {row.name}
+                  <span className="ml-1.5 text-muted-foreground" style={{ fontSize: '0.7rem' }}>{row.city}</span>
                 </td>
-                <td className="py-2.5 text-center text-foreground">{row.entradas}</td>
-                <td className="py-2.5 text-center"><OccBar pct={row.ocupacao} /></td>
-                <td className="py-2.5 text-right text-foreground" style={{ fontWeight: 600 }}>€{row.receita.toFixed(2)}</td>
+                <td className="py-2.5 text-center text-foreground">{row.entrances}</td>
+                <td className="py-2.5 text-center"><OccBar pct={row.occupancyPercentage} /></td>
+                <td className="py-2.5 text-right text-foreground" style={{ fontWeight: 600 }}>€{row.earnings.toFixed(2)}</td>
               </tr>
             ))}
           </tbody>
