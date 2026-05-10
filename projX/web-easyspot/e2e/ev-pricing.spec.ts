@@ -116,6 +116,10 @@ test.describe('US#7 — Combined Parking + Charging Fee', () => {
     await expect(nextBtn).toBeVisible();
     await nextBtn.click();
 
+    // O perfil ativo é EV; o teste quer validar um lugar standard, por isso
+    // mudamos o filtro para mostrar todos os lugares.
+    await page.getByRole('button', { name: /Todos/i }).click();
+
     // Selecionar lugar standard (A1)
     const stdSpot = page.getByRole('button', { name: /Lugar A1/i });
     await expect(stdSpot).toBeVisible();
