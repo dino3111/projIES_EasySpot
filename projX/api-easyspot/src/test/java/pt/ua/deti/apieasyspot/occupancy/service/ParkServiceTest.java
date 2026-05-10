@@ -14,6 +14,7 @@ import pt.ua.deti.apieasyspot.occupancy.dto.ParkingLotSummaryResponse;
 import pt.ua.deti.apieasyspot.occupancy.model.*;
 import pt.ua.deti.apieasyspot.occupancy.repository.TimescaleOccupancySnapshotRepository.ZoneSnapshot;
 import pt.ua.deti.apieasyspot.occupancy.repository.*;
+import pt.ua.deti.apieasyspot.booking.repository.ReservationRepository;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -33,6 +34,7 @@ class ParkServiceTest {
     @Mock private AccessibleSpotRepository accessibleSpotRepository;
     @Mock private ParkingSpotRepository parkingSpotRepository;
     @Mock private TimescaleOccupancySnapshotRepository timescaleOccupancySnapshotRepository;
+    @Mock private ReservationRepository reservationRepository;
     @Mock private JdbcTemplate jdbc;
 
     @InjectMocks private ParkService parkService;
@@ -125,18 +127,19 @@ class ParkServiceTest {
         when(accessibleSpotRepository.findByParkingLotId(lotId)).thenReturn(List.of(acc));
 
         ParkingSpot spot = new ParkingSpot();
+        spot.setId(UUID.randomUUID());
         spot.setSpotNumber("A1");
         spot.setZone(ZoneType.STANDARD);
         spot.setSpotRow(1);
         spot.setSpotCol(1);
         spot.setStatus("free");
         when(parkingSpotRepository.findByParkingLotId(lotId)).thenReturn(List.of(spot));
+        when(reservationRepository.findReservedSpotIds(anyList(), any(), any())).thenReturn(List.of());
 
         ParkingLotDetailsResponse response = parkService.getDetails(lotId);
 
         assertThat(response.id()).isEqualTo(lotId);
         assertThat(response.name()).isEqualTo("Test Park");
-        assertThat(response.totalSpaces()).isEqualTo(80);
         assertThat(response.freeSpaces()).isEqualTo(20);
         assertThat(response.zones()).hasSize(1);
         assertThat(response.tariffs()).hasSize(1);

@@ -91,6 +91,13 @@ export function ExpensesTab() {
     return data.breakdownByVehicle.map(b => ({ name: b.licensePlate, total: b.totalSpent }));
   }, [data]);
 
+  const isEmpty = !!data
+    && data.totals.totalSpent === 0
+    && data.timeseries.length === 0
+    && data.breakdownByPark.length === 0
+    && data.breakdownByVehicle.length === 0
+    && data.history.length === 0;
+
   if (loading && !data) {
     return <div className="py-20 text-center text-muted-foreground">A carregar os seus gastos...</div>;
   }
@@ -161,6 +168,15 @@ export function ExpensesTab() {
           </div>
         ))}
       </div>
+
+      {isEmpty && (
+        <div className="rounded-2xl border border-dashed border-border/60 bg-card/70 p-8 text-center mb-6">
+          <p className="text-foreground font-bold">Ainda não tem gastos registados</p>
+          <p className="text-muted-foreground text-sm mt-1">
+            Quando existir a primeira sessão faturada, os totais e gráficos aparecem aqui automaticamente.
+          </p>
+        </div>
+      )}
 
       {(totals.chargingSpent > 0) && (
         <div className="grid grid-cols-2 gap-3 mb-4">
@@ -348,7 +364,7 @@ export function ExpensesTab() {
         <div className="leading-relaxed text-xs">
           <p className="font-bold mb-1 text-foreground">Faturação Automática</p>
           <p className="text-muted-foreground">
-            As suas despesas são processadas automaticamente à saída através do sistema OCR.
+            As suas despesas são processadas automaticamente à saída através do sistema OCR/RFID.
             As faturas são enviadas para o seu email registado.
           </p>
         </div>

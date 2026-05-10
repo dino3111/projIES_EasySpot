@@ -1,0 +1,6 @@
+[sqlfluff]
+dialect = postgres
+max_line_length = 80
+# RF04 (keyword-as-identifier) is excluded because seed files mirror the
+# application schema column names (type, state) defined by JPA entities.
+exclude_rules = RF04

@@ -58,6 +58,16 @@ const mockSpending = {
   historyTotal: 1,
 };
 
+const emptySpending = {
+  totals: { totalSpent: 0, avgPerSession: 0, parkingSpent: 0, chargingSpent: 0 },
+  insights: { mostUsedPark: null, costliestSession: null, sessionCount: 0 },
+  timeseries: [],
+  breakdownByPark: [],
+  breakdownByVehicle: [],
+  history: [],
+  historyTotal: 0,
+};
+
 describe('CostsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -171,6 +181,18 @@ describe('CostsPage', () => {
     });
   });
 
+  it('shows an empty-state message when there are no expenses', async () => {
+    costsApiMock.fetchDriverSpending.mockResolvedValue(emptySpending);
+
+    render(
+      <MemoryRouter initialEntries={['/costs']}>
+        <CostsPage />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText(/Ainda não tem gastos registados/i)).toBeInTheDocument();
+    expect(screen.getByText(/Sem histórico para este período/i)).toBeInTheDocument();
+  });
   it('switches to PlanningTab and loads recommendations', async () => {
     parksApiMock.fetchParkCities.mockResolvedValue(['Aveiro', 'Coimbra']);
     costsApiMock.fetchParkingPlanning.mockResolvedValue({
