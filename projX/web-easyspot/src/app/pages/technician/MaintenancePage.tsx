@@ -56,7 +56,7 @@ function toIssueEstado(state: AlertResponse['state']): 'aberto' | 'em-progresso'
 
 function toIssueSeveridade(severity: AlertResponse['severity']): 'critica' | 'aviso' | 'info' {
   if (severity === 'CRITICAL') return 'critica';
-  if (severity === 'AVISO')    return 'aviso';
+  if (severity === 'WARNING')  return 'aviso';
   return 'info';
 }
 
@@ -98,20 +98,7 @@ function alertToIssue(a: AlertResponse): IssueReport {
   };
 }
 
-// ── Work order mapping (API → UI) ─────────────────────────────────────────────
 
-function toOrderPriority(severity: string): 'critica' | 'alta' | 'media' | 'baixa' {
-  if (severity === 'CRITICAL') return 'critica';
-  if (severity === 'HIGH')     return 'alta';
-  if (severity === 'LOW')      return 'baixa';
-  return 'media';
-}
-
-function toOrderEstado(state: string): 'pendente' | 'em-progresso' | 'concluida' {
-  if (state === 'IN_PROGRESS') return 'em-progresso';
-  if (state === 'RESOLVED')    return 'concluida';
-  return 'pendente';
-}
 
 function alertToWorkOrder(a: AlertResponse): WorkOrder {
   return {
@@ -252,9 +239,9 @@ export function MaintenancePage() {
     showToast(`Sensor ${sensorId} atualizado para "${STATUS_LABEL[newStatus]}".`);
   };
 
-  // Convert WorkOrder to a form compatible with NewOrderModal's onCreate callback
-  // (creating a new order = setting an alert to IN_PROGRESS with a note)
-  const handleCreateOrder = async (sensorId: string, titulo: string, descricao: string, prioridade: string) => {
+  // Moves the first OPEN alert for the sensor to IN_PROGRESS.
+  // description/priority from the modal are not persisted — the backend has no endpoint for it yet.
+  const handleCreateOrder = async (sensorId: string, titulo: string, _descricao: string, _prioridade: string) => {
     // Find first open alert for this sensor and mark it IN_PROGRESS
     const alert = orders.find((o) => o.sensorId === sensorId && o.state === 'OPEN');
     if (alert) {
@@ -267,7 +254,7 @@ export function MaintenancePage() {
         showToast('Erro ao criar tarefa.');
       }
     } else {
-      showToast(`Tarefa "${titulo}" registada localmente (sem alerta aberto para este sensor).`);
+      showToast(`Não foi possível criar a tarefa "${titulo}": não existe nenhum alerta aberto para o sensor ${sensorId}.`);
     }
     setNewOrderModal(false);
   };

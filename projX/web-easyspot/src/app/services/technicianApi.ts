@@ -74,7 +74,7 @@ export interface TechnicianDashboard {
 // ── Alert / Issue types (matching backend AlertResponse DTO) ──────────────────
 
 export type AlertState    = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED';
-export type AlertSeverity = 'CRITICAL' | 'AVISO' | 'INFO';
+export type AlertSeverity = 'CRITICAL' | 'WARNING' | 'INFO';
 export type AlertType     = 'SENSOR' | 'CLIENT' | 'SYSTEM';
 
 export interface AlertResponse {

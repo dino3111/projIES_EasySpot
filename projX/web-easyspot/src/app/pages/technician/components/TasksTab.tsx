@@ -26,8 +26,8 @@ function toUiEstado(state: string): 'pendente' | 'em-progresso' | 'concluida' {
 
 function toUiPrioridade(severity: string): 'critica' | 'alta' | 'media' | 'baixa' {
   if (severity === 'CRITICAL') return 'critica';
-  if (severity === 'HIGH')     return 'alta';
-  if (severity === 'LOW')      return 'baixa';
+  if (severity === 'WARNING')  return 'alta';
+  if (severity === 'INFO')     return 'baixa';
   return 'media';
 }
 

@@ -16,6 +16,8 @@ import pt.ua.deti.apieasyspot.occupancy.repository.TimescaleOccupancySnapshotRep
 import pt.ua.deti.apieasyspot.occupancy.repository.*;
 
 import java.math.BigDecimal;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.time.OffsetDateTime;
 import java.util.Comparator;
 import java.util.List;
@@ -29,6 +31,8 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class ParkService {
+
+    private static final Pattern SPEED_KW_PATTERN = Pattern.compile("(\\d+)\\s*[kK][wW]");
 
     private final ParkingLotRepository parkingLotRepository;
     private final TariffRepository tariffRepository;
@@ -238,14 +242,14 @@ public class ParkService {
             .map(a -> new ParkingLotDetailsResponse.AccessibilityResponse(
                 a.getLocation(), a.isAvailable(), a.getDistanceToEntranceMeters(), a.getBaySize(),
                 a.isMonitored(), a.isHasRampSpace(),
-                a.getSensorStatus() != null ? a.getSensorStatus() : "online",
-                a.getLedStatus() != null ? a.getLedStatus() : (a.isAvailable() ? "green" : "red")))
+                a.getSensorStatus(),
+                a.getLedStatus()))
             .toList();
     }
 
     private int parseSpeedKw(String speed) {
         if (speed == null) return 0;
-        java.util.regex.Matcher m = java.util.regex.Pattern.compile("(\\d+)\\s*[kK][wW]").matcher(speed);
+        Matcher m = SPEED_KW_PATTERN.matcher(speed);
         return m.find() ? Integer.parseInt(m.group(1)) : 0;
     }
 
