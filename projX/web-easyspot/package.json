@@ -45,15 +45,7 @@
     "vite": "^6.4.1",
     "vitest": "^2.1.8"
   },
-  "pnpm": {
-    "overrides": {
-      "vite": "^6.4.1"
-    },
-    "onlyBuiltDependencies": [
-      "@stripe/stripe-js",
-      "@tailwindcss/oxide",
-      "esbuild",
-      "protobufjs"
-    ]
+  "overrides": {
+    "vite": "^6.4.1"
   }
 }
