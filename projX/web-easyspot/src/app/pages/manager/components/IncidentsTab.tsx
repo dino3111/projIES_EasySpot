@@ -33,9 +33,9 @@ export function IncidentsTab({
   onSelect,
 }: IncidentsTabProps) {
   const estadoCounts = {
-    aberto: mockIssues.filter(i => i.estado === 'aberto').length,
-    'em-progresso': mockIssues.filter(i => i.estado === 'em-progresso').length,
-    resolvido: mockIssues.filter(i => i.estado === 'resolvido').length,
+    aberto: issues.filter(i => i.estado === 'aberto').length,
+    'em-progresso': issues.filter(i => i.estado === 'em-progresso').length,
+    resolvido: issues.filter(i => i.estado === 'resolvido').length,
   };
 
   return (
@@ -106,9 +106,10 @@ function IssueCard({ issue, onClick }: IssueCardProps) {
     sensor: { icon: 'fa-microchip', label: 'Sensor' },
     sistema: { icon: 'fa-server', label: 'Sistema' },
     cliente: { icon: 'fa-user', label: 'Cliente' },
+    billing: { icon: 'fa-credit-card', label: 'Faturação' },
   };
-  const severityInfo = severityMap[issue.severidade];
-  const typeInfo = typeMap[issue.tipo];
+  const severityInfo = severityMap[issue.severidade] ?? severityMap.info;
+  const typeInfo = typeMap[issue.tipo] ?? { icon: 'fa-circle-question', label: 'Outra' };
 
   const estadoBadge = ISSUE_STATUS_BADGES[issue.estado];
 

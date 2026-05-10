@@ -12,6 +12,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -79,6 +80,33 @@ public class TimescaleAlertRepository {
             """,
             this::mapRow
         );
+    }
+
+    public List<Alert> findAllFiltered(UUID parkId, StateAlert state, SeverityAlert severity) {
+        StringBuilder sql = new StringBuilder("""
+            select id, parking_lot_id, parking_lot_name, type, severity, state, zone, spot_number,
+                   sensor_id, plate, description, photo_url, attributed_to, notes, resolved_at, created_at
+            from alerts
+            where 1=1
+            """);
+        List<Object> params = new ArrayList<>();
+
+        if (parkId != null) {
+            sql.append(" and parking_lot_id = ?::uuid");
+            params.add(parkId.toString());
+        }
+        if (state != null) {
+            sql.append(" and state = ?");
+            params.add(state.name());
+        }
+        if (severity != null) {
+            sql.append(" and severity = ?");
+            params.add(severity.name());
+        }
+
+        sql.append(" order by created_at desc");
+
+        return jdbc.query(sql.toString(), this::mapRow, params.toArray());
     }
 
     public Optional<Alert> findById(UUID id) {

@@ -5,6 +5,8 @@ import { paymentApi, profileApi, type DriverProfileResponse, type ManagerProfile
 import { SectionHeader, UserTypeOption, ToggleRow, StatCard, AccountRow, AccountRowWithBadge } from './ProfilePrimitives';
 import { StepPaymentStripe } from '../welcome/StepPaymentStripe';
 
+const DRIVER_LOCATION_ENABLED_KEY = 'easyspot_driver_location_enabled';
+
 export function DriverProfile({ profileData, onProfileUpdate }: Readonly<{ profileData: DriverProfileResponse | null; onProfileUpdate: (profile: ProfileResponse) => void }>) {
   const { driverType, setDriverType, vehicles } = useProfile();
   const [activeTab, setActiveTab] = useState<'profile' | 'payments'>('profile');
@@ -12,6 +14,12 @@ export function DriverProfile({ profileData, onProfileUpdate }: Readonly<{ profi
   const [pushNotifications, setPushNotifications] = useState(profileData?.pushNotificationsEnabled ?? profileData?.notificationsEnabled ?? true);
   const [emailNotifications, setEmailNotifications] = useState(profileData?.emailNotificationsEnabled ?? false);
   const [realtime, setRealtime] = useState(true);
+  const [locationEnabled, setLocationEnabled] = useState<boolean>(() => {
+    if (typeof globalThis.localStorage === 'undefined') return false;
+    return globalThis.localStorage.getItem(DRIVER_LOCATION_ENABLED_KEY) === '1';
+  });
+  const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number; capturedAt: Date } | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodSummaryResponse[]>([]);
   const [loadingPayments, setLoadingPayments] = useState(false);
   const [paymentsError, setPaymentsError] = useState<string | null>(null);
@@ -95,6 +103,41 @@ export function DriverProfile({ profileData, onProfileUpdate }: Readonly<{ profi
     }
   };
 
+  useEffect(() => {
+    if (typeof globalThis.localStorage !== 'undefined') {
+      globalThis.localStorage.setItem(DRIVER_LOCATION_ENABLED_KEY, locationEnabled ? '1' : '0');
+    }
+
+    if (!locationEnabled) {
+      setLocationError(null);
+      return;
+    }
+
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setLocationError('Geolocalização indisponível neste dispositivo.');
+      return;
+    }
+
+    setLocationError(null);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setCurrentLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+          capturedAt: new Date(),
+        });
+      },
+      () => {
+        setLocationError('Não foi possível obter a sua localização. Verifique as permissões do browser.');
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      },
+    );
+  }, [locationEnabled]);
+
   return (
     <>
       <div className="rounded-2xl p-1 mb-5 bg-card border border-border flex">
@@ -140,6 +183,37 @@ export function DriverProfile({ profileData, onProfileUpdate }: Readonly<{ profi
         <ToggleRow icon="fa-bell"   label="Notificacoes"          desc="Alertas de disponibilidade e reservas"        value={notifications} onChange={(value) => { setNotifications(value); void persistProfile({ notificationsEnabled: value }); }} id="notif-toggle" />
         <div className="h-px bg-border mx-4" />
         <ToggleRow icon="fa-rotate" label="Atualizacao Automatica" desc="Atualizar disponibilidade em tempo real"       value={realtime}      onChange={setRealtime}      id="realtime-toggle" />
+        <div className="h-px bg-border mx-4" />
+        <ToggleRow
+          icon="fa-location-dot"
+          label="Partilha de Localizacao"
+          desc="Ativa/desativa a captura da sua localizacao"
+          value={locationEnabled}
+          onChange={setLocationEnabled}
+          id="location-toggle"
+        />
+        <div className="px-4 pb-3">
+          {locationEnabled ? (
+            currentLocation ? (
+              <p className="text-muted-foreground" style={{ fontSize: '0.74rem' }}>
+                Local atual: {currentLocation.lat.toFixed(6)}, {currentLocation.lng.toFixed(6)} · {currentLocation.capturedAt.toLocaleTimeString('pt-PT')}
+              </p>
+            ) : (
+              <p className="text-muted-foreground" style={{ fontSize: '0.74rem' }}>
+                A obter localização...
+              </p>
+            )
+          ) : (
+            <p className="text-muted-foreground" style={{ fontSize: '0.74rem' }}>
+              Localização desativada.
+            </p>
+          )}
+          {locationError && (
+            <p className="text-error mt-1" style={{ fontSize: '0.72rem' }}>
+              {locationError}
+            </p>
+          )}
+        </div>
       </div>
 
       <SectionHeader icon="fa-chart-bar" title="As Minhas Estatisticas" />
