@@ -33,6 +33,17 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
         @Param("departureTime") OffsetDateTime departureTime
     );
 
+    @Query("""
+        SELECT COUNT(r) FROM Reservation r
+        WHERE r.parkingLot.id = :parkId
+          AND r.status NOT IN ('CANCELLED', 'EXPIRED', 'COMPLETED')
+          AND r.departureTime > :now
+        """)
+    long countActiveReservationsForLot(
+        @Param("parkId") UUID parkId,
+        @Param("now") OffsetDateTime now
+    );
+
     // Lot-level: count active reservations in the window to check against lot capacity
     @Query("""
         SELECT COUNT(r) FROM Reservation r

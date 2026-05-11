@@ -25,12 +25,12 @@ export function MapLegend({ hex, label }: Readonly<{ hex: string; label: string 
 
 export function SpotCell({ spot }: Readonly<{ spot: ParkingSpot }>) {
   const palette: Record<SpotStatus, string> = {
-    free: '#22c55e', occupied: '#ef4444', reserved: '#f59e0b', ev: '#7357ec', accessible: '#0ea5e9',
+    free: '#22c55e', occupied: '#ef4444', reserved: '#d97706', ev: '#7357ec', accessible: '#0ea5e9',
   };
   const iconByStatus: Record<SpotStatus, string> = {
     free: 'fa-square-parking',
     occupied: 'fa-car',
-    reserved: 'fa-car',
+    reserved: 'fa-clock',
     ev: 'fa-charging-station',
     accessible: 'fa-wheelchair',
   };
