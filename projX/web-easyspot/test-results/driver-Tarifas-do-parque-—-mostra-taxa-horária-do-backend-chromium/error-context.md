@@ -6,8 +6,8 @@
 
 # Test info
 
-- Name: manager.spec.ts >> Manager Dashboard - Tariffs & Incidents >> should display tariffs correctly
-- Location: e2e/manager.spec.ts:68:3
+- Name: driver.spec.ts >> Tarifas do parque — mostra taxa horária do backend
+- Location: e2e/driver.spec.ts:103:1
 
 # Error details
 
