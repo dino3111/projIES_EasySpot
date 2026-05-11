@@ -18,8 +18,7 @@ export default defineConfig({
     pool: 'forks',
     poolOptions: {
       forks: {
-        isolate: false,
-        singleFork: true,
+        isolate: true,
       },
     },
     exclude: ['**/node_modules/**', '**/e2e/**'],
