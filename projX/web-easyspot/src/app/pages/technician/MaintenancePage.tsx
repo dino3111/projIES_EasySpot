@@ -1,11 +1,5 @@
-import { useState, useEffect } from 'react';
-import {
-  computeTechKPIs,
-  type SensorDevice,
-  type SensorStatus,
-  type MaintenanceOrder,
-} from '../../data/technicianData';
-import { type IssueReport } from '../../data/gestorData';
+import { useState, useEffect, useCallback } from 'react';
+import { type SensorDevice, type SensorStatus, computeTechKPIs } from '../../data/technicianData';
 import { STATUS_LABEL, type PageTab, type StatusFil } from './components/maintenanceTypes';
 import { TabBtn } from './components/shared';
 import { IncidentsTab } from './components/IncidentsTab';
@@ -13,13 +7,16 @@ import { SensorsTab } from './components/SensorsTab';
 import { TasksTab } from './components/TasksTab';
 import { IssueDetailModal } from './components/IssueDetailModal';
 import { SensorDiagPanel, StatusUpdateModal } from './components/SensorModals';
-import { NewOrderModal, QuickTaskFromIssueModal } from './components/OrderModals';
+import { NewOrderModal } from './components/OrderModals';
 import {
   fetchSensorList,
   fetchSensorDetail,
   fetchAlerts,
+  updateAlertState,
   updateSensorStatus,
   type SensorSummary,
+  type AlertResponse,
+  type WorkOrder,
 } from '../../services/technicianApi';
 
 const STATUS_TO_API: Record<string, string> = {
@@ -29,18 +26,20 @@ const STATUS_TO_API: Record<string, string> = {
   manutencao:  'maintenance',
 };
 
+// ── Sensor mapping (API → UI) ─────────────────────────────────────────────────
+
 function toSensorStatus(apiStatus: string): SensorStatus {
-  if (apiStatus === 'operational')  return 'operacional';
-  if (apiStatus === 'offline')      return 'offline';
-  if (apiStatus === 'maintenance')  return 'manutencao';
-  return 'falha'; // degraded and anything else
+  if (apiStatus === 'operational') return 'operacional';
+  if (apiStatus === 'offline')     return 'offline';
+  if (apiStatus === 'degraded')    return 'falha';
+  return 'offline';
 }
 
-function apiSensorToDevice(a: SensorSummary): SensorDevice {
+function sensorFromApi(a: SensorSummary): SensorDevice {
   return {
     id: a.sensorId,
     tipo: 'IR' as const,
-    parqueId: a.parkingLotId.toString(),
+    parqueId: a.parkingLotId,
     parqueNome: a.parkingLotName,
     cidade: a.parkingLotCity ?? '',
     zona: a.zone,
@@ -55,52 +54,120 @@ function apiSensorToDevice(a: SensorSummary): SensorDevice {
   };
 }
 
+// ── Alert → IssueReport mapping (API → UI) ────────────────────────────────────
+
+function toIssueEstado(state: AlertResponse['state']): 'aberto' | 'em-progresso' | 'resolvido' {
+  if (state === 'IN_PROGRESS') return 'em-progresso';
+  if (state === 'RESOLVED')    return 'resolvido';
+  return 'aberto';
+}
+
+function toIssueSeveridade(severity: AlertResponse['severity']): 'critica' | 'aviso' | 'info' {
+  if (severity === 'CRITICAL') return 'critica';
+  if (severity === 'WARNING')  return 'aviso';
+  return 'info';
+}
+
+function toIssueTipo(type: AlertResponse['type']): 'sensor' | 'cliente' | 'sistema' {
+  if (type === 'CLIENT') return 'cliente';
+  if (type === 'SYSTEM') return 'sistema';
+  return 'sensor';
+}
+
+export interface IssueReport {
+  id: string;
+  tipo: 'sensor' | 'cliente' | 'sistema';
+  parque: string;
+  zona?: string;
+  sensorId?: string;
+  matricula?: string;
+  descricao: string;
+  severidade: 'critica' | 'aviso' | 'info';
+  estado: 'aberto' | 'em-progresso' | 'resolvido';
+  criadoEm: string;
+  atribuidoA?: string;
+  notas?: string;
+}
+
+function alertToIssue(a: AlertResponse): IssueReport {
+  return {
+    id: a.id,
+    tipo: toIssueTipo(a.type),
+    parque: a.park,
+    zona: a.zone ?? undefined,
+    sensorId: a.sensorId ?? undefined,
+    matricula: a.plate ?? undefined,
+    descricao: a.description,
+    severidade: toIssueSeveridade(a.severity),
+    estado: toIssueEstado(a.state),
+    criadoEm: a.createdAt,
+    atribuidoA: a.attributedTo ?? undefined,
+    notas: a.notes ?? undefined,
+  };
+}
+
+function alertToWorkOrder(a: AlertResponse): WorkOrder {
+  return {
+    id: a.id,
+    type: a.type,
+    park: a.park,
+    zone: a.zone ?? '',
+    sensorId: a.sensorId,
+    description: a.description,
+    severity: a.severity,
+    state: a.state,
+    createdAt: a.createdAt,
+    attributedTo: a.attributedTo,
+  };
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
 export function MaintenancePage() {
   const [tab, setTab]                       = useState<PageTab>('ocorrencias');
   const [sensors, setSensors]               = useState<SensorDevice[]>([]);
   const [issues, setIssues]                 = useState<IssueReport[]>([]);
-  const [orders, setOrders]                 = useState<MaintenanceOrder[]>([]);
-  const [sensorError, setSensorError]       = useState<string | null>(null);
-  const [issuesError, setIssuesError]       = useState<string | null>(null);
+  const [orders, setOrders]                 = useState<WorkOrder[]>([]);
+  const [loading, setLoading]               = useState(true);
+  const [apiError, setApiError]             = useState<string | null>(null);
   const [selectedIssue, setSelectedIssue]   = useState<IssueReport | null>(null);
   const [statusFil, setStatusFil]           = useState<StatusFil>('todos');
   const [selectedSensor, setSelectedSensor] = useState<SensorDevice | null>(null);
   const [logsLoading, setLogsLoading]       = useState(false);
   const [newOrderModal, setNewOrderModal]   = useState(false);
-  const [issueForTask, setIssueForTask]     = useState<IssueReport | null>(null);
   const [updateTarget, setUpdateTarget]     = useState<SensorDevice | null>(null);
   const [toast, setToast]                   = useState<string | null>(null);
-
-  useEffect(() => {
-    fetchSensorList()
-      .then((apiSensors) => setSensors(apiSensors.map(apiSensorToDevice)))
-      .catch((err: unknown) => {
-        setSensorError(err instanceof Error ? err.message : 'Erro ao carregar sensores.');
-      });
-
-    fetchAlerts()
-      .then(setIssues)
-      .catch((err: unknown) => {
-        setIssuesError(err instanceof Error ? err.message : 'Erro ao carregar ocorrências.');
-      });
-  }, []);
-
-  const kpis = computeTechKPIs(sensors);
-  const filteredSensors = statusFil === 'todos' ? sensors : sensors.filter((s) => s.status === statusFil);
-  const openOrders = orders.filter((o) => o.estado !== 'concluida').length;
-  const openIssues = issues.filter((i) => i.estado === 'aberto').length;
 
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 4000);
   };
 
-  const reloadSensors = () => {
-    setSensorError(null);
-    fetchSensorList()
-      .then((apiSensors) => setSensors(apiSensors.map(apiSensorToDevice)))
-      .catch((err: unknown) => setSensorError(err instanceof Error ? err.message : 'Erro'));
-  };
+  const loadAll = useCallback(async () => {
+    setLoading(true);
+    setApiError(null);
+    try {
+      const [apiSensors, apiAlerts] = await Promise.all([
+        fetchSensorList(),
+        fetchAlerts(),
+      ]);
+      setSensors(apiSensors.map(sensorFromApi));
+      const techAlerts = apiAlerts.filter(a => a.type === 'SENSOR' || a.type === 'SYSTEM');
+      setIssues(techAlerts.map(alertToIssue));
+      setOrders(apiAlerts.map(alertToWorkOrder));
+    } catch (err: unknown) {
+      setApiError(err instanceof Error ? err.message : 'Erro ao carregar dados.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadAll(); }, [loadAll]);
+
+  const kpis = computeTechKPIs(sensors);
+  const filteredSensors = statusFil === 'todos' ? sensors : sensors.filter((s) => s.status === statusFil);
+  const openIssues = issues.filter((i) => i.estado === 'aberto').length;
+  const openOrders = orders.filter((o) => o.state !== 'RESOLVED').length;
 
   const handleSelectSensor = async (sensor: SensorDevice) => {
     setLogsLoading(true);
@@ -114,31 +181,48 @@ export function MaintenancePage() {
         descricao: l.description,
         resolvido: l.state === 'resolved',
       }));
-      setSensors((prev) =>
-        prev.map((s) =>
-          s.id === sensor.id
-            ? { ...s, historicoErros: realLogs.length > 0 ? realLogs : s.historicoErros }
-            : s,
-        ),
-      );
-      setSelectedSensor((prev) =>
-        prev?.id === sensor.id
-          ? { ...prev, historicoErros: realLogs.length > 0 ? realLogs : prev.historicoErros }
-          : prev,
-      );
+      const enriched = { ...sensor, historicoErros: realLogs.length > 0 ? realLogs : sensor.historicoErros };
+      setSensors((prev) => prev.map((s) => s.id === sensor.id ? enriched : s));
+      setSelectedSensor(enriched);
     } catch {
-      // silently keep empty error history
+      // fallback: keep sensor as-is
     } finally {
       setLogsLoading(false);
     }
   };
 
-  const handleStatusUpdate = (sensorId: string, newStatus: SensorStatus, notes: string) => {
-    const apiStatus = STATUS_TO_API[newStatus] ?? newStatus;
-    updateSensorStatus(sensorId, apiStatus, notes || undefined).catch(() => {
-      // optimistic update — API failure is silent
-    });
+  const handleIssueStateUpdate = async (issueId: string, newState: 'IN_PROGRESS' | 'RESOLVED') => {
+    try {
+      await updateAlertState(issueId, newState);
+      setIssues((prev) => prev.map((i) =>
+        i.id === issueId ? { ...i, estado: toIssueEstado(newState) } : i,
+      ));
+      setOrders((prev) => prev.map((o) =>
+        o.id === issueId ? { ...o, state: newState } : o,
+      ));
+      showToast(newState === 'IN_PROGRESS' ? 'Ocorrência em progresso.' : 'Ocorrência resolvida.');
+    } catch {
+      showToast('Erro ao atualizar estado.');
+    }
+  };
 
+  const handleOrderUpdate = async (orderId: string, novoEstado: 'em-progresso' | 'concluida') => {
+    const apiState = novoEstado === 'em-progresso' ? 'IN_PROGRESS' : 'RESOLVED';
+    try {
+      await updateAlertState(orderId, apiState);
+      setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, state: apiState } : o));
+      setIssues((prev) => prev.map((i) =>
+        i.id === orderId ? { ...i, estado: toIssueEstado(apiState) } : i,
+      ));
+      showToast(novoEstado === 'em-progresso' ? 'Tarefa iniciada.' : 'Tarefa concluída.');
+    } catch {
+      showToast('Erro ao atualizar tarefa.');
+    }
+  };
+
+  const handleStatusUpdate = async (sensorId: string, newStatus: SensorStatus, notes: string) => {
+    const apiStatus = STATUS_TO_API[newStatus] ?? newStatus;
+    await updateSensorStatus(sensorId, apiStatus, notes || undefined).catch(() => {});
     setSensors((prev) =>
       prev.map((s) => {
         if (s.id !== sensorId) return s;
@@ -152,18 +236,36 @@ export function MaintenancePage() {
         return { ...s, status: newStatus, historicoErros: [entry, ...s.historicoErros] };
       }),
     );
-    if (newStatus === 'operacional') {
-      setOrders((prev) =>
-        prev.map((o) =>
-          o.sensorId === sensorId && o.estado !== 'concluida' ? { ...o, estado: 'concluida' as const } : o,
-        ),
-      );
-    }
     setUpdateTarget(null);
     setSelectedSensor(null);
     setSelectedIssue(null);
     showToast(`Sensor ${sensorId} atualizado para "${STATUS_LABEL[newStatus]}".`);
   };
+
+  const handleCreateOrder = async (sensorId: string, titulo: string, descricao: string, _prioridade: string) => {
+    const alert = orders.find((o) => o.sensorId === sensorId && o.state === 'OPEN');
+    if (alert) {
+      try {
+        await updateAlertState(alert.id, 'IN_PROGRESS', descricao || undefined);
+        setOrders((prev) => prev.map((o) => o.id === alert.id ? { ...o, state: 'IN_PROGRESS' } : o));
+        setIssues((prev) => prev.map((i) => i.id === alert.id ? { ...i, estado: 'em-progresso' } : i));
+        showToast(`Tarefa "${titulo}" criada — sensor ${sensorId} em progresso.`);
+      } catch {
+        showToast('Erro ao criar tarefa.');
+      }
+    } else {
+      showToast(`Não foi possível criar a tarefa "${titulo}": não existe nenhum alerta aberto para o sensor ${sensorId}.`);
+    }
+    setNewOrderModal(false);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <i className="fas fa-spinner fa-spin text-primary text-2xl" aria-hidden="true" />
+      </div>
+    );
+  }
 
   return (
     <div className="px-4 py-5 max-w-screen-xl mx-auto space-y-5">
@@ -180,35 +282,15 @@ export function MaintenancePage() {
         </div>
       )}
 
-      {sensorError && (
+      {apiError && (
         <div
           role="alert"
           className="flex items-center gap-2 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800"
           style={{ fontSize: '0.82rem' }}
         >
           <i className="fas fa-triangle-exclamation" aria-hidden="true" />
-          <span>Sensores indisponíveis: {sensorError}</span>
-          <button onClick={reloadSensors} className="ml-auto underline font-semibold">
-            Tentar novamente
-          </button>
-        </div>
-      )}
-
-      {issuesError && (
-        <div
-          role="alert"
-          className="flex items-center gap-2 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800"
-          style={{ fontSize: '0.82rem' }}
-        >
-          <i className="fas fa-triangle-exclamation" aria-hidden="true" />
-          <span>Ocorrências indisponíveis: {issuesError}</span>
-          <button
-            onClick={() => {
-              setIssuesError(null);
-              fetchAlerts().then(setIssues).catch((err: unknown) => setIssuesError(err instanceof Error ? err.message : 'Erro'));
-            }}
-            className="ml-auto underline font-semibold"
-          >
+          <span>Erro ao carregar dados: {apiError}</span>
+          <button onClick={loadAll} className="ml-auto underline font-semibold">
             Tentar novamente
           </button>
         </div>
@@ -235,7 +317,9 @@ export function MaintenancePage() {
           sensors={sensors}
           onSelectIssue={setSelectedIssue}
           onUpdateSensor={setUpdateTarget}
-          onCreateTaskFromIssue={setIssueForTask}
+          onCreateTaskFromIssue={(issue) => {
+            handleIssueStateUpdate(issue.id, 'IN_PROGRESS');
+          }}
         />
       )}
       {tab === 'sensores' && (
@@ -251,10 +335,7 @@ export function MaintenancePage() {
         <TasksTab
           orders={orders}
           sensors={sensors}
-          onUpdate={(orderId, novoEstado) => {
-            setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, estado: novoEstado } : o));
-            showToast(novoEstado === 'em-progresso' ? 'Tarefa iniciada.' : 'Tarefa concluída.');
-          }}
+          onUpdate={handleOrderUpdate}
           onNewOrder={() => setNewOrderModal(true)}
         />
       )}
@@ -293,23 +374,7 @@ export function MaintenancePage() {
         <NewOrderModal
           sensors={sensors.filter((s) => s.status !== 'operacional')}
           onClose={() => setNewOrderModal(false)}
-          onCreate={(order) => {
-            setOrders((prev) => [order, ...prev]);
-            setNewOrderModal(false);
-            showToast('Ordem de manutenção criada com sucesso.');
-          }}
-        />
-      )}
-      {issueForTask && (
-        <QuickTaskFromIssueModal
-          issue={issueForTask}
-          sensors={sensors.filter((s) => s.id === issueForTask.sensorId)}
-          onClose={() => setIssueForTask(null)}
-          onCreate={(order) => {
-            setOrders((prev) => [order, ...prev]);
-            setIssueForTask(null);
-            showToast('Tarefa de manutenção criada com sucesso.');
-          }}
+          onCreate={handleCreateOrder}
         />
       )}
     </div>

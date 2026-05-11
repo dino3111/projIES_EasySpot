@@ -19,8 +19,15 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 
+import org.springframework.context.annotation.Import;
+import org.springframework.test.context.ActiveProfiles;
+import pt.ua.deti.apieasyspot.TestTimescaleDataSourceConfig;
+import pt.ua.deti.apieasyspot.TestcontainersConfiguration;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
+@ActiveProfiles("test")
+@Import({TestcontainersConfiguration.class, TestTimescaleDataSourceConfig.class})
 @SpringBootTest
 class DriverSpendingRepositoryIT {
 

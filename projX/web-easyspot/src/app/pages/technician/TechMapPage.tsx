@@ -1,17 +1,24 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import type { ParkingLot } from '../../data/parkingTypes';
+import type { SensorDevice } from '../../data/technicianData';
 import { LeafletMap } from '../../components/parking/LeafletMap';
 import { fetchAllParksSummary } from '../../services/parksCatalog';
-import { fetchSensorList, type SensorSummary } from '../../services/technicianApi';
+import { fetchSensorList } from '../../services/technicianApi';
 
 type FilterType = 'todos' | 'problemas' | 'operacionais';
+
+function toSensorStatus(s: string): SensorDevice['status'] {
+  if (s === 'operational') return 'operacional';
+  if (s === 'degraded')    return 'falha';
+  return 'offline';
+}
 
 export function TechMapPage() {
   const [selectedLotId, setSelectedLotId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterType>('todos');
   const [parkingLots, setParkingLots] = useState<ParkingLot[]>([]);
-  const [sensors, setSensors] = useState<SensorSummary[]>([]);
+  const [sensors, setSensors] = useState<{ parkingLotId: string; status: string }[]>([]);
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -22,10 +29,10 @@ export function TechMapPage() {
   const filteredLots = useMemo(() => {
     return parkingLots.filter((lot) => {
       if (activeFilter !== 'todos') {
-        const parkSensors = sensors.filter(s => s.parkingLotId.toString() === lot.id);
-        const hasProblems = parkSensors.some(s => s.status !== 'operational');
-        if (activeFilter === 'problemas' && !hasProblems) return false;
-        if (activeFilter === 'operacionais' && hasProblems) return false;
+        const parkSensors = sensors.filter(s => s.parkingLotId === lot.id);
+        const hasProblems = parkSensors.some(s => toSensorStatus(s.status) !== 'operacional');
+        if (activeFilter === 'problemas'    && !hasProblems) return false;
+        if (activeFilter === 'operacionais' &&  hasProblems) return false;
       }
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
@@ -42,11 +49,11 @@ export function TechMapPage() {
   }, []);
 
   const getParkHealth = (lot: ParkingLot) => {
-    const parkSensors = sensors.filter(s => s.parkingLotId.toString() === lot.id);
-    const healthy = parkSensors.filter(s => s.status === 'operational').length;
-    const total = parkSensors.length;
-    const pct = total > 0 ? Math.round((healthy / total) * 100) : 100;
-    const color = pct === 100 ? '#22c55e' : pct >= 70 ? '#f59e0b' : '#d4183d';
+    const parkSensors = sensors.filter(s => s.parkingLotId === lot.id);
+    const healthy = parkSensors.filter(s => toSensorStatus(s.status) === 'operacional').length;
+    const total   = parkSensors.length;
+    const pct     = total > 0 ? Math.round((healthy / total) * 100) : 100;
+    const color   = pct === 100 ? '#22c55e' : pct >= 70 ? '#f59e0b' : '#d4183d';
     return { healthy, total, pct, color };
   };
 

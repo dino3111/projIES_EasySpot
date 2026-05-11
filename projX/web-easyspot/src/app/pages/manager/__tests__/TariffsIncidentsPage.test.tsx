@@ -1,8 +1,10 @@
+import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { TariffsIncidentsPage } from '../TariffsIncidentsPage';
 import { ProfileProvider } from '../../../context/ProfileContext';
+import { AuthProvider } from '../../../context/AuthContext';
 import { fetchManagerTariffs, fetchManagerAlerts } from '../../../services/managerApi';
 import { fetchAllParksSummary } from '../../../services/parksCatalog';
 
@@ -25,6 +27,16 @@ vi.mock('../../../services/vehiclesApi', () => ({
 }));
 
 describe('TariffsIncidentsPage', () => {
+  function renderPage() {
+    return render(
+      <AuthProvider>
+        <ProfileProvider>
+          <TariffsIncidentsPage />
+        </ProfileProvider>
+      </AuthProvider>
+    );
+  }
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -34,11 +46,7 @@ describe('TariffsIncidentsPage', () => {
     (fetchManagerAlerts as any).mockReturnValue(new Promise(() => {}));
     (fetchAllParksSummary as any).mockReturnValue(new Promise(() => {}));
 
-    render(
-      <ProfileProvider>
-        <TariffsIncidentsPage />
-      </ProfileProvider>
-    );
+    renderPage();
 
     expect(screen.getByRole('status', { name: /a carregar/i })).toBeInTheDocument();
   });
@@ -78,11 +86,7 @@ describe('TariffsIncidentsPage', () => {
       { id: 'park-1', name: 'Test Park', city: 'Aveiro' }
     ]);
 
-    render(
-      <ProfileProvider>
-        <TariffsIncidentsPage />
-      </ProfileProvider>
-    );
+    renderPage();
 
     await waitFor(() => {
       expect(screen.getByText('Tarifas & Ocorrências')).toBeTruthy();

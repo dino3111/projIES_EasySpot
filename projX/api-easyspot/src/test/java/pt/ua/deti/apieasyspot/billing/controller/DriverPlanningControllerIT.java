@@ -5,12 +5,14 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
+import pt.ua.deti.apieasyspot.TestTimescaleDataSourceConfig;
 import pt.ua.deti.apieasyspot.billing.dto.ParkingPlanningResponse;
 import pt.ua.deti.apieasyspot.billing.service.ParkingPlanningService;
 import pt.ua.deti.apieasyspot.billing.service.StripeService;
@@ -28,6 +30,7 @@ import static pt.ua.deti.apieasyspot.support.TestJwtRequests.jwtWithRole;
 
 @SpringBootTest
 @ActiveProfiles("test")
+@Import(TestTimescaleDataSourceConfig.class)
 class DriverPlanningControllerIT {
 
     @Autowired private WebApplicationContext wac;

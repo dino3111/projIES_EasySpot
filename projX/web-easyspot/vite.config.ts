@@ -37,6 +37,8 @@ export default defineConfig(() => {
           target: backendUrl,
           changeOrigin: true,
           ws: true,
+          proxyTimeout: 2000,
+          timeout: 2000,
         },
       },
     },

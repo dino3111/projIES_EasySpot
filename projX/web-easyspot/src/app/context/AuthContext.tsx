@@ -1,12 +1,15 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from 'react';
 import { withGlobalLoading } from './LoadingContext';
 import type { AppProfile } from './ProfileContext';
-import { registerRefreshTokenFn } from '../../services/apiService';
 
-const AUTHENTIK_BASE = (import.meta.env.VITE_AUTHENTIK_URL ?? 'http://localhost:9000/authentik').replaceAll(/\/$/g, '');
+const AUTHENTIK_BASE = (import.meta.env.VITE_AUTHENTIK_URL ?? 'http://localhost/authentik').replaceAll(/\/$/g, '');
 const CLIENT_ID      = import.meta.env.VITE_AUTHENTIK_CLIENT_ID ?? '';
 const REDIRECT_URI   = import.meta.env.VITE_AUTHENTIK_REDIRECT_URI ?? 'http://localhost/callback';
 
+const EXPECTED_ISSUERS = [
+  `${AUTHENTIK_BASE}/application/o/easyspot/`,
+  `${AUTHENTIK_BASE}/`,
+] as const;
 const AUTHORIZE_URL  = `${AUTHENTIK_BASE}/application/o/authorize/`;
 const TOKEN_URL      = `${AUTHENTIK_BASE}/application/o/token/`;
 const LOGOUT_URL     = `${AUTHENTIK_BASE}/application/o/easyspot/end-session/`;
@@ -68,6 +71,20 @@ function parseJwtClaims(token: string): Record<string, unknown> {
   }
 }
 
+function normalizeIssuer(issuer: unknown): string {
+  return String(issuer ?? '').replace(/\/+$/g, '');
+}
+
+function tokenIssuerMatches(claims: Record<string, unknown>): boolean {
+  const tokenIssuer = normalizeIssuer(claims['iss']);
+  if (!tokenIssuer) return true;
+  return EXPECTED_ISSUERS.some((issuer) => normalizeIssuer(issuer) === tokenIssuer);
+}
+
+function clearAuthStorage() {
+  Object.values(SK).forEach((k) => sessionStorage.removeItem(k));
+}
+
 function extractRole(claims: Record<string, unknown>): AppProfile {
   const groups = claims['groups'];
   if (import.meta.env.DEV) console.log('[AUTH] extractRole — raw groups:', groups);
@@ -113,18 +130,14 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
     console.log('[AUTH] AuthProvider init — token:', token ? 'EXISTS' : 'MISSING');
     if (token) {
       const claims = parseJwtClaims(token);
-      const expSec = typeof claims['exp'] === 'number' ? claims['exp'] : 0;
-      const expIn = expSec ? Math.round(expSec - Date.now() / 1000) : null;
-      console.log('[AUTH] token claims', {
-        iss: claims['iss'],
-        aud: claims['aud'],
-        sub: claims['sub'],
-        exp: expSec,
-        expiresInSec: expIn,
-        expired: expIn !== null && expIn <= 0,
-      });
+      if (!tokenIssuerMatches(claims)) {
+        console.warn('[AUTH] clearing token with unexpected issuer:', claims['iss'], 'expected one of:', EXPECTED_ISSUERS);
+        clearAuthStorage();
+        setIsLoading(false);
+        return;
+      }
       const u = buildUser(claims);
-      console.log('[AUTH] AuthProvider restoring user:', u.sub, 'role:', u.role);
+      console.log('[AUTH] AuthProvider restoring user:', u.sub, 'role:', u.role, 'issuer:', claims['iss']);
       setUser(u);
       setAccessToken(token);
     }
@@ -133,10 +146,7 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
 
   const refreshAccessToken = useCallback(async (): Promise<string | null> => {
     const refreshToken = sessionStorage.getItem(SK.refreshToken);
-    if (!refreshToken) {
-      console.warn('[AUTH] refresh skipped: no refresh_token in sessionStorage');
-      return null;
-    }
+    if (!refreshToken) return null;
 
     const body = new URLSearchParams({
       grant_type: 'refresh_token',
@@ -150,11 +160,7 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
       body: body.toString(),
     });
 
-    if (!resp.ok) {
-      const text = await resp.text().catch(() => '');
-      console.warn('[AUTH] refresh failed', { status: resp.status, body: text.slice(0, 300) });
-      return null;
-    }
+    if (!resp.ok) return null;
 
     const data = await resp.json() as {
       access_token: string;
@@ -162,50 +168,45 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
       refresh_token?: string;
     };
 
+    const claims = parseJwtClaims(data.access_token);
+    if (!tokenIssuerMatches(claims)) {
+      console.warn('[AUTH] refreshed token has unexpected issuer:', claims['iss'], 'expected one of:', EXPECTED_ISSUERS);
+      clearAuthStorage();
+      return null;
+    }
+
     sessionStorage.setItem(SK.accessToken, data.access_token);
     if (data.id_token) sessionStorage.setItem(SK.idToken, data.id_token);
     if (data.refresh_token) sessionStorage.setItem(SK.refreshToken, data.refresh_token);
 
-    const claims = parseJwtClaims(data.id_token ?? data.access_token);
-    console.info('[AUTH] refresh ok', { sub: claims['sub'], iss: claims['iss'] });
     setUser(buildUser(claims));
     setAccessToken(data.access_token);
     return data.access_token;
   }, []);
 
   useEffect(() => {
-    registerRefreshTokenFn(refreshAccessToken);
-    return () => registerRefreshTokenFn(null);
-  }, [refreshAccessToken]);
-
-  useEffect(() => {
     if (!accessToken) return;
 
-    let refreshing = false;
-
     const tick = async () => {
-      if (refreshing) return;
       const expMs = getTokenExpirationMs(sessionStorage.getItem(SK.accessToken) ?? accessToken);
       if (!expMs) return;
-      const secLeft = Math.round((expMs - Date.now()) / 1000);
-      console.debug('[AUTH] tick — token expires in', secLeft, 's');
-      if (secLeft > 60) return;
-      refreshing = true;
-      try {
+      const nowMs = Date.now();
+      const msUntilExpiry = expMs - nowMs;
+      if (msUntilExpiry <= 60_000) {
         const refreshed = await refreshAccessToken();
         if (!refreshed) {
-          console.warn('[AUTH] refresh returned null — logging out');
-          Object.values(SK).forEach((k) => sessionStorage.removeItem(k));
+          clearAuthStorage();
           setUser(null);
           setAccessToken(null);
           globalThis.location.href = '/welcome?session=expired';
         }
-      } finally {
-        refreshing = false;
       }
     };
 
-    const id = globalThis.setInterval(() => { void tick(); }, 15_000);
+    const id = globalThis.setInterval(() => {
+      void tick();
+    }, 15_000);
+    void tick();
     return () => globalThis.clearInterval(id);
   }, [accessToken, refreshAccessToken]);
 
@@ -299,20 +300,26 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
       refresh_token?: string;
     };
 
+    const claims = parseJwtClaims(data.access_token);
+    if (!tokenIssuerMatches(claims)) {
+      console.warn('[AUTH] callback token has unexpected issuer:', claims['iss'], 'expected one of:', EXPECTED_ISSUERS);
+      clearAuthStorage();
+      throw new Error('Sessão inválida para este ambiente. Inicie sessão novamente.');
+    }
+
     sessionStorage.setItem(SK.accessToken, data.access_token);
     if (data.id_token)      sessionStorage.setItem(SK.idToken,      data.id_token);
     if (data.refresh_token) sessionStorage.setItem(SK.refreshToken, data.refresh_token);
 
-    const claims     = parseJwtClaims(data.id_token ?? data.access_token);
     const authedUser = buildUser(claims);
-    console.log('[AUTH] handleCallback — setUser:', authedUser.sub, 'role:', authedUser.role);
+    console.log('[AUTH] handleCallback — setUser:', authedUser.sub, 'role:', authedUser.role, 'issuer:', claims['iss']);
     setUser(authedUser);
     setAccessToken(data.access_token);
   }, []);
 
   const logout = useCallback(() => {
     const idToken = sessionStorage.getItem(SK.idToken);
-    Object.values(SK).forEach((k) => sessionStorage.removeItem(k));
+    clearAuthStorage();
     setUser(null);
     setAccessToken(null);
 

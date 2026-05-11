@@ -1,22 +1,22 @@
 import { useState } from 'react';
-import { type SensorDevice, type MaintenanceOrder } from '../../../data/technicianData';
-import { type IssueReport } from '../../../data/gestorData';
+import { type SensorDevice } from '../../../data/technicianData';
+import { type IssueReport } from '../MaintenancePage';
 import { STATUS_LABEL, PRIO_COLOR, PRIO_LABEL } from './maintenanceTypes';
 import { MetaRow } from './shared';
 
-type Priority = MaintenanceOrder['prioridade'];
+type Priority = 'critica' | 'alta' | 'media' | 'baixa';
 
 type NewOrderModalProps = Readonly<{
   sensors: SensorDevice[];
   onClose: () => void;
-  onCreate: (order: MaintenanceOrder) => void;
+  onCreate: (sensorId: string, titulo: string, descricao: string, prioridade: string) => void;
 }>;
 
 type QuickTaskFromIssueModalProps = Readonly<{
   issue: IssueReport;
   sensors: SensorDevice[];
   onClose: () => void;
-  onCreate: (order: MaintenanceOrder) => void;
+  onCreate: (sensorId: string, titulo: string, descricao: string, prioridade: string) => void;
 }>;
 
 type PrioritySelectorProps = Readonly<{
@@ -34,20 +34,7 @@ export function NewOrderModal({
 
   const handleSubmit = () => {
     if (!titulo.trim() || !sensorId) return;
-    const sensor = sensors.find(s => s.id === sensorId);
-    if (!sensor) return;
-    onCreate({
-      id: `ORD-${Date.now()}`,
-      sensorId,
-      parque: sensor.parqueNome,
-      zona: sensor.zona,
-      titulo: titulo.trim(),
-      descricao: descricao.trim(),
-      prioridade,
-      estado: 'pendente',
-      criadaEm: new Date().toISOString(),
-      tecnico: 'Laura Farias',
-    });
+    onCreate(sensorId, titulo.trim(), descricao.trim(), prioridade);
   };
 
   return (
@@ -138,18 +125,7 @@ export function QuickTaskFromIssueModal({
 
   const handleSubmit = () => {
     if (!titulo.trim() || !sensorId || !sensor) return;
-    onCreate({
-      id: `ORD-${Date.now()}`,
-      sensorId,
-      parque: issue.parque,
-      zona: issue.zona ?? '',
-      titulo: titulo.trim(),
-      descricao: descricao.trim(),
-      prioridade,
-      estado: 'pendente',
-      criadaEm: new Date().toISOString(),
-      tecnico: 'Laura Farias',
-    });
+    onCreate(sensorId, titulo.trim(), descricao.trim(), prioridade);
   };
 
   return (

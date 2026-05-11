@@ -75,6 +75,28 @@ export interface TechnicianDashboard {
   urgentWorkOrders: WorkOrder[];
 }
 
+// ── Alert / Issue types (matching backend AlertResponse DTO) ──────────────────
+
+export type AlertState    = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED';
+export type AlertSeverity = 'CRITICAL' | 'WARNING' | 'INFO';
+export type AlertType     = 'SENSOR' | 'CLIENT' | 'SYSTEM';
+
+export interface AlertResponse {
+  id: string;
+  type: AlertType;
+  park: string;
+  zone: string | null;
+  spotNumber: string | null;
+  sensorId: string | null;
+  plate: string | null;
+  description: string;
+  severity: AlertSeverity;
+  state: AlertState;
+  createdAt: string;
+  attributedTo: string | null;
+  notes: string | null;
+}
+
 // ── API functions (use shared apiService.request — handles auth, 401, loading) ──
 
 export const fetchTechnicianDashboard = (): Promise<TechnicianDashboard> =>
@@ -86,10 +108,10 @@ export const fetchSensorList = (): Promise<SensorSummary[]> =>
 export const fetchSensorDetail = (sensorId: string): Promise<SensorDetail> =>
   request<SensorDetail>(`/api/technician/sensors/${encodeURIComponent(sensorId)}/logs`);
 
-export const updateAlertState = (alertId: string, state: string): Promise<void> =>
+export const updateAlertState = (alertId: string, state: AlertState, notes?: string): Promise<void> =>
   request<void>(`/api/alerts/${alertId}/state`, {
     method: 'PATCH',
-    body: JSON.stringify({ state }),
+    body: JSON.stringify({ state, notes }),
   });
 
 export const updateSensorStatus = (sensorId: string, status: string, notes?: string): Promise<void> =>
@@ -98,50 +120,17 @@ export const updateSensorStatus = (sensorId: string, status: string, notes?: str
     body: JSON.stringify({ status, notes: notes ?? null }),
   });
 
-interface AlertResponseDto {
-  id: string;
-  type: string;
-  park: string;
-  zone: string | null;
-  spotNumber: string | null;
-  sensorId: string | null;
-  plate: string | null;
-  description: string;
-  severity: string;
-  state: string;
-  createdAt: string;
-  attributedTo: string | null;
-  notes: string | null;
-}
+export type FetchAlertsQuery = {
+  parkId?: string;
+  state?: AlertState;
+  severity?: AlertSeverity;
+};
 
-function alertToIssue(a: AlertResponseDto): IssueReport {
-  const tipo: IssueReport['tipo'] =
-    a.type === 'SENSOR' ? 'sensor' : a.type === 'SYSTEM' ? 'sistema' : 'cliente';
-  const severidade: IssueReport['severidade'] =
-    a.severity === 'CRITICAL' ? 'critica' : a.severity === 'WARNING' ? 'aviso' : 'info';
-  const estado: IssueReport['estado'] =
-    a.state === 'OPEN' ? 'aberto' : a.state === 'IN_PROGRESS' ? 'em-progresso' : 'resolvido';
-  return {
-    id: a.id,
-    tipo,
-    parque: a.park,
-    zona: a.zone ?? undefined,
-    sensorId: a.sensorId ?? undefined,
-    matricula: a.plate ?? undefined,
-    descricao: a.description,
-    severidade,
-    estado,
-    criadoEm: a.createdAt,
-    atribuidoA: a.attributedTo ?? undefined,
-    notas: a.notes ?? undefined,
-  };
-}
-
-export const fetchAlerts = async (params?: { state?: string; parkId?: string }): Promise<IssueReport[]> => {
-  const qs = new URLSearchParams();
-  if (params?.state) qs.set('state', params.state);
-  if (params?.parkId) qs.set('parkId', params.parkId);
-  const query = qs.toString() ? `?${qs.toString()}` : '';
-  const data = await request<AlertResponseDto[]>(`/api/alerts${query}`);
-  return data.map(alertToIssue);
+export const fetchAlerts = (query: FetchAlertsQuery = {}): Promise<AlertResponse[]> => {
+  const params = new URLSearchParams();
+  if (query.parkId)   params.set('parkId',   query.parkId);
+  if (query.state)    params.set('state',    query.state);
+  if (query.severity) params.set('severity', query.severity);
+  const qs = params.toString();
+  return request<AlertResponse[]>(`/api/alerts${qs ? `?${qs}` : ''}`);
 };

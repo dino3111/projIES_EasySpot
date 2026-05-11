@@ -8,11 +8,13 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
+import pt.ua.deti.apieasyspot.TestTimescaleDataSourceConfig;
 import pt.ua.deti.apieasyspot.TestcontainersConfiguration;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingLotRepository;
@@ -32,7 +34,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
-@Import(TestcontainersConfiguration.class)
+@ActiveProfiles("test")
+@Import({TestcontainersConfiguration.class, TestTimescaleDataSourceConfig.class})
 class SensorLogsControllerIT {
 
     @Autowired WebApplicationContext wac;

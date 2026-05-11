@@ -1,6 +1,4 @@
 import { useEffect, useState, useMemo } from 'react';
-import { useProfile } from '../../context/ProfileContext';
-import type { ParkingLot } from '../../data/parkingTypes';
 import {
   mockBillingRecords,
   type IssueReport,
@@ -12,8 +10,7 @@ import { BillingTab } from './components/BillingTab';
 import { IssueModal }   from './components/IssueModal';
 import { TariffModal }  from './components/TariffModal';
 import { TabBtn }       from './components/shared';
-import { fetchAllParksSummary } from '../../services/parksCatalog';
-import { fetchManagerTariffs, fetchManagerAlerts, updateTariff, updateAlertState, type TariffResponse, type AlertResponse } from '../../services/managerApi';
+import { fetchManagerTariffs, fetchManagerAlerts, updateTariff, type TariffResponse, type AlertResponse } from '../../services/managerApi';
 
 type PageTab    = 'tarifas' | 'ocorrencias' | 'faturacao';
 type IssueFilter = 'todos' | 'aberto' | 'em-progresso' | 'resolvido';
@@ -28,10 +25,10 @@ const EXPORT_TITLE_BY_TAB: Record<PageTab, string> = {
 function mapTariff(t: TariffResponse): TariffEntry {
   const statusMap: Record<string, 'ativo' | 'revisao' | 'suspenso'> = {
     ACTIVE: 'ativo',
-    REVIEW: 'revisao',
-    SUSPENDED: 'suspenso',
+    INACTIVE: 'suspenso',
   };
   return {
+    id: t.id,
     parqueId: t.parkId,
     parqueNome: t.parkName,
     cidade: t.city,
@@ -41,7 +38,7 @@ function mapTariff(t: TariffResponse): TariffEntry {
     tarifaEV: t.pricePerKwh,
     temAcessivel: true,
     ultimaAtualizacao: new Date().toISOString().split('T')[0],
-    estado: statusMap[t.status] || 'revisao',
+    estado: statusMap[t.status] ?? 'ativo',
   };
 }
 
@@ -56,9 +53,12 @@ function mapAlert(a: AlertResponse): IssueReport {
     WARNING: 'aviso',
     INFO: 'info',
   };
+  const typeMap: Record<string, IssueReport['tipo']> = {
+    sensor: 'sensor', client: 'cliente', cliente: 'cliente', system: 'sistema', sistema: 'sistema',
+  };
   return {
     id: a.id,
-    tipo: a.type.toLowerCase() as any,
+    tipo: typeMap[a.type?.toLowerCase()] ?? 'sistema',
     parque: a.park,
     zona: a.zone,
     sensorId: a.sensorId,
@@ -68,20 +68,17 @@ function mapAlert(a: AlertResponse): IssueReport {
     estado: stateMap[a.state.toUpperCase().replace('-', '_')] || 'aberto',
     criadoEm: a.createdAt,
     atribuidoA: a.attributedTo,
-    notes: a.notes,
+    notas: a.notes,
   };
 }
 
 
 export function TariffsIncidentsPage() {
-  const { managerParks } = useProfile();
   const [tab, setTab]               = useState<PageTab>('tarifas');
   const [issueFilter, setIssueFilter] = useState<IssueFilter>('todos');
   const [sevFilter, setSevFilter]   = useState<SevFilter>('todos');
   const [selectedIssue, setSelectedIssue] = useState<IssueReport | null>(null);
   const [editTariff, setEditTariff] = useState<TariffEntry | null>(null);
-  const [parkSearch, setParkSearch] = useState('');
-  const [parks, setParks] = useState<ParkingLot[]>([]);
   const [tariffs, setTariffs] = useState<TariffEntry[]>([]);
   const [issues, setIssues] = useState<IssueReport[]>([]);
   const [loading, setLoading] = useState(true);
@@ -89,11 +86,9 @@ export function TariffsIncidentsPage() {
   useEffect(() => {
     setLoading(true);
     Promise.all([
-      fetchAllParksSummary(),
       fetchManagerTariffs(),
       fetchManagerAlerts()
-    ]).then(([parksData, tariffsData, alertsData]) => {
-      setParks(parksData);
+    ]).then(([tariffsData, alertsData]) => {
       setTariffs(tariffsData.map(mapTariff));
       setIssues(alertsData.map(mapAlert));
     }).catch(err => {
@@ -107,23 +102,15 @@ export function TariffsIncidentsPage() {
     setTariffs(tariffsData.map(mapTariff));
   };
 
-  const handleUpdateIssueState = async (alertId: string, newState: string) => {
-    await updateAlertState(alertId, newState);
-    const alertsData = await fetchManagerAlerts();
-    setIssues(alertsData.map(mapAlert));
-  };
-
-  const gestorTariffs       = tariffs;
-  const gestorIssues        = issues;
-  const gestorBillingRecords = mockBillingRecords.filter(b => gestorTariffs.some(t => t.parqueNome === b.parqueNome));
+  const billingRecords = mockBillingRecords.filter(b => tariffs.some(t => t.parqueNome === b.parqueNome));
 
   const filteredIssues = useMemo(() => {
-    return gestorIssues.filter((i) => {
+    return issues.filter((i) => {
       const estadoOk = issueFilter === 'todos' || i.estado === issueFilter;
       const sevOk    = sevFilter   === 'todos' || i.severidade === sevFilter;
       return estadoOk && sevOk;
     });
-  }, [gestorIssues, issueFilter, sevFilter]);
+  }, [issues, issueFilter, sevFilter]);
 
   const handleExport = () => {
     let data: unknown;
@@ -133,10 +120,10 @@ export function TariffsIncidentsPage() {
       data = filteredIssues;
       filename = `ocorrencias-${new Date().toISOString().split('T')[0]}.json`;
     } else if (tab === 'tarifas') {
-      data = gestorTariffs;
+      data = tariffs;
       filename = `tarifas-${new Date().toISOString().split('T')[0]}.json`;
     } else {
-      data = gestorBillingRecords;
+      data = billingRecords;
       filename = `faturacao-${new Date().toISOString().split('T')[0]}.json`;
     }
 
@@ -195,49 +182,7 @@ export function TariffsIncidentsPage() {
         <TabBtn active={tab === 'faturacao'}   onClick={() => setTab('faturacao')}   icon="fa-receipt"              label="Faturação" />
       </div>
 
-      <div className="rounded-2xl p-4 bg-card border border-border">
-        <div className="flex items-center gap-2 mb-3">
-          <i className="fas fa-building text-primary" style={{ fontSize: '0.9rem' }} aria-hidden="true"></i>
-          <h3 className="text-foreground font-bold" style={{ fontSize: '0.95rem' }}>Parques Geridos</h3>
-          <span className="ml-auto text-muted-foreground" style={{ fontSize: '0.75rem' }}>({managerParks.length} parques)</span>
-        </div>
-        <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-lg bg-background border border-border">
-          <i className="fas fa-search text-muted-foreground" style={{ fontSize: '0.85rem' }}></i>
-          <input
-            type="text"
-            placeholder="Pesquisar parques..."
-            value={parkSearch}
-            onChange={(e) => setParkSearch(e.target.value)}
-            className="flex-1 bg-transparent text-foreground outline-none"
-            style={{ fontSize: '0.875rem' }}
-          />
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {parks
-            .filter(p => managerParks.includes(p.id))
-            .filter(p => p.name.toLowerCase().includes(parkSearch.toLowerCase()))
-            .slice(0, 5)
-            .map((park) => (
-              <div
-                key={park.id}
-                className="px-3 py-2 rounded-lg bg-primary/10 border border-primary/30 text-foreground flex items-center gap-2"
-                style={{ fontSize: '0.8rem' }}
-              >
-                <i className="fas fa-check-circle text-primary" style={{ fontSize: '0.75rem' }}></i>
-                <span className="font-medium">{park.name}</span>
-              </div>
-            ))}
-          {managerParks.filter(id =>
-            parks.find(p => p.id === id && p.name.toLowerCase().includes(parkSearch.toLowerCase()))
-          ).length === 0 && (
-            <p className="text-muted-foreground w-full text-center py-2" style={{ fontSize: '0.875rem' }}>
-              Nenhum parque encontrado
-            </p>
-          )}
-        </div>
-      </div>
-
-      {tab === 'tarifas'     && <TariffsTab    onEdit={setEditTariff}   tariffs={gestorTariffs} />}
+      {tab === 'tarifas'     && <TariffsTab    onEdit={setEditTariff}   tariffs={tariffs} />}
       {tab === 'ocorrencias' && (
         <IncidentsTab
           issues={filteredIssues}
@@ -248,7 +193,7 @@ export function TariffsIncidentsPage() {
           onSelect={setSelectedIssue}
         />
       )}
-      {tab === 'faturacao'   && <BillingTab  billingRecords={gestorBillingRecords} />}
+      {tab === 'faturacao'   && <BillingTab  billingRecords={billingRecords} />}
 
       {selectedIssue && <IssueModal  issue={selectedIssue} onClose={() => setSelectedIssue(null)} />}
       {editTariff    && <TariffModal tariff={editTariff}   onClose={() => setEditTariff(null)} onSave={handleSaveTariff} />}

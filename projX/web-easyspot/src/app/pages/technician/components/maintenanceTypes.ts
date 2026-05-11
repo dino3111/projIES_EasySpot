@@ -59,3 +59,11 @@ export const parkManagers: ParkManager[] = [
   { parkId: 'leiria-2',  parkName: 'CentroLeiriaShopping',        managerName: 'Dr. Nuno Ferreira',    email: 'nuno.ferreira@centroleiria.pt',      phone: '+351 244 800 111' },
 ];
 
+export const parkCityMapFromSensors = (sensors: { parqueNome: string; cidade: string }[]): Map<string, string> => {
+  const map = new Map<string, string>();
+  sensors.forEach(s => {
+    const cidade = s.cidade.trim();
+    if (cidade && !map.has(s.parqueNome)) map.set(s.parqueNome, cidade);
+  });
+  return map;
+};
