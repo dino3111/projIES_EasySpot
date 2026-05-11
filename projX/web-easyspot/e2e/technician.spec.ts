@@ -87,6 +87,24 @@ const mockSensorDetail = {
   ],
 };
 
+const mockAlerts = [
+  {
+    id: '9f6a9a7b-c6a2-43a2-a2b6-f57e6d03df57',
+    type: 'SENSOR',
+    park: 'Fórum Aveiro',
+    zone: 'Piso 0 – Zona B',
+    spotNumber: null,
+    sensorId: 'IR-AV1-B07',
+    plate: null,
+    description: 'Falha de leitura IR sem sinal',
+    severity: 'CRITICAL',
+    state: 'OPEN',
+    createdAt: '2026-05-08T09:00:00Z',
+    attributedTo: null,
+    notes: null,
+  },
+];
+
 const mockProfile = {
   role: 'TECHNICAL',
   name: 'Laura Farias',
@@ -113,6 +131,7 @@ test.beforeEach(async ({ page }) => {
   await page.route('**/api/technician/sensors', (route) => route.fulfill({ json: mockSensors }));
   await page.route('**/api/technician/sensors/IR-AV1-B07/logs', (route) => route.fulfill({ json: mockSensorDetail }));
   await page.route('**/api/alerts/**/state', (route) => route.fulfill({ status: 204, body: '' }));
+  await page.route('**/api/alerts**', (route) => route.fulfill({ json: mockAlerts }));
 });
 
 test('Painel técnico mostra KPIs da API', async ({ page }) => {

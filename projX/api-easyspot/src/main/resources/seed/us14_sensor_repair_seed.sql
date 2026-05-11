@@ -21,7 +21,7 @@ values (
     '2024-06-15 00:00:00'
 )
 on conflict (sensor_id) do update set
-    status       = excluded.status,
+    status = excluded.status,
     last_seen_at = excluded.last_seen_at;
 
 commit;
