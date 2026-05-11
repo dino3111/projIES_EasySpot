@@ -23,7 +23,6 @@ import java.util.regex.Pattern;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -180,6 +179,7 @@ public class ParkService {
                 (left, right) -> left.getArrivalTime().isBefore(right.getArrivalTime()) ? left : right
             ));
 
+        // First pass: derive reservation-based status for each spot
         Map<UUID, String> statusBySpot = new java.util.HashMap<>();
         Map<ZoneType, Long> reservedCountByZone = new java.util.EnumMap<>(ZoneType.class);
         for (ParkingSpot spot : spots) {
@@ -187,6 +187,33 @@ public class ParkService {
             statusBySpot.put(spot.getId(), status);
             if (STATUS_RESERVED.equalsIgnoreCase(status)) {
                 reservedCountByZone.merge(spot.getZone(), 1L, Long::sum);
+            }
+        }
+
+        // Second pass: distribute sensor-detected occupancy across non-reserved spots per zone
+        Map<ZoneType, ZoneSnapshot> snapshotByZone = timescaleOccupancySnapshotRepository.latestByLot(id).stream()
+            .collect(Collectors.toMap(ZoneSnapshot::zoneType, s -> s, (a, b) -> a));
+
+        Map<ZoneType, List<ParkingSpot>> freeSpotsByZone = spots.stream()
+            .filter(s -> STATUS_FREE.equalsIgnoreCase(statusBySpot.get(s.getId())))
+            .collect(Collectors.groupingBy(ParkingSpot::getZone));
+
+        for (Map.Entry<ZoneType, ZoneSnapshot> entry : snapshotByZone.entrySet()) {
+            ZoneType zone = entry.getKey();
+            ZoneSnapshot snapshot = entry.getValue();
+            int reservedInZone = reservedCountByZone.getOrDefault(zone, 0L).intValue();
+            // sensor occupied = total physically occupied (including reserved)
+            int sensorOccupied = snapshot.occupiedCount();
+            // subtract reserved spots already accounted for
+            int unaccountedOccupied = Math.max(0, sensorOccupied - reservedInZone);
+
+            List<ParkingSpot> freeSpots = freeSpotsByZone.getOrDefault(zone, List.of()).stream()
+                .sorted(Comparator.comparing(ParkingSpot::getId))
+                .toList();
+
+            int toMark = Math.min(unaccountedOccupied, freeSpots.size());
+            for (int i = 0; i < toMark; i++) {
+                statusBySpot.put(freeSpots.get(i).getId(), STATUS_OCCUPIED);
             }
         }
 
