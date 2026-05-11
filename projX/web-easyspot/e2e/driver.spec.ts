@@ -272,7 +272,7 @@ test('Planeamento — condutor expande previsão de ocupação', async ({ page }
     }] } });
   });
   await page.goto('/costs?tab=planeamento');
-  await page.getByRole('button', { name: /Ver previsão/i }).click();
+  await page.getByRole('button', { name: /Ver previsão de ocupação/i }).click();
   await expect(page.getByText(/Previsão de ocupação/).first()).toBeVisible();
 });
 
