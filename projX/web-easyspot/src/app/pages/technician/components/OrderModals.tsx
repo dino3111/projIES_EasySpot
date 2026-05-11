@@ -38,7 +38,7 @@ export function NewOrderModal({
   };
 
   return (
-    <dialog open className="fixed inset-0 z-50 flex items-center justify-center bg-transparent p-4" aria-label="Nova ordem de manutenção">
+    <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-4" aria-label="Nova ordem de manutenção">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
       <div className="relative bg-card border border-border rounded-2xl p-5 w-full max-w-md shadow-2xl">
         <div className="flex items-center gap-2 mb-4">
@@ -107,7 +107,7 @@ export function NewOrderModal({
           </button>
         </div>
       </div>
-    </dialog>
+    </div>
   );
 }
 
@@ -129,7 +129,7 @@ export function QuickTaskFromIssueModal({
   };
 
   return (
-    <dialog open className="fixed inset-0 z-50 flex items-center justify-center bg-transparent p-4" aria-label="Criar tarefa de manutenção">
+    <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-4" aria-label="Criar tarefa de manutenção">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
       <div className="relative bg-card border border-border rounded-2xl p-5 w-full max-w-md shadow-2xl">
         <div className="flex items-center gap-2 mb-4">
@@ -191,7 +191,7 @@ export function QuickTaskFromIssueModal({
           </button>
         </div>
       </div>
-    </dialog>
+    </div>
   );
 }
 
