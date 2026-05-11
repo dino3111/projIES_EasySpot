@@ -30,7 +30,7 @@ export function SensorDiagPanel({
   return (
     <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-4" aria-label={`Diagnóstico: ${sensor.id}`}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
-      <div className="relative bg-card border border-border rounded-2xl p-5 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div className="relative bg-card border border-border rounded-2xl p-5 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto mx-auto">
 
         <div className="flex items-start gap-3 mb-4">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `${color}15` }} aria-hidden="true">
@@ -129,7 +129,7 @@ export function StatusUpdateModal({
   return (
     <div role="dialog" aria-modal="true" className="fixed inset-0 z-[60] flex items-center justify-center p-4" aria-label="Atualizar estado do sensor">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
-      <div className="relative bg-card border border-border rounded-2xl p-5 w-full max-w-md shadow-2xl">
+      <div className="relative bg-card border border-border rounded-2xl p-5 w-full max-w-md shadow-2xl mx-auto">
 
         <div className="flex items-center gap-2 mb-1">
           <i className="fas fa-pen-to-square text-primary" style={{ fontSize: '1.1rem' }} aria-hidden="true"></i>
