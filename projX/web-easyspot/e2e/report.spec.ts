@@ -1,14 +1,39 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
+
+async function waitForLoaded(page: Page) {
+  await page.waitForSelector('[aria-busy="true"]', { state: 'hidden', timeout: 10000 }).catch(() => {});
+}
 
 const jwt =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1MSIsIm5hbWUiOiJBbmEgU2lsdmEiLCJlbWFpbCI6ImFuYUBlYXN5c3BvdC5wdCIsImdyb3VwcyI6WyJEUklWRVIiXSwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdC9hdXRoZW50aWsvYXBwbGljYXRpb24vby9lYXN5c3BvdC8iLCJleHAiOjk5OTk5OTk5OTl9.fake-sig';
 
 const parksList = {
   items: [
-    { id: 'park-1', name: 'Parque Central', city: 'Aveiro', address: 'Rua Central, Aveiro', latitude: 40.6, longitude: -8.6, openingHours: '24h', pricePerHour: 1.5, totalSpaces: 50, freeSpaces: 10, evChargers: { available: 0, total: 0 }, accessibleSpaces: { available: 0, total: 0 }, availabilityStatus: 'AVAILABLE' },
+    { id: 'park-1', name: 'Parque Central', city: 'Aveiro', address: 'Rua Central, Aveiro', latitude: 40.6, longitude: -8.6, openingHours: '24h', pricePerHour: 1.5, totalSpaces: 50, freeSpaces: 10, evChargers: { available: 0, total: 0 }, accessibleSpaces: { available: 1, total: 2 }, availabilityStatus: 'AVAILABLE' },
     { id: 'park-2', name: 'Forum Aveiro', city: 'Aveiro', address: 'Fórum Aveiro', latitude: 40.6, longitude: -8.6, openingHours: '24h', pricePerHour: 1.2, totalSpaces: 100, freeSpaces: 20, evChargers: { available: 0, total: 0 }, accessibleSpaces: { available: 0, total: 0 }, availabilityStatus: 'AVAILABLE' },
   ],
   pagination: { page: 1, pageSize: 500, totalItems: 2, totalPages: 1 },
+};
+
+const parkDetails = {
+  id: 'park-1',
+  name: 'Parque Central',
+  address: 'Rua Central, Aveiro',
+  coordinates: { lat: 40.6, lng: -8.6 },
+  openingHours: '24h',
+  totalSpaces: 50,
+  freeSpaces: 10,
+  zones: [{ zoneName: 'STANDARD', total: 50, free: 10 }],
+  spotMap: [{ spotNumber: 'A1', zone: 'STANDARD', row: 1, col: 1, status: 'free' }],
+  evChargers: [],
+  accessibility: [
+    { location: 'Zona A - Piso 0', availability: true, distanceToEntranceMeters: 12, baySize: '4.0m x 5.0m', monitored: true, hasRampSpace: true, sensorStatus: 'online', ledStatus: 'green' },
+  ],
+  tariffs: [{ pricePerHour: 1.5, maxDaily: 15, monthly: 100 }],
+  amenities: ['wc'],
+  hourlyRate: 1.5,
+  is24h: true,
+  floors: [{ id: 'f1', name: 'Piso 0', spots: [{ id: 's1', label: 'A1', row: 1, col: 1, status: 'free' }] }],
 };
 
 test.beforeEach(async ({ page }) => {
@@ -25,7 +50,7 @@ test.beforeEach(async ({ page }) => {
   });
   await page.route('**/api/parks/cities', async (route) => { await route.fulfill({ json: ['Coimbra'] }); });
   await page.route('**/api/parks/list**', async (route) => {
-    await route.fulfill({ json: { items: parks, pagination: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 } } });
+    await route.fulfill({ json: parksList });
   });
   await page.route('**/api/parks/park-1/details', async (route) => { await route.fulfill({ json: parkDetails }); });
   await page.route('**/api/profile', async (route) => {
@@ -37,6 +62,25 @@ test.beforeEach(async ({ page }) => {
   });
   await page.route('**/api/payments/setup-status', async (route) => {
     await route.fulfill({ json: { configured: true } });
+  });
+  await page.route('**/api/reports', async (route) => {
+    await route.fulfill({
+      status: 201,
+      json: {
+        id: 'REP123456',
+        type: 'CLIENT',
+        parkId: 'park-1',
+        parkName: 'Parque Central',
+        zone: 'Zona A',
+        spotNumber: 'A-07',
+        plate: null,
+        description: 'Mock report',
+        photoUrl: null,
+        severity: 'WARNING',
+        state: 'OPEN',
+        createdAt: new Date().toISOString(),
+      },
+    });
   });
 });
 
@@ -96,13 +140,6 @@ test('Descrição curta mostra erro de validação', async ({ page }) => {
 // ── Fluxo de submissão ───────────────────────────────────────────────────────
 
 test('Submissão válida avança para confirmação com ID de reporte', async ({ page }) => {
-  await page.route('**/api/parks/summary**', async (route) => {
-    await route.fulfill({ json: parks });
-  });
-  await page.route('**/api/parks**', async (route) => {
-    await route.fulfill({ json: parks });
-  });
-
   await page.goto('/report?parkId=park-1');
 
   const parkSelect = page.getByLabel(/Parque de Estacionamento/i);
@@ -113,8 +150,7 @@ test('Submissão válida avança para confirmação com ID de reporte', async ({
   await page.getByLabel(/Número do Lugar/i).fill('A-07');
   await page.getByLabel(/Descrição da Situação/i).fill('Veículo sem dístico estacionado no lugar reservado desde as 14h.');
 
-  const violationButton = page.getByRole('button', { name: /Lugar Acessível/i }).first();
-  if (await violationButton.isVisible()) await violationButton.click();
+  await page.getByRole('button', { name: /Lugar de Mobilidade Reduzida/i }).first().click();
 
   await page.getByRole('button', { name: /Enviar Denúncia/i }).click();
   await expect(page.getByText(/REP\d+/)).toBeVisible({ timeout: 5000 });
@@ -182,7 +218,7 @@ test('Após confirmação, clicar em Nova Denúncia volta ao formulário limpo',
     route.fulfill({
       status: 201,
       json: {
-        id: 'rep-e2e-002', type: 'CLIENT', parkId: 'park-2', parkName: 'Forum Aveiro',
+        id: 'REP654321', type: 'CLIENT', parkId: 'park-2', parkName: 'Forum Aveiro',
         zone: 'B', spotNumber: 'B-10', plate: null,
         description: 'Veículo a gasóleo no lugar EV.',
         photoUrl: null, severity: 'WARNING', state: 'OPEN', createdAt: new Date().toISOString(),
