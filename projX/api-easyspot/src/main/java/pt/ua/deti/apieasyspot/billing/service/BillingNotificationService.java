@@ -2,11 +2,10 @@ package pt.ua.deti.apieasyspot.billing.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import pt.ua.deti.apieasyspot.billing.model.PaymentRecord;
+import pt.ua.deti.apieasyspot.notification.service.EmailDeliveryDedupService;
 
 @Slf4j
 @Service
@@ -14,7 +13,7 @@ import pt.ua.deti.apieasyspot.billing.model.PaymentRecord;
 public class BillingNotificationService {
 
     private final SimpMessagingTemplate messagingTemplate;
-    private final JavaMailSender mailSender;
+    private final EmailDeliveryDedupService emailDeliveryDedupService;
 
     public void notifyPaymentSuccess(PaymentRecord payment) {
         // WebSocket notification
@@ -24,12 +23,17 @@ public class BillingNotificationService {
         // Email notification
         if (payment.getCustomerEmail() != null) {
             try {
-                SimpleMailMessage message = new SimpleMailMessage();
-                message.setTo(payment.getCustomerEmail());
-                message.setSubject("EasySpot - Payment Confirmation");
-                message.setText("Your payment of " + payment.getAmount() + " " + payment.getCurrency() + 
-                                " for reservation " + payment.getReservationId() + " was successful.");
-                mailSender.send(message);
+                boolean sent = emailDeliveryDedupService.sendOnce(
+                    "payment-confirmation:" + payment.getReservationId(),
+                    "PAYMENT_CONFIRMATION",
+                    payment.getCustomerEmail(),
+                    "EasySpot - Payment Confirmation",
+                    "Your payment of " + payment.getAmount() + " " + payment.getCurrency() +
+                        " for reservation " + payment.getReservationId() + " was successful."
+                );
+                if (!sent) {
+                    log.debug("Skipping duplicate payment confirmation email for reservation {}", payment.getReservationId());
+                }
             } catch (Exception e) {
                 log.error("Failed to send payment confirmation email", e);
             }

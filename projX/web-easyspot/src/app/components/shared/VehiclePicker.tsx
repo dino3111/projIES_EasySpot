@@ -41,9 +41,9 @@ function VehicleOption({
         {logoUrl && (
           <img
             src={logoUrl}
-            alt={vehicle.make}
+            alt={vehicle.make || ''}
             className="w-6 h-6 object-contain flex-shrink-0"
-            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+            onError={(e) => { e.currentTarget.style.display = 'none'; }}
           />
         )}
         <div className="flex-1 min-w-0">
@@ -106,9 +106,9 @@ export function VehiclePicker({
             {logoUrl && (
               <img
                 src={logoUrl}
-                alt={selected.make}
+                alt={selected.make || ''}
                 className="w-4 h-4 object-contain"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                onError={(e) => { e.currentTarget.style.display = 'none'; }}
               />
             )}
             {selected.imageUrl && (
@@ -131,7 +131,7 @@ export function VehiclePicker({
           <div className="bg-background rounded-3xl w-full max-w-sm shadow-2xl max-h-[calc(100vh-8rem-env(safe-area-inset-bottom))] sm:max-h-[80vh] overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <h2 className="text-foreground font-extrabold" style={{ fontSize: '1rem' }}>
-                {label || 'Veículo'}
+                {label}
               </h2>
               <button
                 type="button"
@@ -147,7 +147,7 @@ export function VehiclePicker({
                 type="button"
                 onClick={() => handleSelect(null)}
                 className={`w-full text-left rounded-xl border-2 px-4 py-2.5 transition-all ${
-                  !selectedId ? 'border-primary bg-primary/5' : 'border-border bg-card hover:border-primary/40'
+                  selectedId ? 'border-border bg-card hover:border-primary/40' : 'border-primary bg-primary/5'
                 }`}
               >
                 <span className="text-muted-foreground font-medium" style={{ fontSize: '0.82rem' }}>

@@ -7,7 +7,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
 import pt.ua.deti.apieasyspot.common.exception.ResourceNotFoundException;
 import pt.ua.deti.apieasyspot.occupancy.dto.ParkingLotDetailsResponse;
 import pt.ua.deti.apieasyspot.occupancy.dto.ParkingLotSummaryResponse;
@@ -134,7 +133,7 @@ class ParkServiceTest {
         spot.setSpotCol(1);
         spot.setStatus("free");
         when(parkingSpotRepository.findByParkingLotId(lotId)).thenReturn(List.of(spot));
-        when(reservationRepository.findReservedSpotIds(anyList(), any(), any())).thenReturn(List.of());
+        when(reservationRepository.findActiveWithSpotByParkId(lotId)).thenReturn(List.of());
 
         ParkingLotDetailsResponse response = parkService.getDetails(lotId);
 

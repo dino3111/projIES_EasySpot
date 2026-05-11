@@ -41,6 +41,9 @@ public class User {
     @NotBlank
     private String role;
 
+    @Column(length = 100)
+    private String stripeCustomerId;
+
     @Enumerated(EnumType.STRING)
     @Column(length = 30)
     private DriverType driverType;

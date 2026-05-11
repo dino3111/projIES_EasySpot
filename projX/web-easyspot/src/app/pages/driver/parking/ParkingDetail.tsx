@@ -211,8 +211,8 @@ export function ParkingDetail() {
                     <i className="fas fa-wheelchair mr-1" /> {availableAcc} Acess.
                   </span>
                 )}
-                {lot.amenities.map(a => (
-                  <span key={a} className="px-2 py-1 rounded text-sm font-medium bg-muted text-muted-foreground border border-border">
+                {lot.amenities.map((a, i) => (
+                  <span key={`${a}-${i}`} className="px-2 py-1 rounded text-sm font-medium bg-muted text-muted-foreground border border-border">
                     <i className={`fas ${amenityIcon(a)} mr-1 opacity-70`} /> {amenityLabel(a)}
                   </span>
                 ))}

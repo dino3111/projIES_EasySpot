@@ -36,7 +36,8 @@ public class ParkingPlanningService {
 
     public ParkingPlanningResponse plan(ParkingPlanningRequest req) {
         List<ParkingLot> lots = parkingLotRepository.findAll().stream()
-            .filter(lot -> lot.getCity() != null && lot.getCity().toLowerCase().startsWith(req.city().toLowerCase()))
+            .filter(lot -> req.city() == null || req.city().isBlank()
+                || (lot.getCity() != null && lot.getCity().toLowerCase().startsWith(req.city().toLowerCase())))
             .toList();
 
         Map<UUID, List<ZoneSnapshot>> snapshotsByLot = occupancyRepository.latestByLotIds(

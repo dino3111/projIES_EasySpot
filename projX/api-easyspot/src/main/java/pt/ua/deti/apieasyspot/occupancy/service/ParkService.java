@@ -4,10 +4,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import pt.ua.deti.apieasyspot.booking.repository.ReservationRepository;
 import pt.ua.deti.apieasyspot.common.exception.ResourceNotFoundException;
 import pt.ua.deti.apieasyspot.occupancy.dto.ParkingLotDetailsResponse;
 import pt.ua.deti.apieasyspot.occupancy.dto.ParkingLotSummaryResponse;
+import pt.ua.deti.apieasyspot.booking.model.Reservation;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingSpot;
 import pt.ua.deti.apieasyspot.occupancy.model.Tariff;
@@ -22,7 +24,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.UUID;
 import java.util.function.ToIntFunction;
 import java.util.stream.Collectors;
@@ -30,6 +31,11 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class ParkService {
+
+    private static final String STATUS_FREE = "free";
+    private static final String STATUS_RESERVED = "reserved";
+    private static final String STATUS_OCCUPIED = "occupied";
+    private static final String LOT_NOT_FOUND_MSG = "Parking lot not found: ";
 
     private final ParkingLotRepository parkingLotRepository;
     private final TariffRepository tariffRepository;
@@ -158,36 +164,34 @@ public class ParkService {
 
     public ParkingLotDetailsResponse getDetails(UUID id) {
         ParkingLot lot = parkingLotRepository.findById(id)
-            .orElseThrow(() -> new ResourceNotFoundException("Parking lot not found: " + id));
+            .orElseThrow(() -> new ResourceNotFoundException(LOT_NOT_FOUND_MSG + id));
 
         OffsetDateTime now = OffsetDateTime.now();
-        OffsetDateTime windowEnd = now.plusMinutes(30);
 
         List<ParkingSpot> spots = parkingSpotRepository.findByParkingLotId(id);
-        List<UUID> freeSpotIds = spots.stream()
-            .filter(s -> "free".equalsIgnoreCase(s.getStatus()))
-            .map(ParkingSpot::getId)
-            .toList();
-        Set<UUID> reservedSpotIds = freeSpotIds.isEmpty()
-            ? Set.of()
-            : Set.copyOf(reservationRepository.findReservedSpotIds(freeSpotIds, now, windowEnd));
+        Map<UUID, Reservation> activeReservationsBySpot = reservationRepository.findActiveWithSpotByParkId(id).stream()
+            .collect(Collectors.toMap(
+                r -> r.getParkingSpot().getId(),
+                r -> r,
+                (left, right) -> left.getArrivalTime().isBefore(right.getArrivalTime()) ? left : right
+            ));
 
-        // Count reservations per zone using spot zone info so fetchZones can subtract them
-        Map<ZoneType, Long> reservedCountByZone = reservedSpotIds.isEmpty()
-            ? Map.of()
-            : spots.stream()
-                .filter(s -> reservedSpotIds.contains(s.getId()))
-                .collect(Collectors.groupingBy(ParkingSpot::getZone, Collectors.counting()));
+        Map<UUID, String> statusBySpot = new java.util.HashMap<>();
+        Map<ZoneType, Long> reservedCountByZone = new java.util.EnumMap<>(ZoneType.class);
+        for (ParkingSpot spot : spots) {
+            String status = deriveSpotStatus(spot, activeReservationsBySpot.get(spot.getId()), now);
+            statusBySpot.put(spot.getId(), status);
+            if (STATUS_RESERVED.equalsIgnoreCase(status)) {
+                reservedCountByZone.merge(spot.getZone(), 1L, Long::sum);
+            }
+        }
 
         List<ParkingLotDetailsResponse.ZoneResponse> zones = fetchZones(id, reservedCountByZone);
         int freeSpaces = zones.stream().mapToInt(ParkingLotDetailsResponse.ZoneResponse::free).sum();
 
         List<ParkingLotDetailsResponse.SpotResponse> spotResponses = spots.stream()
             .map(s -> {
-                String status = s.getStatus();
-                if ("free".equalsIgnoreCase(status) && reservedSpotIds.contains(s.getId())) {
-                    status = "reserved";
-                }
+                String status = statusBySpot.getOrDefault(s.getId(), s.getStatus());
                 return new ParkingLotDetailsResponse.SpotResponse(
                     s.getId(), s.getSpotNumber(), s.getZone().name(), s.getSpotRow(), s.getSpotCol(), status);
             })
@@ -227,11 +231,31 @@ public class ParkService {
             .toList();
     }
 
-    private List<ParkingLotDetailsResponse.SpotResponse> fetchSpots(UUID lotId) {
-        return parkingSpotRepository.findByParkingLotId(lotId).stream()
-            .map(s -> new ParkingLotDetailsResponse.SpotResponse(
-                s.getId(), s.getSpotNumber(), s.getZone().name(), s.getSpotRow(), s.getSpotCol(), s.getStatus()))
-            .toList();
+    private String deriveSpotStatus(ParkingSpot spot, Reservation reservation, OffsetDateTime now) {
+        if (reservation == null) {
+            return normalizeSpotStatus(spot.getStatus());
+        }
+
+        if (now.isAfter(reservation.getDepartureTime())) {
+            return STATUS_FREE;
+        }
+
+        if (now.isBefore(reservation.getArrivalTime())) {
+            return STATUS_RESERVED;
+        }
+
+        return STATUS_OCCUPIED;
+    }
+
+    private String normalizeSpotStatus(String currentStatus) {
+        if (!StringUtils.hasText(currentStatus)) {
+            return STATUS_FREE;
+        }
+        String normalized = currentStatus.trim().toLowerCase();
+        return switch (normalized) {
+            case STATUS_FREE, STATUS_RESERVED, STATUS_OCCUPIED -> normalized;
+            default -> STATUS_FREE;
+        };
     }
 
     private List<ParkingLotDetailsResponse.EVChargerResponse> fetchEVChargers(UUID lotId) {
@@ -257,7 +281,7 @@ public class ParkService {
 
     public List<Map<String, Object>> getHourlyOccupancy(UUID id) {
         if (!parkingLotRepository.existsById(id)) {
-            throw new pt.ua.deti.apieasyspot.common.exception.ResourceNotFoundException("Parking lot not found: " + id);
+            throw new pt.ua.deti.apieasyspot.common.exception.ResourceNotFoundException(LOT_NOT_FOUND_MSG + id);
         }
         List<TimescaleOccupancySnapshotRepository.HourlyOccupancyPoint> points =
             timescaleOccupancySnapshotRepository.hourlyOccupancyLast7Days(List.of(id))

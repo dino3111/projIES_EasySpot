@@ -9,7 +9,7 @@ function getStoredTheme(): 'light' | 'dark' {
 }
 
 function applyTheme(theme: 'light' | 'dark') {
-  document.documentElement.setAttribute('data-theme', theme);
+  document.documentElement.dataset.theme = theme;
   if (theme === 'dark') {
     document.documentElement.classList.add('dark');
   } else {

@@ -37,7 +37,7 @@ function VehicleBrandLogo({ make, logoUrl }: Readonly<{ make?: string; logoUrl?:
   return <img src={url} alt={make} className="w-8 h-8 object-contain" onError={() => setFailed(true)} />;
 }
 
-export function VehicleFieldGroup({ label, fields }: { label?: string; fields: { label: string; value: string | undefined }[] }) {
+export function VehicleFieldGroup({ label, fields }: Readonly<{ label?: string; fields: readonly { readonly label: string; readonly value: string | undefined }[] }>) {
   const visible = fields.filter((f) => f.value?.trim());
   if (visible.length === 0) return null;
   return (
@@ -55,10 +55,10 @@ export function VehicleFieldGroup({ label, fields }: { label?: string; fields: {
   );
 }
 
-export function StepAccountType({ accountType, onSet }: {
+export function StepAccountType({ accountType, onSet }: Readonly<{
   accountType: AppProfile;
   onSet: (t: AppProfile) => void;
-}) {
+}>) {
   return (
     <div className="space-y-3">
       <p className="text-muted-foreground mb-4" style={{ fontSize: '0.82rem' }}>Selecione o tipo de conta para personalizar a sua experiência.</p>
@@ -66,7 +66,7 @@ export function StepAccountType({ accountType, onSet }: {
         { id: 'DRIVER',     icon: 'fa-car',       label: 'Condutor',                 desc: 'Encontrar parques, reservar, gerir custos' },
         { id: 'MANAGER',    icon: 'fa-chart-pie',  label: 'Gestor de Parques',         desc: 'Dashboard, receitas, sensores, relatórios' },
         { id: 'TECHNICAL', icon: 'fa-wrench',     label: 'Técnico de Manutenção',     desc: 'Diagnóstico, ordens de manutenção, sensores' },
-      ] as { id: AppProfile; icon: string; label: string; desc: string }[]).map((t) => (
+      ] as const).map((t) => (
         <button key={t.id} onClick={() => onSet(t.id)} className={`w-full flex items-center gap-3 p-4 rounded-xl border-2 text-left transition-all ${accountType === t.id ? 'border-primary bg-primary/8' : 'border-border hover:border-primary/40'}`}>
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${accountType === t.id ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
             <i className={`fas ${t.icon}`} style={{ fontSize: '1rem' }} />
@@ -82,7 +82,7 @@ export function StepAccountType({ accountType, onSet }: {
   );
 }
 
-export function StepVehicle(props: {
+export function StepVehicle(props: Readonly<{
   plate: string;
   setPlate: (v: string) => void;
   rfid: string;
@@ -97,20 +97,23 @@ export function StepVehicle(props: {
   setShowManualVehicleForm: React.Dispatch<React.SetStateAction<boolean>>;
   onSaveManual?: () => void;
   savingManual?: boolean;
-}) {
+}>) {
   const { plate, setPlate, rfid, setRfid, plateLoading, vehicleData, insuranceData, plateError, manualVehicleData, setManualVehicleData, showManualVehicleForm, setShowManualVehicleForm, onSaveManual, savingManual } = props;
   return (
     <div className="space-y-4">
       <div>
-        <label className="block text-foreground font-semibold mb-1.5" style={{ fontSize: '0.8rem' }}>
-          <i className="fas fa-car text-primary mr-1.5" />Matrícula do veículo <span className="text-error">*</span>
+        <label htmlFor="vehicle-plate" className="block text-foreground font-semibold mb-1.5" style={{ fontSize: '0.8rem' }}>
+          <i className="fas fa-car text-primary mr-1.5" />
+          {'Matrícula do veículo '}
+          <span className="text-error">*</span>
         </label>
         <div className="relative">
           <input
+            id="vehicle-plate"
             type="text" placeholder="Ex: 22-AB-44" value={plate}
-            onChange={(e) => setPlate(e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, ''))}
+            onChange={(e) => setPlate(e.target.value.toUpperCase().replaceAll(/[^A-Z0-9-]/gu, ''))}
             className={`${INPUT_CLS} font-mono tracking-widest uppercase pr-10`}
-            style={{ fontSize: '0.9rem' }} maxLength={9} aria-label="Matrícula do veículo"
+            style={{ fontSize: '0.9rem' }} maxLength={9}
           />
           <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
             {plateLoading && <i className="fas fa-spinner fa-spin text-primary" style={{ fontSize: '0.9rem' }} aria-label="A consultar..." />}
@@ -167,10 +170,10 @@ export function StepVehicle(props: {
         <div className="rounded-xl border border-primary/25 bg-primary/5 p-3.5 space-y-3">
           <p className="text-foreground font-semibold" style={{ fontSize: '0.78rem' }}>Contorno temporário: introduza os dados manualmente enquanto a API externa está indisponível.</p>
           <div className="grid grid-cols-2 gap-2.5">
-            <input type="text" placeholder="Marca" value={String(manualVehicleData.make || '')} onChange={(e) => setManualVehicleData((prev) => ({ ...prev, make: e.target.value }))} className={INPUT_CLS} style={{ fontSize: '0.8rem' }} />
-            <input type="text" placeholder="Modelo" value={String(manualVehicleData.model || '')} onChange={(e) => setManualVehicleData((prev) => ({ ...prev, model: e.target.value }))} className={INPUT_CLS} style={{ fontSize: '0.8rem' }} />
-            <input type="text" placeholder="Ano" value={String((manualVehicleData as Record<string, unknown>).year || '')} onChange={(e) => setManualVehicleData((prev) => ({ ...prev, year: e.target.value } as Partial<VehicleData>))} className={INPUT_CLS} style={{ fontSize: '0.8rem' }} />
-            <input type="text" placeholder="Combustível" value={String((manualVehicleData as Record<string, unknown>).fuelType || '')} onChange={(e) => setManualVehicleData((prev) => ({ ...prev, fuelType: e.target.value } as Partial<VehicleData>))} className={INPUT_CLS} style={{ fontSize: '0.8rem' }} />
+            <input type="text" placeholder="Marca" value={String(manualVehicleData.make ?? '')} onChange={(e) => setManualVehicleData((prev) => ({ ...prev, make: e.target.value }))} className={INPUT_CLS} style={{ fontSize: '0.8rem' }} aria-label="Marca" />
+            <input type="text" placeholder="Modelo" value={String(manualVehicleData.model ?? '')} onChange={(e) => setManualVehicleData((prev) => ({ ...prev, model: e.target.value }))} className={INPUT_CLS} style={{ fontSize: '0.8rem' }} aria-label="Modelo" />
+            <input type="text" placeholder="Ano" value={String(manualVehicleData.year ?? '')} onChange={(e) => setManualVehicleData((prev) => ({ ...prev, year: e.target.value }))} className={INPUT_CLS} style={{ fontSize: '0.8rem' }} aria-label="Ano" />
+            <input type="text" placeholder="Combustível" value={String(manualVehicleData.fuelType ?? '')} onChange={(e) => setManualVehicleData((prev) => ({ ...prev, fuelType: e.target.value }))} className={INPUT_CLS} style={{ fontSize: '0.8rem' }} aria-label="Combustível" />
           </div>
           <button
             type="button"
@@ -186,27 +189,34 @@ export function StepVehicle(props: {
       )}
 
       <div>
-        <label className="block text-foreground font-semibold mb-1.5" style={{ fontSize: '0.8rem' }}>
-          <i className="fas fa-wifi text-primary mr-1.5" />Identificador RFID
+        <label htmlFor="vehicle-rfid" className="block text-foreground font-semibold mb-1.5" style={{ fontSize: '0.8rem' }}>
+          <i className="fas fa-wifi text-primary mr-1.5" />
+          {'Identificador RFID '}
           <span className="ml-1.5 text-muted-foreground font-normal" style={{ fontSize: '0.72rem' }}>(Opcional)</span>
         </label>
-        <input type="text" placeholder="Ex: A3:F2:9C:B1" value={rfid} onChange={(e) => setRfid(e.target.value)} className={`${INPUT_CLS} font-mono`} style={{ fontSize: '0.875rem' }} />
+        <input id="vehicle-rfid" type="text" placeholder="Ex: A3:F2:9C:B1" value={rfid} onChange={(e) => setRfid(e.target.value)} className={`${INPUT_CLS} font-mono`} style={{ fontSize: '0.875rem' }} />
       </div>
     </div>
   );
 }
 
-export function StepAccess({ accountType }: { accountType: AppProfile }) {
+export function StepAccess({ accountType }: Readonly<{ accountType: AppProfile }>) {
   return (
     <div className="space-y-4">
       <p className="text-muted-foreground mb-2" style={{ fontSize: '0.82rem' }}>Configure o seu acesso à plataforma de {accountType === 'MANAGER' ? 'gestão' : 'manutenção'}.</p>
       <div>
-        <label className="block text-foreground font-semibold mb-1.5" style={{ fontSize: '0.8rem' }}><i className="fas fa-building text-primary mr-1.5" />Código do parque / organização</label>
-        <input type="text" placeholder="Ex: PARK-2026-ABC" className={INPUT_CLS} style={{ fontSize: '0.875rem' }} />
+        <label htmlFor="park-code" className="block text-foreground font-semibold mb-1.5" style={{ fontSize: '0.8rem' }}>
+          <i className="fas fa-building text-primary mr-1.5" />
+          Código do parque / organização
+        </label>
+        <input id="park-code" type="text" placeholder="Ex: PARK-2026-ABC" className={INPUT_CLS} style={{ fontSize: '0.875rem' }} />
       </div>
       <div>
-        <label className="block text-foreground font-semibold mb-1.5" style={{ fontSize: '0.8rem' }}><i className="fas fa-envelope text-primary mr-1.5" />E-mail de convite</label>
-        <input type="email" placeholder="gestor@parque.pt" className={INPUT_CLS} style={{ fontSize: '0.875rem' }} />
+        <label htmlFor="invite-email" className="block text-foreground font-semibold mb-1.5" style={{ fontSize: '0.8rem' }}>
+          <i className="fas fa-envelope text-primary mr-1.5" />
+          E-mail de convite
+        </label>
+        <input id="invite-email" type="email" placeholder="gestor@parque.pt" className={INPUT_CLS} style={{ fontSize: '0.875rem' }} />
       </div>
       <div className="p-3.5 rounded-xl bg-warning/8 border border-warning/25 flex items-start gap-2">
         <i className="fas fa-triangle-exclamation text-warning mt-0.5 flex-shrink-0" style={{ fontSize: '0.85rem' }} />
@@ -216,14 +226,14 @@ export function StepAccess({ accountType }: { accountType: AppProfile }) {
   );
 }
 
-export function StepPayment(props: {
+export function StepPayment(props: Readonly<{
   payMethod: 'card' | 'mbway' | 'mb';
   setPayMethod: (v: 'card' | 'mbway' | 'mb') => void;
   cardN: string; setCardN: (v: string) => void;
   cardExpiry: string; setCardExpiry: (v: string) => void;
   cardCvv: string; setCardCvv: (v: string) => void;
   phone: string; setPhone: (v: string) => void;
-}) {
+}>) {
   const { payMethod, setPayMethod, cardN, setCardN, cardExpiry, setCardExpiry, cardCvv, setCardCvv, phone, setPhone } = props;
   return (
     <div className="space-y-4">
@@ -233,7 +243,7 @@ export function StepPayment(props: {
           { id: 'card', icon: 'fa-credit-card', label: 'Cartão' },
           { id: 'mbway', icon: 'fa-mobile-screen', label: 'MB Way' },
           { id: 'mb', icon: 'fa-money-bill', label: 'Multibanco' },
-        ] as { id: typeof payMethod; icon: string; label: string }[]).map((m) => (
+        ] as const).map((m) => (
           <button key={m.id} onClick={() => setPayMethod(m.id)} className={`py-2.5 rounded-xl border-2 flex flex-col items-center gap-1 transition-all ${payMethod === m.id ? 'border-primary bg-primary/8' : 'border-border hover:border-primary/40'}`}>
             <i className={`fas ${m.icon}`} style={{ fontSize: '1rem', color: payMethod === m.id ? 'var(--color-primary)' : 'var(--color-muted-foreground)' }} />
             <span className={`font-semibold ${payMethod === m.id ? 'text-primary' : 'text-muted-foreground'}`} style={{ fontSize: '0.72rem' }}>{m.label}</span>
@@ -243,25 +253,25 @@ export function StepPayment(props: {
       {payMethod === 'card' && (
         <div className="space-y-3">
           <div>
-            <label className="block text-foreground font-semibold mb-1.5" style={{ fontSize: '0.8rem' }}>Número do cartão</label>
-            <input type="text" placeholder="1234 5678 9012 3456" value={cardN} onChange={(e) => setCardN(e.target.value)} maxLength={19} className={`${INPUT_CLS} font-mono tracking-wider`} style={{ fontSize: '0.875rem' }} />
+            <label htmlFor="card-number" className="block text-foreground font-semibold mb-1.5" style={{ fontSize: '0.8rem' }}>Número do cartão</label>
+            <input id="card-number" type="text" placeholder="1234 5678 9012 3456" value={cardN} onChange={(e) => setCardN(e.target.value)} maxLength={19} className={`${INPUT_CLS} font-mono tracking-wider`} style={{ fontSize: '0.875rem' }} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-foreground font-semibold mb-1.5" style={{ fontSize: '0.8rem' }}>Validade</label>
-              <input type="text" placeholder="MM/AA" value={cardExpiry} onChange={(e) => setCardExpiry(e.target.value)} maxLength={5} className={INPUT_CLS} style={{ fontSize: '0.875rem' }} />
+              <label htmlFor="card-expiry" className="block text-foreground font-semibold mb-1.5" style={{ fontSize: '0.8rem' }}>Validade</label>
+              <input id="card-expiry" type="text" placeholder="MM/AA" value={cardExpiry} onChange={(e) => setCardExpiry(e.target.value)} maxLength={5} className={INPUT_CLS} style={{ fontSize: '0.875rem' }} />
             </div>
             <div>
-              <label className="block text-foreground font-semibold mb-1.5" style={{ fontSize: '0.8rem' }}>CVV</label>
-              <input type="text" placeholder="123" value={cardCvv} onChange={(e) => setCardCvv(e.target.value)} maxLength={4} className={INPUT_CLS} style={{ fontSize: '0.875rem' }} />
+              <label htmlFor="card-cvv" className="block text-foreground font-semibold mb-1.5" style={{ fontSize: '0.8rem' }}>CVV</label>
+              <input id="card-cvv" type="text" placeholder="123" value={cardCvv} onChange={(e) => setCardCvv(e.target.value)} maxLength={4} className={INPUT_CLS} style={{ fontSize: '0.875rem' }} />
             </div>
           </div>
         </div>
       )}
       {payMethod === 'mbway' && (
         <div>
-          <label className="block text-foreground font-semibold mb-1.5" style={{ fontSize: '0.8rem' }}>Número de telemóvel</label>
-          <input type="tel" placeholder="+351 912 345 678" value={phone} onChange={(e) => setPhone(e.target.value)} className={INPUT_CLS} style={{ fontSize: '0.875rem' }} />
+          <label htmlFor="phone-number" className="block text-foreground font-semibold mb-1.5" style={{ fontSize: '0.8rem' }}>Número de telemóvel</label>
+          <input id="phone-number" type="tel" placeholder="+351 912 345 678" value={phone} onChange={(e) => setPhone(e.target.value)} className={INPUT_CLS} style={{ fontSize: '0.875rem' }} />
         </div>
       )}
       {payMethod === 'mb' && (
@@ -274,7 +284,7 @@ export function StepPayment(props: {
   );
 }
 
-export function StepDriverType({ driverType, setDriverType }: { driverType: DriverType; setDriverType: (v: DriverType) => void }) {
+export function StepDriverType({ driverType, setDriverType }: Readonly<{ driverType: DriverType; setDriverType: (v: DriverType) => void }>) {
   return (
     <div className="space-y-3">
       <p className="text-muted-foreground mb-3" style={{ fontSize: '0.82rem' }}>Personalize a experiência. O perfil seleccionado activa filtros e recomendações automáticas.</p>
@@ -282,7 +292,7 @@ export function StepDriverType({ driverType, setDriverType }: { driverType: Driv
         { id: 'regular',           icon: 'fa-car',            color: '#7357ec', label: 'Condutor Regular',    desc: 'Prioridade por preço e distância. Veja a ocupação em tempo real e reserve em até 30 min.' },
         { id: 'ev',                icon: 'fa-charging-station', color: '#22c55e', label: 'Condutor EV',         desc: 'Filtragem por carregadores compatíveis, velocidade de carga e custo por kWh.' },
         { id: 'reduced_mobility', icon: 'fa-wheelchair',   color: '#0ea5e9', label: 'Mobilidade Reduzida', desc: 'Lugares acessíveis com dimensões, distância à entrada, vigilância e espaço para rampa.' },
-      ] as { id: DriverType; icon: string; color: string; label: string; desc: string }[]).map((t) => (
+      ] as const).map((t) => (
         <button key={t.id} onClick={() => setDriverType(t.id)} className={`w-full flex items-start gap-3 p-4 rounded-xl border-2 text-left transition-all ${driverType === t.id ? 'border-primary bg-primary/8' : 'border-border hover:border-primary/40'}`}>
           <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: driverType === t.id ? t.color : undefined }}>
             <i className={`fas ${t.icon} ${driverType === t.id ? 'text-white' : 'text-muted-foreground'}`} style={{ fontSize: '1rem' }} />
@@ -298,19 +308,19 @@ export function StepDriverType({ driverType, setDriverType }: { driverType: Driv
   );
 }
 
-export function StepPreferences({ notifPush, setNotifPush, notifEmail, setNotifEmail }: {
+export function StepPreferences({ notifPush, setNotifPush, notifEmail, setNotifEmail }: Readonly<{
   notifPush: boolean; setNotifPush: (v: boolean) => void;
   notifEmail: boolean; setNotifEmail: (v: boolean) => void;
-}) {
+}>) {
   return (
     <div className="space-y-4">
       <p className="text-muted-foreground mb-2" style={{ fontSize: '0.82rem' }}>Configure alertas e preferências de notificação.</p>
       <div className="bg-card border border-border rounded-xl p-4 space-y-3">
         <p className="text-foreground font-bold" style={{ fontSize: '0.85rem' }}><i className="fas fa-bell text-primary mr-2" />Notificações</p>
-        {[
+        {([
           { label: 'Alertas de disponibilidade', sub: 'Notificado quando há lugares livres no parque favorito', val: notifPush, set: setNotifPush },
           { label: 'Resumo por e-mail', sub: 'Relatório semanal de custos e deslocações', val: notifEmail, set: setNotifEmail },
-        ].map((n) => (
+        ] as const).map((n) => (
           <div key={n.label} className="flex items-center justify-between gap-3">
             <div>
               <p className="text-foreground font-semibold" style={{ fontSize: '0.82rem' }}>{n.label}</p>
@@ -326,7 +336,7 @@ export function StepPreferences({ notifPush, setNotifPush, notifEmail, setNotifE
   );
 }
 
-export function StepFinished({ accountType }: { accountType: AppProfile }) {
+export function StepFinished({ accountType }: Readonly<{ accountType: AppProfile }>) {
   return (
     <div className="text-center py-4">
       <div className="relative inline-block mb-5">
