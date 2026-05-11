@@ -18,7 +18,7 @@ VALUES (
     '070b4f4d-9a9e-5c4a-92bd-eae711ecb6b3',
     'ACCESSIBLE',
     1,
-    1,
+    3,
     now()
 );
 
@@ -52,7 +52,7 @@ VALUES (
     '33cce245-2bff-5ad3-9cf4-5b6abf1076b4',
     'ACCESSIBLE',
     1,
-    1,
+    2,
     now()
 );
 
@@ -103,7 +103,7 @@ VALUES (
     '452ed8eb-d0a3-5d61-8428-572e946614a5',
     'ACCESSIBLE',
     1,
-    1,
+    3,
     now()
 );
 
@@ -137,7 +137,7 @@ VALUES (
     '4731819f-a806-5c1f-be8c-a478d4276840',
     'ACCESSIBLE',
     1,
-    1,
+    3,
     now()
 );
 
@@ -205,7 +205,7 @@ VALUES (
     '617dd647-6d08-52b2-95d3-9b4a4e002b6e',
     'ACCESSIBLE',
     1,
-    1,
+    3,
     now()
 );
 
@@ -239,7 +239,7 @@ VALUES (
     '62feaf63-aa20-5070-b89f-e81bfd5f47cd',
     'ACCESSIBLE',
     1,
-    1,
+    4,
     now()
 );
 
@@ -306,8 +306,8 @@ VALUES (
     gen_random_uuid(),
     '7021e6fc-7585-5463-bbb7-de9bb8f4c37b',
     'ACCESSIBLE',
-    0,
-    1,
+    2,
+    5,
     now()
 );
 
@@ -358,7 +358,7 @@ VALUES (
     'b231a846-7d40-5100-ba29-b9c0ca0ef9aa',
     'ACCESSIBLE',
     1,
-    1,
+    2,
     now()
 );
 
@@ -426,7 +426,7 @@ VALUES (
     'c7c34eb2-d620-5fd6-a565-f04d9ec8b52a',
     'ACCESSIBLE',
     1,
-    1,
+    3,
     now()
 );
 
@@ -493,8 +493,8 @@ VALUES (
     gen_random_uuid(),
     'cd48f90c-637d-5f26-966a-73e1dd6baf98',
     'ACCESSIBLE',
-    1,
-    1,
+    0,
+    2,
     now()
 );
 
@@ -544,8 +544,8 @@ VALUES (
     gen_random_uuid(),
     'd8085d8f-7aaa-5eb4-b47d-2e2fe79bfe43',
     'ACCESSIBLE',
-    1,
-    1,
+    2,
+    4,
     now()
 );
 

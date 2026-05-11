@@ -143,7 +143,7 @@ public class ReservationService {
         // 9. BillingModule: create Stripe PaymentIntent + ParkingSession record
         //    Runs in a separate transaction; failure never rolls back the reservation
         try {
-            billingService.createPaymentIntentForReservation(saved);
+            billingService.createPaymentIntentForReservation(saved, user.getEmail());
         } catch (Exception ex) {
             log.warn("Billing step failed for reservation {} (reservation still confirmed): {}",
                 saved.getBookingCode(), ex.getMessage());
