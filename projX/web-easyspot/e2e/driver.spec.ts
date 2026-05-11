@@ -15,7 +15,11 @@ const park = {
 const parkDetails = {
   id: 'park-1', name: 'Parque Central', address: 'Rua A, Coimbra', coordinates: { lat: 40.2, lng: -8.4 },
   openingHours: '24h', totalSpaces: 50, freeSpaces: 10, zones: [],
-  spotMap: [{ spotNumber: 'f1:1', zone: 'STANDARD', row: 1, col: 1, status: 'free' }],
+  spotMap: [
+    { spotId: 'spot-uuid-free-1', spotNumber: 'f1:A1', zone: 'STANDARD', row: 1, col: 1, status: 'free' },
+    { spotId: 'spot-uuid-reserved-1', spotNumber: 'f1:A2', zone: 'STANDARD', row: 1, col: 2, status: 'reserved' },
+    { spotId: 'spot-uuid-occupied-1', spotNumber: 'f1:A3', zone: 'STANDARD', row: 1, col: 3, status: 'occupied' },
+  ],
   evChargers: [
     { type: 'Type 2', speed: 'Rápida (22kW)', speedKw: 22, pricePerKwh: 0.30, availability: true },
     { type: 'CCS', speed: 'Ultra-rápida (50kW)', speedKw: 50, pricePerKwh: 0.45, availability: false },
@@ -24,19 +28,6 @@ const parkDetails = {
     { location: 'Zona A - Piso 0', availability: true, distanceToEntranceMeters: 12, baySize: '4.0m x 5.0m', monitored: true, hasRampSpace: true, sensorStatus: 'online', ledStatus: 'green' },
     { location: 'Zona B - Piso -1', availability: false, distanceToEntranceMeters: 38, baySize: '3.5m x 5.0m', monitored: false, hasRampSpace: false, sensorStatus: 'faulty', ledStatus: 'yellow' },
   ],
-  tariffs: [{ pricePerHour: 1.5, maxDaily: 12, monthly: 60 }], amenities: ['wc'],
-};
-
-const parkDetails = {
-  id: 'park-1', name: 'Parque Central', address: 'Rua A, Coimbra', coordinates: { lat: 40.2, lng: -8.4 },
-  openingHours: '24h', totalSpaces: 50, freeSpaces: 10, zones: [],
-  spotMap: [
-    { spotId: 'spot-uuid-free-1', spotNumber: 'f1:A1', zone: 'STANDARD', row: 1, col: 1, status: 'free' },
-    { spotId: 'spot-uuid-reserved-1', spotNumber: 'f1:A2', zone: 'STANDARD', row: 1, col: 2, status: 'reserved' },
-    { spotId: 'spot-uuid-occupied-1', spotNumber: 'f1:A3', zone: 'STANDARD', row: 1, col: 3, status: 'occupied' },
-  ],
-  evChargers: [{ type: 'Type 2', speed: '22kW', pricePerKwh: 0.3, availability: true }],
-  accessibility: [{ location: 'A', availability: true, distanceToEntranceMeters: 12, baySize: '3.5m x 5.0m' }],
   tariffs: [{ pricePerHour: 1.5, maxDaily: 12, monthly: 60 }], amenities: ['wc'],
 };
 
@@ -88,10 +79,6 @@ test.beforeEach(async ({ page }) => {
       emailNotificationsEnabled: true, spending: { totalEuros: 0, sessionCount: 0, avgEuros: 0 }, favoritesCount: 1,
     } });
   });
-
-  await page.route('**/api/payments/setup-status', async (route) => {
-    await route.fulfill({ json: { configured: true } });
-  });
 });
 
 test('Lista de parques', async ({ page }) => {
@@ -130,13 +117,10 @@ test('Tab EV - mostra carregadores com disponibilidade e preço', async ({ page 
   await page.goto('/parking/park-1');
   await waitForLoaded(page);
   await page.getByRole('button', { name: /EV/i }).click();
-  // Both chargers visible
   await expect(page.getByText('Type 2', { exact: true })).toBeVisible();
   await expect(page.getByText('CCS', { exact: true })).toBeVisible();
-  // Price shown
   await expect(page.getByText(/€0\.30/)).toBeVisible();
   await expect(page.getByText(/€0\.45/)).toBeVisible();
-  // Availability badges
   await expect(page.getByText('Livre').first()).toBeVisible();
   await expect(page.getByText('Ocupado').first()).toBeVisible();
 });
@@ -153,7 +137,6 @@ test('Tab EV - compatibilidade com veículo EV do utilizador', async ({ page }) 
   await page.goto('/parking/park-1');
   await waitForLoaded(page);
   await page.getByRole('button', { name: /EV/i }).click();
-  // Compatibility banner should appear (user vehicle is EV with Type 2)
   await expect(page.getByText(/Compatibilidade/i)).toBeVisible();
 });
 
@@ -161,10 +144,8 @@ test('Tab Acessibilidade - mostra lugares com distância e dimensão', async ({ 
   await page.goto('/parking/park-1');
   await waitForLoaded(page);
   await page.getByRole('button', { name: /Acess/i }).click();
-  // Both spots visible
   await expect(page.getByText('Zona A - Piso 0')).toBeVisible();
   await expect(page.getByText('Zona B - Piso -1')).toBeVisible();
-  // Distances shown
   await expect(page.getByText('12m')).toBeVisible();
   await expect(page.getByText('38m')).toBeVisible();
 });
@@ -181,7 +162,6 @@ test('Tab Acessibilidade - mostra disponibilidade correta dos lugares', async ({
   await page.goto('/parking/park-1');
   await waitForLoaded(page);
   await page.getByRole('button', { name: /Acess/i }).click();
-  // First spot available, second occupied
   const badges = page.getByText(/^(Livre|Ocupado)$/);
   await expect(badges.first()).toBeVisible();
 });
@@ -203,9 +183,10 @@ test('Tab Acessibilidade - link de reporte de ocupação irregular', async ({ pa
 
 test('Infraestrutura - contador EV e Acessível no header do parque', async ({ page }) => {
   await page.goto('/parking/park-1');
-  // EV and Accessible counts shown in amenities strip
   await expect(page.getByText(/1\/2\s*EV/)).toBeVisible();
   await expect(page.getByText(/1\s*Acess\./)).toBeVisible();
+});
+
 // ── US#2 Price Transparency & Planning E2E tests ────────────────────────────
 
 test('Tarifas do parque — mostra taxa horária do backend', async ({ page }) => {
@@ -258,10 +239,6 @@ test('Planeamento — condutor expande previsão de ocupação', async ({ page }
 
 // ── Reservation E2E tests ────────────────────────────────────────────────────
 
-async function waitForLoaded(page: import('@playwright/test').Page) {
-  await page.waitForSelector('[role="status"][aria-busy="true"]', { state: 'hidden', timeout: 10000 }).catch(() => {});
-}
-
 test.describe('Reserva de lugar', () => {
   test.beforeEach(async ({ page }) => {
     await page.route('**/api/reservations', async (route) => {
@@ -286,13 +263,10 @@ test.describe('Reserva de lugar', () => {
     await waitForLoaded(page);
     await expect(page.getByRole('heading', { name: 'Reservar Lugar' })).toBeVisible();
 
-    // Avança para step 2 — selecionar parque já está pré-definido pelo parkId
     await page.getByRole('button', { name: /Avançar para escolha do lugar/i }).click();
 
-    // Aguarda que o mapa de lugares carregue (selectedLot disponível)
     await expect(page.getByRole('button', { name: 'Lugar A1' })).toBeVisible();
 
-    // Spots ocupados/reservados devem estar desabilitados
     const reservedSpot = page.getByRole('button', { name: 'Lugar A2' });
     const occupiedSpot = page.getByRole('button', { name: 'Lugar A3' });
     await expect(reservedSpot).toBeDisabled();
@@ -304,20 +278,16 @@ test.describe('Reserva de lugar', () => {
     await waitForLoaded(page);
     await expect(page.getByRole('heading', { name: 'Reservar Lugar' })).toBeVisible();
 
-    // Step 1: avança (parque já pré-selecionado via parkId)
     await page.getByRole('button', { name: /Avançar para escolha do lugar/i }).click();
 
-    // Step 2: aguarda que o mapa de lugares carregue e seleciona lugar livre A1
     await expect(page.getByRole('button', { name: 'Lugar A1' })).toBeVisible();
     await page.getByRole('button', { name: 'Lugar A1' }).click();
     await expect(page.getByText('Lugar A1 selecionado')).toBeVisible();
     await page.getByRole('button', { name: 'Confirmar Lugar' }).click();
 
-    // Step 3: aceitar termos e confirmar
     await page.getByRole('checkbox').click();
     await page.getByRole('button', { name: /Confirmar e reservar lugar/i }).click();
 
-    // Step 4: confirmação
     await expect(page.getByText('ES-ABCD-EFGH')).toBeVisible();
   });
 
