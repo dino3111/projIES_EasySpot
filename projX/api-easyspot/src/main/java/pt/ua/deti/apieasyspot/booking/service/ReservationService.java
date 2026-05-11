@@ -11,6 +11,7 @@ import pt.ua.deti.apieasyspot.booking.dto.CreateReservationRequest;
 import pt.ua.deti.apieasyspot.booking.dto.ReservationResponse;
 import pt.ua.deti.apieasyspot.booking.event.ReservationEventPublisher;
 import pt.ua.deti.apieasyspot.booking.model.Reservation;
+import pt.ua.deti.apieasyspot.notification.service.AlertNotificationDispatchService;
 import pt.ua.deti.apieasyspot.booking.model.ReservationStatus;
 import pt.ua.deti.apieasyspot.booking.repository.ReservationRepository;
 import pt.ua.deti.apieasyspot.common.exception.ConflictException;
@@ -55,6 +56,7 @@ public class ReservationService {
     private final BillingService billingService;
     private final BookingConfirmationMailService confirmationMailService;
     private final ReservationEventPublisher eventPublisher;
+    private final AlertNotificationDispatchService notificationDispatchService;
 
     @Transactional
     public ReservationResponse create(String authentikUserId, String idempotencyKey,
@@ -149,11 +151,16 @@ public class ReservationService {
                 saved.getBookingCode(), ex.getMessage());
         }
 
-        // 10. NotificationModule: send booking confirmation email (Gmail SMTP)
+        // 10. NotificationModule: send booking confirmation email (SMTP) + WebSocket push
         try {
             confirmationMailService.sendConfirmation(saved);
         } catch (Exception ex) {
             log.warn("Confirmation email failed for reservation {}: {}", saved.getBookingCode(), ex.getMessage());
+        }
+        try {
+            notificationDispatchService.sendReservationConfirmed(saved);
+        } catch (Exception ex) {
+            log.warn("WS notification failed for reservation {}: {}", saved.getBookingCode(), ex.getMessage());
         }
 
         // 11. Publish Kafka event so other consumers (NotificationModule, AnalyticsModule) react

@@ -12,10 +12,12 @@ type AlertTriggerEvent = {
   parkId?: string;
   vehicleId?: string;
   message?: string;
+  bookingCode?: string;
   source?: string;
 };
 
 function alertLabel(alertType?: string): string {
+  if (alertType === 'RESERVATION_CONFIRMED') return 'Reserva confirmada!';
   if (alertType === 'SPACE_AVAILABLE') return 'Lugar disponível';
   if (alertType === 'LOT_FULL') return 'Parque lotado';
   if (alertType === 'EV_CHARGER_AVAILABLE') return 'Carregador EV disponível';
@@ -42,9 +44,15 @@ export function RealtimeAlerts() {
       client.subscribe(`/topic/alerts/${user.sub}`, (frame) => {
         try {
           const event = JSON.parse(frame.body) as AlertTriggerEvent;
-          toast.info(alertLabel(event.alertType), {
-            description: event.message ?? `Parque ${event.parkId ?? 'N/D'}`,
-          });
+          const isReservation = event.alertType === 'RESERVATION_CONFIRMED';
+          const description = event.bookingCode
+            ? `Código: ${event.bookingCode} · ${event.message ?? ''}`
+            : (event.message ?? `Parque ${event.parkId ?? 'N/D'}`);
+          if (isReservation) {
+            toast.success(alertLabel(event.alertType), { description });
+          } else {
+            toast.info(alertLabel(event.alertType), { description });
+          }
         } catch {
           toast.info('Novo alerta', { description: 'Recebeu uma notificação em tempo real.' });
         }
