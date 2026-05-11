@@ -3,10 +3,13 @@ import { test, expect } from '@playwright/test';
 const jwt =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1MSIsIm5hbWUiOiJBbmEgU2lsdmEiLCJlbWFpbCI6ImFuYUBlYXN5c3BvdC5wdCIsImdyb3VwcyI6WyJEUklWRVIiXSwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdC9hdXRoZW50aWsvYXBwbGljYXRpb24vby9lYXN5c3BvdC8iLCJleHAiOjk5OTk5OTk5OTl9.fake-sig';
 
-const parks = [
-  { id: 'park-1', name: 'Parque Central', localidade: 'Aveiro' },
-  { id: 'park-2', name: 'Forum Aveiro', localidade: 'Aveiro' },
-];
+const parksList = {
+  items: [
+    { id: 'park-1', name: 'Parque Central', city: 'Aveiro', address: 'Rua Central, Aveiro', latitude: 40.6, longitude: -8.6, openingHours: '24h', pricePerHour: 1.5, totalSpaces: 50, freeSpaces: 10, evChargers: { available: 0, total: 0 }, accessibleSpaces: { available: 0, total: 0 }, availabilityStatus: 'AVAILABLE' },
+    { id: 'park-2', name: 'Forum Aveiro', city: 'Aveiro', address: 'Fórum Aveiro', latitude: 40.6, longitude: -8.6, openingHours: '24h', pricePerHour: 1.2, totalSpaces: 100, freeSpaces: 20, evChargers: { available: 0, total: 0 }, accessibleSpaces: { available: 0, total: 0 }, availabilityStatus: 'AVAILABLE' },
+  ],
+  pagination: { page: 1, pageSize: 500, totalItems: 2, totalPages: 1 },
+};
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript((token) => {
@@ -18,12 +21,12 @@ test.beforeEach(async ({ page }) => {
     route.fulfill({ json: { role: 'DRIVER', name: 'Ana Silva', email: 'ana@easyspot.pt' } }),
   );
 
-  await page.route('**/api/parks/catalog/summary', (route) =>
-    route.fulfill({ json: parks }),
+  await page.route('**/api/parks/list**', (route) =>
+    route.fulfill({ json: parksList }),
   );
 
   await page.route('**/api/vehicles', (route) =>
-    route.fulfill({ json: [] }),
+    route.fulfill({ json: [{ id: 'v1', plate: 'AA-11-BB', isPrimary: true, isEv: false, isAccessible: false }] }),
   );
 
   await page.route('**/api/payments/setup-status', (route) =>

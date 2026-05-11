@@ -270,7 +270,6 @@ test.describe('Reserva de lugar', () => {
     await page.locator('#exit-input').fill(exit);
 
     // Avança para step 2 — selecionar parque já está pré-definido pelo parkId
-    await page.getByRole('button', { name: /Escolher Lugar/i }).first().click();
     await page.getByRole('button', { name: /Avançar para escolha do lugar/i }).click();
 
     await expect(page.getByRole('button', { name: 'Lugar A1' })).toBeVisible();
@@ -293,7 +292,6 @@ test.describe('Reserva de lugar', () => {
     await page.locator('#exit-input').fill(exit);
 
     // Step 1: avança (parque já pré-selecionado via parkId)
-    await page.getByRole('button', { name: /Escolher Lugar/i }).first().click();
     await page.getByRole('button', { name: /Avançar para escolha do lugar/i }).click();
 
     await expect(page.getByRole('button', { name: 'Lugar A1' })).toBeVisible();
