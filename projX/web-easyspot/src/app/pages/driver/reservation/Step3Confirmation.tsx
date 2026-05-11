@@ -126,7 +126,7 @@ export function Step3Confirmation({
           {isSubmitting
             ? <span className="loading loading-spinner loading-sm" />
             : <i className="fa-solid fa-lock mr-2" />}
-          {isSubmitting ? 'A reservar…' : 'Confirmar Reserva'}
+          {isSubmitting ? 'A reservar…' : 'Confirmar e reservar lugar'}
         </button>
       </div>
     </div>

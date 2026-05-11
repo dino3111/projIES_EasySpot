@@ -40,12 +40,6 @@ export function ReservationPage() {
   const [spotFilter, setSpotFilter]           = useState<SpotFilter>('todos');
 
   useEffect(() => {
-    if (selectedVehicle?.isEV) setSpotFilter('ev');
-    else if (selectedVehicle?.isAccessible) setSpotFilter('accessible');
-    else setSpotFilter('todos');
-  }, [selectedVehicleId]);
-
-  useEffect(() => {
     if (didInitVehicleSelection.current) return;
     if (selectedVehicleId && vehicles.some((v) => v.id === selectedVehicleId)) {
       didInitVehicleSelection.current = true;
