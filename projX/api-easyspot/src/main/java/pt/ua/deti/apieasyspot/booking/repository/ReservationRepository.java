@@ -33,6 +33,21 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
         @Param("departureTime") OffsetDateTime departureTime
     );
 
+    @Query("""
+        SELECT COUNT(r) FROM Reservation r
+        WHERE r.parkingSpot.id = :spotId
+          AND r.id <> :reservationId
+          AND r.status NOT IN ('CANCELLED', 'EXPIRED', 'COMPLETED')
+          AND r.arrivalTime < :departureTime
+          AND r.departureTime > :arrivalTime
+        """)
+    long countSpotConflictsExcludingReservation(
+        @Param("spotId") UUID spotId,
+        @Param("reservationId") UUID reservationId,
+        @Param("arrivalTime") OffsetDateTime arrivalTime,
+        @Param("departureTime") OffsetDateTime departureTime
+    );
+
     // Lot-level: count active reservations in the window to check against lot capacity
     @Query("""
         SELECT COUNT(r) FROM Reservation r
@@ -43,6 +58,21 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
         """)
     long countLotReservations(
         @Param("parkId") UUID parkId,
+        @Param("arrivalTime") OffsetDateTime arrivalTime,
+        @Param("departureTime") OffsetDateTime departureTime
+    );
+
+    @Query("""
+        SELECT COUNT(r) FROM Reservation r
+        WHERE r.parkingLot.id = :parkId
+          AND r.id <> :reservationId
+          AND r.status NOT IN ('CANCELLED', 'EXPIRED', 'COMPLETED')
+          AND r.arrivalTime < :departureTime
+          AND r.departureTime > :arrivalTime
+        """)
+    long countLotReservationsExcludingReservation(
+        @Param("parkId") UUID parkId,
+        @Param("reservationId") UUID reservationId,
         @Param("arrivalTime") OffsetDateTime arrivalTime,
         @Param("departureTime") OffsetDateTime departureTime
     );
@@ -59,6 +89,23 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
     long countVehicleConflicts(
         @Param("vehicleId") UUID vehicleId,
         @Param("parkId") UUID parkId,
+        @Param("arrivalTime") OffsetDateTime arrivalTime,
+        @Param("departureTime") OffsetDateTime departureTime
+    );
+
+    @Query("""
+        SELECT COUNT(r) FROM Reservation r
+        WHERE r.vehicle.id = :vehicleId
+          AND r.parkingLot.id = :parkId
+          AND r.id <> :reservationId
+          AND r.status NOT IN ('CANCELLED', 'EXPIRED', 'COMPLETED')
+          AND r.arrivalTime < :departureTime
+          AND r.departureTime > :arrivalTime
+        """)
+    long countVehicleConflictsExcludingReservation(
+        @Param("vehicleId") UUID vehicleId,
+        @Param("parkId") UUID parkId,
+        @Param("reservationId") UUID reservationId,
         @Param("arrivalTime") OffsetDateTime arrivalTime,
         @Param("departureTime") OffsetDateTime departureTime
     );

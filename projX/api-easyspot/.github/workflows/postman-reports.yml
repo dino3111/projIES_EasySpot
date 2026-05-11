@@ -74,7 +74,7 @@ jobs:
           tail -n 200 app.log || true
           exit 1
 
-      - name: Run reports collection
+      - name: Run Postman collections
         run: ./postman/scripts/run-reports-newman.sh
 
       - name: Stop API
