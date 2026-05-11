@@ -26,6 +26,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.ToIntFunction;
 import java.util.stream.Collectors;
@@ -226,7 +227,7 @@ public class ParkService {
 
         List<ParkingLotDetailsResponse.ZoneResponse> zones = fetchZones(id, reservedCountByZone);
         int freeSpaces = zones.isEmpty()
-            ? Math.min(lot.getTotalSpaces(), (int) spots.stream().filter(s -> "free".equalsIgnoreCase(s.getStatus()) && !reservedSpotIds.contains(s.getId())).count())
+            ? Math.min(lot.getTotalSpaces(), (int) spots.stream().filter(s -> STATUS_FREE.equalsIgnoreCase(statusBySpot.getOrDefault(s.getId(), s.getStatus()))).count())
             : zones.stream().mapToInt(ParkingLotDetailsResponse.ZoneResponse::free).sum();
 
         List<ParkingLotDetailsResponse.SpotResponse> spotResponses = spots.stream()

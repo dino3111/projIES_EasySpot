@@ -21,6 +21,7 @@ public class BookingConfirmationMailService {
     private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
     private final EmailDeliveryDedupService emailDeliveryDedupService;
+    private final JavaMailSender mailSender;
 
     @Value("${spring.mail.from:noreply@easyspot.pt}")
     private String fromAddress;
