@@ -271,7 +271,26 @@ test('Planeamento — condutor expande previsão de ocupação', async ({ page }
       ],
     }] } });
   });
+  await page.route('**/search?*', async (route) => {
+    const url = new URL(route.request().url());
+    if ((url.searchParams.get('q') ?? '').toLowerCase().includes('coimbra')) {
+      await route.fulfill({
+        json: [
+          {
+            lat: '40.20331',
+            lon: '-8.41026',
+            display_name: 'Coimbra, Portugal',
+          },
+        ],
+      });
+      return;
+    }
+    await route.fulfill({ json: [] });
+  });
   await page.goto('/costs?tab=planeamento');
+  await page.getByLabel('Pesquisar destino no mapa').fill('Coimbra');
+  await expect(page.getByText('Coimbra, Portugal')).toBeVisible();
+  await page.getByText('Coimbra, Portugal').click();
   await page.getByRole('button', { name: /Ver previsão de ocupação/i }).click();
   await expect(page.getByText(/Previsão de ocupação/).first()).toBeVisible();
 });
