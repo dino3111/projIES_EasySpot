@@ -6,8 +6,7 @@ import type { ParkingLot } from '../../data/parkingTypes';
 import { useProfile } from '../../context/ProfileContext';
 import { CompactParkRow } from './components/CompactParkRow';
 import { FilterBanners } from './components/FilterBanners';
-import { fetchParkCities, fetchParksList } from '../../services/parksApi';
-import { subscribeSpaceAvailableAlerts } from '../../services/parksApi';
+import { fetchParkCities, fetchParksList, subscribeSpaceAvailableAlerts, haversineKm, formatDistance, formatWalkingTime } from '../../services/parksApi';
 
 interface QueryState {
   page: number;
@@ -23,6 +22,7 @@ export function ParkingListPage() {
   const { vehicles } = useProfile();
   const primaryVehicle = vehicles.find((v) => v.isPrimary) ?? vehicles[0] ?? null;
 
+  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [parkingLots, setParkingLots] = useState<ParkingLot[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -44,6 +44,25 @@ export function ParkingListPage() {
       selectedVehicleId: vehicle?.id ?? null,
     };
   });
+
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setUserCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => { /* permission denied or unavailable — keep null */ },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+    );
+  }, []);
+
+  useEffect(() => {
+    if (!userCoords) return;
+    setParkingLots((prev) =>
+      prev.map((lot) => {
+        const km = haversineKm(userCoords.lat, userCoords.lng, lot.latitude, lot.longitude);
+        return { ...lot, distance: formatDistance(km), walkingTime: formatWalkingTime(km) };
+      }),
+    );
+  }, [userCoords]);
 
   // Track whether the user has manually chosen a vehicle so we don't overwrite their selection.
   const userSelectedVehicleRef = useRef(false);
@@ -100,7 +119,14 @@ export function ParkingListPage() {
           availableOnly: query.showAvailableOnly,
         });
         if (!mounted) return;
-        setParkingLots(data.items);
+        const coords = userCoords;
+        const lots = coords
+          ? data.items.map((lot) => {
+              const km = haversineKm(coords.lat, coords.lng, lot.latitude, lot.longitude);
+              return { ...lot, distance: formatDistance(km), walkingTime: formatWalkingTime(km) };
+            })
+          : data.items;
+        setParkingLots(lots);
         setTotalPages(data.pagination.totalPages);
       } catch {
         if (mounted) setLoadError('Não foi possível carregar parques do backend.');

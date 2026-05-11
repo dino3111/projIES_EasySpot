@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import {
-  mockBillingRecords,
   type IssueReport,
+  type BillingRecord,
   type TariffEntry,
 } from '../../data/gestorData';
 import { TariffsTab } from './components/TariffsTab';
@@ -102,7 +102,7 @@ export function TariffsIncidentsPage() {
     setTariffs(tariffsData.map(mapTariff));
   };
 
-  const billingRecords = mockBillingRecords.filter(b => tariffs.some(t => t.parqueNome === b.parqueNome));
+  const billingRecords: BillingRecord[] = [];
 
   const filteredIssues = useMemo(() => {
     return issues.filter((i) => {

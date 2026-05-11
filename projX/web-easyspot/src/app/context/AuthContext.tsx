@@ -323,7 +323,8 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
     setUser(null);
     setAccessToken(null);
 
-    const params = new URLSearchParams({ post_logout_redirect_uri: `${globalThis.location.origin}/welcome` });
+    const params = new URLSearchParams({ post_logout_redirect_uri: REDIRECT_URI });
+    if (CLIENT_ID) params.set('client_id', CLIENT_ID);
     if (idToken) params.set('id_token_hint', idToken);
     globalThis.location.href = `${LOGOUT_URL}?${params.toString()}`;
   }, []);
