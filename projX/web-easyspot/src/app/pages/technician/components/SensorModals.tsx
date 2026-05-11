@@ -38,7 +38,7 @@ export function SensorDiagPanel({
   const activeFloor = lot?.floors?.[activeFloorIdx];
 
   return (
-    <dialog open className="fixed inset-0 z-50 flex items-center justify-center bg-transparent p-4" aria-label={`Diagnóstico: ${sensor.id}`}>
+    <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-4" aria-label={`Diagnóstico: ${sensor.id}`}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
       <div className="relative bg-card border border-border rounded-2xl p-5 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
 
@@ -169,7 +169,7 @@ export function SensorDiagPanel({
           </button>
         </div>
       </div>
-    </dialog>
+    </div>
   );
 }
 
