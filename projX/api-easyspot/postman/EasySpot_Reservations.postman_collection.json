@@ -213,8 +213,8 @@
               "});",
               "pm.test('Reservation updated', function () {",
               "  const body = pm.response.json();",
-              "  pm.expect(body.arrivalDateTime).to.eql(pm.collectionVariables.get('updated_arrival_time'));",
-              "  pm.expect(body.departureDateTime).to.eql(pm.collectionVariables.get('updated_departure_time'));",
+              "  pm.expect(Date.parse(body.arrivalDateTime)).to.eql(Date.parse(pm.collectionVariables.get('updated_arrival_time')));",
+              "  pm.expect(Date.parse(body.departureDateTime)).to.eql(Date.parse(pm.collectionVariables.get('updated_departure_time')));",
               "});"
             ]
           }

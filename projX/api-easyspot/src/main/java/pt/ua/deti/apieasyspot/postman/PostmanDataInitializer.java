@@ -153,8 +153,9 @@ class PostmanDataInitializer implements ApplicationRunner {
             standard.setParkingLot(lot);
             standard.setName("Standard");
             standard.setDescription("Tarifa normal de estacionamento");
-            standard.setPricePerHour(BigDecimal.valueOf(1.20));
-            standard.setMaxDaily(BigDecimal.valueOf(12.00));
+            boolean reservationContractLot = "Europa".equals(lot.getName());
+            standard.setPricePerHour(reservationContractLot ? BigDecimal.ZERO : BigDecimal.valueOf(1.20));
+            standard.setMaxDaily(reservationContractLot ? BigDecimal.ZERO : BigDecimal.valueOf(12.00));
             standard.setMonthly(BigDecimal.valueOf(80.00));
             tariffRepository.save(standard);
 

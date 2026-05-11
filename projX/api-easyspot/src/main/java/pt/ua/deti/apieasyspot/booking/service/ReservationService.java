@@ -137,9 +137,11 @@ public class ReservationService {
         reservation.setLockedUntil(arrival.plusMinutes(LOCK_MINUTES));
         reservation.setEstimatedCost(estimatedCost);
 
-        if (previousSpot != null && !previousSpot.equals(nextSpot)) {
+        if (!sameSpot(previousSpot, nextSpot)) {
+            if (previousSpot != null) {
             previousSpot.setStatus(restoreSpotStatus(previousSpot));
             parkingSpotRepository.save(previousSpot);
+            }
         }
 
         if (nextSpot != null) {
@@ -550,6 +552,12 @@ public class ReservationService {
         if (zone == ZoneType.EV) return "ev";
         if (zone == ZoneType.ACCESSIBLE) return "accessible";
         return "free";
+    }
+
+    private boolean sameSpot(ParkingSpot left, ParkingSpot right) {
+        UUID leftId = left != null ? left.getId() : null;
+        UUID rightId = right != null ? right.getId() : null;
+        return java.util.Objects.equals(leftId, rightId);
     }
 
     private ReservationResponse toResponse(Reservation r) {

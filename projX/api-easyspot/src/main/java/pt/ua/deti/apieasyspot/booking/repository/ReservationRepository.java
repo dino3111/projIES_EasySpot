@@ -1,6 +1,7 @@
 package pt.ua.deti.apieasyspot.booking.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -17,6 +18,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
     Optional<Reservation> findByIdempotencyKey(String idempotencyKey);
     Optional<Reservation> findByUserIdAndIdempotencyKey(UUID userId, String idempotencyKey);
 
+    @EntityGraph(attributePaths = {"parkingLot", "parkingSpot", "vehicle"})
     List<Reservation> findByUserIdOrderByCreatedAtDesc(UUID userId);
 
     // Spot-level overlap: count active reservations for the same spot in the requested window
