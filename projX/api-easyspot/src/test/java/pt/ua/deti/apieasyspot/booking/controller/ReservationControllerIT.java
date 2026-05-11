@@ -496,6 +496,82 @@ class ReservationControllerIT {
         }
     }
 
+    @Test
+    @DisplayName("POST /api/reservations - concurrent auto-assignment when only one free spot - only one succeeds")
+    void createReservation_concurrentAutoAssignSingleFreeSpot_onlyOneSucceeds() throws Exception {
+        User user2 = new User();
+        user2.setAuthentikUserId("auth-sub-789");
+        user2.setEmail("driver3@test.com");
+        user2.setName("Test Driver 3");
+        user2.setRole("DRIVER");
+        user2 = userRepository.save(user2);
+
+        Vehicle vehicle2 = new Vehicle();
+        vehicle2.setUser(user2);
+        vehicle2.setPlate("CC-22-CC");
+        vehicle2.setMake("Peugeot");
+        vehicle2.setModel("208");
+        vehicle2.setYear(2022);
+        vehicle2.setFuelType("Gasolina");
+        vehicle2 = vehicleRepository.save(vehicle2);
+
+        // Force only one logical free slot for the requested window.
+        lot.setTotalSpaces(1);
+        parkingLotRepository.save(lot);
+
+        OffsetDateTime arrival = now().plusHours(2);
+        OffsetDateTime departure = arrival.plusHours(2);
+
+        CreateReservationRequest body1 = new CreateReservationRequest(
+            lot.getId(), vehicle.getId(), arrival.toString(), departure.toString(), null
+        );
+        CreateReservationRequest body2 = new CreateReservationRequest(
+            lot.getId(), vehicle2.getId(), arrival.toString(), departure.toString(), null
+        );
+
+        CountDownLatch startLatch = new CountDownLatch(1);
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            Future<Integer> req1 = executor.submit(() -> {
+                startLatch.await(5, TimeUnit.SECONDS);
+                return mockMvc.perform(post("/api/reservations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(body1))
+                        .with(jwtWithRole("auth-sub-123", "DRIVER")))
+                    .andReturn().getResponse().getStatus();
+            });
+
+            Future<Integer> req2 = executor.submit(() -> {
+                startLatch.await(5, TimeUnit.SECONDS);
+                return mockMvc.perform(post("/api/reservations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(body2))
+                        .with(jwtWithRole("auth-sub-789", "DRIVER")))
+                    .andReturn().getResponse().getStatus();
+            });
+
+            startLatch.countDown();
+
+            List<Integer> statuses = new ArrayList<>();
+            statuses.add(req1.get(10, TimeUnit.SECONDS));
+            statuses.add(req2.get(10, TimeUnit.SECONDS));
+
+            long createdCount = statuses.stream().filter(s -> s == 201).count();
+            long conflictCount = statuses.stream().filter(s -> s == 409).count();
+            assertEquals(1, createdCount, "Exactly one request should create reservation");
+            assertEquals(1, conflictCount, "Exactly one request should fail with conflict");
+
+            List<Reservation> lotReservations = reservationRepository.findAll().stream()
+                .filter(r -> r.getParkingLot() != null && r.getParkingLot().getId().equals(lot.getId()))
+                .toList();
+            assertEquals(1, lotReservations.size(), "There should be only one active reservation created");
+            assertTrue(lotReservations.getFirst().getParkingSpot() != null, "Auto-assignment must choose a concrete spot");
+        } finally {
+            executor.shutdownNow();
+            assertTrue(executor.awaitTermination(2, TimeUnit.SECONDS) || executor.isTerminated());
+        }
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private OffsetDateTime now() {
