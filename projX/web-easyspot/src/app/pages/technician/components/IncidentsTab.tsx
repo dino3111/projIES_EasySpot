@@ -10,7 +10,6 @@ type IncidentSeverityFilter = 'todos' | 'critica' | 'aviso';
 type IncidentsTabProps = Readonly<{
   issues: IssueReport[];
   sensors: SensorDevice[];
-  issues: IssueReport[];
   onSelectIssue: (i: IssueReport) => void;
   onUpdateSensor: (s: SensorDevice) => void;
   onCreateTaskFromIssue: (i: IssueReport) => void;
@@ -44,7 +43,6 @@ const ISSUE_STATUS_BADGES: Record<IssueReport['estado'], { label: string; color:
 export function IncidentsTab({
   issues,
   sensors,
-  issues,
   onSelectIssue,
   onUpdateSensor,
   onCreateTaskFromIssue,
@@ -110,24 +108,15 @@ export function IncidentsTab({
           </button>
           {uniqueCities.map(city => (
             <button
-              onClick={() => setCidadeFilter('todas')}
-              className={`px-3 py-1.5 transition-colors ${cidadeFilter === 'todas' ? 'bg-primary text-white' : 'bg-card text-muted-foreground hover:bg-muted'}`}
+              key={city}
+              onClick={() => setCidadeFilter(city)}
+              className={`px-3 py-1.5 transition-colors ${cidadeFilter === city ? 'bg-primary text-white' : 'bg-card text-muted-foreground hover:bg-muted'}`}
               style={{ fontSize: '0.75rem', fontWeight: 600 }}
             >
-              <i className="fas fa-map-pin mr-1" aria-hidden="true"></i>
-              Todas as Cidades
+              {city}
             </button>
-            {uniqueCities.map(city => (
-              <button
-                key={city}
-                onClick={() => setCidadeFilter(city)}
-                className={`px-3 py-1.5 transition-colors ${cidadeFilter === city ? 'bg-primary text-white' : 'bg-card text-muted-foreground hover:bg-muted'}`}
-                style={{ fontSize: '0.75rem', fontWeight: 600 }}
-              >
-                {city}
-              </button>
-            ))}
-          </div>
+          ))}
+        </div>
         </div>
       )}
 
