@@ -57,7 +57,7 @@ export function ParkingListPage() {
       showAccessibleOnly: primaryVehicle?.isAccessible ?? false,
       page: 1,
     }));
-  }, [primaryVehicle]);
+  }, [primaryVehicle?.id, primaryVehicle?.isEV, primaryVehicle?.isAccessible]);
 
   const setFilter = <K extends keyof Omit<QueryState, 'page'>>(key: K, value: QueryState[K]) => {
     setQuery((prev) => ({ ...prev, [key]: value, page: 1 }));
