@@ -32,7 +32,9 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static pt.ua.deti.apieasyspot.support.TestJwtRequests.jwtWithRole;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
@@ -76,6 +78,105 @@ class AlertControllerIT {
             return userRepository.save(user);
         });
     }
+
+    // --- GET /api/alerts (Manager sees CLIENT reports) ---
+
+    @Test
+    @DisplayName("GET /api/alerts - unauthenticated - returns 401")
+    void listAlerts_unauthenticated_returns401() throws Exception {
+        mockMvc.perform(get("/api/alerts"))
+            .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("GET /api/alerts - DRIVER role - returns 403")
+    void listAlerts_driverRole_returns403() throws Exception {
+        mockMvc.perform(get("/api/alerts")
+                .with(jwtWithRole("sub-driver", "DRIVER")))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("GET /api/alerts - MANAGER sees CLIENT report submitted by driver")
+    void listAlerts_manager_seesClientReport() throws Exception {
+        ParkingLot lot = parkingLotRepository.save(lot("Parque Reports"));
+
+        Alert clientReport = new Alert();
+        clientReport.setParkingLotId(lot.getId());
+        clientReport.setParkingLotName(lot.getName());
+        clientReport.setType(AlertType.CLIENT);
+        clientReport.setSeverity(SeverityAlert.WARNING);
+        clientReport.setState(StateAlert.OPEN);
+        clientReport.setZone("A");
+        clientReport.setSpotNumber("A-07");
+        clientReport.setPlate("AA-12-BB");
+        clientReport.setDescription("Veículo sem dístico no lugar de mobilidade reduzida.");
+        clientReport.setAttributedTo("Filipe Teixeira");
+        clientReport.setCreatedAt(OffsetDateTime.now());
+        alertRepository.save(clientReport);
+
+        mockMvc.perform(get("/api/alerts")
+                .with(jwtWithRole("sub-manager", "MANAGER")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[?(@.type == 'CLIENT')]").exists())
+            .andExpect(jsonPath("$[?(@.spotNumber == 'A-07')]").exists())
+            .andExpect(jsonPath("$[?(@.plate == 'AA-12-BB')]").exists());
+    }
+
+    @Test
+    @DisplayName("GET /api/alerts - TECHNICAL sees CLIENT report")
+    void listAlerts_technical_seesClientReport() throws Exception {
+        ParkingLot lot = parkingLotRepository.save(lot("Parque Tecnico"));
+
+        Alert clientReport = new Alert();
+        clientReport.setParkingLotId(lot.getId());
+        clientReport.setParkingLotName(lot.getName());
+        clientReport.setType(AlertType.CLIENT);
+        clientReport.setSeverity(SeverityAlert.CRITICAL);
+        clientReport.setState(StateAlert.OPEN);
+        clientReport.setZone("B");
+        clientReport.setSpotNumber("B-01");
+        clientReport.setDescription("Bloqueia saída de emergência.");
+        clientReport.setAttributedTo("Luís Pedro");
+        clientReport.setCreatedAt(OffsetDateTime.now());
+        alertRepository.save(clientReport);
+
+        mockMvc.perform(get("/api/alerts")
+                .with(jwtWithRole("sub-tech", "TECHNICAL")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[?(@.type == 'CLIENT' && @.severity == 'CRITICAL')]").exists());
+    }
+
+    @Test
+    @DisplayName("GET /api/alerts?state=OPEN - filters by state")
+    void listAlerts_filterByState_returnsOnlyOpen() throws Exception {
+        ParkingLot lot = parkingLotRepository.save(lot("Parque Filter"));
+
+        Alert openAlert = new Alert();
+        openAlert.setParkingLotId(lot.getId());
+        openAlert.setType(AlertType.CLIENT);
+        openAlert.setSeverity(SeverityAlert.WARNING);
+        openAlert.setState(StateAlert.OPEN);
+        openAlert.setDescription("OPEN report");
+        openAlert.setCreatedAt(OffsetDateTime.now());
+        alertRepository.save(openAlert);
+
+        Alert resolvedAlert = new Alert();
+        resolvedAlert.setParkingLotId(lot.getId());
+        resolvedAlert.setType(AlertType.CLIENT);
+        resolvedAlert.setSeverity(SeverityAlert.WARNING);
+        resolvedAlert.setState(StateAlert.RESOLVED);
+        resolvedAlert.setDescription("RESOLVED report");
+        resolvedAlert.setCreatedAt(OffsetDateTime.now());
+        alertRepository.save(resolvedAlert);
+
+        mockMvc.perform(get("/api/alerts?state=OPEN")
+                .with(jwtWithRole("sub-manager", "MANAGER")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[?(@.state == 'RESOLVED')]").doesNotExist());
+    }
+
+    // --- PATCH /api/alerts/{id}/state ---
 
     @Test
     @DisplayName("PATCH /api/alerts/{id}/state - unauthenticated - returns 401")

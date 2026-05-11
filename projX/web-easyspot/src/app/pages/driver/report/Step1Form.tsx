@@ -9,9 +9,11 @@ interface Props {
   onChange: (updates: Partial<ReportForm>) => void;
   onSubmit: () => void;
   onCancel: () => void;
+  submitting?: boolean;
+  submitError?: string | null;
 }
 
-export function Step1Form({ form, onChange, onSubmit, onCancel }: Readonly<Props>) {
+export function Step1Form({ form, onChange, onSubmit, onCancel, submitting = false, submitError = null }: Readonly<Props>) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [plateInfo, setPlateInfo] = useState<VehicleData | null>(null);
   const [lookingUp, setLookingUp] = useState(false);
@@ -283,30 +285,58 @@ export function Step1Form({ form, onChange, onSubmit, onCancel }: Readonly<Props
             </h2>
             <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium" style={{ fontSize: '0.68rem' }}>Opcional</span>
           </div>
-          <div className="border-2 border-dashed border-border hover:border-primary/50 rounded-xl p-8 text-center bg-muted/30 hover:bg-primary/4 transition-all cursor-pointer group">
+          <label className="border-2 border-dashed border-border hover:border-primary/50 rounded-xl p-8 text-center bg-muted/30 hover:bg-primary/4 transition-all cursor-pointer group block">
             <div className="w-12 h-12 rounded-full bg-muted group-hover:bg-primary/10 transition-colors flex items-center justify-center mx-auto mb-3">
               <i className="fas fa-cloud-arrow-up text-muted-foreground group-hover:text-primary transition-colors" style={{ fontSize: '1.3rem' }} />
             </div>
-            <p className="text-foreground font-semibold" style={{ fontSize: '0.85rem' }}>Clique para adicionar fotografia</p>
-            <p className="text-muted-foreground mt-1" style={{ fontSize: '0.75rem' }}>PNG, JPG até 5 MB</p>
-          </div>
+            {form.photo ? (
+              <p className="text-primary font-semibold" style={{ fontSize: '0.85rem' }}>
+                <i className="fas fa-check-circle mr-1.5" />{form.photo.name}
+              </p>
+            ) : (
+              <p className="text-foreground font-semibold" style={{ fontSize: '0.85rem' }}>Clique para adicionar fotografia</p>
+            )}
+            <p className="text-muted-foreground mt-1" style={{ fontSize: '0.75rem' }}>PNG, JPG até 10 MB</p>
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0] ?? null;
+                onChange({ photo: file });
+              }}
+            />
+          </label>
         </section>
       </div>
+
+      {submitError && (
+        <div className="mt-4 flex items-start gap-2.5 px-4 py-3 rounded-xl bg-error/10 border border-error/30">
+          <i className="fas fa-circle-exclamation text-error mt-0.5 flex-shrink-0" style={{ fontSize: '0.85rem' }} />
+          <p className="text-error" style={{ fontSize: '0.82rem' }}>{submitError}</p>
+        </div>
+      )}
 
       <div className="flex flex-col sm:flex-row gap-3 mt-6">
         <button
           onClick={onCancel}
-          className="flex items-center justify-center gap-2 px-5 py-3 rounded-full border border-border bg-card text-foreground font-semibold hover:bg-muted transition-colors flex-1 order-2 sm:order-1"
+          disabled={submitting}
+          className="flex items-center justify-center gap-2 px-5 py-3 rounded-full border border-border bg-card text-foreground font-semibold hover:bg-muted transition-colors flex-1 order-2 sm:order-1 disabled:opacity-50"
           style={{ fontSize: '0.9rem' }}
         >
           <i className="fas fa-times" />Cancelar
         </button>
         <button
-          onClick={() => { if (validate()) onSubmit(); }}
-          className="flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-primary text-white font-semibold hover:bg-primary/90 shadow-lg shadow-primary/25 transition-all flex-1 order-1 sm:order-2"
+          onClick={() => { if (validate()) void onSubmit(); }}
+          disabled={submitting}
+          className="flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-primary text-white font-semibold hover:bg-primary/90 shadow-lg shadow-primary/25 transition-all flex-1 order-1 sm:order-2 disabled:opacity-60"
           style={{ fontSize: '0.9rem' }}
         >
-          <i className="fas fa-paper-plane" />Enviar Denúncia
+          {submitting ? (
+            <><i className="fas fa-spinner fa-spin" />A enviar...</>
+          ) : (
+            <><i className="fas fa-paper-plane" />Enviar Denúncia</>
+          )}
         </button>
       </div>
 

@@ -222,6 +222,57 @@ export const paymentApi = {
   createCustomerPortalSession: () => request<string>('/api/payments/customer-portal'),
 };
 
+export interface ReportResponse {
+  id: string;
+  type: string;
+  parkId: string;
+  parkName: string;
+  zone: string;
+  spotNumber: string;
+  plate: string | null;
+  description: string;
+  photoUrl: string | null;
+  severity: string;
+  state: string;
+  createdAt: string;
+}
+
+export const reportApi = {
+  submit: async (params: {
+    parkingLotId: string;
+    zone: string;
+    spotNumber: string;
+    violationType: string;
+    vehiclePlate?: string;
+    description: string;
+    photo?: File | null;
+  }): Promise<ReportResponse> => {
+    const token = getAccessToken();
+    const formData = new FormData();
+    formData.append('parkingLotId', params.parkingLotId);
+    formData.append('zone', params.zone);
+    formData.append('spotNumber', params.spotNumber);
+    formData.append('violationType', params.violationType);
+    if (params.vehiclePlate) formData.append('vehiclePlate', params.vehiclePlate);
+    formData.append('description', params.description);
+    if (params.photo) formData.append('photo', params.photo);
+
+    const res = await withGlobalLoading(() =>
+      fetch(`${API_BASE}/api/reports`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        body: formData,
+      }),
+    );
+    if (!res.ok) {
+      if (res.status === Number(401)) throwUnauthorizedError();
+      const errorText = await readErrorBody(res);
+      throwHttpError(res.status, errorText);
+    }
+    return await res.json() as ReportResponse;
+  },
+};
+
 export const profileApi = {
   get: () => request<ProfileResponse>('/api/profile'),
   update: (body: ProfileUpdateRequest) =>

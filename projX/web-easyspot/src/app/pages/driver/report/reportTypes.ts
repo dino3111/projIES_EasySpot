@@ -8,6 +8,7 @@ export interface ReportForm {
   violationType: ViolationType;
   vehiclePlate: string;
   description: string;
+  photo: File | null;
 }
 
 export const violationTypes: { id: ViolationType; label: string; icon: string; description: string; color: string }[] = [
