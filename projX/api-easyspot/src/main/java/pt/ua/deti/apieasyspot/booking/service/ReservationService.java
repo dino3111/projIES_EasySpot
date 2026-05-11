@@ -3,6 +3,7 @@ package pt.ua.deti.apieasyspot.booking.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.exception.ConstraintViolationException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,6 +49,9 @@ public class ReservationService {
     private static final int LOCK_MINUTES = 30;
     private static final String BOOKING_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     private static final SecureRandom RANDOM = new SecureRandom();
+
+    @Value("${reservations.billing.enabled:true}")
+    private boolean reservationBillingEnabled;
 
     private final ReservationRepository reservationRepository;
     private final UserRepository userRepository;
@@ -259,14 +263,18 @@ public class ReservationService {
         // 9. BillingModule: create Stripe PaymentIntent + ParkingSession record
         //    Runs in a separate transaction; transient Stripe failures do not roll back,
         //    but missing payment setup aborts the reservation so the caução stays enforced
-        try {
-            billingService.createPaymentIntentForReservation(saved, user.getEmail());
-        } catch (PaymentSetupRequiredException ex) {
-            log.warn("Billing setup missing for reservation {}: {}", saved.getBookingCode(), ex.getMessage());
-            throw new UnprocessableEntityException(ex.getMessage());
-        } catch (Exception ex) {
-            log.warn("Billing step failed for reservation {} (reservation still confirmed): {}",
-                saved.getBookingCode(), ex.getMessage());
+        if (reservationBillingEnabled) {
+            try {
+                billingService.createPaymentIntentForReservation(saved, user.getEmail());
+            } catch (PaymentSetupRequiredException ex) {
+                log.warn("Billing setup missing for reservation {}: {}", saved.getBookingCode(), ex.getMessage());
+                throw new UnprocessableEntityException(ex.getMessage());
+            } catch (Exception ex) {
+                log.warn("Billing step failed for reservation {} (reservation still confirmed): {}",
+                    saved.getBookingCode(), ex.getMessage());
+            }
+        } else {
+            log.info("Billing disabled for reservation {} by configuration", saved.getBookingCode());
         }
 
         // 10. NotificationModule: send booking confirmation email (Gmail SMTP)
