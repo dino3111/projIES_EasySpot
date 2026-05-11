@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 // JWT with MANAGER role (signature not validated in tests)
-const jwt = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJtZ3ItMSIsIm5hbWUiOiJBbmEgR2VzdG9yYSIsImVtYWlsIjoiYW5hQGVhc3lzcG90LnB0IiwiZ3JvdXBzIjpbIk1BTkFHRVIiXX0.sig';
+const jwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJtZ3ItMSIsIm5hbWUiOiJBbmEgR2VzdG9yYSIsImVtYWlsIjoiYW5hQGVhc3lzcG90LnB0IiwiZ3JvdXBzIjpbIk1BTkFHRVIiXSwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdC9hdXRoZW50aWsvYXBwbGljYXRpb24vby9lYXN5c3BvdC8iLCJleHAiOjk5OTk5OTk5OTl9.fake-sig';
 
 const mockProfile = {
   role: 'MANAGER',

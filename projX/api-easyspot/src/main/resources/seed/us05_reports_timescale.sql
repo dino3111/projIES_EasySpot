@@ -121,7 +121,8 @@ values
     'Europa',
     'CLIENT', 'WARNING', 'IN_PROGRESS',
     'Piso 1', 'A-04', null, '77-GH-99',
-    'Veículo em dupla fila junto ao lugar A-04 a bloquear saída de dois veículos.',
+    'Veículo em dupla fila junto ao lugar A-04 a bloquear saída de '
+    || 'dois veículos.',
     null, 'Maria Silva',
     'Segurança do parque a tentar localizar o condutor.',
     null,

@@ -105,7 +105,7 @@ test('Tarifas do parque — mostra taxa horária do backend', async ({ page }) =
   await expect(page.getByRole('heading', { name: 'Parque Central' })).toBeVisible();
   await page.getByRole('button', { name: /Tarifas/i }).click();
   await expect(page.getByText('Por Hora').first()).toBeVisible();
-  await expect(page.getByText('€1.50')).toBeVisible();
+  await expect(page.getByText('€1.50').first()).toBeVisible();
 });
 
 test('Tarifas do parque — mostra gráfico de ocupação histórica', async ({ page }) => {
@@ -173,6 +173,12 @@ test.describe('Reserva de lugar', () => {
     await page.goto('/reservation?parkId=park-1');
     await expect(page.getByRole('heading', { name: 'Reservar Lugar' })).toBeVisible();
 
+    // Ensure arrival/exit times are valid (far future) so button is enabled
+    const arrival = new Date(Date.now() + 2 * 3600_000).toISOString().slice(0, 16);
+    const exit = new Date(Date.now() + 4 * 3600_000).toISOString().slice(0, 16);
+    await page.locator('#arrival-input').fill(arrival);
+    await page.locator('#exit-input').fill(exit);
+
     // Avança para step 2 — selecionar parque já está pré-definido pelo parkId
     await page.getByRole('button', { name: /Escolher Lugar/i }).first().click();
 
@@ -186,6 +192,12 @@ test.describe('Reserva de lugar', () => {
   test('Lugar livre pode ser selecionado e reservado com sucesso', async ({ page }) => {
     await page.goto('/reservation?parkId=park-1');
     await expect(page.getByRole('heading', { name: 'Reservar Lugar' })).toBeVisible();
+
+    // Ensure arrival/exit times are valid so button is enabled
+    const arrival = new Date(Date.now() + 2 * 3600_000).toISOString().slice(0, 16);
+    const exit = new Date(Date.now() + 4 * 3600_000).toISOString().slice(0, 16);
+    await page.locator('#arrival-input').fill(arrival);
+    await page.locator('#exit-input').fill(exit);
 
     // Step 1: avança (parque já pré-selecionado via parkId)
     await page.getByRole('button', { name: /Escolher Lugar/i }).first().click();
@@ -213,6 +225,10 @@ test.describe('Reserva de lugar', () => {
     });
 
     await page.goto('/reservation?parkId=park-1');
+    const arrival = new Date(Date.now() + 2 * 3600_000).toISOString().slice(0, 16);
+    const exit = new Date(Date.now() + 4 * 3600_000).toISOString().slice(0, 16);
+    await page.locator('#arrival-input').fill(arrival);
+    await page.locator('#exit-input').fill(exit);
     await page.getByRole('button', { name: /Escolher Lugar/i }).first().click();
     await page.getByRole('button', { name: 'Lugar A1' }).click();
     await page.getByRole('button', { name: 'Confirmar Lugar' }).click();
