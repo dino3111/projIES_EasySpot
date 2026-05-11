@@ -1,5 +1,6 @@
 import { API_BASE } from './apiBase';
 import { withGlobalLoading } from '../app/context/LoadingContext';
+import { getAccessToken } from '../app/services/authToken';
 
 export interface VehicleData {
   plate?: string;
@@ -44,7 +45,7 @@ export interface InsuranceData {
 const LOOKUP_ENDPOINT = `${API_BASE}/api/vehicles/lookup`;
 
 function buildAuthHeaders(): Record<string, string> {
-  const accessToken = sessionStorage.getItem('es_access_token');
+  const accessToken = getAccessToken();
   if (!accessToken) throw new Error('Sessão expirada. Inicie sessão novamente.');
   return {
     Accept: 'application/json',

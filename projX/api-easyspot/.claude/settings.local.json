@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//home/martim/Documentos/IES_Projeto/projX/**)",
+      "Bash(JAVA_HOME=/usr/lib/jvm/java-26-openjdk ./mvnw compile)",
+      "Bash(JAVA_HOME=/usr/lib/jvm/java-26-openjdk ./mvnw test-compile)",
+      "Bash(JAVA_HOME=/usr/lib/jvm/java-26-openjdk ./mvnw dependency:build-classpath -q)",
+      "Bash(jar tf:*)",
+      "Bash(JAVA_HOME=/usr/lib/jvm/java-26-openjdk ./mvnw test-compile -q)",
+      "Bash(JAVA_HOME=/usr/lib/jvm/java-26-openjdk ./mvnw test -Dtest=\"AnalyticsServiceTest,VehicleServiceTest\" -q)",
+      "Bash(mkdir -p /home/martim/Documentos/IES_Projeto/projX/api-easyspot/src/test/java/pt/ua/deti/apieasyspot/booking/service)",
+      "Bash(mkdir -p /home/martim/Documentos/IES_Projeto/projX/api-easyspot/src/test/java/pt/ua/deti/apieasyspot/booking/controller)",
+      "Bash(./mvnw test *)"
+    ]
+  }
+}

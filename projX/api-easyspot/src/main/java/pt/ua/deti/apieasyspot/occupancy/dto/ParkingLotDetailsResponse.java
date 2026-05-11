@@ -23,7 +23,7 @@ public record ParkingLotDetailsResponse(
     
     public record ZoneResponse(String zoneName, int total, int free, int occupancyPercent) {}
     
-    public record SpotResponse(String spotNumber, String zone, int row, int col, String status) {}
+    public record SpotResponse(UUID spotId, String spotNumber, String zone, int row, int col, String status) {}
     
     public record EVChargerResponse(String type, String speed, int speedKw, BigDecimal pricePerKwh, boolean availability) {}
     

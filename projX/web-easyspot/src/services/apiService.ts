@@ -1,17 +1,7 @@
 import { API_BASE } from './apiBase';
 import { withGlobalLoading } from '../app/context/LoadingContext';
+import { getAccessToken } from '../app/services/authToken';
 const AUTH_STORAGE_KEYS = ['es_access_token', 'es_id_token', 'es_refresh_token', 'es_pkce_verifier', 'es_pkce_state'] as const;
-
-type RefreshFn = () => Promise<string | null>;
-let refreshTokenFn: RefreshFn | null = null;
-
-export function registerRefreshTokenFn(fn: RefreshFn | null): void {
-  refreshTokenFn = fn;
-}
-
-function getAccessToken(): string | null {
-  return sessionStorage.getItem('es_access_token');
-}
 
 function clearAuthStorage() {
   for (const key of AUTH_STORAGE_KEYS) sessionStorage.removeItem(key);
@@ -52,27 +42,9 @@ async function readErrorBody(res: Response): Promise<string> {
   }
 }
 
-function isAccessTokenExpired(): boolean {
-  const token = sessionStorage.getItem('es_access_token');
-  if (!token) return true;
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return true;
-    const b64 = parts[1].replaceAll('-', '+').replaceAll('_', '/');
-    const padded = b64 + '='.repeat((4 - (b64.length % 4)) % 4);
-    const claims = JSON.parse(atob(padded)) as { exp?: number };
-    if (typeof claims.exp !== 'number') return true;
-    return claims.exp * 1000 < Date.now();
-  } catch {
-    return true;
-  }
-}
-
-function throwUnauthorizedError(hadToken: boolean): never {
-  if (hadToken && isAccessTokenExpired()) {
-    clearAuthStorage();
-    redirectToWelcomeIfNeeded();
-  }
+function throwUnauthorizedError(): never {
+  clearAuthStorage();
+  redirectToWelcomeIfNeeded();
   throw new Error('Sessão expirada ou inválida. Por favor, tente entrar novamente.');
 }
 
@@ -82,40 +54,22 @@ function throwHttpError(status: number, text: string): never {
   throw new Error(errorMessage);
 }
 
-async function doFetch(url: string, options: RequestInit, token: string | null): Promise<Response> {
+export async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const token = getAccessToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string>),
   };
   if (token) headers.Authorization = `Bearer ${token}`;
-  return withGlobalLoading(() => fetch(url, { ...options, headers }));
-}
 
-export async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const method = options.method ?? 'GET';
   const url = `${API_BASE}${path}`;
-  let token = getAccessToken();
-  let res = await doFetch(url, options, token);
-
-  if (res.status === Number(401) && refreshTokenFn) {
-    console.warn('[API-401] attempting refresh', method, url);
-    const refreshed = await refreshTokenFn().catch((err: unknown) => {
-      console.error('[API-401] refresh threw', err);
-      return null;
-    });
-    if (refreshed) {
-      console.info('[API-401] refresh ok, retrying', method, url);
-      token = refreshed;
-      res = await doFetch(url, options, token);
-    } else {
-      console.warn('[API-401] refresh failed', method, url);
-    }
-  }
+  const res = await withGlobalLoading(() => fetch(url, { ...options, headers }));
 
   if (!res.ok) {
     if (res.status === Number(401)) {
-      console.warn('[API-401] giving up', method, url, 'bearer:', token ? 'yes' : 'no');
-      throwUnauthorizedError(token !== null);
+      console.warn('[API-401]', method, url, 'bearer:', token ? 'yes' : 'no');
+      throwUnauthorizedError();
     }
     const errorText = await readErrorBody(res);
     console.warn('[API-ERR]', method, url, 'status:', res.status, 'body:', errorText.slice(0, 500));
@@ -237,7 +191,9 @@ export interface InsuranceLookupResponse {
 }
 
 export interface VehicleCreateRequest {
-  licensePlate: string;  nickname?: string;
+  licensePlate: string;
+  externalIdentifier?: string;
+  nickname?: string;
   isAccessible?: boolean;
   isPrimary?: boolean;
   chargerTypes?: string[];
@@ -283,7 +239,7 @@ export const profileApi = {
       body: formData,
     }));
     if (!res.ok) {
-      if (res.status === Number(401)) throwUnauthorizedError(token !== null);
+      if (res.status === Number(401)) throwUnauthorizedError();
       const errorText = await readErrorBody(res);
       throwHttpError(res.status, errorText);
     }

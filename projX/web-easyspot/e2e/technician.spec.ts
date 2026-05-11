@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 // JWT with TECHNICAL role (signature not validated in tests)
-const jwt = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZWNoLTEiLCJuYW1lIjoiTGF1cmEgRmFyaWFzIiwiZW1haWwiOiJsYXVyYUBlYXN5c3BvdC5wdCIsImdyb3VwcyI6WyJURUNITklDQUwiXX0.sig';
+const jwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZWNoLTEiLCJuYW1lIjoiTGF1cmEgRmFyaWFzIiwiZW1haWwiOiJsYXVyYUBlYXN5c3BvdC5wdCIsImdyb3VwcyI6WyJURUNITklDQUwiXSwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdC9hdXRoZW50aWsvYXBwbGljYXRpb24vby9lYXN5c3BvdC8iLCJleHAiOjk5OTk5OTk5OTl9.fake-sig';
 
 const mockDashboard = {
   kpis: {

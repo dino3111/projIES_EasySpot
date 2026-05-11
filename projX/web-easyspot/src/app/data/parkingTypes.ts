@@ -56,6 +56,7 @@ export interface ParkingLot {
   hourlyRate: number;
   dailyMax: number;
   monthlyRate: number;
+  evChargingRate: number;
   distance: string;
   walkingTime: string;
   hasEVCharger: boolean;

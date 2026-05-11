@@ -47,9 +47,22 @@ export function getDefaultExitTime(arrivalIso: string): string {
   return `${base.getFullYear()}-${pad(base.getMonth() + 1)}-${pad(base.getDate())}T${pad(base.getHours())}:${pad(base.getMinutes())}`;
 }
 
-export function calcCost(lot: ParkingLot | null, hours: number): number {
-  if (!lot) return 0;
+export const EV_CHARGING_KWH_PER_HOUR = 7;
+
+export function calcParkingCost(lot: ParkingLot, hours: number): number {
   return Math.min(lot.hourlyRate * hours, lot.dailyMax);
+}
+
+export function calcChargingCost(lot: ParkingLot, hours: number): number {
+  if (!lot.evChargingRate || lot.evChargingRate <= 0) return 0;
+  return lot.evChargingRate * EV_CHARGING_KWH_PER_HOUR * hours;
+}
+
+export function calcCost(lot: ParkingLot | null, hours: number, isEVSpot = false): number {
+  if (!lot) return 0;
+  const parking = calcParkingCost(lot, hours);
+  const charging = isEVSpot ? calcChargingCost(lot, hours) : 0;
+  return parking + charging;
 }
 
 export function fmtDateTime(iso: string): string {
@@ -88,7 +101,7 @@ export function spotColorClasses(spot: ParkingSpot, selected: boolean, selectabl
   if (selected) return 'bg-primary text-primary-content border-primary shadow-md scale-110';
   if (!selectable) {
     if (spot.status === 'occupied') return 'bg-error/80 text-error-content cursor-not-allowed opacity-80';
-    if (spot.status === 'reserved') return 'bg-base-300 text-base-content/40 cursor-not-allowed opacity-60';
+    // reservado e filtrado: mesmo cinzento uniforme, sem se destacar
     return 'bg-base-300 text-base-content/30 cursor-not-allowed opacity-50';
   }
   if (spot.status === 'ev') return 'bg-warning text-warning-content hover:scale-105 hover:shadow cursor-pointer border-warning';

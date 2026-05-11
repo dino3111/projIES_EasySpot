@@ -122,7 +122,6 @@ export function Step3Confirmation({
           onClick={onConfirm}
           disabled={!agreeTerms || isSubmitting}
           className="btn btn-primary rounded-full flex-1 shadow-lg shadow-primary/30 disabled:opacity-40"
-          aria-label="Confirmar e reservar lugar"
         >
           {isSubmitting
             ? <span className="loading loading-spinner loading-sm" />

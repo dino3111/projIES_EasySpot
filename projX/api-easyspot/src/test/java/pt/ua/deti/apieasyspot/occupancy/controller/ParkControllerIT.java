@@ -17,9 +17,15 @@ import pt.ua.deti.apieasyspot.occupancy.model.EVCharger;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
 import pt.ua.deti.apieasyspot.occupancy.repository.AccessibleSpotRepository;
 import pt.ua.deti.apieasyspot.occupancy.repository.EVChargerRepository;
+import pt.ua.deti.apieasyspot.occupancy.model.ParkingSpot;
+import pt.ua.deti.apieasyspot.occupancy.model.ZoneType;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingLotRepository;
+import pt.ua.deti.apieasyspot.occupancy.repository.ParkingSpotRepository;
+import pt.ua.deti.apieasyspot.occupancy.repository.TimescaleOccupancySnapshotRepository;
 
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 
@@ -36,6 +42,10 @@ class ParkControllerIT {
     @Autowired ParkingLotRepository parkingLotRepository;
     @Autowired EVChargerRepository evChargerRepository;
     @Autowired AccessibleSpotRepository accessibleSpotRepository;
+    @Autowired private MockMvc mockMvc;
+    @Autowired private ParkingLotRepository parkingLotRepository;
+    @Autowired private ParkingSpotRepository parkingSpotRepository;
+    @Autowired private TimescaleOccupancySnapshotRepository occupancyRepository;
 
     @MockitoBean JwtDecoder jwtDecoder;
 
@@ -47,6 +57,7 @@ class ParkControllerIT {
         mockMvc = MockMvcBuilders.webAppContextSetup(wac).apply(springSecurity()).build();
         accessibleSpotRepository.deleteAll();
         evChargerRepository.deleteAll();
+        parkingSpotRepository.deleteAll();
         parkingLotRepository.deleteAll();
 
         lot = new ParkingLot();
@@ -154,6 +165,45 @@ class ParkControllerIT {
                 .andExpect(jsonPath("$.address").value("Rua Principal"))
                 .andExpect(jsonPath("$.coordinates.lat").value(40.6))
                 .andExpect(jsonPath("$.amenities[0]").value("Wifi"));
+    }
+
+    @Test
+    void getDetails_spotMap_includesSpotIdForReservation() throws Exception {
+        ParkingSpot spot = new ParkingSpot();
+        spot.setParkingLot(lot);
+        spot.setSpotNumber("A01");
+        spot.setZone(ZoneType.STANDARD);
+        spot.setSpotRow(1);
+        spot.setSpotCol(1);
+        spot.setStatus("free");
+        spot = parkingSpotRepository.save(spot);
+
+        mockMvc.perform(get("/api/parks/{id}/details", lot.getId())
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(jwtWithRole("sub", "DRIVER")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.spotMap[0].spotId").value(spot.getId().toString()))
+                .andExpect(jsonPath("$.spotMap[0].spotNumber").value("A01"))
+                .andExpect(jsonPath("$.spotMap[0].status").value("free"));
+    }
+
+    @Test
+    void getDetails_spotMap_reservedSpotHasCorrectStatus() throws Exception {
+        ParkingSpot spot = new ParkingSpot();
+        spot.setParkingLot(lot);
+        spot.setSpotNumber("B01");
+        spot.setZone(ZoneType.STANDARD);
+        spot.setSpotRow(1);
+        spot.setSpotCol(1);
+        spot.setStatus("reserved");
+        parkingSpotRepository.save(spot);
+
+        mockMvc.perform(get("/api/parks/{id}/details", lot.getId())
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(jwtWithRole("sub", "DRIVER")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.spotMap[0].status").value("reserved"))
+                .andExpect(jsonPath("$.spotMap[0].spotId").isNotEmpty());
     }
 
     @Test
@@ -342,6 +392,41 @@ class ParkControllerIT {
     }
 
     // ── Cities tests ─────────────────────────────────────────────────────────
+
+    @Test
+    void getHourlyOccupancy_noData_returnsEmptyArray() throws Exception {
+        mockMvc.perform(get("/api/parks/{id}/occupancy/hourly", lot.getId())
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(jwtWithRole("sub", "DRIVER")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
+    void getHourlyOccupancy_withHistoricalData_returnsHourlyPoints() throws Exception {
+        // Insert 3 snapshots at different hours within last 7 days
+        Instant base = Instant.now().minus(2, ChronoUnit.DAYS);
+        occupancyRepository.insert(UUID.randomUUID(), lot.getId(), ZoneType.STANDARD, 50, 100, base.minus(2, ChronoUnit.HOURS));
+        occupancyRepository.insert(UUID.randomUUID(), lot.getId(), ZoneType.STANDARD, 80, 100, base.minus(1, ChronoUnit.HOURS));
+        occupancyRepository.insert(UUID.randomUUID(), lot.getId(), ZoneType.STANDARD, 20, 100, base);
+
+        mockMvc.perform(get("/api/parks/{id}/occupancy/hourly", lot.getId())
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(jwtWithRole("sub", "DRIVER")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$[0].hour").isString())
+                .andExpect(jsonPath("$[0].occupancyPercent").isNumber());
+    }
+
+    @Test
+    void getHourlyOccupancy_notFound_returns404() throws Exception {
+        mockMvc.perform(get("/api/parks/{id}/occupancy/hourly", UUID.randomUUID())
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(jwtWithRole("sub", "DRIVER")))
+                .andExpect(status().isNotFound());
+    }
 
     @Test
     void listCities_returnsCityOfSavedLot() throws Exception {

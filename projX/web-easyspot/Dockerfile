@@ -2,13 +2,14 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy only package files first for better caching
-COPY package.json package-lock.json* .npmrc* ./
+# Use the pnpm lockfile already checked into the repo so the image matches the
+# dependency tree used by the project and by the restored node_modules volume.
+# Pin pnpm to a Node 20-compatible major; corepack otherwise resolves pnpm 11.
+RUN corepack enable && corepack prepare pnpm@9 --activate
 
-# Install dependencies (this layer is cached if package.json doesn't change)
-RUN CI=true npm ci
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
 
-# Copy the rest of the application
 COPY . .
 
 EXPOSE 5173
