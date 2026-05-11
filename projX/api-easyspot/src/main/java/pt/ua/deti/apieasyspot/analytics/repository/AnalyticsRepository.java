@@ -73,7 +73,6 @@ public class AnalyticsRepository {
             """
             select coalesce(sum(occupied_count), 0), coalesce(sum(total_count), 0)
             from v_latest_occupancy
-            where recorded_at >= now() - interval '2 hours'
             """,
             (rs, rowNum) -> new long[]{rs.getLong(1), rs.getLong(2)});
         return new int[]{(int) result[0], (int) result[1]};
@@ -105,7 +104,6 @@ public class AnalyticsRepository {
             """
             select zone_type, sum(occupied_count) as occupied, sum(total_count) as total
             from v_latest_occupancy
-            where recorded_at >= now() - interval '2 hours'
             group by zone_type
             """,
             (rs, rowNum) -> {
@@ -197,7 +195,6 @@ public class AnalyticsRepository {
             select parking_lot_id,
                    coalesce(round(avg(fn_occupancy_pct(occupied_count::int, total_count::int))), 0) as occ_pct
             from v_latest_occupancy
-            where recorded_at >= now() - interval '2 hours'
             group by parking_lot_id
             """,
             (rs, rowNum) -> Map.entry(UUID.fromString(rs.getString("parking_lot_id")), rs.getInt("occ_pct"))
