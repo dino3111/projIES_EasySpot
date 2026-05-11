@@ -26,6 +26,9 @@ ON CONFLICT (id) DO UPDATE SET
   status = EXCLUDED.status;
 DELETE FROM ev_chargers WHERE parking_lot_id = 'b231a846-7d40-5100-ba29-b9c0ca0ef9aa';
 DELETE FROM accessible_spots WHERE parking_lot_id = 'b231a846-7d40-5100-ba29-b9c0ca0ef9aa';
+INSERT INTO accessible_spots (id, parking_lot_id, location, available, distance_to_entrance_meters, bay_size) VALUES
+  (gen_random_uuid(), 'b231a846-7d40-5100-ba29-b9c0ca0ef9aa', 'Zona A — Lugar 1', true,  10, '3.5m x 5.0m'),
+  (gen_random_uuid(), 'b231a846-7d40-5100-ba29-b9c0ca0ef9aa', 'Zona A — Lugar 2', false, 12, '3.5m x 5.0m');
 DELETE FROM parking_spots WHERE parking_lot_id = 'b231a846-7d40-5100-ba29-b9c0ca0ef9aa';
 INSERT INTO parking_spots (id, parking_lot_id, spot_number, zone, spot_row, spot_col, status) VALUES ('ba25d88f-702d-5909-afc0-d8483d0cd5f1', 'b231a846-7d40-5100-ba29-b9c0ca0ef9aa', 'f-c1-p0:A1', 'ACCESSIBLE', 1, 1, 'accessible');
 INSERT INTO parking_spots (id, parking_lot_id, spot_number, zone, spot_row, spot_col, status) VALUES ('9ea22b92-11fe-51b2-95c3-293203e4a1d7', 'b231a846-7d40-5100-ba29-b9c0ca0ef9aa', 'f-c1-p0:A2', 'STANDARD', 1, 2, 'occupied');
@@ -168,6 +171,10 @@ ON CONFLICT (id) DO UPDATE SET
   monthly = EXCLUDED.monthly,
   status = EXCLUDED.status;
 DELETE FROM accessible_spots WHERE parking_lot_id = '452ed8eb-d0a3-5d61-8428-572e946614a5';
+INSERT INTO accessible_spots (id, parking_lot_id, location, available, distance_to_entrance_meters, bay_size) VALUES
+  (gen_random_uuid(), '452ed8eb-d0a3-5d61-8428-572e946614a5', 'Piso 0 — Lugar A1', true,  8,  '4.0m x 5.5m'),
+  (gen_random_uuid(), '452ed8eb-d0a3-5d61-8428-572e946614a5', 'Piso 0 — Lugar A2', true,  9,  '4.0m x 5.5m'),
+  (gen_random_uuid(), '452ed8eb-d0a3-5d61-8428-572e946614a5', 'Piso 0 — Lugar A3', false, 11, '3.5m x 5.0m');
 DELETE FROM parking_spots WHERE parking_lot_id = '452ed8eb-d0a3-5d61-8428-572e946614a5';
 INSERT INTO parking_spots (id, parking_lot_id, spot_number, zone, spot_row, spot_col, status) VALUES ('b148f690-2758-5940-bff7-f411301ba6fe', '452ed8eb-d0a3-5d61-8428-572e946614a5', 'f-c2-p0:A1', 'STANDARD', 1, 1, 'free');
 INSERT INTO parking_spots (id, parking_lot_id, spot_number, zone, spot_row, spot_col, status) VALUES ('b07b5a34-e1e8-55e4-b237-7e8ffb8fc6bc', '452ed8eb-d0a3-5d61-8428-572e946614a5', 'f-c2-p0:A2', 'ACCESSIBLE', 1, 2, 'accessible');
@@ -313,6 +320,10 @@ ON CONFLICT (id) DO UPDATE SET
   status = EXCLUDED.status;
 DELETE FROM ev_chargers WHERE parking_lot_id = '4731819f-a806-5c1f-be8c-a478d4276840';
 DELETE FROM accessible_spots WHERE parking_lot_id = '4731819f-a806-5c1f-be8c-a478d4276840';
+INSERT INTO accessible_spots (id, parking_lot_id, location, available, distance_to_entrance_meters, bay_size) VALUES
+  (gen_random_uuid(), '4731819f-a806-5c1f-be8c-a478d4276840', 'Entrada Principal — Lugar 1', true,  15, '3.5m x 5.0m'),
+  (gen_random_uuid(), '4731819f-a806-5c1f-be8c-a478d4276840', 'Entrada Principal — Lugar 2', false, 18, '3.5m x 5.0m'),
+  (gen_random_uuid(), '4731819f-a806-5c1f-be8c-a478d4276840', 'Entrada Sul — Lugar 1',       true,  22, '4.0m x 5.5m');
 DELETE FROM parking_spots WHERE parking_lot_id = '4731819f-a806-5c1f-be8c-a478d4276840';
 INSERT INTO parking_spots (id, parking_lot_id, spot_number, zone, spot_row, spot_col, status) VALUES ('a3c37606-d3d9-5cb3-9540-3a2547e4b0a2', '4731819f-a806-5c1f-be8c-a478d4276840', 'f-a1-p0:A1', 'ACCESSIBLE', 1, 1, 'accessible');
 INSERT INTO parking_spots (id, parking_lot_id, spot_number, zone, spot_row, spot_col, status) VALUES ('905b89be-7bb8-5b95-8b11-1c078d5ddd6c', '4731819f-a806-5c1f-be8c-a478d4276840', 'f-a1-p0:A2', 'STANDARD', 1, 2, 'occupied');
@@ -506,6 +517,11 @@ ON CONFLICT (id) DO UPDATE SET
   status = EXCLUDED.status;
 DELETE FROM ev_chargers WHERE parking_lot_id = 'd8085d8f-7aaa-5eb4-b47d-2e2fe79bfe43';
 DELETE FROM accessible_spots WHERE parking_lot_id = 'd8085d8f-7aaa-5eb4-b47d-2e2fe79bfe43';
+INSERT INTO accessible_spots (id, parking_lot_id, location, available, distance_to_entrance_meters, bay_size) VALUES
+  (gen_random_uuid(), 'd8085d8f-7aaa-5eb4-b47d-2e2fe79bfe43', 'Nível 1 — Lugar PMR-01', false, 5,  '4.0m x 5.5m'),
+  (gen_random_uuid(), 'd8085d8f-7aaa-5eb4-b47d-2e2fe79bfe43', 'Nível 1 — Lugar PMR-02', true,  7,  '4.0m x 5.5m'),
+  (gen_random_uuid(), 'd8085d8f-7aaa-5eb4-b47d-2e2fe79bfe43', 'Nível 1 — Lugar PMR-03', true,  9,  '3.5m x 5.0m'),
+  (gen_random_uuid(), 'd8085d8f-7aaa-5eb4-b47d-2e2fe79bfe43', 'Nível 2 — Lugar PMR-04', false, 35, '3.5m x 5.0m');
 DELETE FROM parking_spots WHERE parking_lot_id = 'd8085d8f-7aaa-5eb4-b47d-2e2fe79bfe43';
 INSERT INTO parking_spots (id, parking_lot_id, spot_number, zone, spot_row, spot_col, status) VALUES ('9e564fa2-5ac6-55c3-a102-e591ffa3025c', 'd8085d8f-7aaa-5eb4-b47d-2e2fe79bfe43', 'f-a2-p0:A1', 'ACCESSIBLE', 1, 1, 'accessible');
 INSERT INTO parking_spots (id, parking_lot_id, spot_number, zone, spot_row, spot_col, status) VALUES ('96996dee-3882-51ba-8d9d-115594eb832c', 'd8085d8f-7aaa-5eb4-b47d-2e2fe79bfe43', 'f-a2-p0:A2', 'STANDARD', 1, 2, 'free');
@@ -978,6 +994,10 @@ ON CONFLICT (id) DO UPDATE SET
   monthly = EXCLUDED.monthly,
   status = EXCLUDED.status;
 DELETE FROM accessible_spots WHERE parking_lot_id = '070b4f4d-9a9e-5c4a-92bd-eae711ecb6b3';
+INSERT INTO accessible_spots (id, parking_lot_id, location, available, distance_to_entrance_meters, bay_size) VALUES
+  (gen_random_uuid(), '070b4f4d-9a9e-5c4a-92bd-eae711ecb6b3', 'Rés-do-Chão — PMR-01', true,  6,  '3.5m x 5.0m'),
+  (gen_random_uuid(), '070b4f4d-9a9e-5c4a-92bd-eae711ecb6b3', 'Rés-do-Chão — PMR-02', true,  8,  '3.5m x 5.0m'),
+  (gen_random_uuid(), '070b4f4d-9a9e-5c4a-92bd-eae711ecb6b3', 'Rés-do-Chão — PMR-03', false, 10, '4.0m x 5.5m');
 DELETE FROM parking_spots WHERE parking_lot_id = '070b4f4d-9a9e-5c4a-92bd-eae711ecb6b3';
 INSERT INTO parking_spots (id, parking_lot_id, spot_number, zone, spot_row, spot_col, status) VALUES ('c63dd456-884c-59e6-8c04-b64568ca8d06', '070b4f4d-9a9e-5c4a-92bd-eae711ecb6b3', 'f-l1-p0:A1', 'ACCESSIBLE', 1, 1, 'accessible');
 INSERT INTO parking_spots (id, parking_lot_id, spot_number, zone, spot_row, spot_col, status) VALUES ('660a7920-76e8-5f01-a90b-91accad86230', '070b4f4d-9a9e-5c4a-92bd-eae711ecb6b3', 'f-l1-p0:A2', 'STANDARD', 1, 2, 'free');
@@ -1185,6 +1205,12 @@ INSERT INTO ev_chargers (id, parking_lot_id, type, speed, price_per_kwh, availab
   ('a1b2c3d4-0001-0001-0001-000000000001', '7021e6fc-7585-5463-bbb7-de9bb8f4c37b', 'Type 2', 'Rápida (22kW)', 0.35, true),
   ('a1b2c3d4-0001-0001-0001-000000000002', '7021e6fc-7585-5463-bbb7-de9bb8f4c37b', 'CCS',    'Ultra-rápida (50kW)', 0.48, false);
 DELETE FROM accessible_spots WHERE parking_lot_id = '7021e6fc-7585-5463-bbb7-de9bb8f4c37b';
+INSERT INTO accessible_spots (id, parking_lot_id, location, available, distance_to_entrance_meters, bay_size) VALUES
+  (gen_random_uuid(), '7021e6fc-7585-5463-bbb7-de9bb8f4c37b', 'Setor Norte — PMR-01', true,  12, '4.0m x 5.5m'),
+  (gen_random_uuid(), '7021e6fc-7585-5463-bbb7-de9bb8f4c37b', 'Setor Norte — PMR-02', false, 14, '4.0m x 5.5m'),
+  (gen_random_uuid(), '7021e6fc-7585-5463-bbb7-de9bb8f4c37b', 'Setor Norte — PMR-03', true,  16, '3.5m x 5.0m'),
+  (gen_random_uuid(), '7021e6fc-7585-5463-bbb7-de9bb8f4c37b', 'Setor Sul — PMR-04',   true,  45, '3.5m x 5.0m'),
+  (gen_random_uuid(), '7021e6fc-7585-5463-bbb7-de9bb8f4c37b', 'Setor Sul — PMR-05',   false, 48, '3.5m x 5.0m');
 DELETE FROM parking_spots WHERE parking_lot_id = '7021e6fc-7585-5463-bbb7-de9bb8f4c37b';
 INSERT INTO parking_spots (id, parking_lot_id, spot_number, zone, spot_row, spot_col, status) VALUES ('f5f06046-cd96-5171-92a2-3e5c9e25c957', '7021e6fc-7585-5463-bbb7-de9bb8f4c37b', 'f-l2-p0:A1', 'ACCESSIBLE', 1, 1, 'accessible');
 INSERT INTO parking_spots (id, parking_lot_id, spot_number, zone, spot_row, spot_col, status) VALUES ('b61d191a-eaaf-55cb-a244-c96b934edf3c', '7021e6fc-7585-5463-bbb7-de9bb8f4c37b', 'f-l2-p0:A2', 'STANDARD', 1, 2, 'occupied');
@@ -1807,6 +1833,9 @@ ON CONFLICT (id) DO UPDATE SET
   monthly = EXCLUDED.monthly,
   status = EXCLUDED.status;
 DELETE FROM accessible_spots WHERE parking_lot_id = '33cce245-2bff-5ad3-9cf4-5b6abf1076b4';
+INSERT INTO accessible_spots (id, parking_lot_id, location, available, distance_to_entrance_meters, bay_size) VALUES
+  (gen_random_uuid(), '33cce245-2bff-5ad3-9cf4-5b6abf1076b4', 'Entrada Av. Mar — PMR-01', true,  18, '3.5m x 5.0m'),
+  (gen_random_uuid(), '33cce245-2bff-5ad3-9cf4-5b6abf1076b4', 'Entrada Av. Mar — PMR-02', false, 20, '3.5m x 5.0m');
 DELETE FROM parking_spots WHERE parking_lot_id = '33cce245-2bff-5ad3-9cf4-5b6abf1076b4';
 INSERT INTO parking_spots (id, parking_lot_id, spot_number, zone, spot_row, spot_col, status) VALUES ('c252b73b-9aa4-52a8-9e05-7f5af579e3af', '33cce245-2bff-5ad3-9cf4-5b6abf1076b4', 'f-f1-p0:A1', 'ACCESSIBLE', 1, 1, 'accessible');
 INSERT INTO parking_spots (id, parking_lot_id, spot_number, zone, spot_row, spot_col, status) VALUES ('c35b4d30-9f00-54a0-9e49-02e5ce42d88e', '33cce245-2bff-5ad3-9cf4-5b6abf1076b4', 'f-f1-p0:A2', 'STANDARD', 1, 2, 'occupied');
@@ -1974,6 +2003,11 @@ DELETE FROM ev_chargers WHERE parking_lot_id = '62feaf63-aa20-5070-b89f-e81bfd5f
 INSERT INTO ev_chargers (id, parking_lot_id, type, speed, price_per_kwh, available) VALUES
   ('a1b2c3d4-0002-0002-0002-000000000001', '62feaf63-aa20-5070-b89f-e81bfd5f47cd', 'Tesla Supercharger', 'Supercharger (150kW)', 0.55, true);
 DELETE FROM accessible_spots WHERE parking_lot_id = '62feaf63-aa20-5070-b89f-e81bfd5f47cd';
+INSERT INTO accessible_spots (id, parking_lot_id, location, available, distance_to_entrance_meters, bay_size) VALUES
+  (gen_random_uuid(), '62feaf63-aa20-5070-b89f-e81bfd5f47cd', 'Piso -1 — PMR-01', true,  6,  '4.0m x 5.5m'),
+  (gen_random_uuid(), '62feaf63-aa20-5070-b89f-e81bfd5f47cd', 'Piso -1 — PMR-02', true,  8,  '4.0m x 5.5m'),
+  (gen_random_uuid(), '62feaf63-aa20-5070-b89f-e81bfd5f47cd', 'Piso -1 — PMR-03', false, 10, '3.5m x 5.0m'),
+  (gen_random_uuid(), '62feaf63-aa20-5070-b89f-e81bfd5f47cd', 'Piso -2 — PMR-04', true,  30, '3.5m x 5.0m');
 DELETE FROM parking_spots WHERE parking_lot_id = '62feaf63-aa20-5070-b89f-e81bfd5f47cd';
 INSERT INTO parking_spots (id, parking_lot_id, spot_number, zone, spot_row, spot_col, status) VALUES ('697bd059-663b-505d-bbb0-ec1a628f70d5', '62feaf63-aa20-5070-b89f-e81bfd5f47cd', 'f-f2-p0:A1', 'ACCESSIBLE', 1, 1, 'accessible');
 INSERT INTO parking_spots (id, parking_lot_id, spot_number, zone, spot_row, spot_col, status) VALUES ('f898df35-d0df-5185-98e6-7bd4165bf305', '62feaf63-aa20-5070-b89f-e81bfd5f47cd', 'f-f2-p0:A2', 'STANDARD', 1, 2, 'occupied');
@@ -2613,6 +2647,10 @@ ON CONFLICT (id) DO UPDATE SET
   status = EXCLUDED.status;
 DELETE FROM ev_chargers WHERE parking_lot_id = 'c7c34eb2-d620-5fd6-a565-f04d9ec8b52a';
 DELETE FROM accessible_spots WHERE parking_lot_id = 'c7c34eb2-d620-5fd6-a565-f04d9ec8b52a';
+INSERT INTO accessible_spots (id, parking_lot_id, location, available, distance_to_entrance_meters, bay_size) VALUES
+  (gen_random_uuid(), 'c7c34eb2-d620-5fd6-a565-f04d9ec8b52a', 'Zona Praia — PMR-01', true,  5,  '3.5m x 5.0m'),
+  (gen_random_uuid(), 'c7c34eb2-d620-5fd6-a565-f04d9ec8b52a', 'Zona Praia — PMR-02', false, 7,  '3.5m x 5.0m'),
+  (gen_random_uuid(), 'c7c34eb2-d620-5fd6-a565-f04d9ec8b52a', 'Zona Praia — PMR-03', true,  9,  '4.0m x 5.5m');
 DELETE FROM parking_spots WHERE parking_lot_id = 'c7c34eb2-d620-5fd6-a565-f04d9ec8b52a';
 INSERT INTO parking_spots (id, parking_lot_id, spot_number, zone, spot_row, spot_col, status) VALUES ('7b0c2c29-b5ec-5671-89c7-40339682157e', 'c7c34eb2-d620-5fd6-a565-f04d9ec8b52a', 'f-o2-p0:A1', 'ACCESSIBLE', 1, 1, 'accessible');
 INSERT INTO parking_spots (id, parking_lot_id, spot_number, zone, spot_row, spot_col, status) VALUES ('d31e1a2b-4990-56a9-a494-fd83f6b341bc', 'c7c34eb2-d620-5fd6-a565-f04d9ec8b52a', 'f-o2-p0:A2', 'STANDARD', 1, 2, 'occupied');
@@ -2880,6 +2918,9 @@ DELETE FROM ev_chargers WHERE parking_lot_id = 'cd48f90c-637d-5f26-966a-73e1dd6b
 INSERT INTO ev_chargers (id, parking_lot_id, type, speed, price_per_kwh, available) VALUES
   ('a1b2c3d4-0003-0003-0003-000000000001', 'cd48f90c-637d-5f26-966a-73e1dd6baf98', 'Type 2', 'Lenta (7kW)', 0.28, true);
 DELETE FROM accessible_spots WHERE parking_lot_id = 'cd48f90c-637d-5f26-966a-73e1dd6baf98';
+INSERT INTO accessible_spots (id, parking_lot_id, location, available, distance_to_entrance_meters, bay_size) VALUES
+  (gen_random_uuid(), 'cd48f90c-637d-5f26-966a-73e1dd6baf98', 'Piso 0 — PMR-01', true,  11, '3.5m x 5.0m'),
+  (gen_random_uuid(), 'cd48f90c-637d-5f26-966a-73e1dd6baf98', 'Piso 0 — PMR-02', true,  13, '4.0m x 5.5m');
 DELETE FROM parking_spots WHERE parking_lot_id = 'cd48f90c-637d-5f26-966a-73e1dd6baf98';
 INSERT INTO parking_spots (id, parking_lot_id, spot_number, zone, spot_row, spot_col, status) VALUES ('aafd1b10-dee9-5d8a-a44d-19ad5014f822', 'cd48f90c-637d-5f26-966a-73e1dd6baf98', 'f-ar1-p0:A1', 'ACCESSIBLE', 1, 1, 'accessible');
 INSERT INTO parking_spots (id, parking_lot_id, spot_number, zone, spot_row, spot_col, status) VALUES ('f714d271-0499-5730-8009-7264d30d4d9a', 'cd48f90c-637d-5f26-966a-73e1dd6baf98', 'f-ar1-p0:A2', 'STANDARD', 1, 2, 'occupied');
@@ -3021,6 +3062,10 @@ ON CONFLICT (id) DO UPDATE SET
   monthly = EXCLUDED.monthly,
   status = EXCLUDED.status;
 DELETE FROM accessible_spots WHERE parking_lot_id = '617dd647-6d08-52b2-95d3-9b4a4e002b6e';
+INSERT INTO accessible_spots (id, parking_lot_id, location, available, distance_to_entrance_meters, bay_size) VALUES
+  (gen_random_uuid(), '617dd647-6d08-52b2-95d3-9b4a4e002b6e', 'Entrada Principal — PMR-01', true,  8,  '3.5m x 5.0m'),
+  (gen_random_uuid(), '617dd647-6d08-52b2-95d3-9b4a4e002b6e', 'Entrada Principal — PMR-02', false, 10, '3.5m x 5.0m'),
+  (gen_random_uuid(), '617dd647-6d08-52b2-95d3-9b4a4e002b6e', 'Zona B — PMR-03',            true,  28, '4.0m x 5.5m');
 DELETE FROM parking_spots WHERE parking_lot_id = '617dd647-6d08-52b2-95d3-9b4a4e002b6e';
 INSERT INTO parking_spots (id, parking_lot_id, spot_number, zone, spot_row, spot_col, status) VALUES ('730ede93-d0be-5e59-860d-6c21a107c7d4', '617dd647-6d08-52b2-95d3-9b4a4e002b6e', 'f-ar2-p0:A1', 'ACCESSIBLE', 1, 1, 'accessible');
 INSERT INTO parking_spots (id, parking_lot_id, spot_number, zone, spot_row, spot_col, status) VALUES ('ec8b44dd-65ae-54fd-9fd9-2227db8a0088', '617dd647-6d08-52b2-95d3-9b4a4e002b6e', 'f-ar2-p0:A2', 'STANDARD', 1, 2, 'occupied');
@@ -3249,6 +3294,10 @@ ON CONFLICT (id) DO UPDATE SET
 
 DELETE FROM ev_chargers   WHERE parking_lot_id = 'ee000001-0000-0000-0000-000000000001';
 DELETE FROM accessible_spots WHERE parking_lot_id = 'ee000001-0000-0000-0000-000000000001';
+INSERT INTO accessible_spots (id, parking_lot_id, location, available, distance_to_entrance_meters, bay_size) VALUES
+  (gen_random_uuid(), 'ee000001-0000-0000-0000-000000000001', 'Piso 0 — PMR-01', true,  6,  '4.0m x 5.5m'),
+  (gen_random_uuid(), 'ee000001-0000-0000-0000-000000000001', 'Piso 0 — PMR-02', false, 8,  '3.5m x 5.0m'),
+  (gen_random_uuid(), 'ee000001-0000-0000-0000-000000000001', 'Piso 0 — PMR-03', true,  10, '3.5m x 5.0m');
 DELETE FROM parking_spots WHERE parking_lot_id = 'ee000001-0000-0000-0000-000000000001';
 
 -- 2 carregadores: Type 2 disponível + CCS indisponível (para testar ambos estados)

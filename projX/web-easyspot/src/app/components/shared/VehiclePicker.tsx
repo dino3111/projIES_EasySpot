@@ -41,9 +41,9 @@ function VehicleOption({
         {logoUrl && (
           <img
             src={logoUrl}
-            alt={vehicle.make}
+            alt={vehicle.make || ''}
             className="w-6 h-6 object-contain flex-shrink-0"
-            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+            onError={(e) => { e.currentTarget.style.display = 'none'; }}
           />
         )}
         <div className="flex-1 min-w-0">
@@ -106,9 +106,9 @@ export function VehiclePicker({
             {logoUrl && (
               <img
                 src={logoUrl}
-                alt={selected.make}
+                alt={selected.make || ''}
                 className="w-4 h-4 object-contain"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                onError={(e) => { e.currentTarget.style.display = 'none'; }}
               />
             )}
             {selected.imageUrl && (
@@ -147,7 +147,7 @@ export function VehiclePicker({
                 type="button"
                 onClick={() => handleSelect(null)}
                 className={`w-full text-left rounded-xl border-2 px-4 py-2.5 transition-all ${
-                  !selectedId ? 'border-primary bg-primary/5' : 'border-border bg-card hover:border-primary/40'
+                  selectedId ? 'border-border bg-card hover:border-primary/40' : 'border-primary bg-primary/5'
                 }`}
               >
                 <span className="text-muted-foreground font-medium" style={{ fontSize: '0.82rem' }}>

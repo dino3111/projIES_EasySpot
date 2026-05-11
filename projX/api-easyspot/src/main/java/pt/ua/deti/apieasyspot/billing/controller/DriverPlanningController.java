@@ -6,7 +6,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -36,8 +35,8 @@ public class DriverPlanningController {
     @ApiResponse(responseCode = "403", description = "User is not a driver")
     @PreAuthorize("hasRole('DRIVER')")
     public ResponseEntity<ParkingPlanningResponse> getPlanning(
-        @Parameter(description = "City name to search parking options")
-        @RequestParam @NotBlank String city,
+        @Parameter(description = "City name to narrow search (optional — omit to search by coordinates only)")
+        @RequestParam(required = false) String city,
         @Parameter(description = "Estimated parking duration in minutes", example = "90")
         @RequestParam @Min(1) int estimatedDurationMinutes,
         @Parameter(description = "Filter for EV-compatible parking lots")

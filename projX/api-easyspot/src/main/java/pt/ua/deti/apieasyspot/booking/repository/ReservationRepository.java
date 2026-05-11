@@ -65,7 +65,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
     // Lazy expiry: CONFIRMED reservations where the no-show grace window has passed
     @Modifying
     @Query("""
-        UPDATE Reservation r SET r.status = :expiredStatus
+        UPDATE Reservation r SET r.status = :expiredStatus, r.lockedUntil = null
         WHERE r.status = :confirmedStatus
           AND r.lockedUntil < :now
         """)
@@ -74,6 +74,25 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
         @Param("confirmedStatus") ReservationStatus confirmedStatus,
         @Param("expiredStatus") ReservationStatus expiredStatus
     );
+
+    @Query("""
+        SELECT r FROM Reservation r
+        LEFT JOIN FETCH r.parkingSpot
+        WHERE r.status NOT IN ('CANCELLED', 'EXPIRED', 'COMPLETED')
+          AND r.parkingSpot IS NOT NULL
+        ORDER BY r.arrivalTime ASC
+        """)
+    List<Reservation> findAllActiveWithSpot();
+
+    @Query("""
+        SELECT r FROM Reservation r
+        LEFT JOIN FETCH r.parkingSpot
+        WHERE r.parkingLot.id = :parkId
+          AND r.status NOT IN ('CANCELLED', 'EXPIRED', 'COMPLETED')
+          AND r.parkingSpot IS NOT NULL
+        ORDER BY r.arrivalTime ASC
+        """)
+    List<Reservation> findActiveWithSpotByParkId(@Param("parkId") UUID parkId);
 
     @Query("""
         SELECT r FROM Reservation r

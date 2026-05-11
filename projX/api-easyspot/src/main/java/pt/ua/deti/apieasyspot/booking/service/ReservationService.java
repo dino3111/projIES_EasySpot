@@ -7,6 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 import pt.ua.deti.apieasyspot.auth.model.User;
 import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
 import pt.ua.deti.apieasyspot.billing.service.BillingService;
+import pt.ua.deti.apieasyspot.billing.exception.PaymentSetupRequiredException;
 import pt.ua.deti.apieasyspot.booking.dto.CreateReservationRequest;
 import pt.ua.deti.apieasyspot.booking.dto.ReservationResponse;
 import pt.ua.deti.apieasyspot.booking.event.ReservationEventPublisher;
@@ -143,9 +144,13 @@ public class ReservationService {
         Reservation saved = reservationRepository.save(reservation);
 
         // 9. BillingModule: create Stripe PaymentIntent + ParkingSession record
-        //    Runs in a separate transaction; failure never rolls back the reservation
+        //    Runs in a separate transaction; transient Stripe failures do not roll back,
+        //    but missing payment setup aborts the reservation so the caução stays enforced
         try {
-            billingService.createPaymentIntentForReservation(saved);
+            billingService.createPaymentIntentForReservation(saved, user.getEmail());
+        } catch (PaymentSetupRequiredException ex) {
+            log.warn("Billing setup missing for reservation {}: {}", saved.getBookingCode(), ex.getMessage());
+            throw new UnprocessableEntityException(ex.getMessage());
         } catch (Exception ex) {
             log.warn("Billing step failed for reservation {} (reservation still confirmed): {}",
                 saved.getBookingCode(), ex.getMessage());
@@ -225,16 +230,16 @@ public class ReservationService {
 
     private void validateTimeWindow(OffsetDateTime arrival, OffsetDateTime departure, OffsetDateTime now) {
         if (!arrival.isAfter(now)) {
-            throw new UnprocessableEntityException("arrivalDateTime must be in the future");
+            throw new UnprocessableEntityException("A data de chegada tem de ser no futuro.");
         }
         if (!departure.isAfter(arrival)) {
-            throw new UnprocessableEntityException("departureDateTime must be after arrivalDateTime");
+            throw new UnprocessableEntityException("A data de saída tem de ser posterior à data de chegada.");
         }
         if (arrival.isBefore(now.plusMinutes(30))) {
-            throw new UnprocessableEntityException("Reservations must be made at least 30 minutes in advance");
+            throw new UnprocessableEntityException("As reservas devem ser feitas com pelo menos 30 minutos de antecedência.");
         }
         if (departure.isAfter(now.plusDays(30))) {
-            throw new UnprocessableEntityException("Reservation window cannot exceed 30 days");
+            throw new UnprocessableEntityException("A janela da reserva não pode exceder 30 dias.");
         }
     }
 

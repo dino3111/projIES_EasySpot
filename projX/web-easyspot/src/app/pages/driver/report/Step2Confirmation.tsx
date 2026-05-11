@@ -18,12 +18,11 @@ function DetailRow({ icon, label, children }: Readonly<{ icon: string; label: st
 interface Props {
   reportId: string;
   form: ReportForm;
-  onViewReports: () => void;
   onNewReport: () => void;
   onGoHome: () => void;
 }
 
-export function Step2Confirmation({ reportId, form, onViewReports, onNewReport, onGoHome }: Readonly<Props>) {
+export function Step2Confirmation({ reportId, form, onNewReport, onGoHome }: Readonly<Props>) {
   const [parks, setParks] = useState<ParkingLot[]>([]);
   useEffect(() => {
     fetchAllParksSummary().then(setParks).catch(() => setParks([]));
@@ -101,13 +100,6 @@ export function Step2Confirmation({ reportId, form, onViewReports, onNewReport, 
         </div>
 
         <div className="space-y-2.5">
-          <button
-            onClick={onViewReports}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-full bg-primary text-white font-semibold hover:bg-primary/90 shadow-lg shadow-primary/25 transition-all"
-            style={{ fontSize: '0.9rem' }}
-          >
-            <i className="fas fa-list" />Ver as Minhas Denúncias
-          </button>
           <div className="grid grid-cols-2 gap-2.5">
             <button
               onClick={onNewReport}
@@ -118,7 +110,7 @@ export function Step2Confirmation({ reportId, form, onViewReports, onNewReport, 
             </button>
             <button
               onClick={onGoHome}
-              className="flex items-center justify-center gap-2 py-3 rounded-full border border-border text-foreground font-semibold hover:bg-muted transition-colors"
+              className="flex items-center justify-center gap-2 py-3 rounded-full bg-primary text-white font-semibold hover:bg-primary/90 shadow-lg shadow-primary/25 transition-all"
               style={{ fontSize: '0.85rem' }}
             >
               <i className="fas fa-house" />Início

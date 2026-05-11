@@ -7,6 +7,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      recharts: path.resolve(__dirname, './src/test/recharts.mock.tsx'),
     },
   },
   test: {
@@ -14,6 +15,12 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
     css: false,
+    pool: 'forks',
+    poolOptions: {
+      forks: {
+        isolate: true,
+      },
+    },
     exclude: ['**/node_modules/**', '**/e2e/**'],
   },
 });

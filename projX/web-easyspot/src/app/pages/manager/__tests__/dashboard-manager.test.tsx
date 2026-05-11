@@ -5,25 +5,20 @@ import { MemoryRouter } from 'react-router';
 import { DashboardManagerPage } from '../DashboardManagerPage';
 import type { ManagerDashboardResponse } from '../../../services/managerApi';
 
-vi.mock('recharts', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('recharts')>();
-  const MockChart = ({ children }: { children?: React.ReactNode }) => <div>{children}</div>;
-  return {
-    ...actual,
-    ResponsiveContainer: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
-    BarChart: MockChart,
-    AreaChart: MockChart,
-    PieChart: MockChart,
-    Bar: () => null,
-    Area: () => null,
-    Pie: () => null,
-    Cell: () => null,
-    XAxis: () => null,
-    YAxis: () => null,
-    CartesianGrid: () => null,
-    Tooltip: () => null,
-  };
-});
+vi.mock('recharts', () => ({
+  ResponsiveContainer: () => null,
+  BarChart: () => null,
+  AreaChart: () => null,
+  PieChart: () => null,
+  Bar: () => null,
+  Area: () => null,
+  Pie: () => null,
+  Cell: () => null,
+  XAxis: () => null,
+  YAxis: () => null,
+  CartesianGrid: () => null,
+  Tooltip: () => null,
+}));
 
 vi.mock('../../../services/managerApi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../services/managerApi')>();

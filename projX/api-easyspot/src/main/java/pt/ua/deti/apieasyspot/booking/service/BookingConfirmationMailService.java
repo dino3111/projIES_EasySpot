@@ -8,6 +8,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import pt.ua.deti.apieasyspot.notification.service.EmailDeliveryDedupService;
 import pt.ua.deti.apieasyspot.booking.model.Reservation;
 
 import java.time.format.DateTimeFormatter;
@@ -19,7 +20,7 @@ public class BookingConfirmationMailService {
 
     private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
-    private final JavaMailSender mailSender;
+    private final EmailDeliveryDedupService emailDeliveryDedupService;
 
     @Value("${spring.mail.from:noreply@easyspot.pt}")
     private String fromAddress;
@@ -31,6 +32,7 @@ public class BookingConfirmationMailService {
             log.warn("Cannot send booking confirmation: user {} has no email", reservation.getUser().getId());
             return;
         }
+        String deliveryKey = "booking-confirmation:" + reservation.getId();
         try {
             MimeMessage mime = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(mime, false, "UTF-8");

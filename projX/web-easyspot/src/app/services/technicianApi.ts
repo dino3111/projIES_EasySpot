@@ -1,8 +1,11 @@
 import { request } from '../../services/apiService';
+import type { IssueReport } from '../data/gestorData';
 
 // ── Types matching backend DTOs ────────────────────────────────────────────────
 
-export type SensorStatus = 'operational' | 'degraded' | 'offline';
+export type SensorStatus = 'operational' | 'degraded' | 'offline' | 'maintenance';
+
+export type { IssueReport };
 
 export interface SensorSummary {
   sensorId: string;
@@ -109,6 +112,12 @@ export const updateAlertState = (alertId: string, state: AlertState, notes?: str
   request<void>(`/api/alerts/${alertId}/state`, {
     method: 'PATCH',
     body: JSON.stringify({ state, notes }),
+  });
+
+export const updateSensorStatus = (sensorId: string, status: string, notes?: string): Promise<void> =>
+  request<void>(`/api/technician/sensors/${encodeURIComponent(sensorId)}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status, notes: notes ?? null }),
   });
 
 export type FetchAlertsQuery = {
