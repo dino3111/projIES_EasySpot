@@ -251,6 +251,7 @@ export async function fetchParkCities(): Promise<string[]> {
 export async function fetchParkDetails(parkId: string): Promise<ParkingLot> {
   const token = getAccessToken();
   const resp = await withGlobalLoading(() => fetch(`${API_BASE}/api/parks/${parkId}/details`, {
+    cache: 'no-store',
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
   }));
   if (!resp.ok) throw new Error(`Failed to fetch park details (${resp.status})`);

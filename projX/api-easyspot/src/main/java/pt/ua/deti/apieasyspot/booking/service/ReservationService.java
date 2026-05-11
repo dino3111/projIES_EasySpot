@@ -82,6 +82,7 @@ public class ReservationService {
 
         // 2. Lazy expiry of timed-out locks before conflict detection
         reservationRepository.expireTimedOutLocks(now, ReservationStatus.CONFIRMED, ReservationStatus.EXPIRED);
+        parkingSpotRepository.releaseExpiredReservedSpots();
 
         // 3. Resolve entities
         ParkingLot lot  = findLot(request.parkId());
@@ -190,7 +191,7 @@ public class ReservationService {
             ParkingSpot spot = parkingSpotRepository.findByIdWithLock(request.selectedSpotId())
                 .orElseThrow(() -> new ResourceNotFoundException("Spot not found: " + request.selectedSpotId()));
 
-            if ("occupied".equals(spot.getStatus()) || "reserved".equals(spot.getStatus())) {
+            if ("occupied".equals(spot.getStatus())) {
                 throw new ConflictException("Spot " + spot.getSpotNumber() + " is not available");
             }
             long spotConflicts = reservationRepository.countSpotConflicts(spot.getId(), arrival, departure);
