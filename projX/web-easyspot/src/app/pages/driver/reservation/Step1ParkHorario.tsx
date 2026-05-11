@@ -354,7 +354,6 @@ export function Step1ParkHorario({
         onClick={onNext}
         disabled={!canProceed}
         className="btn btn-primary rounded-full w-full text-base shadow-lg shadow-primary/30 disabled:opacity-40"
-        aria-label="Avançar para escolha do lugar"
       >
         <i className="fa-solid fa-arrow-right mr-2" />
         Escolher Lugar

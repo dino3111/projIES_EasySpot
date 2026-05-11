@@ -80,10 +80,37 @@ services:
       - authentik-media:/media
       - authentik-certs:/certs
       - ./authentik-custom.css:/web/dist/custom.css:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:9000/authentik/-/health/ready/ || exit 1"]
+      start_period: 60s
+      interval: 10s
+      retries: 10
+      timeout: 5s
     depends_on:
       postgres:
         condition: service_healthy
       authentik-redis:
+        condition: service_healthy
+
+  authentik-bootstrap:
+    image: python:3.12-slim
+    restart: on-failure:5
+    working_dir: /bootstrap
+    command: >
+      sh -c "pip install --quiet requests && python bootstrap_authentik.py"
+    environment:
+      AUTHENTIK_URL: http://authentik-server:9000/authentik
+      AUTHENTIK_TOKEN: ${AUTHENTIK_BOOTSTRAP_TOKEN:-}
+      REDIRECT_URI: ${VITE_AUTHENTIK_REDIRECT_URI:-http://localhost/callback}
+      EASYSPOT_AKADMIN_PASSWORD: ${AUTHENTIK_BOOTSTRAP_PASSWORD:-akadmin}
+      EASYSPOT_TEST_DRIVER_PASSWORD: ${EASYSPOT_TEST_DRIVER_PASSWORD:-change-me-driver}
+      EASYSPOT_TEST_MANAGER_PASSWORD: ${EASYSPOT_TEST_MANAGER_PASSWORD:-change-me-manager}
+      EASYSPOT_TEST_TECHNICAL_PASSWORD: ${EASYSPOT_TEST_TECHNICAL_PASSWORD:-change-me-technical}
+    volumes:
+      - ./bootstrap_authentik.py:/bootstrap/bootstrap_authentik.py:ro
+      - ./authentik-custom.css:/bootstrap/authentik-custom.css:ro
+    depends_on:
+      authentik-server:
         condition: service_healthy
 
   authentik-worker:
