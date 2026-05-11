@@ -142,7 +142,8 @@ class PostmanDataInitializer implements ApplicationRunner {
             lot("Glicínias Plaza", "Aveiro", "R. D. Manuel Barbuda e Vasconcelos, 3810-498 Aveiro", 40.6275, -8.6441, "09h00-23h00", 2000, List.of("CCTV", "WC", "Restaurantes", "Lojas")),
             lot("Europa", "Leiria", "Av. Marquês de Pombal, 2410-152 Leiria", 39.7431, -8.8061, "24h", 300, List.of("Segurança 24h", "Coberto"))
         ));
-        parkId = lots.get(0).getId();
+        // Use the 24h lot for reservation contract tests so CI is not time-of-day dependent.
+        parkId = lots.get(2).getId();
         return lots;
     }
 

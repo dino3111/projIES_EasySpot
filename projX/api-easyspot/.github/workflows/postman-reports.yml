@@ -57,6 +57,7 @@ jobs:
           POSTMAN_DB_PASS: easyspot
           POSTMAN_KAFKA_SERVERS: localhost:9093
           POSTMAN_JWT_SECRET: easyspot-postman-secret-key-change-me-2026
+          STRIPE_API_KEY: sk_test_postman_dummy_key
         run: |
           ./mvnw -B spring-boot:run > app.log 2>&1 &
           echo $! > app.pid
