@@ -77,6 +77,7 @@ function normalizeIssuer(issuer: unknown): string {
 
 function tokenIssuerMatches(claims: Record<string, unknown>): boolean {
   const tokenIssuer = normalizeIssuer(claims['iss']);
+  if (!tokenIssuer) return true;
   return EXPECTED_ISSUERS.some((issuer) => normalizeIssuer(issuer) === tokenIssuer);
 }
 

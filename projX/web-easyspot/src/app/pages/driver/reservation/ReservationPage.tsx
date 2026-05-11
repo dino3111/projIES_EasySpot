@@ -107,12 +107,14 @@ export function ReservationPage() {
 
     try {
       const token = getAccessToken();
+      const effectiveVehicleId =
+        selectedVehicleId || vehicles.find((v) => v.isPrimary)?.id || vehicles[0]?.id || '';
 
-      if (token && selectedVehicleId) {
+      if (token && effectiveVehicleId) {
         const response = await createReservation(
           {
             parkId: selectedParkId,
-            vehicleId: selectedVehicleId,
+            vehicleId: effectiveVehicleId,
             arrivalDateTime: new Date(arrivalTime).toISOString(),
             departureDateTime: new Date(exitTime).toISOString(),
             selectedSpotId: selectedSpotId || null,
@@ -156,7 +158,7 @@ export function ReservationPage() {
         </div>
 
         {reservationError && (
-          <div className="alert alert-error mb-4 rounded-2xl">
+          <div className="alert alert-error mb-4 rounded-2xl" role="alert">
             <i className="fa-solid fa-circle-exclamation" />
             <span>{reservationError}</span>
             <button
