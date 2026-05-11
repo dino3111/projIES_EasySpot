@@ -141,3 +141,23 @@ export const updateAlertState = async (alertId: string, state: string) => {
     body: JSON.stringify({ state: state.toUpperCase().replace('-', '_') })
   });
 };
+
+export interface BillingSessionResponse {
+  id: string;
+  parkName: string;
+  entryTime: string;
+  exitTime: string;
+  durationMinutes: number;
+  licensePlate: string | null;
+  zoneType: string;
+  parkingRevenue: number;
+  evRevenue: number;
+  total: number;
+}
+
+export const fetchManagerBilling = async (parkId?: string, days = 2, page = 0, pageSize = 20) => {
+  const params = new URLSearchParams({ days: String(days), page: String(page), size: String(pageSize) });
+  if (parkId) params.append('parkId', parkId);
+  const response = await request<Page<BillingSessionResponse>>(`/api/manager/billing?${params.toString()}`);
+  return response;
+};

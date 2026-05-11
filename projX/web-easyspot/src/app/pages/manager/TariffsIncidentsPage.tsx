@@ -1,8 +1,8 @@
 import { useEffect, useState, useMemo } from 'react';
 import {
-  mockBillingRecords,
   type IssueReport,
   type TariffEntry,
+  type BillingRecord,
 } from '../../data/gestorData';
 import { TariffsTab } from './components/TariffsTab';
 import { IncidentsTab } from './components/IncidentsTab';
@@ -10,7 +10,15 @@ import { BillingTab } from './components/BillingTab';
 import { IssueModal }   from './components/IssueModal';
 import { TariffModal }  from './components/TariffModal';
 import { TabBtn }       from './components/shared';
-import { fetchManagerTariffs, fetchManagerAlerts, updateTariff, type TariffResponse, type AlertResponse } from '../../services/managerApi';
+import {
+  fetchManagerTariffs,
+  fetchManagerAlerts,
+  fetchManagerBilling,
+  updateTariff,
+  type TariffResponse,
+  type AlertResponse,
+  type BillingSessionResponse,
+} from '../../services/managerApi';
 
 type PageTab    = 'tarifas' | 'ocorrencias' | 'faturacao';
 type IssueFilter = 'todos' | 'aberto' | 'em-progresso' | 'resolvido';
@@ -72,6 +80,30 @@ function mapAlert(a: AlertResponse): IssueReport {
   };
 }
 
+function mapBilling(b: BillingSessionResponse): BillingRecord {
+  const durationH = Math.floor(b.durationMinutes / 60);
+  const durationM = b.durationMinutes % 60;
+  const entryDate = new Date(b.entryTime);
+  const dateStr = entryDate.toLocaleString('pt-PT', {
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit',
+  }).replace(',', '');
+  const method: BillingRecord['metodo'] =
+    b.zoneType === 'RFID' ? 'RFID' : b.licensePlate ? 'OCR' : 'Manual';
+  return {
+    id: b.id,
+    parqueNome: b.parkName,
+    data: dateStr,
+    matricula: b.licensePlate ?? '—',
+    metodo: method,
+    duracao: `${durationH}h ${String(durationM).padStart(2, '0')}m`,
+    valorEstacionamento: Number(b.parkingRevenue),
+    valorEV: Number(b.evRevenue) > 0 ? Number(b.evRevenue) : undefined,
+    total: Number(b.total),
+    estado: 'pago',
+  };
+}
+
 
 export function TariffsIncidentsPage() {
   const [tab, setTab]               = useState<PageTab>('tarifas');
@@ -81,16 +113,19 @@ export function TariffsIncidentsPage() {
   const [editTariff, setEditTariff] = useState<TariffEntry | null>(null);
   const [tariffs, setTariffs] = useState<TariffEntry[]>([]);
   const [issues, setIssues] = useState<IssueReport[]>([]);
+  const [billingRecords, setBillingRecords] = useState<BillingRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
     Promise.all([
       fetchManagerTariffs(),
-      fetchManagerAlerts()
-    ]).then(([tariffsData, alertsData]) => {
+      fetchManagerAlerts(),
+      fetchManagerBilling(),
+    ]).then(([tariffsData, alertsData, billingData]) => {
       setTariffs(tariffsData.map(mapTariff));
       setIssues(alertsData.map(mapAlert));
+      setBillingRecords(billingData.content.map(mapBilling));
     }).catch(err => {
       console.error('Error fetching manager data:', err);
     }).finally(() => setLoading(false));
@@ -101,8 +136,6 @@ export function TariffsIncidentsPage() {
     const tariffsData = await fetchManagerTariffs();
     setTariffs(tariffsData.map(mapTariff));
   };
-
-  const billingRecords = mockBillingRecords.filter(b => tariffs.some(t => t.parqueNome === b.parqueNome));
 
   const filteredIssues = useMemo(() => {
     return issues.filter((i) => {

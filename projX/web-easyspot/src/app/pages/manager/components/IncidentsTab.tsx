@@ -1,4 +1,4 @@
-import { mockIssues, type IssueReport } from '../../../data/gestorData';
+import { type IssueReport } from '../../../data/gestorData';
 import { QuickStat } from './shared';
 
 type IssueFilter = 'todos' | 'aberto' | 'em-progresso' | 'resolvido';
