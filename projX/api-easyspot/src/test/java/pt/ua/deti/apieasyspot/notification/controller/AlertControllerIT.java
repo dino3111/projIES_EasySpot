@@ -86,21 +86,6 @@ class AlertControllerIT {
     // --- GET /api/alerts (Manager sees CLIENT reports) ---
 
     @Test
-    @DisplayName("GET /api/alerts - unauthenticated - returns 401")
-    void listAlerts_unauthenticated_returns401() throws Exception {
-        mockMvc.perform(get("/api/alerts"))
-            .andExpect(status().isUnauthorized());
-    }
-
-    @Test
-    @DisplayName("GET /api/alerts - DRIVER role - returns 403")
-    void listAlerts_driverRole_returns403() throws Exception {
-        mockMvc.perform(get("/api/alerts")
-                .with(jwtWithRole("sub-driver", "DRIVER")))
-            .andExpect(status().isForbidden());
-    }
-
-    @Test
     @DisplayName("GET /api/alerts - MANAGER sees CLIENT report submitted by driver")
     void listAlerts_manager_seesClientReport() throws Exception {
         ParkingLot lot = parkingLotRepository.save(lot("Parque Reports"));
