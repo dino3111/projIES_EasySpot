@@ -5,9 +5,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import pt.ua.deti.apieasyspot.TestTimescaleDataSourceConfig;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingLotRepository;
 
@@ -21,6 +23,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@Import(TestTimescaleDataSourceConfig.class)
 class ParkControllerIT {
 
     @Autowired private MockMvc mockMvc;

@@ -14,10 +14,13 @@ import pt.ua.deti.apieasyspot.occupancy.repository.TimescaleOccupancySnapshotRep
 import pt.ua.deti.apieasyspot.occupancy.repository.*;
 
 import java.math.BigDecimal;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -188,20 +191,18 @@ public class ParkService {
 
     private List<ParkingLotDetailsResponse.SpotResponse> fetchSpots(UUID lotId) {
         List<pt.ua.deti.apieasyspot.occupancy.model.ParkingSpot> spots = parkingSpotRepository.findByParkingLotId(lotId);
-        
-        // Get all active reservations for this park in the current window
+
         java.time.OffsetDateTime now = java.time.OffsetDateTime.now();
         java.time.OffsetDateTime windowEnd = now.plusMinutes(30);
-        
+
+        List<UUID> spotIds = spots.stream().map(pt.ua.deti.apieasyspot.occupancy.model.ParkingSpot::getId).toList();
+        Set<UUID> reservedIds = new HashSet<>(reservationRepository.findReservedSpotIds(spotIds, now, windowEnd));
+
         return spots.stream()
             .map(s -> {
                 String status = s.getStatus();
-                // If spot is free in sensor, check if it's reserved
-                if ("free".equalsIgnoreCase(status)) {
-                    long conflicts = reservationRepository.countSpotConflicts(s.getId(), now, windowEnd);
-                    if (conflicts > 0) {
-                        status = "reserved";
-                    }
+                if ("free".equalsIgnoreCase(status) && reservedIds.contains(s.getId())) {
+                    status = "reserved";
                 }
                 return new ParkingLotDetailsResponse.SpotResponse(
                     s.getSpotNumber(), s.getZone().name(), s.getSpotRow(), s.getSpotCol(), status);

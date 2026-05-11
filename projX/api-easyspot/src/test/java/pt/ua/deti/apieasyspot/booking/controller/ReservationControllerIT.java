@@ -49,7 +49,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 })
 @ActiveProfiles("test")
 @AutoConfigureMockMvc
-@Import(TestcontainersConfiguration.class)
+@Import({TestcontainersConfiguration.class, TestTimescaleDataSourceConfig.class})
 class ReservationControllerIT {
 
     @Autowired MockMvc mockMvc;
