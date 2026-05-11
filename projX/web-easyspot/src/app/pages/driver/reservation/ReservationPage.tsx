@@ -45,6 +45,7 @@ export function ReservationPage() {
     if (driverType === 'reduced_mobility') return 'accessible';
     return 'todos';
   });
+  const didUserSetSpotFilterRef = useRef(false);
 
   useEffect(() => {
     if (didInitVehicleSelection.current) return;
@@ -142,6 +143,7 @@ export function ReservationPage() {
 
   useEffect(() => {
     if (selectedSpotId) return;
+    if (didUserSetSpotFilterRef.current) return;
     if (selectedVehicle?.isEV) {
       setSpotFilter('ev');
       return;
@@ -160,6 +162,15 @@ export function ReservationPage() {
     }
     setSpotFilter('todos');
   }, [driverType, selectedSpotId, selectedVehicle?.isEV, selectedVehicle?.isAccessible]);
+
+  useEffect(() => {
+    didUserSetSpotFilterRef.current = false;
+  }, [selectedVehicleId, driverType, selectedParkId]);
+
+  const handleSpotFilterChange = (filter: SpotFilter) => {
+    didUserSetSpotFilterRef.current = true;
+    setSpotFilter(filter);
+  };
 
   useEffect(() => {
     if (step !== 4) return;
@@ -285,7 +296,7 @@ export function ReservationPage() {
             {step === 2 && selectedLot && (
               <Step2SpotChoice
                 lot={selectedLot}
-                spotFilter={spotFilter} setSpotFilter={setSpotFilter}
+                spotFilter={spotFilter} onSpotFilterChange={handleSpotFilterChange}
                 selectedFloorId={selectedFloorId} setSelectedFloorId={setSelectedFloorId}
                 selectedSpotId={selectedSpotId} setSelectedSpotId={setSelectedSpotId}
                 onNext={() => setStep(3)} onBack={() => setStep(1)}

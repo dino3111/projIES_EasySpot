@@ -135,7 +135,9 @@ class ReservationServiceTest {
     @DisplayName("create - idempotency key already used - returns existing reservation")
     void create_sameIdempotencyKey_returnsExisting() {
         Reservation existing = savedReservation();
-        when(reservationRepository.findByIdempotencyKey("idem-key-1")).thenReturn(Optional.of(existing));
+        when(userRepository.findByAuthentikUserId(AUTH_ID)).thenReturn(Optional.of(user));
+        when(reservationRepository.findByUserIdAndIdempotencyKey(user.getId(), "idem-key-1"))
+            .thenReturn(Optional.of(existing));
 
         ReservationResponse resp = reservationService.create(AUTH_ID, "idem-key-1", request(null));
 
@@ -353,7 +355,7 @@ class ReservationServiceTest {
             .thenReturn(vehicleConflicts);
         when(occupancySnapshotRepository.sumFreeSpacesFromLatestSnapshot(lot.getId())).thenReturn(-1);
         when(tariffRepository.findByParkingLotId(lot.getId())).thenReturn(List.of(tariff));
-        when(parkingSpotRepository.findByParkingLotIdAndStatus(eq(lot.getId()), eq("free")))
+        when(parkingSpotRepository.findFreeByParkingLotIdForUpdateSkipLocked(eq(lot.getId()), eq("free")))
             .thenReturn(freeSpots);
         if (!freeSpots.isEmpty()) {
             when(reservationRepository.countSpotConflicts(any(), any(), any())).thenReturn(spotConflicts);

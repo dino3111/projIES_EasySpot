@@ -2,6 +2,7 @@ package pt.ua.deti.apieasyspot.booking.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pt.ua.deti.apieasyspot.auth.model.User;
@@ -61,14 +62,16 @@ public class ReservationService {
     public ReservationResponse create(String authentikUserId, String idempotencyKey,
                                       CreateReservationRequest request) {
         if (idempotencyKey != null && !idempotencyKey.isBlank()) {
-            return reservationRepository.findByIdempotencyKey(idempotencyKey)
+            User user = findUser(authentikUserId);
+            return reservationRepository.findByUserIdAndIdempotencyKey(user.getId(), idempotencyKey)
                 .map(this::toResponse)
-                .orElseGet(() -> doCreate(authentikUserId, idempotencyKey, request));
+                .orElseGet(() -> doCreate(user, idempotencyKey, request));
         }
-        return doCreate(authentikUserId, null, request);
+        preValidateTimeWindow(request);
+        return doCreate(findUser(authentikUserId), null, request);
     }
 
-    private ReservationResponse doCreate(String authentikUserId, String idempotencyKey,
+    private ReservationResponse doCreate(User user, String idempotencyKey,
                                          CreateReservationRequest request) {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
 
@@ -81,7 +84,6 @@ public class ReservationService {
         reservationRepository.expireTimedOutLocks(now, ReservationStatus.CONFIRMED, ReservationStatus.EXPIRED);
 
         // 3. Resolve entities
-        User user       = findUser(authentikUserId);
         ParkingLot lot  = findLot(request.parkId());
         Vehicle vehicle = findVehicleOwnedByUser(request.vehicleId(), user.getId());
 
@@ -139,7 +141,12 @@ public class ReservationService {
             parkingSpotRepository.save(spot);
         }
 
-        Reservation saved = reservationRepository.save(reservation);
+        Reservation saved;
+        try {
+            saved = reservationRepository.save(reservation);
+        } catch (DataIntegrityViolationException ex) {
+            throw new ConflictException("The selected spot became unavailable. Please choose another spot.");
+        }
 
         // 9. BillingModule: create Stripe PaymentIntent + ParkingSession record
         //    Runs in a separate transaction; transient Stripe failures do not roll back,
@@ -194,7 +201,7 @@ public class ReservationService {
             return spot;
         }
 
-        return parkingSpotRepository.findByParkingLotIdAndStatus(lot.getId(), "free").stream()
+        return parkingSpotRepository.findFreeByParkingLotIdForUpdateSkipLocked(lot.getId(), "free").stream()
             .filter(s -> reservationRepository.countSpotConflicts(s.getId(), arrival, departure) == 0)
             .findFirst()
             .orElse(null);
@@ -219,6 +226,13 @@ public class ReservationService {
             cost = tariff.getMaxDaily();
         }
         return cost;
+    }
+
+    private void preValidateTimeWindow(CreateReservationRequest request) {
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        OffsetDateTime arrival = parseDateTime(request.arrivalDateTime(), "arrivalDateTime");
+        OffsetDateTime departure = parseDateTime(request.departureDateTime(), "departureDateTime");
+        validateTimeWindow(arrival, departure, now);
     }
 
     private void validateTimeWindow(OffsetDateTime arrival, OffsetDateTime departure, OffsetDateTime now) {
@@ -249,7 +263,15 @@ public class ReservationService {
             LocalTime arrivalTime   = arrival.toLocalTime();
             LocalTime departureTime = departure.toLocalTime();
 
-            if (arrivalTime.isBefore(open) || arrivalTime.isAfter(close) || departureTime.isAfter(close)) {
+            boolean overnight = close.isBefore(open);
+            if (overnight) {
+                boolean arrivalOk = !arrivalTime.isBefore(open) || !arrivalTime.isAfter(close);
+                boolean departureOk = !departureTime.isBefore(open) || !departureTime.isAfter(close);
+                if (!arrivalOk || !departureOk) {
+                    throw new UnprocessableEntityException(
+                        "Reservation is outside the parking lot's opening hours (" + hours + ")");
+                }
+            } else if (arrivalTime.isBefore(open) || arrivalTime.isAfter(close) || departureTime.isAfter(close)) {
                 throw new UnprocessableEntityException(
                     "Reservation is outside the parking lot's opening hours (" + hours + ")");
             }

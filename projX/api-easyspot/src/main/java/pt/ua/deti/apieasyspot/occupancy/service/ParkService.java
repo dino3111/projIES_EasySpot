@@ -264,11 +264,11 @@ public class ParkService {
 
     private String deriveSpotStatus(ParkingSpot spot, Reservation reservation, OffsetDateTime now) {
         if (reservation == null) {
-            return normalizeSpotStatus(spot.getStatus());
+            return restoreSpotBaseStatus(spot);
         }
 
         if (now.isAfter(reservation.getDepartureTime())) {
-            return STATUS_FREE;
+            return restoreSpotBaseStatus(spot);
         }
 
         if (now.isBefore(reservation.getArrivalTime())) {
@@ -287,6 +287,12 @@ public class ParkService {
             case STATUS_FREE, STATUS_RESERVED, STATUS_OCCUPIED, "ev", "accessible" -> normalized;
             default -> STATUS_FREE;
         };
+    }
+
+    private String restoreSpotBaseStatus(ParkingSpot spot) {
+        if (spot.getZone() == ZoneType.EV) return "ev";
+        if (spot.getZone() == ZoneType.ACCESSIBLE) return "accessible";
+        return normalizeSpotStatus(spot.getStatus());
     }
 
     private List<ParkingLotDetailsResponse.EVChargerResponse> fetchEVChargers(UUID lotId) {

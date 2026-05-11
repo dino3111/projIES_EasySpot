@@ -21,4 +21,16 @@ public interface ParkingSpotRepository extends JpaRepository<ParkingSpot, UUID> 
     Optional<ParkingSpot> findByIdWithLock(@Param("id") UUID id);
 
     List<ParkingSpot> findByParkingLotIdAndStatus(UUID parkingLotId, String status);
+
+    @Query(value = """
+        SELECT * FROM parking_spots s
+        WHERE s.parking_lot_id = :parkingLotId
+          AND s.status = :status
+        ORDER BY s.spot_row ASC, s.spot_col ASC
+        FOR UPDATE SKIP LOCKED
+        """, nativeQuery = true)
+    List<ParkingSpot> findFreeByParkingLotIdForUpdateSkipLocked(
+        @Param("parkingLotId") UUID parkingLotId,
+        @Param("status") String status
+    );
 }

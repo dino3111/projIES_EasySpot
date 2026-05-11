@@ -104,9 +104,15 @@ function formatFloorName(floorId: string): string {
 
 function resolveSpotStatus(apiStatus: ParkingSpot['status'], zone: string): ParkingSpot['status'] {
   if (apiStatus === 'occupied' || apiStatus === 'reserved') return apiStatus;
-  const z = zone.toUpperCase();
-  if (z === 'EV') return 'ev';
-  if (z === 'ACCESSIBLE') return 'accessible';
+  const z = (zone ?? '').toUpperCase().trim();
+  if (z === 'EV' || z.includes('ELECTRIC') || z.includes('CHARG')) return 'ev';
+  if (
+    z === 'ACCESSIBLE' ||
+    z.includes('ACCESS') ||
+    z.includes('PMR') ||
+    z.includes('MOBIL') ||
+    z.includes('DISAB')
+  ) return 'accessible';
   return apiStatus;
 }
 
