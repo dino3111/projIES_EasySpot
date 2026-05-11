@@ -21,6 +21,7 @@ import java.util.regex.Pattern;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -232,9 +233,23 @@ public class ParkService {
     }
 
     private List<ParkingLotDetailsResponse.SpotResponse> fetchSpots(UUID lotId) {
-        return parkingSpotRepository.findByParkingLotId(lotId).stream()
-            .map(s -> new ParkingLotDetailsResponse.SpotResponse(
-                s.getId(), s.getSpotNumber(), s.getZone().name(), s.getSpotRow(), s.getSpotCol(), s.getStatus()))
+        List<pt.ua.deti.apieasyspot.occupancy.model.ParkingSpot> spots = parkingSpotRepository.findByParkingLotId(lotId);
+
+        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime windowEnd = now.plusMinutes(30);
+
+        List<UUID> spotIds = spots.stream().map(pt.ua.deti.apieasyspot.occupancy.model.ParkingSpot::getId).toList();
+        Set<UUID> reservedIds = new HashSet<>(reservationRepository.findReservedSpotIds(spotIds, now, windowEnd));
+
+        return spots.stream()
+            .map(s -> {
+                String status = s.getStatus();
+                if ("free".equalsIgnoreCase(status) && reservedIds.contains(s.getId())) {
+                    status = "reserved";
+                }
+                return new ParkingLotDetailsResponse.SpotResponse(
+                    s.getId(), s.getSpotNumber(), s.getZone().name(), s.getSpotRow(), s.getSpotCol(), status);
+            })
             .toList();
     }
 

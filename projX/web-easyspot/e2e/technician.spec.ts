@@ -157,6 +157,7 @@ test.beforeEach(async ({ page }) => {
   }, jwt);
 
   await page.route('**/api/profile', (route) => route.fulfill({ json: mockProfile }));
+  await page.route('**/api/vehicles', (route) => route.fulfill({ json: [] }));
   await page.route('**/api/technician/dashboard', (route) => route.fulfill({ json: mockDashboard }));
   await page.route('**/api/technician/sensors', (route) => route.fulfill({ json: mockSensors }));
   await page.route('**/api/technician/sensors/IR-AV1-B07/logs', (route) => route.fulfill({ json: mockSensorDetail }));
