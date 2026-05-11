@@ -130,10 +130,19 @@ const TAB_PARAM_MAP: Record<string, PageTab> = {
   incidents: 'ocorrencias',
 };
 
+const TAB_TO_PARAM: Record<PageTab, string | null> = {
+  ocorrencias: null,
+  sensores: 'sensors',
+  tarefas: 'tasks',
+};
+
 export function MaintenancePage() {
-  const [searchParams] = useSearchParams();
-  const initialTab = TAB_PARAM_MAP[searchParams.get('tab') ?? ''] ?? 'ocorrencias';
-  const [tab, setTab]                       = useState<PageTab>(initialTab);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab: PageTab = TAB_PARAM_MAP[searchParams.get('tab') ?? ''] ?? 'ocorrencias';
+  function setTab(t: PageTab) {
+    const param = TAB_TO_PARAM[t];
+    setSearchParams(param ? { tab: param } : {});
+  }
   const [sensors, setSensors]               = useState<SensorDevice[]>([]);
   const [issues, setIssues]                 = useState<IssueReport[]>([]);
   const [orders, setOrders]                 = useState<WorkOrder[]>([]);

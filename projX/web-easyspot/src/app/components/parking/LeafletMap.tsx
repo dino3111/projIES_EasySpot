@@ -176,8 +176,7 @@ export function LeafletMap({
       map.fitBounds(bounds, { padding: [20, 20], animate: false });
       hasFitBounds.current = true;
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lots, selectedId, singleLot]);
+  }, [lots, selectedId, singleLot, pinColorOverrides]);
 
   useEffect(() => {
     if (!selectedId || !mapRef.current) return;

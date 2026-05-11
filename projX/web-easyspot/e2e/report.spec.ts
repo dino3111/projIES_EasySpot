@@ -129,3 +129,72 @@ test('Botão Cancelar na página de reporte navega para trás', async ({ page })
   await page.getByRole('button', { name: /Cancelar/i }).click();
   await expect(page).toHaveURL(/\/parking\/park-1/);
 });
+
+test('Submissão com formulário incompleto mostra mensagens de erro', async ({ page }) => {
+  await page.goto('/report');
+  await expect(page.getByText(/Reportar Estacionamento/i)).toBeVisible();
+
+  await page.getByRole('button', { name: /Enviar Denúncia/i }).click();
+
+  await expect(page.getByText(/Selecione um parque/i)).toBeVisible();
+  await expect(page.getByText(/Indique a zona/i)).toBeVisible();
+  await expect(page.getByText(/Indique o número do lugar/i)).toBeVisible();
+  await expect(page.getByText(/Selecione o tipo de infração/i)).toBeVisible();
+  await expect(page.getByText(/A descrição deve ter/i)).toBeVisible();
+  await expect(page.getByText(/Denúncia Enviada/i)).not.toBeVisible();
+});
+
+test('Erro do backend mostra mensagem de erro inline', async ({ page }) => {
+  await page.goto('/report');
+  await expect(page.getByText(/Reportar Estacionamento/i)).toBeVisible();
+
+  await page.getByRole('combobox').selectOption({ value: 'park-1' });
+  await page.getByPlaceholder(/Ex: Piso -1, Zona A/i).fill('A');
+  await page.getByPlaceholder(/Ex: A-07, MR-02/i).fill('A-01');
+  await page.getByRole('button', { name: /A Bloquear Acesso/i }).click();
+  await page.getByPlaceholder(/Descreva o que observou/i).fill(
+    'Veículo bloqueia completamente a saída de emergência do parque.',
+  );
+
+  await page.route('**/api/reports', (route) =>
+    route.fulfill({ status: 500, body: JSON.stringify({ message: 'Erro interno do servidor' }) }),
+  );
+
+  await page.getByRole('button', { name: /Enviar Denúncia/i }).click();
+
+  await expect(page.getByText(/Erro interno do servidor/i)).toBeVisible();
+  await expect(page.getByText(/Denúncia Enviada/i)).not.toBeVisible();
+});
+
+test('Após confirmação, clicar em Nova Denúncia volta ao formulário limpo', async ({ page }) => {
+  await page.goto('/report');
+  await expect(page.getByText(/Reportar Estacionamento/i)).toBeVisible();
+
+  await page.getByRole('combobox').selectOption({ value: 'park-2' });
+  await page.getByPlaceholder(/Ex: Piso -1, Zona A/i).fill('B');
+  await page.getByPlaceholder(/Ex: A-07, MR-02/i).fill('B-10');
+  await page.getByRole('button', { name: /Lugar de Carregamento EV/i }).click();
+  await page.getByPlaceholder(/Descreva o que observou/i).fill(
+    'Veículo a gasóleo no lugar EV bloqueando carregadores há mais de 3 horas.',
+  );
+
+  await page.route('**/api/reports', (route) =>
+    route.fulfill({
+      status: 201,
+      json: {
+        id: 'rep-e2e-002', type: 'CLIENT', parkId: 'park-2', parkName: 'Forum Aveiro',
+        zone: 'B', spotNumber: 'B-10', plate: null,
+        description: 'Veículo a gasóleo no lugar EV.',
+        photoUrl: null, severity: 'WARNING', state: 'OPEN', createdAt: new Date().toISOString(),
+      },
+    }),
+  );
+
+  await page.getByRole('button', { name: /Enviar Denúncia/i }).click();
+  await expect(page.getByText(/REP\d+/)).toBeVisible({ timeout: 5000 });
+
+  await page.getByRole('button', { name: /Nova Denúncia/i }).click();
+
+  await expect(page.getByText(/Reportar Estacionamento/i)).toBeVisible();
+  await expect(page.getByRole('combobox')).toHaveValue('');
+});

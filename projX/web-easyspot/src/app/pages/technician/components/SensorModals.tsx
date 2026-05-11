@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { type SensorDevice, type SensorStatus } from '../../../data/technicianData';
 import { STATUS_COLOR, STATUS_LABEL, STATUS_ICON, TIPO_ICON } from './maintenanceTypes';
 import { MetaRow } from './shared';
@@ -26,11 +26,22 @@ export function SensorDiagPanel({
   sensor, onClose, onUpdate,
 }: SensorDiagPanelProps) {
   const color = STATUS_COLOR[sensor.status];
+  const ref = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    ref.current?.showModal();
+    return () => ref.current?.close();
+  }, []);
 
   return (
-    <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-4" aria-label={`Diagnóstico: ${sensor.id}`}>
+    <dialog
+      ref={ref}
+      onCancel={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-transparent backdrop:bg-black/60 backdrop:backdrop-blur-sm w-full max-w-2xl rounded-2xl"
+      aria-label={`Diagnóstico: ${sensor.id}`}
+    >
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
-      <div className="relative bg-card border border-border rounded-2xl p-5 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div className="relative bg-card border border-border rounded-2xl p-5 w-full shadow-2xl max-h-[90vh] overflow-y-auto">
 
         <div className="flex items-start gap-3 mb-4">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `${color}15` }} aria-hidden="true">
@@ -109,7 +120,7 @@ export function SensorDiagPanel({
           </button>
         </div>
       </div>
-    </div>
+    </dialog>
   );
 }
 
@@ -118,6 +129,12 @@ export function StatusUpdateModal({
 }: StatusUpdateModalProps) {
   const [newStatus, setNewStatus] = useState<SensorStatus>(sensor.status);
   const [notes, setNotes] = useState('');
+  const ref = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    ref.current?.showModal();
+    return () => ref.current?.close();
+  }, []);
 
   const options: StatusOption[] = [
     { value: 'operacional', label: 'Operacional', icon: 'fa-circle-check', desc: 'Sensor reparado e em funcionamento normal' },
@@ -127,9 +144,14 @@ export function StatusUpdateModal({
   ];
 
   return (
-    <dialog open className="fixed inset-0 z-[60] flex items-center justify-center bg-transparent p-4" aria-label="Atualizar estado do sensor">
+    <dialog
+      ref={ref}
+      onCancel={onClose}
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-transparent backdrop:bg-black/70 backdrop:backdrop-blur-sm w-full max-w-md rounded-2xl"
+      aria-label="Atualizar estado do sensor"
+    >
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
-      <div className="relative bg-card border border-border rounded-2xl p-5 w-full max-w-md shadow-2xl">
+      <div className="relative bg-card border border-border rounded-2xl p-5 w-full shadow-2xl">
 
         <div className="flex items-center gap-2 mb-1">
           <i className="fas fa-pen-to-square text-primary" style={{ fontSize: '1.1rem' }} aria-hidden="true"></i>

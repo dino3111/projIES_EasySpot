@@ -311,5 +311,5 @@ export interface ParkSummary {
 
 export const parksApi = {
   list: (pageSize = 100) =>
-    request<{ items: ParkSummary[] }>(`/api/parks/list?page=0&pageSize=${pageSize}`),
+    request<{ items: ParkSummary[] }>(`/api/parks/list?page=1&pageSize=${pageSize}`),
 };
