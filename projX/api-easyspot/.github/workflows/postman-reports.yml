@@ -57,6 +57,7 @@ jobs:
           POSTMAN_DB_PASS: easyspot
           POSTMAN_KAFKA_SERVERS: localhost:9093
           POSTMAN_JWT_SECRET: easyspot-postman-secret-key-change-me-2026
+          STRIPE_API_KEY: sk_test_postman_dummy_key
         run: |
           ./mvnw -B spring-boot:run > app.log 2>&1 &
           echo $! > app.pid
@@ -74,7 +75,7 @@ jobs:
           tail -n 200 app.log || true
           exit 1
 
-      - name: Run reports collection
+      - name: Run Postman collections
         run: ./postman/scripts/run-reports-newman.sh
 
       - name: Stop API

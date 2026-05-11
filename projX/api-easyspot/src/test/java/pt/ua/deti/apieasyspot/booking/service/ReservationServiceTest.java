@@ -13,6 +13,7 @@ import pt.ua.deti.apieasyspot.auth.model.User;
 import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
 import pt.ua.deti.apieasyspot.booking.dto.CreateReservationRequest;
 import pt.ua.deti.apieasyspot.booking.dto.ReservationResponse;
+import pt.ua.deti.apieasyspot.booking.dto.UpdateReservationRequest;
 import pt.ua.deti.apieasyspot.billing.service.BillingService;
 import pt.ua.deti.apieasyspot.booking.event.ReservationEventPublisher;
 import pt.ua.deti.apieasyspot.booking.model.Reservation;
@@ -345,6 +346,144 @@ class ReservationServiceTest {
         ReservationResponse resp = reservationService.create(AUTH_ID, null, req);
 
         assertThat(resp.estimatedCost()).isEqualByComparingTo("12.00");
+    }
+
+    @Test
+    @DisplayName("list - returns reservations belonging to authenticated user")
+    void list_returnsUserReservations() {
+        Reservation reservation = savedReservation();
+        when(userRepository.findByAuthentikUserId(AUTH_ID)).thenReturn(Optional.of(user));
+        when(reservationRepository.findByUserIdOrderByCreatedAtDesc(user.getId()))
+            .thenReturn(List.of(reservation));
+
+        List<ReservationResponse> responses = reservationService.list(AUTH_ID);
+
+        assertThat(responses).hasSize(1);
+        assertThat(responses.getFirst().reservationId()).isEqualTo(reservation.getId());
+    }
+
+    @Test
+    @DisplayName("getById - owned reservation - returns details")
+    void getById_ownedReservation_returnsDetails() {
+        Reservation reservation = savedReservation();
+        when(userRepository.findByAuthentikUserId(AUTH_ID)).thenReturn(Optional.of(user));
+        when(reservationRepository.findByIdAndUserId(reservation.getId(), user.getId()))
+            .thenReturn(Optional.of(reservation));
+
+        ReservationResponse response = reservationService.getById(AUTH_ID, reservation.getId());
+
+        assertThat(response.reservationId()).isEqualTo(reservation.getId());
+        assertThat(response.bookingCode()).isEqualTo(reservation.getBookingCode());
+    }
+
+    @Test
+    @DisplayName("update - future confirmed reservation - updates times and spot")
+    void update_futureReservation_updatesReservation() {
+        ParkingSpot currentSpot = freeSpot();
+        ParkingSpot nextSpot = freeSpot();
+        nextSpot.setId(UUID.randomUUID());
+        nextSpot.setSpotNumber("A2");
+
+        Reservation reservation = savedReservation();
+        reservation.setUser(user);
+        reservation.setParkingSpot(currentSpot);
+
+        UpdateReservationRequest request = new UpdateReservationRequest(
+            lot.getId(),
+            vehicle.getId(),
+            ARRIVAL.plusHours(1).toString(),
+            DEPARTURE.plusHours(1).toString(),
+            nextSpot.getId()
+        );
+
+        when(userRepository.findByAuthentikUserId(AUTH_ID)).thenReturn(Optional.of(user));
+        when(reservationRepository.expireTimedOutLocks(any(), eq(ReservationStatus.CONFIRMED), eq(ReservationStatus.EXPIRED)))
+            .thenReturn(0);
+        when(reservationRepository.findByIdAndUserId(reservation.getId(), user.getId()))
+            .thenReturn(Optional.of(reservation));
+        when(parkingLotRepository.findById(lot.getId())).thenReturn(Optional.of(lot));
+        when(vehicleRepository.findByIdAndUserId(vehicle.getId(), user.getId())).thenReturn(Optional.of(vehicle));
+        when(occupancySnapshotRepository.sumFreeSpacesFromLatestSnapshot(lot.getId())).thenReturn(-1);
+        when(reservationRepository.countLotReservationsExcludingReservation(eq(lot.getId()), eq(reservation.getId()), any(), any()))
+            .thenReturn(0L);
+        when(reservationRepository.countVehicleConflictsExcludingReservation(eq(vehicle.getId()), eq(lot.getId()), eq(reservation.getId()), any(), any()))
+            .thenReturn(0L);
+        when(reservationRepository.spotBelongsToPark(nextSpot.getId(), lot.getId())).thenReturn(true);
+        when(parkingSpotRepository.findByIdWithLock(nextSpot.getId())).thenReturn(Optional.of(nextSpot));
+        when(reservationRepository.countSpotConflictsExcludingReservation(eq(nextSpot.getId()), eq(reservation.getId()), any(), any()))
+            .thenReturn(0L);
+        when(tariffRepository.findByParkingLotId(lot.getId())).thenReturn(List.of(tariff));
+        when(reservationRepository.save(any(Reservation.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        ReservationResponse response = reservationService.update(AUTH_ID, reservation.getId(), request);
+
+        assertThat(response.spotId()).isEqualTo(nextSpot.getId());
+        assertThat(response.arrivalDateTime()).isEqualTo(ARRIVAL.plusHours(1));
+        verify(parkingSpotRepository).save(currentSpot);
+        verify(parkingSpotRepository).save(nextSpot);
+    }
+
+    @Test
+    @DisplayName("update - reservation after arrival - throws ConflictException")
+    void update_startedReservation_throwsConflict() {
+        Reservation reservation = savedReservation();
+        reservation.setUser(user);
+        reservation.setArrivalTime(OffsetDateTime.now(ZoneOffset.UTC).minusMinutes(5));
+        reservation.setDepartureTime(OffsetDateTime.now(ZoneOffset.UTC).plusHours(1));
+
+        when(userRepository.findByAuthentikUserId(AUTH_ID)).thenReturn(Optional.of(user));
+        when(reservationRepository.expireTimedOutLocks(any(), eq(ReservationStatus.CONFIRMED), eq(ReservationStatus.EXPIRED)))
+            .thenReturn(0);
+        when(reservationRepository.findByIdAndUserId(reservation.getId(), user.getId()))
+            .thenReturn(Optional.of(reservation));
+
+        UpdateReservationRequest request = new UpdateReservationRequest(
+            lot.getId(), vehicle.getId(), ARRIVAL.toString(), DEPARTURE.toString(), null);
+
+        assertThatThrownBy(() -> reservationService.update(AUTH_ID, reservation.getId(), request))
+            .isInstanceOf(ConflictException.class)
+            .hasMessageContaining("can no longer be updated");
+    }
+
+    @Test
+    @DisplayName("cancel - future confirmed reservation - marks reservation cancelled")
+    void cancel_futureReservation_marksCancelled() {
+        ParkingSpot currentSpot = freeSpot();
+        Reservation reservation = savedReservation();
+        reservation.setUser(user);
+        reservation.setParkingSpot(currentSpot);
+
+        when(userRepository.findByAuthentikUserId(AUTH_ID)).thenReturn(Optional.of(user));
+        when(reservationRepository.expireTimedOutLocks(any(), eq(ReservationStatus.CONFIRMED), eq(ReservationStatus.EXPIRED)))
+            .thenReturn(0);
+        when(reservationRepository.findByIdAndUserId(reservation.getId(), user.getId()))
+            .thenReturn(Optional.of(reservation));
+        when(reservationRepository.save(any(Reservation.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        ReservationResponse response = reservationService.cancel(AUTH_ID, reservation.getId());
+
+        assertThat(response.status()).isEqualTo(ReservationStatus.CANCELLED.name());
+        assertThat(reservation.getLockedUntil()).isNull();
+        verify(parkingSpotRepository).save(currentSpot);
+        verify(eventPublisher).publishCancelled(reservation);
+    }
+
+    @Test
+    @DisplayName("cancel - already cancelled reservation - throws ConflictException")
+    void cancel_terminalReservation_throwsConflict() {
+        Reservation reservation = savedReservation();
+        reservation.setUser(user);
+        reservation.setStatus(ReservationStatus.CANCELLED);
+
+        when(userRepository.findByAuthentikUserId(AUTH_ID)).thenReturn(Optional.of(user));
+        when(reservationRepository.expireTimedOutLocks(any(), eq(ReservationStatus.CONFIRMED), eq(ReservationStatus.EXPIRED)))
+            .thenReturn(0);
+        when(reservationRepository.findByIdAndUserId(reservation.getId(), user.getId()))
+            .thenReturn(Optional.of(reservation));
+
+        assertThatThrownBy(() -> reservationService.cancel(AUTH_ID, reservation.getId()))
+            .isInstanceOf(ConflictException.class)
+            .hasMessageContaining("Only confirmed reservations");
     }
 
     // ── Lock expiry ──────────────────────────────────────────────────────────

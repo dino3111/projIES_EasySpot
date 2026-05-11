@@ -57,6 +57,18 @@ export function TechMapPage() {
     return { healthy, total, pct, color };
   };
 
+  const pinColorOverrides = useMemo(() => {
+    const map: Record<string, string> = {};
+    parkingLots.forEach(lot => {
+      const parkSensors = sensors.filter(s => s.parkingLotId === lot.id);
+      const healthy = parkSensors.filter(s => toSensorStatus(s.status) === 'operacional').length;
+      const total   = parkSensors.length;
+      const pct     = total > 0 ? Math.round((healthy / total) * 100) : 100;
+      map[lot.id]   = pct === 100 ? '#22c55e' : pct >= 70 ? '#f59e0b' : '#d4183d';
+    });
+    return map;
+  }, [parkingLots, sensors]);
+
   const FILTERS: { id: FilterType; icon: string; label: string }[] = [
     { id: 'todos',        icon: 'fa-layer-group',        label: 'Todos' },
     { id: 'operacionais', icon: 'fa-circle-check',       label: 'Operacionais' },
@@ -72,6 +84,7 @@ export function TechMapPage() {
           selectedId={selectedLotId}
           onSelect={handleSelectLot}
           height="100%"
+          pinColorOverrides={pinColorOverrides}
         />
       </div>
 

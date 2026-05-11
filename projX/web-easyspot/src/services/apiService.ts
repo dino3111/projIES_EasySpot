@@ -301,3 +301,15 @@ export const profileApi = {
     return await res.json() as ProfileResponse;
   },
 };
+
+export interface ParkSummary {
+  id: string;
+  name: string;
+  city: string;
+  address: string;
+}
+
+export const parksApi = {
+  list: (pageSize = 100) =>
+    request<{ items: ParkSummary[] }>(`/api/parks/list?page=1&pageSize=${pageSize}`),
+};

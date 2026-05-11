@@ -71,7 +71,7 @@ export function IssueDetailModal({
   };
 
   return (
-    <dialog open className="fixed inset-0 z-50 flex items-center justify-center bg-transparent p-4" aria-label={`Detalhe: ${issue.parque}`}>
+    <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-4" aria-label={`Detalhe: ${issue.parque}`}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
       <div className="relative bg-card border border-border rounded-2xl p-5 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
 
@@ -182,6 +182,6 @@ export function IssueDetailModal({
           </button>
         </div>
       </div>
-    </dialog>
+    </div>
   );
 }

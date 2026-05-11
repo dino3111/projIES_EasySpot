@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { type SensorDevice, type SensorStatus } from '../../../data/technicianData';
 import { STATUS_COLOR, STATUS_LABEL, STATUS_ICON, TIPO_ICON } from './maintenanceTypes';
-import { MetaRow, TechMapLegend } from './shared';
+import { MetaRow } from './shared';
 
 type SensorDiagPanelProps = Readonly<{
   sensor: SensorDevice;
@@ -22,25 +22,15 @@ type StatusOption = Readonly<{
   desc: string;
 }>;
 
-const getSensorSpotStyle = (isSensorSpot: boolean) => ({
-  width: 34,
-  height: 34,
-  background: isSensorSpot ? '#3b82f6' : 'var(--color-muted)',
-  opacity: isSensorSpot ? 1 : 0.4,
-});
-
 export function SensorDiagPanel({
   sensor, onClose, onUpdate,
 }: SensorDiagPanelProps) {
-  const [activeFloorIdx, setActiveFloorIdx] = useState(0);
   const color = STATUS_COLOR[sensor.status];
-  const lot = null;
-  const activeFloor = lot?.floors?.[activeFloorIdx];
 
   return (
-    <dialog open className="fixed inset-0 z-50 flex items-center justify-center bg-transparent p-4" aria-label={`Diagnóstico: ${sensor.id}`}>
+    <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-4" aria-label={`Diagnóstico: ${sensor.id}`}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
-      <div className="relative bg-card border border-border rounded-2xl p-5 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div className="relative bg-card border border-border rounded-2xl p-5 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto mx-auto">
 
         <div className="flex items-start gap-3 mb-4">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `${color}15` }} aria-hidden="true">
@@ -65,56 +55,6 @@ export function SensorDiagPanel({
           <span className="px-3 py-1 rounded-full bg-muted text-muted-foreground" style={{ fontSize: '0.75rem', fontWeight: 600 }}>{sensor.tipo}</span>
           <span className="px-3 py-1 rounded-full bg-muted text-muted-foreground" style={{ fontSize: '0.75rem', fontFamily: 'monospace' }}>{sensor.firmware}</span>
         </div>
-
-        {lot?.floors && lot.floors.length > 0 && (
-          <div className="mb-4">
-            <div className="flex flex-wrap gap-1.5 mb-3">
-              {lot.floors.map((floor, idx) => (
-                <button
-                  key={floor.id}
-                  onClick={() => setActiveFloorIdx(idx)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
-                    activeFloorIdx === idx ? 'bg-primary text-white border-primary' : 'bg-card text-muted-foreground border-border hover:bg-muted'
-                  }`}
-                >
-                  {floor.name}
-                </button>
-              ))}
-            </div>
-            {activeFloor && (
-              <div className="rounded-xl border border-border bg-card overflow-hidden">
-                <div className="px-3 py-2 bg-muted/30 border-b border-border flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-foreground font-bold" style={{ fontSize: '0.75rem' }}>Localização no {activeFloor.name}</span>
-                  <div className="flex flex-wrap gap-2">
-                    <TechMapLegend color="#22c55e" label="Operacional" />
-                    <TechMapLegend color="#d4183d" label="Falha" />
-                    <TechMapLegend color="#f59e0b" label="Manutenção" />
-                    <TechMapLegend color="#6b7280" label="Offline" />
-                    <TechMapLegend color="#3b82f6" label="Este sensor" />
-                  </div>
-                </div>
-                <div className="p-3 overflow-x-auto scrollbar-none flex justify-center bg-muted/10 overscroll-x-contain">
-                  <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${activeFloor.cols}, 34px)` }}>
-                    {activeFloor.spots.map(spot => {
-                      const isSensorSpot = sensor.lugar === spot.label;
-                      return (
-                        <div
-                          key={spot.id}
-                          className={`flex flex-col items-center justify-center rounded-lg shadow-sm cursor-pointer transition-all ${isSensorSpot ? 'ring-2 ring-offset-1 ring-blue-500 scale-110' : ''}`}
-                          style={getSensorSpotStyle(isSensorSpot)}
-                          title={`Lugar ${spot.label}`}
-                          aria-label={`Lugar ${spot.label}${isSensorSpot ? ' - Este sensor' : ''}`}
-                        >
-                          <i className={`fas ${isSensorSpot ? 'fa-microchip' : 'fa-square'} text-white text-[10px]`} aria-hidden="true" />
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
 
         <div className="bg-muted/30 rounded-xl p-3 mb-4 grid grid-cols-2 gap-x-4 gap-y-2">
           <MetaRow label="Uptime"           value={`${sensor.uptimePercent}%`} />
@@ -169,7 +109,7 @@ export function SensorDiagPanel({
           </button>
         </div>
       </div>
-    </dialog>
+    </div>
   );
 }
 
@@ -187,9 +127,9 @@ export function StatusUpdateModal({
   ];
 
   return (
-    <dialog open className="fixed inset-0 z-[60] flex items-center justify-center bg-transparent p-4" aria-label="Atualizar estado do sensor">
+    <div role="dialog" aria-modal="true" className="fixed inset-0 z-[60] flex items-center justify-center p-4" aria-label="Atualizar estado do sensor">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
-      <div className="relative bg-card border border-border rounded-2xl p-5 w-full max-w-md shadow-2xl">
+      <div className="relative bg-card border border-border rounded-2xl p-5 w-full max-w-md shadow-2xl mx-auto">
 
         <div className="flex items-center gap-2 mb-1">
           <i className="fas fa-pen-to-square text-primary" style={{ fontSize: '1.1rem' }} aria-hidden="true"></i>
@@ -256,6 +196,6 @@ export function StatusUpdateModal({
           </button>
         </div>
       </div>
-    </dialog>
+    </div>
   );
 }
