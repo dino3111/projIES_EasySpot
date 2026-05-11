@@ -88,10 +88,12 @@ function clearAuthStorage() {
 
 function extractRole(claims: Record<string, unknown>): AppProfile {
   const groups = claims['groups'];
+  if (import.meta.env.DEV) console.log('[AUTH] extractRole — raw groups:', groups);
   if (Array.isArray(groups) && groups.length > 0) {
-    const g = groups[0];
-    const r = (typeof g === 'string' ? g : String(g)).toUpperCase();
-    if (r === 'MANAGER' || r === 'TECHNICAL') return r as AppProfile;
+    for (const g of groups) {
+      const r = String(g).replace(/^\/+/, '').toUpperCase();
+      if (r === 'MANAGER' || r === 'TECHNICAL') return r as AppProfile;
+    }
   }
   return 'DRIVER';
 }

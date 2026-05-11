@@ -8,8 +8,8 @@ type IncidentStatusFilter = 'todos' | 'aberto' | 'em-progresso' | 'resolvido';
 type IncidentSeverityFilter = 'todos' | 'critica' | 'aviso';
 
 type IncidentsTabProps = Readonly<{
-  sensors: SensorDevice[];
   issues: IssueReport[];
+  sensors: SensorDevice[];
   onSelectIssue: (i: IssueReport) => void;
   onUpdateSensor: (s: SensorDevice) => void;
   onCreateTaskFromIssue: (i: IssueReport) => void;
@@ -41,8 +41,8 @@ const ISSUE_STATUS_BADGES: Record<IssueReport['estado'], { label: string; color:
 };
 
 export function IncidentsTab({
-  sensors,
   issues,
+  sensors,
   onSelectIssue,
   onUpdateSensor,
   onCreateTaskFromIssue,
@@ -58,7 +58,7 @@ export function IncidentsTab({
   parkNames.forEach(n => parkIssuesMap.set(n, issues.filter(i => i.parque === n)));
 
   const uniqueCities = Array.from(new Set(
-    parkNames.map(n => parkCityMap.get(n)).filter((c): c is string => c !== undefined)
+    parkNames.map(n => parkCityMap.get(n)).filter((c): c is string => !!c)
   )).sort((a, b) => a.localeCompare(b, 'pt-PT'));
 
   if (selectedPark) {
@@ -67,7 +67,7 @@ export function IncidentsTab({
       <ParkOcorrenciasView
         parkName={selectedPark}
         manager={manager}
-        issues={parkIssuesMap.get(selectedPark) || []}
+        issues={parkIssuesMap.get(selectedPark) ?? []}
         onBack={() => setSelectedPark(null)}
         onSelectIssue={onSelectIssue}
         onUpdateSensor={onUpdateSensor}
@@ -151,7 +151,7 @@ export function IncidentsTab({
       ) : (
         <div className="grid gap-3 sm:grid-cols-1 lg:grid-cols-2">
           {visibleParkNames.map(parkName => {
-            const parkIssues = parkIssuesMap.get(parkName) || [];
+            const parkIssues = parkIssuesMap.get(parkName) ?? [];
             const manager = parkManagers.find(m => m.parkName === parkName);
             const filtered = parkIssues.filter(i => {
               const estOk = estFilter === 'todos' || i.estado === estFilter;

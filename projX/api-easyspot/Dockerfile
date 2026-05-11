@@ -3,6 +3,7 @@ WORKDIR /app
 COPY pom.xml .
 RUN mvn dependency:go-offline -q
 COPY src ./src
+COPY lombok.config .
 RUN mvn package -DskipTests -q
 
 FROM eclipse-temurin:21-jre-alpine
