@@ -10,14 +10,14 @@ import { RealtimeAlerts } from './components/shared/RealtimeAlerts';
 export default function App() {
   return (
     <LoadingProvider>
-      <ProfileProvider>
-        <AuthProvider>
+      <AuthProvider>
+        <ProfileProvider>
           <RouterProvider router={router} />
           <GlobalLoadingOverlay />
           <RealtimeAlerts />
           <Toaster position="top-center" richColors />
-        </AuthProvider>
-      </ProfileProvider>
+        </ProfileProvider>
+      </AuthProvider>
     </LoadingProvider>
   );
 }

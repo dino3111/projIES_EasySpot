@@ -22,6 +22,7 @@ function normalizeIssuer(issuer: unknown): string {
 
 function isExpectedIssuer(token: string): boolean {
   const issuer = normalizeIssuer(parseJwtClaims(token)['iss']);
+  if (!issuer) return true;
   return EXPECTED_ISSUERS.some((expectedIssuer) => normalizeIssuer(expectedIssuer) === issuer);
 }
 

@@ -77,6 +77,7 @@ function normalizeIssuer(issuer: unknown): string {
 
 function tokenIssuerMatches(claims: Record<string, unknown>): boolean {
   const tokenIssuer = normalizeIssuer(claims['iss']);
+  if (!tokenIssuer) return true;
   return EXPECTED_ISSUERS.some((issuer) => normalizeIssuer(issuer) === tokenIssuer);
 }
 
@@ -217,7 +218,7 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
       response_type:         'code',
       client_id:             CLIENT_ID,
       redirect_uri:          REDIRECT_URI,
-      scope:                 'openid profile email groups',
+      scope:                 'openid profile email groups offline_access',
       state:                 stateVal,
       code_challenge:        challenge,
       code_challenge_method: 'S256',
@@ -238,7 +239,7 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
       response_type:         'code',
       client_id:             CLIENT_ID,
       redirect_uri:          REDIRECT_URI,
-      scope:                 'openid profile email groups',
+      scope:                 'openid profile email groups offline_access',
       state:                 stateVal,
       code_challenge:        challenge,
       code_challenge_method: 'S256',

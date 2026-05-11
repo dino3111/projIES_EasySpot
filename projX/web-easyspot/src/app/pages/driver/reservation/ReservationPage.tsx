@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router';
 import type { ParkingLot } from '../../../data/parkingTypes';
 import { useProfile } from '../../../context/ProfileContext';
@@ -25,6 +25,7 @@ export function ReservationPage() {
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>(
     () => vehicles.find((v) => v.isPrimary)?.id ?? ''
   );
+  const didInitVehicleSelection = useRef(false);
   const selectedVehicle = useMemo(
     () => vehicles.find((v) => v.id === selectedVehicleId) ?? null,
     [vehicles, selectedVehicleId]
@@ -39,10 +40,19 @@ export function ReservationPage() {
   const [spotFilter, setSpotFilter]           = useState<SpotFilter>('todos');
 
   useEffect(() => {
-    if (selectedVehicle?.isEV) setSpotFilter('ev');
-    else if (selectedVehicle?.isAccessible) setSpotFilter('accessible');
-    else setSpotFilter('todos');
-  }, [selectedVehicleId]);
+    if (didInitVehicleSelection.current) return;
+    if (selectedVehicleId && vehicles.some((v) => v.id === selectedVehicleId)) {
+      didInitVehicleSelection.current = true;
+      return;
+    }
+    if (vehicles.length === 0) return;
+
+    const initialVehicle = vehicles.find((v) => v.isPrimary) ?? vehicles[0];
+    if (!initialVehicle) return;
+
+    setSelectedVehicleId(initialVehicle.id);
+    didInitVehicleSelection.current = true;
+  }, [vehicles, selectedVehicleId]);
 
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [bookingCode, setBookingCode] = useState<string>('');
@@ -63,8 +73,6 @@ export function ReservationPage() {
     }
     fetchParkDetailsById(selectedParkId).then(setSelectedLot).catch(() => setSelectedLot(null));
   }, [selectedParkId]);
-  const estimatedCost = calcCost(selectedLot, calcHours(arrivalTime, exitTime));
-
   const selectedFloor = useMemo(
     () => selectedLot?.floors.find(f => f.id === selectedFloorId) || selectedLot?.floors[0] || null,
     [selectedLot, selectedFloorId]
@@ -73,6 +81,8 @@ export function ReservationPage() {
     () => selectedFloor?.spots.find(s => s.id === selectedSpotId) || null,
     [selectedFloor, selectedSpotId]
   );
+  const isEVSpot = selectedSpot?.status === 'ev';
+  const estimatedCost = calcCost(selectedLot, calcHours(arrivalTime, exitTime), isEVSpot);
   const spotLabel = selectedSpot ? `${selectedFloor?.name} · Lugar ${selectedSpot.label}` : '';
 
   useEffect(() => {
@@ -107,12 +117,14 @@ export function ReservationPage() {
 
     try {
       const token = getAccessToken();
+      const effectiveVehicleId =
+        selectedVehicleId || vehicles.find((v) => v.isPrimary)?.id || vehicles[0]?.id || '';
 
-      if (token && selectedVehicleId) {
+      if (token && effectiveVehicleId) {
         const response = await createReservation(
           {
             parkId: selectedParkId,
-            vehicleId: selectedVehicleId,
+            vehicleId: effectiveVehicleId,
             arrivalDateTime: new Date(arrivalTime).toISOString(),
             departureDateTime: new Date(exitTime).toISOString(),
             selectedSpotId: selectedSpotId || null,
@@ -156,7 +168,7 @@ export function ReservationPage() {
         </div>
 
         {reservationError && (
-          <div className="alert alert-error mb-4 rounded-2xl">
+          <div className="alert alert-error mb-4 rounded-2xl" role="alert">
             <i className="fa-solid fa-circle-exclamation" />
             <span>{reservationError}</span>
             <button
@@ -213,7 +225,7 @@ export function ReservationPage() {
             <aside className="lg:w-80 lg:sticky lg:top-4 lg:self-start" aria-label="Resumo do custo">
               <CostSummary
                 lot={selectedLot} arrivalTime={arrivalTime} exitTime={exitTime}
-                cost={estimatedCost} spotLabel={spotLabel} step={step}
+                cost={estimatedCost} spotLabel={spotLabel} step={step} isEVSpot={isEVSpot}
               />
               {selectedLot && <div className="card bg-base-200 shadow-md mt-4" />}
             </aside>

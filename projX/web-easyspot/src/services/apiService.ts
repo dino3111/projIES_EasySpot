@@ -69,6 +69,10 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
   if (!res.ok) {
     if (res.status === Number(401)) {
       console.warn('[API-401]', method, url, 'bearer:', token ? 'yes' : 'no');
+      if (!token) {
+        // Race condition during auth init — no token was sent, skip redirect
+        throw new Error('Sessão expirada ou inválida. Por favor, tente entrar novamente.');
+      }
       throwUnauthorizedError();
     }
     const errorText = await readErrorBody(res);

@@ -25,9 +25,9 @@ public record ParkingLotDetailsResponse(
     
     public record SpotResponse(UUID spotId, String spotNumber, String zone, int row, int col, String status) {}
     
-    public record EVChargerResponse(String type, String speed, BigDecimal pricePerKwh, boolean availability) {}
+    public record EVChargerResponse(String type, String speed, int speedKw, BigDecimal pricePerKwh, boolean availability) {}
     
-    public record AccessibilityResponse(String location, boolean availability, int distanceToEntranceMeters, String baySize) {}
+    public record AccessibilityResponse(String location, boolean availability, int distanceToEntranceMeters, String baySize, boolean monitored, boolean hasRampSpace, String sensorStatus, String ledStatus) {}
     
     public record TariffResponse(String name, String description, BigDecimal pricePerHour, BigDecimal maxDaily, BigDecimal monthly, BigDecimal pricePerKwh) {}
 }

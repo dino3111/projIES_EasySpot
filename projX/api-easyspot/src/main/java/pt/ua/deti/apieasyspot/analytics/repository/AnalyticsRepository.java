@@ -1,6 +1,5 @@
 package pt.ua.deti.apieasyspot.analytics.repository;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -19,11 +18,17 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Repository
-@RequiredArgsConstructor
 public class AnalyticsRepository {
 
-    private final @Qualifier("jdbcTemplate") JdbcTemplate jdbc;
-    private final @Qualifier("timescaleJdbcTemplate") JdbcTemplate timescaleJdbc;
+    private final JdbcTemplate jdbc;
+    private final JdbcTemplate timescaleJdbc;
+
+    public AnalyticsRepository(
+            @Qualifier("jdbcTemplate") JdbcTemplate jdbc,
+            @Qualifier("timescaleJdbcTemplate") JdbcTemplate timescaleJdbc) {
+        this.jdbc = jdbc;
+        this.timescaleJdbc = timescaleJdbc;
+    }
 
     public long countEntriesToday() {
         return timescaleJdbc.queryForObject(
@@ -64,10 +69,13 @@ public class AnalyticsRepository {
     }
 
     public int[] currentOccupancy() {
-        Integer[] result = timescaleJdbc.queryForObject(
-            "select coalesce(sum(occupied_count), 0), coalesce(sum(total_count), 0) from v_latest_occupancy",
-            (rs, rowNum) -> new Integer[]{rs.getObject(1, Integer.class), rs.getObject(2, Integer.class)});
-        return new int[]{result[0], result[1]};
+        long[] result = timescaleJdbc.queryForObject(
+            """
+            select coalesce(sum(occupied_count), 0), coalesce(sum(total_count), 0)
+            from v_latest_occupancy
+            """,
+            (rs, rowNum) -> new long[]{rs.getLong(1), rs.getLong(2)});
+        return new int[]{(int) result[0], (int) result[1]};
     }
 
     public List<DailyMetric> last7DaysMetrics() {

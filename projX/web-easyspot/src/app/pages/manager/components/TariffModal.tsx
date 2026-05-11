@@ -2,12 +2,12 @@ import { useState } from 'react';
 import type { TariffEntry } from '../../../data/gestorData';
 import { TariffInputRow } from './shared';
 
-export function TariffModal({ 
-  tariff, 
-  onClose, 
-  onSave 
-}: { 
-  readonly tariff: TariffEntry; 
+export function TariffModal({
+  tariff,
+  onClose,
+  onSave
+}: {
+  readonly tariff: TariffEntry;
   readonly onClose: () => void;
   readonly onSave: (updated: Partial<TariffEntry>) => Promise<void>;
 }) {
@@ -26,7 +26,7 @@ export function TariffModal({
         maxDiario: parseFloat(maxDia),
         mensalidade: parseFloat(mensal),
         tarifaEV: ev ? parseFloat(ev) : undefined,
-        estado: 'revisao' // Usually when edited it goes to review
+        estado: 'ativo',
       });
       onClose();
     } catch (err) {
@@ -38,9 +38,9 @@ export function TariffModal({
   };
 
   return (
-    <dialog
-      open
+    <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      role="dialog"
       aria-modal="true"
       aria-label={`Editar tarifário: ${tariff.parqueNome}`}
     >
@@ -72,14 +72,6 @@ export function TariffModal({
           <TariffInputRow id="tarifa-ev"    label="Tarifa EV (€/kWh)"    icon="fa-charging-station" value={ev}     onChange={setEv}     optional />
         </div>
 
-        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-3 mb-5">
-          <p className="text-yellow-600 dark:text-yellow-400" style={{ fontSize: '0.75rem', fontWeight: 600 }}>
-            <i className="fas fa-triangle-exclamation mr-1.5" aria-hidden="true"></i>
-            As alterações entram em vigor após aprovação.
-            Clientes com subscrições ativas serão notificados.
-          </p>
-        </div>
-
         <div className="flex gap-2">
           <button
             onClick={onClose}
@@ -98,12 +90,12 @@ export function TariffModal({
             {saving ? (
               <i className="fas fa-circle-notch fa-spin"></i>
             ) : (
-              <i className="fas fa-paper-plane" aria-hidden="true"></i>
+              <i className="fas fa-floppy-disk" aria-hidden="true"></i>
             )}
-            Submeter para Revisão
+            Guardar
           </button>
         </div>
       </div>
-    </dialog>
+    </div>
   );
 }

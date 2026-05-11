@@ -48,11 +48,11 @@ public class ParkingPlanningService {
 
         List<LotCandidate> candidates = lots.stream()
             .map(lot -> toCandidate(lot, snapshotsByLot.getOrDefault(lot.getId(), List.of()), hourlyByLot.getOrDefault(lot.getId(), List.of()), req))
-            .filter(c -> c.distanceMeters <= req.maxDistanceMeters())
-            .filter(c -> isOpen(c.openingHours, c.id))
-            .filter(c -> !needsEv(req) || c.hasEv)
-            .filter(c -> !needsAccessible(req) || c.hasAccessible)
-            .filter(c -> c.currentOccupancyPct < 100)
+            .filter((LotCandidate c) -> c.distanceMeters <= req.maxDistanceMeters())
+            .filter((LotCandidate c) -> isOpen(c.openingHours, c.id))
+            .filter((LotCandidate c) -> !needsEv(req) || c.hasEv)
+            .filter((LotCandidate c) -> !needsAccessible(req) || c.hasAccessible)
+            .filter((LotCandidate c) -> c.currentOccupancyPct < 100)
             .toList();
 
         double maxDist = req.maxDistanceMeters();
