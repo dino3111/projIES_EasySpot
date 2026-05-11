@@ -7,7 +7,10 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
+import pt.ua.deti.apieasyspot.analytics.service.TechnicianParkAssignmentService;
 import pt.ua.deti.apieasyspot.sensor.dto.SensorDetailDto;
 import pt.ua.deti.apieasyspot.sensor.dto.SensorStatusUpdateRequest;
 import pt.ua.deti.apieasyspot.sensor.dto.SensorSummaryDto;
@@ -15,6 +18,7 @@ import pt.ua.deti.apieasyspot.sensor.service.SensorLogsService;
 import pt.ua.deti.apieasyspot.sensor.service.SensorNotFoundException;
 
 import java.util.List;
+import java.util.UUID;
 
 @Tag(name = "Sensor Logs", description = "Remote sensor diagnostics and log access")
 @RestController
@@ -23,15 +27,17 @@ import java.util.List;
 public class SensorLogsController {
 
     private final SensorLogsService sensorLogsService;
+    private final TechnicianParkAssignmentService assignmentService;
 
-    @Operation(summary = "List all sensors with current status")
+    @Operation(summary = "List sensors for the current technician's assigned parks")
     @ApiResponse(responseCode = "200", description = "Sensor list")
     @ApiResponse(responseCode = "401", description = "Not authenticated")
     @ApiResponse(responseCode = "403", description = "Not a technician")
     @GetMapping
     @PreAuthorize("hasRole('TECHNICAL')")
-    public ResponseEntity<List<SensorSummaryDto>> listSensors() {
-        return ResponseEntity.ok(sensorLogsService.listAllSensors());
+    public ResponseEntity<List<SensorSummaryDto>> listSensors(@AuthenticationPrincipal Jwt jwt) {
+        List<UUID> assignedParkIds = assignmentService.getAssignedParkIds(jwt.getSubject());
+        return ResponseEntity.ok(sensorLogsService.listSensorsByParks(assignedParkIds));
     }
 
     @Operation(summary = "Get sensor detail with full log history")

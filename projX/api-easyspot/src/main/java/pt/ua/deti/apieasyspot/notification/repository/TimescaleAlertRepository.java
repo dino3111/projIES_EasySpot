@@ -109,6 +109,35 @@ public class TimescaleAlertRepository {
         return jdbc.query(sql.toString(), this::mapRow, params.toArray());
     }
 
+    public List<Alert> findAllFilteredByParks(List<UUID> parkIds, StateAlert state, SeverityAlert severity) {
+        if (parkIds == null || parkIds.isEmpty()) return List.of();
+
+        StringBuilder sql = new StringBuilder("""
+            select id, parking_lot_id, parking_lot_name, type, severity, state, zone, spot_number,
+                   sensor_id, plate, description, photo_url, attributed_to, notes, resolved_at, created_at
+            from alerts
+            where 1=1
+            """);
+        List<Object> params = new ArrayList<>();
+
+        String placeholders = parkIds.stream().map(id -> "?::uuid").collect(java.util.stream.Collectors.joining(","));
+        sql.append(" and parking_lot_id in (").append(placeholders).append(")");
+        parkIds.forEach(id -> params.add(id.toString()));
+
+        if (state != null) {
+            sql.append(" and state = ?");
+            params.add(state.name());
+        }
+        if (severity != null) {
+            sql.append(" and severity = ?");
+            params.add(severity.name());
+        }
+
+        sql.append(" order by created_at desc");
+
+        return jdbc.query(sql.toString(), this::mapRow, params.toArray());
+    }
+
     public Optional<Alert> findOpenBySensorId(String sensorId) {
         var rows = jdbc.query("""
             select id, parking_lot_id, parking_lot_name, type, severity, state, zone, spot_number,

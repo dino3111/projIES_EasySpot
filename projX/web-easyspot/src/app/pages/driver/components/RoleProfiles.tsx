@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { useProfile } from '../../../context/ProfileContext';
-import { parksApi, paymentApi, profileApi, type DriverProfileResponse, type ManagerProfileResponse, type ParkSummary, type PaymentMethodSummaryResponse, type ProfileResponse, type TechnicianProfileResponse } from '../../../../services/apiService';
+import { paymentApi, profileApi, type DriverProfileResponse, type ManagerProfileResponse, type PaymentMethodSummaryResponse, type ProfileResponse, type TechnicianProfileResponse } from '../../../../services/apiService';
+import { fetchMyAssignedParks } from '../../../services/technicianApi';
 import { SectionHeader, UserTypeOption, ToggleRow, StatCard, AccountRow, AccountRowWithBadge } from './ProfilePrimitives';
 import { StepPaymentStripe } from '../welcome/StepPaymentStripe';
 
@@ -442,12 +443,12 @@ export function ManagerProfile({ profileData }: Readonly<{ profileData: ManagerP
 }
 
 export function TechnicianProfile({ profileData }: Readonly<{ profileData: TechnicianProfileResponse | null }>) {
-  const [parks, setParks] = useState<ParkSummary[]>([]);
+  const [parks, setParks] = useState<{ id: string; name: string; city: string }[]>([]);
   const [loadingParks, setLoadingParks] = useState(true);
 
   useEffect(() => {
-    parksApi.list()
-      .then((res) => setParks(res.items))
+    fetchMyAssignedParks()
+      .then((assigned) => setParks(assigned.map(a => ({ id: a.parkingLotId, name: a.parkingLotName, city: a.parkingLotCity }))))
       .catch(() => setParks([]))
       .finally(() => setLoadingParks(false));
   }, []);
@@ -456,9 +457,9 @@ export function TechnicianProfile({ profileData }: Readonly<{ profileData: Techn
     <>
       <SectionHeader icon="fa-wrench" title="Estado dos Sensores" />
       <div className="grid grid-cols-3 gap-3 mb-5">
+        <StatCard icon="fa-microchip"            value={String(profileData?.sensorSummary?.total ?? 0)}       label="Total"        color="#3b82f6" />
         <StatCard icon="fa-circle-check"         value={String(profileData?.sensorSummary?.operational ?? 0)} label="Operacionais" color="#22c55e" />
-        <StatCard icon="fa-triangle-exclamation" value={String((profileData?.sensorSummary?.total ?? 0) - (profileData?.sensorSummary?.operational ?? 0))}   label="Em alerta"    color="#f59e0b" />
-        <StatCard icon="fa-circle-xmark"         value={String(profileData?.openFaults ?? 0)}   label="Falha"        color="#ef4444" />
+        <StatCard icon="fa-triangle-exclamation" value={String((profileData?.sensorSummary?.total ?? 0) - (profileData?.sensorSummary?.operational ?? 0))} label="Com Problemas" color="#f59e0b" />
       </div>
 
       <SectionHeader icon="fa-building" title="Parques" />

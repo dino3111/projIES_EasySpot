@@ -24,6 +24,10 @@ public class AlertService {
         return alertRepository.findAllFiltered(parkId, state, severity);
     }
 
+    public List<Alert> listAlertsByParks(List<UUID> parkIds, StateAlert state, SeverityAlert severity) {
+        return alertRepository.findAllFilteredByParks(parkIds, state, severity);
+    }
+
     public void updateState(UUID id, String rawState, String notes) {
         Alert alert = alertRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Alert not found: " + id));

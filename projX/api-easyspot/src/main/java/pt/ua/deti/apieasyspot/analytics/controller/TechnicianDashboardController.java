@@ -6,11 +6,17 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import pt.ua.deti.apieasyspot.analytics.dto.TechnicianDashboardResponse;
+import pt.ua.deti.apieasyspot.analytics.service.TechnicianParkAssignmentService;
 import pt.ua.deti.apieasyspot.analytics.service.TechnicianService;
+
+import java.util.List;
+import java.util.UUID;
 
 @Tag(name = "Technician", description = "Technician operations dashboard")
 @RestController
@@ -19,6 +25,7 @@ import pt.ua.deti.apieasyspot.analytics.service.TechnicianService;
 public class TechnicianDashboardController {
 
     private final TechnicianService technicianService;
+    private final TechnicianParkAssignmentService assignmentService;
 
     @Operation(summary = "Technician KPI dashboard")
     @ApiResponse(responseCode = "200", description = "Dashboard data")
@@ -26,7 +33,8 @@ public class TechnicianDashboardController {
     @ApiResponse(responseCode = "403", description = "Not a technician")
     @GetMapping("/dashboard")
     @PreAuthorize("hasRole('TECHNICAL')")
-    public ResponseEntity<TechnicianDashboardResponse> getDashboard() {
-        return ResponseEntity.ok(technicianService.buildDashboard());
+    public ResponseEntity<TechnicianDashboardResponse> getDashboard(@AuthenticationPrincipal Jwt jwt) {
+        List<UUID> assignedParkIds = assignmentService.getAssignedParkIds(jwt.getSubject());
+        return ResponseEntity.ok(technicianService.buildDashboard(assignedParkIds));
     }
 }

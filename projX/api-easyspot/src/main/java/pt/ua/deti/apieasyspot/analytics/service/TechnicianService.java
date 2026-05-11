@@ -8,6 +8,8 @@ import pt.ua.deti.apieasyspot.analytics.repository.TechnicianRepository;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -15,13 +17,13 @@ public class TechnicianService {
 
     private final TechnicianRepository technicianRepository;
 
-    public TechnicianDashboardResponse buildDashboard() {
-        int total = technicianRepository.countTotalSensors();
-        int operational = technicianRepository.countOperationalSensors();
-        long failuresToday = technicianRepository.countFailuresToday();
-        long failuresYesterday = technicianRepository.countFailuresYesterday();
-        Double currentMttr = technicianRepository.avgMttrCurrentWeekMinutes();
-        Double historicalMttr = technicianRepository.avgMttrHistoricalMinutes();
+    public TechnicianDashboardResponse buildDashboard(List<UUID> parkIds) {
+        int total = technicianRepository.countTotalSensors(parkIds);
+        int operational = technicianRepository.countOperationalSensors(parkIds);
+        long failuresToday = technicianRepository.countFailuresToday(parkIds);
+        long failuresYesterday = technicianRepository.countFailuresYesterday(parkIds);
+        Double currentMttr = technicianRepository.avgMttrCurrentWeekMinutes(parkIds);
+        Double historicalMttr = technicianRepository.avgMttrHistoricalMinutes(parkIds);
 
         TechnicianKpiSummary kpis = new TechnicianKpiSummary(
             total,
@@ -35,9 +37,9 @@ public class TechnicianService {
 
         return new TechnicianDashboardResponse(
             kpis,
-            technicianRepository.uptimeLast7Days(),
-            technicianRepository.sensorDistribution(),
-            technicianRepository.urgentWorkOrders()
+            technicianRepository.uptimeLast7Days(parkIds),
+            technicianRepository.sensorDistribution(parkIds),
+            technicianRepository.urgentWorkOrders(parkIds)
         );
     }
 
