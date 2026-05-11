@@ -65,8 +65,4 @@ public class SensorLogsController {
         return ResponseEntity.notFound().build();
     }
 
-    @ExceptionHandler(IllegalArgumentException.class)
-    ResponseEntity<Void> handleBadRequest() {
-        return ResponseEntity.badRequest().build();
-    }
 }

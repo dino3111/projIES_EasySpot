@@ -70,7 +70,7 @@ function parseJwtClaims(token: string): Record<string, unknown> {
 
 function extractRole(claims: Record<string, unknown>): AppProfile {
   const groups = claims['groups'];
-  console.log('[AUTH] extractRole — raw groups:', groups);
+  if (import.meta.env.DEV) console.log('[AUTH] extractRole — raw groups:', groups);
   if (Array.isArray(groups) && groups.length > 0) {
     for (const g of groups) {
       // Authentik may prefix groups with '/' (e.g. "/TECHNICAL") — strip it

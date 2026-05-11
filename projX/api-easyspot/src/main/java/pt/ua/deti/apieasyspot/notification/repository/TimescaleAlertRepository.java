@@ -109,6 +109,21 @@ public class TimescaleAlertRepository {
         return jdbc.query(sql.toString(), this::mapRow, params.toArray());
     }
 
+    public Optional<Alert> findOpenBySensorId(String sensorId) {
+        var rows = jdbc.query("""
+            select id, parking_lot_id, parking_lot_name, type, severity, state, zone, spot_number,
+                   sensor_id, plate, description, photo_url, attributed_to, notes, resolved_at, created_at
+            from alerts
+            where sensor_id = ? and state != 'RESOLVED'
+            order by created_at desc
+            limit 1
+            """,
+            this::mapRow,
+            sensorId
+        );
+        return rows.isEmpty() ? Optional.empty() : Optional.of(rows.get(0));
+    }
+
     public Optional<Alert> findById(UUID id) {
         var rows = jdbc.query("""
             select id, parking_lot_id, parking_lot_name, type, severity, state, zone, spot_number,

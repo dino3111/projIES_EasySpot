@@ -12,6 +12,7 @@ import pt.ua.deti.apieasyspot.sensor.dto.SensorLogEntry;
 import pt.ua.deti.apieasyspot.sensor.dto.SensorSummaryDto;
 import pt.ua.deti.apieasyspot.sensor.model.SensorRegistry;
 import pt.ua.deti.apieasyspot.sensor.model.SensorStatus;
+import pt.ua.deti.apieasyspot.notification.repository.TimescaleAlertRepository;
 import pt.ua.deti.apieasyspot.sensor.repository.SensorLogsRepository;
 import pt.ua.deti.apieasyspot.sensor.repository.SensorRegistryRepository;
 
@@ -36,11 +37,14 @@ class SensorLogsServiceTest {
     @Mock
     private SensorRegistryRepository sensorRegistryRepository;
 
+    @Mock
+    private TimescaleAlertRepository alertRepository;
+
     private SensorLogsService service;
 
     @BeforeEach
     void setUp() {
-        service = new SensorLogsService(sensorLogsRepository, sensorRegistryRepository);
+        service = new SensorLogsService(sensorLogsRepository, sensorRegistryRepository, alertRepository);
     }
 
     @Test
@@ -48,7 +52,7 @@ class SensorLogsServiceTest {
     void listAllSensors_delegatesToRepository() {
         UUID parkId = UUID.randomUUID();
         SensorSummaryDto summary = new SensorSummaryDto(
-            "IR-TEST-01", parkId, "Parque Teste", "Zona A", "operational",
+            "IR-TEST-01", parkId, "Parque Teste", "Aveiro", "Zona A", "operational",
             OffsetDateTime.now(ZoneOffset.UTC), OffsetDateTime.now(ZoneOffset.UTC));
         when(sensorLogsRepository.findAllSensors()).thenReturn(List.of(summary));
 

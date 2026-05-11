@@ -184,7 +184,7 @@ test('Banner de erro parcial aparece quando API de sensores falha', async ({ pag
   await page.goto('/technician/maintenance');
 
   await expect(page.getByRole('alert')).toBeVisible();
-  await expect(page.getByText(/dados parciais/i)).toBeVisible();
+  await expect(page.getByText(/sensores indispon[íi]veis/i)).toBeVisible();
 });
 
 test('Tab sensores mostra parques e sensores vindos da API', async ({ page }) => {

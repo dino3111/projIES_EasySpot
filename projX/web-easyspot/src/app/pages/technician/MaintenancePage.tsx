@@ -42,7 +42,7 @@ function apiSensorToDevice(a: SensorSummary): SensorDevice {
     tipo: 'IR' as const,
     parqueId: a.parkingLotId.toString(),
     parqueNome: a.parkingLotName,
-    cidade: '',
+    cidade: a.parkingLotCity ?? '',
     zona: a.zone,
     status: toSensorStatus(a.status),
     ultimaLeitura: a.lastSeenAt,

@@ -11,6 +11,7 @@ export interface SensorSummary {
   sensorId: string;
   parkingLotId: string;
   parkingLotName: string;
+  parkingLotCity: string;
   zone: string;
   status: SensorStatus;
   lastSeenAt: string;
