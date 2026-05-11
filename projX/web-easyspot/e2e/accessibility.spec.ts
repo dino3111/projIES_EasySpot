@@ -124,7 +124,7 @@ test('US#9 — mostra estatísticas corretas de acessibilidade', async ({ page }
   await expect(page.getByRole('heading', { name: 'Lugares Acessíveis' })).toBeVisible();
   // 3 available (2 + 1), 2 parks, 5 total spots
   await expect(page.getByText('3').first()).toBeVisible();
-  await expect(page.getByText('2 Parques com Acessibilidade').or(page.getByText('2'))).toBeTruthy();
+  await expect(page.getByText('2 Parques com Acessibilidade').or(page.getByText('2 Parques'))).toBeVisible();
   await expect(page.getByText('5 Lugares Encontrados')).toBeVisible();
 });
 

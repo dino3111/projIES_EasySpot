@@ -257,7 +257,7 @@ public class ParkService {
         }
         String normalized = currentStatus.trim().toLowerCase();
         return switch (normalized) {
-            case STATUS_FREE, STATUS_RESERVED, STATUS_OCCUPIED -> normalized;
+            case STATUS_FREE, STATUS_RESERVED, STATUS_OCCUPIED, "ev", "accessible" -> normalized;
             default -> STATUS_FREE;
         };
     }

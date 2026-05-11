@@ -131,7 +131,7 @@ export function VehiclePicker({
           <div className="bg-background rounded-3xl w-full max-w-sm shadow-2xl max-h-[calc(100vh-8rem-env(safe-area-inset-bottom))] sm:max-h-[80vh] overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <h2 className="text-foreground font-extrabold" style={{ fontSize: '1rem' }}>
-                {label}
+                {label || 'Veículo'}
               </h2>
               <button
                 type="button"

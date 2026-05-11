@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { FilterBar } from '../../components/parking/FilterBar';
 import { ParkingCard, type FilterMode } from '../../components/parking/ParkingCard';
 import { VehiclePicker } from '../../components/shared/VehiclePicker';
@@ -45,11 +45,26 @@ export function ParkingListPage() {
     };
   });
 
+  // Track whether the user has manually chosen a vehicle so we don't overwrite their selection.
+  const userSelectedVehicleRef = useRef(false);
+
+  useEffect(() => {
+    if (userSelectedVehicleRef.current) return;
+    setQuery((prev) => ({
+      ...prev,
+      selectedVehicleId: primaryVehicle?.id ?? null,
+      showEVOnly: primaryVehicle?.isEV ?? false,
+      showAccessibleOnly: primaryVehicle?.isAccessible ?? false,
+      page: 1,
+    }));
+  }, [primaryVehicle]);
+
   const setFilter = <K extends keyof Omit<QueryState, 'page'>>(key: K, value: QueryState[K]) => {
     setQuery((prev) => ({ ...prev, [key]: value, page: 1 }));
   };
 
   const handleVehicleSelect = (id: string | null) => {
+    userSelectedVehicleRef.current = true;
     const vehicle = vehicles.find((v) => v.id === id) ?? null;
     setQuery((prev) => ({
       ...prev,

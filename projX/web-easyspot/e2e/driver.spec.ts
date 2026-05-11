@@ -278,10 +278,6 @@ test('Planeamento — condutor expande previsão de ocupação', async ({ page }
 
 // ── Reservation E2E tests ────────────────────────────────────────────────────
 
-async function waitForLoaded(page: import('@playwright/test').Page) {
-  await page.waitForSelector('[role="status"][aria-busy="true"]', { state: 'hidden', timeout: 10000 }).catch(() => {});
-}
-
 async function fillValidReservationSchedule(page: import('@playwright/test').Page) {
   const toLocalInput = (date: Date) => {
     const pad = (value: number) => String(value).padStart(2, '0');

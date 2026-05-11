@@ -69,13 +69,18 @@ public class ReservationLifecycleService {
                 continue;
             }
 
+            if (updateSingleReservationStatus(reservation, now)) {
+                changedCount++;
+            }
+
+            // Skip terminal reservations so they don't shadow future ones in the map.
+            if (reservation.getStatus() == ReservationStatus.COMPLETED) {
+                continue;
+            }
+
             Reservation previous = reservationBySpot.get(spot.getId());
             if (previous == null || reservation.getArrivalTime().isBefore(previous.getArrivalTime())) {
                 reservationBySpot.put(spot.getId(), reservation);
-            }
-
-            if (updateSingleReservationStatus(reservation, now)) {
-                changedCount++;
             }
         }
         return new UpdateReservationsResult(reservationBySpot, changedCount);
@@ -99,7 +104,7 @@ public class ReservationLifecycleService {
         List<ParkingSpot> spots = parkingSpotRepository.findAll();
         int changedSpots = 0;
         for (ParkingSpot spot : spots) {
-            String desiredStatus = deriveSpotStatus(reservationBySpot.get(spot.getId()), now);
+            String desiredStatus = deriveSpotStatus(spot, reservationBySpot.get(spot.getId()), now);
             if (!desiredStatus.equalsIgnoreCase(spot.getStatus())) {
                 spot.setStatus(desiredStatus);
                 changedSpots++;
@@ -112,19 +117,19 @@ public class ReservationLifecycleService {
         return changedSpots;
     }
 
-    private String deriveSpotStatus(Reservation reservation, OffsetDateTime now) {
-        if (reservation == null) {
-            return "free";
+    private String deriveSpotStatus(ParkingSpot spot, Reservation reservation, OffsetDateTime now) {
+        if (reservation == null || now.isAfter(reservation.getDepartureTime())) {
+            return restoreTypeStatus(spot.getStatus());
         }
-
-        if (now.isAfter(reservation.getDepartureTime())) {
-            return "free";
-        }
-
         if (now.isBefore(reservation.getArrivalTime())) {
             return "reserved";
         }
-
         return "occupied";
+    }
+
+    private String restoreTypeStatus(String currentStatus) {
+        if (currentStatus == null) return "free";
+        String s = currentStatus.trim().toLowerCase();
+        return (s.equals("ev") || s.equals("accessible")) ? s : "free";
     }
 }

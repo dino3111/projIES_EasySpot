@@ -57,6 +57,8 @@ export function Step4Reserved({
     const start = new Date(arrivalTime);
     const end = new Date(exitTime);
     const formatIcsDate = (date: Date) => date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+    const escapeIcs = (s: string) =>
+      s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
     const location = [lot?.name, lot?.address].filter(Boolean).join(' - ');
     const ics = [
       'BEGIN:VCALENDAR',
@@ -70,8 +72,8 @@ export function Step4Reserved({
       `DTSTART:${formatIcsDate(start)}`,
       `DTEND:${formatIcsDate(end)}`,
       `SUMMARY:${reservationTitle}`,
-      location ? `LOCATION:${location}` : null,
-      `DESCRIPTION:${reservationDetails.replace(/\n/g, '\\n')}`,
+      location ? `LOCATION:${escapeIcs(location)}` : null,
+      `DESCRIPTION:${escapeIcs(reservationDetails)}`,
       'END:VEVENT',
       'END:VCALENDAR',
     ].filter(Boolean).join('\r\n');

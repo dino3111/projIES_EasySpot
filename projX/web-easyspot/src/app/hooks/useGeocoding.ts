@@ -10,10 +10,11 @@ interface NominatimResult {
   lon: string;
 }
 
-async function geocodeCity(city: string): Promise<Coords | null> {
+async function geocodeCity(city: string, signal: AbortSignal): Promise<Coords | null> {
   const params = new URLSearchParams({ q: city, format: 'json', limit: '1', countrycodes: 'pt' });
   const resp = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, {
     headers: { 'Accept-Language': 'pt', 'User-Agent': 'EasySpot/1.0' },
+    signal,
   });
   if (!resp.ok) return null;
   const results: NominatimResult[] = await resp.json();
@@ -49,7 +50,7 @@ export function useGeocoding(city: string | null, debounceMs = 500): UseGeocodin
       setError(false);
 
       try {
-        const result = await geocodeCity(city);
+        const result = await geocodeCity(city, abortRef.current.signal);
         if (result) {
           setCoords(result);
           setError(false);
