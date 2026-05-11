@@ -1180,6 +1180,10 @@ ON CONFLICT (id) DO UPDATE SET
   monthly = EXCLUDED.monthly,
   status = EXCLUDED.status;
 DELETE FROM ev_chargers WHERE parking_lot_id = '7021e6fc-7585-5463-bbb7-de9bb8f4c37b';
+-- EV chargers: parque com spots EV (zona EV, tarifa 0.80€/h), 2 carregadores com preços distintos (hora normal vs pico)
+INSERT INTO ev_chargers (id, parking_lot_id, type, speed, price_per_kwh, available) VALUES
+  ('a1b2c3d4-0001-0001-0001-000000000001', '7021e6fc-7585-5463-bbb7-de9bb8f4c37b', 'Type 2', 'Rápida (22kW)', 0.35, true),
+  ('a1b2c3d4-0001-0001-0001-000000000002', '7021e6fc-7585-5463-bbb7-de9bb8f4c37b', 'CCS',    'Ultra-rápida (50kW)', 0.48, false);
 DELETE FROM accessible_spots WHERE parking_lot_id = '7021e6fc-7585-5463-bbb7-de9bb8f4c37b';
 DELETE FROM parking_spots WHERE parking_lot_id = '7021e6fc-7585-5463-bbb7-de9bb8f4c37b';
 INSERT INTO parking_spots (id, parking_lot_id, spot_number, zone, spot_row, spot_col, status) VALUES ('f5f06046-cd96-5171-92a2-3e5c9e25c957', '7021e6fc-7585-5463-bbb7-de9bb8f4c37b', 'f-l2-p0:A1', 'ACCESSIBLE', 1, 1, 'accessible');
@@ -1966,6 +1970,9 @@ ON CONFLICT (id) DO UPDATE SET
   monthly = EXCLUDED.monthly,
   status = EXCLUDED.status;
 DELETE FROM ev_chargers WHERE parking_lot_id = '62feaf63-aa20-5070-b89f-e81bfd5f47cd';
+-- EV chargers: parque com spot EV (tarifa 1.20€/h), carregador Tesla Supercharger disponível
+INSERT INTO ev_chargers (id, parking_lot_id, type, speed, price_per_kwh, available) VALUES
+  ('a1b2c3d4-0002-0002-0002-000000000001', '62feaf63-aa20-5070-b89f-e81bfd5f47cd', 'Tesla Supercharger', 'Supercharger (150kW)', 0.55, true);
 DELETE FROM accessible_spots WHERE parking_lot_id = '62feaf63-aa20-5070-b89f-e81bfd5f47cd';
 DELETE FROM parking_spots WHERE parking_lot_id = '62feaf63-aa20-5070-b89f-e81bfd5f47cd';
 INSERT INTO parking_spots (id, parking_lot_id, spot_number, zone, spot_row, spot_col, status) VALUES ('697bd059-663b-505d-bbb0-ec1a628f70d5', '62feaf63-aa20-5070-b89f-e81bfd5f47cd', 'f-f2-p0:A1', 'ACCESSIBLE', 1, 1, 'accessible');
@@ -2869,6 +2876,9 @@ ON CONFLICT (id) DO UPDATE SET
   monthly = EXCLUDED.monthly,
   status = EXCLUDED.status;
 DELETE FROM ev_chargers WHERE parking_lot_id = 'cd48f90c-637d-5f26-966a-73e1dd6baf98';
+-- EV chargers: parque económico com spot EV (tarifa 0.60€/h), carregador lento disponível
+INSERT INTO ev_chargers (id, parking_lot_id, type, speed, price_per_kwh, available) VALUES
+  ('a1b2c3d4-0003-0003-0003-000000000001', 'cd48f90c-637d-5f26-966a-73e1dd6baf98', 'Type 2', 'Lenta (7kW)', 0.28, true);
 DELETE FROM accessible_spots WHERE parking_lot_id = 'cd48f90c-637d-5f26-966a-73e1dd6baf98';
 DELETE FROM parking_spots WHERE parking_lot_id = 'cd48f90c-637d-5f26-966a-73e1dd6baf98';
 INSERT INTO parking_spots (id, parking_lot_id, spot_number, zone, spot_row, spot_col, status) VALUES ('aafd1b10-dee9-5d8a-a44d-19ad5014f822', 'cd48f90c-637d-5f26-966a-73e1dd6baf98', 'f-ar1-p0:A1', 'ACCESSIBLE', 1, 1, 'accessible');
@@ -3212,5 +3222,53 @@ INSERT INTO parking_spots (id, parking_lot_id, spot_number, zone, spot_row, spot
 INSERT INTO parking_spots (id, parking_lot_id, spot_number, zone, spot_row, spot_col, status) VALUES ('cf60002f-05f4-5ec1-b42c-73d6196e9647', '617dd647-6d08-52b2-95d3-9b4a4e002b6e', 'f-ar2-p-1:J8', 'STANDARD', 10, 8, 'free');
 INSERT INTO parking_spots (id, parking_lot_id, spot_number, zone, spot_row, spot_col, status) VALUES ('475ecfc8-03cd-5673-87eb-c73aa8fe3d2a', '617dd647-6d08-52b2-95d3-9b4a4e002b6e', 'f-ar2-p-1:J9', 'STANDARD', 10, 9, 'free');
 INSERT INTO parking_spots (id, parking_lot_id, spot_number, zone, spot_row, spot_col, status) VALUES ('f41613a1-9aa1-5ebd-bf2b-66c7d0ffff29', '617dd647-6d08-52b2-95d3-9b4a4e002b6e', 'f-ar2-p-1:J10', 'STANDARD', 10, 10, 'free');
+
+-- ============================================================
+-- Parque EV dedicado para testes — "EasySpot EV Hub Aveiro"
+-- 8 spots EV todos livres + 4 STANDARD + 2 chargers disponíveis
+-- ============================================================
+INSERT INTO parking_lots (id, name, city, address, latitude, longitude, opening_hours, total_spaces)
+VALUES ('ee000001-0000-0000-0000-000000000001', 'EasySpot EV Hub Aveiro', 'Aveiro', 'Rua do Parque Tecnológico, Aveiro', 40.6389, -8.6531, 'Aberto 24h', 12)
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name, city = EXCLUDED.city, address = EXCLUDED.address,
+  latitude = EXCLUDED.latitude, longitude = EXCLUDED.longitude,
+  opening_hours = EXCLUDED.opening_hours, total_spaces = EXCLUDED.total_spaces;
+
+INSERT INTO parking_lot_amenities (parking_lot_id, amenity) VALUES
+  ('ee000001-0000-0000-0000-000000000001', 'carregamento EV'),
+  ('ee000001-0000-0000-0000-000000000001', 'vigilância'),
+  ('ee000001-0000-0000-0000-000000000001', 'câmeras')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO tariffs (id, parking_lot_id, name, description, price_per_hour, max_daily, monthly, price_per_kwh, status)
+VALUES ('ee000001-0000-0000-0001-000000000001', 'ee000001-0000-0000-0000-000000000001',
+        'Tarifa EV', 'Tarifa com carregamento incluído', 1.20, 10.00, 80.00, NULL, 'ACTIVE')
+ON CONFLICT (id) DO UPDATE SET
+  price_per_hour = EXCLUDED.price_per_hour, max_daily = EXCLUDED.max_daily,
+  monthly = EXCLUDED.monthly, status = EXCLUDED.status;
+
+DELETE FROM ev_chargers   WHERE parking_lot_id = 'ee000001-0000-0000-0000-000000000001';
+DELETE FROM accessible_spots WHERE parking_lot_id = 'ee000001-0000-0000-0000-000000000001';
+DELETE FROM parking_spots WHERE parking_lot_id = 'ee000001-0000-0000-0000-000000000001';
+
+-- 2 carregadores: Type 2 disponível + CCS indisponível (para testar ambos estados)
+INSERT INTO ev_chargers (id, parking_lot_id, type, speed, price_per_kwh, available) VALUES
+  ('ee000001-0000-0000-0002-000000000001', 'ee000001-0000-0000-0000-000000000001', 'Type 2', 'Rápida (22kW)', 0.35, true),
+  ('ee000001-0000-0000-0002-000000000002', 'ee000001-0000-0000-0000-000000000001', 'CCS', 'Ultra-rápida (50kW)', 0.48, false);
+
+-- Piso 0: 8 spots EV todos livres (fila A) + 4 STANDARD (fila B)
+INSERT INTO parking_spots (id, parking_lot_id, spot_number, zone, spot_row, spot_col, status) VALUES
+  ('ee000001-0000-0000-0003-000000000001', 'ee000001-0000-0000-0000-000000000001', 'p0:A1', 'EV', 1, 1, 'ev'),
+  ('ee000001-0000-0000-0003-000000000002', 'ee000001-0000-0000-0000-000000000001', 'p0:A2', 'EV', 1, 2, 'ev'),
+  ('ee000001-0000-0000-0003-000000000003', 'ee000001-0000-0000-0000-000000000001', 'p0:A3', 'EV', 1, 3, 'ev'),
+  ('ee000001-0000-0000-0003-000000000004', 'ee000001-0000-0000-0000-000000000001', 'p0:A4', 'EV', 1, 4, 'ev'),
+  ('ee000001-0000-0000-0003-000000000005', 'ee000001-0000-0000-0000-000000000001', 'p0:A5', 'EV', 1, 5, 'ev'),
+  ('ee000001-0000-0000-0003-000000000006', 'ee000001-0000-0000-0000-000000000001', 'p0:A6', 'EV', 1, 6, 'ev'),
+  ('ee000001-0000-0000-0003-000000000007', 'ee000001-0000-0000-0000-000000000001', 'p0:A7', 'EV', 1, 7, 'ev'),
+  ('ee000001-0000-0000-0003-000000000008', 'ee000001-0000-0000-0000-000000000001', 'p0:A8', 'EV', 1, 8, 'ev'),
+  ('ee000001-0000-0000-0003-000000000009', 'ee000001-0000-0000-0000-000000000001', 'p0:B1', 'STANDARD', 2, 1, 'free'),
+  ('ee000001-0000-0000-0003-000000000010', 'ee000001-0000-0000-0000-000000000001', 'p0:B2', 'STANDARD', 2, 2, 'free'),
+  ('ee000001-0000-0000-0003-000000000011', 'ee000001-0000-0000-0000-000000000001', 'p0:B3', 'STANDARD', 2, 3, 'free'),
+  ('ee000001-0000-0000-0003-000000000012', 'ee000001-0000-0000-0000-000000000001', 'p0:B4', 'STANDARD', 2, 4, 'free');
 
 COMMIT;

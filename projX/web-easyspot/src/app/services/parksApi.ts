@@ -218,6 +218,7 @@ export async function fetchParkDetails(parkId: string): Promise<ParkingLot> {
   const data = (await resp.json()) as ParkDetailsResponse;
 
   const primaryTariff = data.tariffs[0];
+  const availableCharger = data.evChargers.find((c) => c.availability) ?? data.evChargers[0];
   const evChargers: EVCharger[] = data.evChargers.map((c, idx) => ({
     id: `${data.id}-ev-${idx + 1}`,
     type: c.type,
@@ -256,6 +257,7 @@ export async function fetchParkDetails(parkId: string): Promise<ParkingLot> {
     hourlyRate: primaryTariff?.pricePerHour ?? 0,
     dailyMax: primaryTariff?.maxDaily ?? 0,
     monthlyRate: primaryTariff?.monthly ?? 0,
+    evChargingRate: availableCharger?.pricePerKwh ?? 0,
     distance: 'N/D',
     walkingTime: 'N/D',
     hasEVCharger: evChargers.length > 0,
