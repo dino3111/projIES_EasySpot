@@ -18,9 +18,12 @@ import pt.ua.deti.apieasyspot.occupancy.repository.TimescaleOccupancySnapshotRep
 import pt.ua.deti.apieasyspot.occupancy.repository.*;
 
 import java.math.BigDecimal;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -36,6 +39,7 @@ public class ParkService {
     private static final String STATUS_RESERVED = "reserved";
     private static final String STATUS_OCCUPIED = "occupied";
     private static final String LOT_NOT_FOUND_MSG = "Parking lot not found: ";
+    private static final Pattern SPEED_KW_PATTERN = Pattern.compile("(\\d+)\\s*[kK][wW]");
 
     private final ParkingLotRepository parkingLotRepository;
     private final TariffRepository tariffRepository;
@@ -261,15 +265,24 @@ public class ParkService {
     private List<ParkingLotDetailsResponse.EVChargerResponse> fetchEVChargers(UUID lotId) {
         return evChargerRepository.findByParkingLotId(lotId).stream()
             .map(c -> new ParkingLotDetailsResponse.EVChargerResponse(
-                c.getType(), c.getSpeed(), c.getPricePerKwh(), c.isAvailable()))
+                c.getType(), c.getSpeed(), parseSpeedKw(c.getSpeed()), c.getPricePerKwh(), c.isAvailable()))
             .toList();
     }
 
     private List<ParkingLotDetailsResponse.AccessibilityResponse> fetchAccessibility(UUID lotId) {
         return accessibleSpotRepository.findByParkingLotId(lotId).stream()
             .map(a -> new ParkingLotDetailsResponse.AccessibilityResponse(
-                a.getLocation(), a.isAvailable(), a.getDistanceToEntranceMeters(), a.getBaySize()))
+                a.getLocation(), a.isAvailable(), a.getDistanceToEntranceMeters(), a.getBaySize(),
+                a.isMonitored(), a.isHasRampSpace(),
+                a.getSensorStatus(),
+                a.getLedStatus()))
             .toList();
+    }
+
+    private int parseSpeedKw(String speed) {
+        if (speed == null) return 0;
+        Matcher m = SPEED_KW_PATTERN.matcher(speed);
+        return m.find() ? Integer.parseInt(m.group(1)) : 0;
     }
 
     private List<ParkingLotDetailsResponse.TariffResponse> fetchTariffs(UUID lotId) {

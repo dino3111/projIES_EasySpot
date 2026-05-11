@@ -33,9 +33,11 @@ public class ParkingSeedInitializer implements ApplicationRunner {
         execute(relationalDataSource, "seed/parking_seed_postgres.sql", "Postgres relational parking seed");
         execute(relationalDataSource, "seed/spending_test_data.sql", "Spending test data seed (postgres)");
         execute(relationalDataSource, "seed/test_driver_spending.sql", "Test driver vehicles seed (postgres)");
+        execute(relationalDataSource, "seed/us11_test_data.sql", "US11 tariff and audit seed");
         execute(timescaleDataSource, "seed/parking_seed_timescale.sql", "Timescale occupancy seed");
         execute(timescaleDataSource, "seed/spending_sessions_timescale.sql", "Spending sessions seed (timescale)");
         execute(timescaleDataSource, "seed/test_driver_sessions_timescale.sql", "Test driver sessions seed (timescale)");
+        execute(timescaleDataSource, "seed/us11_alerts_timescale.sql", "US11 alerts issue log seed");
     }
 
     private void execute(DataSource dataSource, String classpathFile, String label) {

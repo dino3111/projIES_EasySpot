@@ -57,3 +57,7 @@ Thumbs.db
 *.zip
 *.tar.gz
 *.rar
+
+# Generated postman test fixtures (created by prepare-fixtures.sh)
+postman/files/max-size-10mb.jpg
+postman/files/oversized.jpg

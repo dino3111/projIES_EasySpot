@@ -87,6 +87,20 @@ export function ProfileProvider({ children }: { readonly children: ReactNode }) 
     readJSON<Vehicle[]>(STORAGE_KEYS.vehicles, [])
   );
 
+  function mergeVehicles(base: Vehicle[], fetched: Vehicle[]) {
+    if (base.length === 0) return fetched;
+    const byId = new Map(base.map((vehicle) => [vehicle.id, vehicle]));
+    return fetched.map((vehicle) => {
+      const stored = byId.get(vehicle.id);
+      if (!stored) return vehicle;
+      return {
+        ...vehicle,
+        ...stored,
+        chargerTypes: stored.chargerTypes ?? vehicle.chargerTypes,
+      };
+    });
+  }
+
   useEffect(() => {
     if (authLoading) return;
 
@@ -97,8 +111,9 @@ export function ProfileProvider({ children }: { readonly children: ReactNode }) 
     let mounted = true;
     fetchVehicles().then((list) => {
       if (!mounted || list.length === 0) return;
-      setVehicles(list);
-      localStorage.setItem(STORAGE_KEYS.vehicles, JSON.stringify(list));
+      const nextVehicles = mergeVehicles(readJSON<Vehicle[]>(STORAGE_KEYS.vehicles, []), list);
+      setVehicles(nextVehicles);
+      localStorage.setItem(STORAGE_KEYS.vehicles, JSON.stringify(nextVehicles));
     }).catch(() => {
       // Keep local fallback when backend/auth is unavailable.
     });

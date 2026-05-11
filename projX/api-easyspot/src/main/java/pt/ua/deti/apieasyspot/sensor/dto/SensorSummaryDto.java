@@ -7,6 +7,7 @@ public record SensorSummaryDto(
     String sensorId,
     UUID parkingLotId,
     String parkingLotName,
+    String parkingLotCity,
     String zone,
     String status,
     OffsetDateTime lastSeenAt,

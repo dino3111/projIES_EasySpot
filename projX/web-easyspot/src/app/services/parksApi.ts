@@ -36,10 +36,9 @@ type ParkDetailsResponse = {
   freeSpaces: number;
   zones: Array<{ zoneName: string; total: number; free: number }>;
   spotMap: Array<{ spotId: string; spotNumber: string; zone: string; row: number; col: number; status: ParkingSpot['status'] }>;
-  evChargers: Array<{ type: EVCharger['type']; speed: EVCharger['speed']; pricePerKwh: number; availability: boolean }>;
-  accessibility: Array<{ location: string; availability: boolean; distanceToEntranceMeters: number; baySize: string }>;
-  tariffs: Array<{ pricePerHour: number | null; maxDaily: number | null; monthly: number | null }>;
-  amenities: string[];
+  evChargers: Array<{ type: EVCharger['type']; speed: EVCharger['speed']; speedKw: number; pricePerKwh: number; availability: boolean }>;
+  accessibility: Array<{ location: string; availability: boolean; distanceToEntranceMeters: number; baySize: string; monitored: boolean; hasRampSpace: boolean; sensorStatus: string; ledStatus: string }>;
+
 };
 
 type FavoriteToggleResponse = {
@@ -229,7 +228,7 @@ export async function fetchParkDetails(parkId: string): Promise<ParkingLot> {
     id: `${data.id}-ev-${idx + 1}`,
     type: c.type,
     speed: c.speed,
-    speedKW: Number.parseInt(c.speed.replaceAll(/\D/g, ''), 10) || 0,
+    speedKW: c.speedKw || Number.parseInt(c.speed.replaceAll(/\D/g, ''), 10) || 0,
     available: c.availability,
     price: c.pricePerKwh ?? 0,
   }));
@@ -237,12 +236,12 @@ export async function fetchParkDetails(parkId: string): Promise<ParkingLot> {
     id: `${data.id}-acc-${idx + 1}`,
     zone: a.location,
     available: a.availability,
-    monitored: false,
+    monitored: a.monitored ?? false,
     distanceToEntrance: a.distanceToEntranceMeters,
-    hasRampSpace: false,
+    hasRampSpace: a.hasRampSpace ?? false,
     dimensions: a.baySize,
-    sensorStatus: 'online',
-    ledStatus: a.availability ? 'green' : 'red',
+    sensorStatus: (a.sensorStatus === 'faulty' ? 'faulty' : 'online') as 'online' | 'faulty',
+    ledStatus: (a.ledStatus ?? (a.availability ? 'green' : 'red')) as 'green' | 'red' | 'blue' | 'yellow',
   }));
   const zones: ParkingZone[] = data.zones.map((z, idx) => ({
     id: `${data.id}-zone-${idx + 1}`,
@@ -333,7 +332,7 @@ export async function fetchParkHourlyOccupancy(parkId: string): Promise<Array<{ 
 export async function subscribeSpaceAvailableAlerts(parkIds: string[]): Promise<AlertSubscriptionResponse> {
   const token = getAccessToken();
   const uniqueParkIds = [...new Set(parkIds.filter(Boolean))];
-  const resp = await withGlobalLoading(() => fetch(`${API_BASE}/api/alerts`, {
+  const resp = await withGlobalLoading(() => fetch(`${API_BASE}/api/alerts/subscriptions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

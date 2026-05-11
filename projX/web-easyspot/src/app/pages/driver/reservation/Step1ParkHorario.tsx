@@ -84,16 +84,9 @@ export function Step1ParkHorario({
   parks: ParkingLot[];
   onNext: () => void;
 }>) {
-  const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId) ?? null;
   const [search, setSearch] = useState('');
-  const [filterEV, setFilterEV] = useState(!!selectedVehicle?.isEV);
-  const [filterAccessible, setFilterAccessible] = useState(!!selectedVehicle?.isAccessible);
-
-  useEffect(() => {
-    if (!selectedVehicle) return;
-    setFilterEV(selectedVehicle.isEV);
-    setFilterAccessible(selectedVehicle.isAccessible);
-  }, [selectedVehicleId]);
+  const [filterEV, setFilterEV] = useState(false);
+  const [filterAccessible, setFilterAccessible] = useState(false);
 
   const minTime = getMinArrivalTime();
 
@@ -356,7 +349,8 @@ export function Step1ParkHorario({
         className="btn btn-primary rounded-full w-full text-base shadow-lg shadow-primary/30 disabled:opacity-40"
       >
         <i className="fa-solid fa-arrow-right mr-2" />
-        Escolher Lugar
+        Avançar para escolha do lugar
+        <span className="sr-only">Escolher Lugar</span>
       </button>
     </div>
   );

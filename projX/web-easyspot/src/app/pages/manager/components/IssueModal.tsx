@@ -21,9 +21,9 @@ export function IssueModal({ issue, onClose }: { readonly issue: IssueReport; re
     { label: 'Resolvido', color: '#22c55e', bg: '#22c55e20' };
 
   return (
-    <dialog
-      open
+    <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      role="dialog"
       aria-modal="true"
       aria-label={`Detalhe da ocorrência: ${issue.parque}`}
     >
@@ -127,6 +127,6 @@ export function IssueModal({ issue, onClose }: { readonly issue: IssueReport; re
           </button>
         </div>
       </div>
-    </dialog>
+    </div>
   );
 }

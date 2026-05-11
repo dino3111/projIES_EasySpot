@@ -1,41 +1,46 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import type { ParkingLot } from '../../data/parkingTypes';
-import { mockSensors } from '../../data/technicianData';
+import type { SensorDevice } from '../../data/technicianData';
 import { LeafletMap } from '../../components/parking/LeafletMap';
 import { fetchAllParksSummary } from '../../services/parksCatalog';
+import { fetchSensorList } from '../../services/technicianApi';
 
 type FilterType = 'todos' | 'problemas' | 'operacionais';
+
+function toSensorStatus(s: string): SensorDevice['status'] {
+  if (s === 'operational') return 'operacional';
+  if (s === 'degraded')    return 'falha';
+  return 'offline';
+}
 
 export function TechMapPage() {
   const [selectedLotId, setSelectedLotId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterType>('todos');
   const [parkingLots, setParkingLots] = useState<ParkingLot[]>([]);
+  const [sensors, setSensors] = useState<{ parkingLotId: string; status: string }[]>([]);
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchAllParksSummary().then(setParkingLots).catch(() => setParkingLots([]));
+    fetchSensorList().then(setSensors).catch(() => setSensors([]));
   }, []);
 
   const filteredLots = useMemo(() => {
     return parkingLots.filter((lot) => {
-      // Filtro por estado dos sensores
       if (activeFilter !== 'todos') {
-        const parkSensors = mockSensors.filter(s => s.parqueId === lot.id);
-        const hasProblems = parkSensors.some(s => s.status !== 'operacional');
-        
-        if (activeFilter === 'problemas' && !hasProblems) return false;
-        if (activeFilter === 'operacionais' && hasProblems) return false;
+        const parkSensors = sensors.filter(s => s.parkingLotId === lot.id);
+        const hasProblems = parkSensors.some(s => toSensorStatus(s.status) !== 'operacional');
+        if (activeFilter === 'problemas'    && !hasProblems) return false;
+        if (activeFilter === 'operacionais' &&  hasProblems) return false;
       }
-
-      // Filtro por pesquisa
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
         if (!lot.name.toLowerCase().includes(q) && !lot.address.toLowerCase().includes(q)) return false;
       }
       return true;
     });
-  }, [parkingLots, activeFilter, searchQuery]);
+  }, [parkingLots, sensors, activeFilter, searchQuery]);
 
   const selectedLot = parkingLots.find((l) => l.id === selectedLotId) ?? null;
 
@@ -43,19 +48,18 @@ export function TechMapPage() {
     setSelectedLotId(id);
   }, []);
 
-  // Compute health for each park
   const getParkHealth = (lot: ParkingLot) => {
-    const parkSensors = mockSensors.filter(s => s.parqueId === lot.id);
-    const healthy = parkSensors.filter(s => s.status === 'operacional').length;
-    const total = parkSensors.length;
-    const pct = total > 0 ? Math.round((healthy / total) * 100) : 100;
-    const color = pct === 100 ? '#22c55e' : pct >= 70 ? '#f59e0b' : '#d4183d';
+    const parkSensors = sensors.filter(s => s.parkingLotId === lot.id);
+    const healthy = parkSensors.filter(s => toSensorStatus(s.status) === 'operacional').length;
+    const total   = parkSensors.length;
+    const pct     = total > 0 ? Math.round((healthy / total) * 100) : 100;
+    const color   = pct === 100 ? '#22c55e' : pct >= 70 ? '#f59e0b' : '#d4183d';
     return { healthy, total, pct, color };
   };
 
   const FILTERS: { id: FilterType; icon: string; label: string }[] = [
-    { id: 'todos',        icon: 'fa-layer-group',      label: 'Todos' },
-    { id: 'operacionais', icon: 'fa-circle-check',     label: 'Operacionais' },
+    { id: 'todos',        icon: 'fa-layer-group',        label: 'Todos' },
+    { id: 'operacionais', icon: 'fa-circle-check',       label: 'Operacionais' },
     { id: 'problemas',    icon: 'fa-circle-exclamation', label: 'Com Problemas' },
   ];
 
@@ -147,7 +151,6 @@ export function TechMapPage() {
               const health = getParkHealth(selectedLot);
               return (
                 <div className="space-y-2">
-                  {/* Health bar */}
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
                       <span className="text-foreground text-xs font-semibold">Saúde de Sensores</span>
@@ -163,7 +166,6 @@ export function TechMapPage() {
                     </div>
                   </div>
 
-                  {/* Stats */}
                   <div className="grid grid-cols-3 gap-2 mt-3">
                     <div className="rounded-lg p-2 bg-green-500/10 text-center">
                       <p className="text-green-600 font-bold text-sm">{health.healthy}</p>
@@ -179,12 +181,11 @@ export function TechMapPage() {
                     </div>
                   </div>
 
-                  {/* Hours */}
                   {selectedLot.is24h ? (
                     <div className="mt-2 px-2 py-1.5 rounded-lg bg-primary/10 border border-primary/20">
                       <p className="text-primary text-xs font-semibold">
                         <i className="fas fa-clock mr-1.5" aria-hidden="true"></i>
-                        Abeto 24h
+                        Aberto 24h
                       </p>
                     </div>
                   ) : (
@@ -196,7 +197,6 @@ export function TechMapPage() {
                     </div>
                   )}
 
-                  {/* Phone */}
                   <div className="mt-2 px-2 py-1.5 rounded-lg bg-card border border-border">
                     <a
                       href={`tel:${selectedLot.phone}`}

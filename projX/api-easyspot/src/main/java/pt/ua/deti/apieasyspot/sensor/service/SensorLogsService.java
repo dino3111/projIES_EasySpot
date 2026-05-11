@@ -34,6 +34,7 @@ public class SensorLogsService {
             sensor.getSensorId(),
             sensor.getParkingLot().getId(),
             sensor.getParkingLot().getName(),
+            sensor.getParkingLot().getCity(),
             sensor.getZone(),
             sensor.getStatus().name().toLowerCase(),
             sensor.getLastSeenAt().atOffset(ZoneOffset.UTC),
