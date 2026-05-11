@@ -30,7 +30,8 @@ commit;
 
 begin;
 
-delete from alerts where sensor_id = 'IR-AV1-B09';
+delete from alerts
+where sensor_id = 'IR-AV1-B09';
 
 insert into alerts (
     id, parking_lot_id, parking_lot_name, type, severity, state,
