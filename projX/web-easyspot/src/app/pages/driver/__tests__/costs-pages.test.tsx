@@ -30,20 +30,20 @@ vi.mock('../../../services/parksApi', () => parksApiMock);
 
 // Mock Recharts to avoid issues in Vitest
 vi.mock('recharts', () => ({
-  ResponsiveContainer: ({ children }: any) => <div>{children}</div>,
-  AreaChart: ({ children }: any) => <div>{children}</div>,
-  Area: () => <div>Area</div>,
-  XAxis: () => <div>XAxis</div>,
-  YAxis: () => <div>YAxis</div>,
-  CartesianGrid: () => <div>CartesianGrid</div>,
-  Tooltip: () => <div>Tooltip</div>,
-  PieChart: ({ children }: any) => <div>{children}</div>,
-  Pie: () => <div>Pie</div>,
-  Cell: () => <div>Cell</div>,
-  BarChart: ({ children }: any) => <div>{children}</div>,
-  Bar: () => <div>Bar</div>,
-  LineChart: ({ children }: any) => <div>{children}</div>,
-  Line: () => <div>Line</div>,
+  ResponsiveContainer: () => null,
+  AreaChart: () => null,
+  Area: () => null,
+  XAxis: () => null,
+  YAxis: () => null,
+  CartesianGrid: () => null,
+  Tooltip: () => null,
+  PieChart: () => null,
+  Pie: () => null,
+  Cell: () => null,
+  BarChart: () => null,
+  Bar: () => null,
+  LineChart: () => null,
+  Line: () => null,
 }));
 
 const mockSpending = {

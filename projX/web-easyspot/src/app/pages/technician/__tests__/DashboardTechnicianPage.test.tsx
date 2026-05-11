@@ -8,6 +8,18 @@ const techApiMock = vi.hoisted(() => ({
 }));
 
 vi.mock('../../../services/technicianApi', () => techApiMock);
+vi.mock('recharts', () => ({
+  ResponsiveContainer: () => null,
+  AreaChart: () => null,
+  Area: () => null,
+  XAxis: () => null,
+  YAxis: () => null,
+  CartesianGrid: () => null,
+  Tooltip: () => null,
+  PieChart: () => null,
+  Pie: () => null,
+  Cell: () => null,
+}));
 
 const mockDashboard = {
   kpis: {
