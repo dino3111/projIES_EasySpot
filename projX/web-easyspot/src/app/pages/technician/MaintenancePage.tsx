@@ -13,10 +13,18 @@ import {
   fetchSensorDetail,
   fetchAlerts,
   updateAlertState,
+  updateSensorStatus,
   type SensorSummary,
   type AlertResponse,
   type WorkOrder,
 } from '../../services/technicianApi';
+
+const STATUS_TO_API: Record<string, string> = {
+  operacional: 'operational',
+  falha:       'degraded',
+  offline:     'offline',
+  manutencao:  'maintenance',
+};
 
 // ── Sensor mapping (API → UI) ─────────────────────────────────────────────────
 
@@ -98,8 +106,6 @@ function alertToIssue(a: AlertResponse): IssueReport {
   };
 }
 
-
-
 function alertToWorkOrder(a: AlertResponse): WorkOrder {
   return {
     id: a.id,
@@ -146,10 +152,8 @@ export function MaintenancePage() {
         fetchAlerts(),
       ]);
       setSensors(apiSensors.map(sensorFromApi));
-      // Technician sees SENSOR and SYSTEM alerts as incidents
       const techAlerts = apiAlerts.filter(a => a.type === 'SENSOR' || a.type === 'SYSTEM');
       setIssues(techAlerts.map(alertToIssue));
-      // Work orders = all alerts (tasks to action)
       setOrders(apiAlerts.map(alertToWorkOrder));
     } catch (err: unknown) {
       setApiError(err instanceof Error ? err.message : 'Erro ao carregar dados.');
@@ -165,7 +169,6 @@ export function MaintenancePage() {
   const openIssues = issues.filter((i) => i.estado === 'aberto').length;
   const openOrders = orders.filter((o) => o.state !== 'RESOLVED').length;
 
-  // Enrich sensor with real logs when selected
   const handleSelectSensor = async (sensor: SensorDevice) => {
     setLogsLoading(true);
     setSelectedSensor(sensor);
@@ -188,7 +191,6 @@ export function MaintenancePage() {
     }
   };
 
-  // Update issue state via API and refresh local state
   const handleIssueStateUpdate = async (issueId: string, newState: 'IN_PROGRESS' | 'RESOLVED') => {
     try {
       await updateAlertState(issueId, newState);
@@ -204,7 +206,6 @@ export function MaintenancePage() {
     }
   };
 
-  // Update work order state via API
   const handleOrderUpdate = async (orderId: string, novoEstado: 'em-progresso' | 'concluida') => {
     const apiState = novoEstado === 'em-progresso' ? 'IN_PROGRESS' : 'RESOLVED';
     try {
@@ -220,6 +221,8 @@ export function MaintenancePage() {
   };
 
   const handleStatusUpdate = async (sensorId: string, newStatus: SensorStatus, notes: string) => {
+    const apiStatus = STATUS_TO_API[newStatus] ?? newStatus;
+    await updateSensorStatus(sensorId, apiStatus, notes || undefined).catch(() => {});
     setSensors((prev) =>
       prev.map((s) => {
         if (s.id !== sensorId) return s;
@@ -287,10 +290,7 @@ export function MaintenancePage() {
         >
           <i className="fas fa-triangle-exclamation" aria-hidden="true" />
           <span>Erro ao carregar dados: {apiError}</span>
-          <button
-            onClick={loadAll}
-            className="ml-auto underline font-semibold"
-          >
+          <button onClick={loadAll} className="ml-auto underline font-semibold">
             Tentar novamente
           </button>
         </div>
@@ -313,12 +313,11 @@ export function MaintenancePage() {
 
       {tab === 'ocorrencias' && (
         <IncidentsTab
-          sensors={sensors}
           issues={issues}
+          sensors={sensors}
           onSelectIssue={setSelectedIssue}
           onUpdateSensor={setUpdateTarget}
           onCreateTaskFromIssue={(issue) => {
-            // Mark alert as IN_PROGRESS directly from incident
             handleIssueStateUpdate(issue.id, 'IN_PROGRESS');
           }}
         />
