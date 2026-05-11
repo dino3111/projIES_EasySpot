@@ -42,10 +42,8 @@ class ParkControllerIT {
     @Autowired ParkingLotRepository parkingLotRepository;
     @Autowired EVChargerRepository evChargerRepository;
     @Autowired AccessibleSpotRepository accessibleSpotRepository;
-    @Autowired private MockMvc mockMvc;
-    @Autowired private ParkingLotRepository parkingLotRepository;
-    @Autowired private ParkingSpotRepository parkingSpotRepository;
-    @Autowired private TimescaleOccupancySnapshotRepository occupancyRepository;
+    @Autowired ParkingSpotRepository parkingSpotRepository;
+    @Autowired TimescaleOccupancySnapshotRepository occupancyRepository;
 
     @MockitoBean JwtDecoder jwtDecoder;
 
