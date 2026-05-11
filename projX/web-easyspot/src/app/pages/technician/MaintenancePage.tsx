@@ -1,14 +1,12 @@
 import { useState, useEffect } from 'react';
 import {
-  mockSensors,
-  mockMaintenanceOrders,
   computeTechKPIs,
   type SensorDevice,
   type SensorStatus,
   type MaintenanceOrder,
 } from '../../data/technicianData';
 import { type IssueReport } from '../../data/gestorData';
-import { STATUS_LABEL, techIssues, type PageTab, type StatusFil } from './components/maintenanceTypes';
+import { STATUS_LABEL, type PageTab, type StatusFil } from './components/maintenanceTypes';
 import { TabBtn } from './components/shared';
 import { IncidentsTab } from './components/IncidentsTab';
 import { SensorsTab } from './components/SensorsTab';
@@ -16,56 +14,54 @@ import { TasksTab } from './components/TasksTab';
 import { IssueDetailModal } from './components/IssueDetailModal';
 import { SensorDiagPanel, StatusUpdateModal } from './components/SensorModals';
 import { NewOrderModal, QuickTaskFromIssueModal } from './components/OrderModals';
-import { fetchSensorList, fetchSensorDetail, type SensorSummary } from '../../services/technicianApi';
+import {
+  fetchSensorList,
+  fetchSensorDetail,
+  fetchAlerts,
+  updateSensorStatus,
+  type SensorSummary,
+} from '../../services/technicianApi';
 
-function toSensorStatus(apiStatus: string, fallback: SensorStatus): SensorStatus {
-  if (apiStatus === 'operational') return 'operacional';
-  if (apiStatus === 'offline')     return 'offline';
-  if (apiStatus === 'degraded')    return 'falha';
-  return fallback;
+const STATUS_TO_API: Record<string, string> = {
+  operacional: 'operational',
+  falha:       'degraded',
+  offline:     'offline',
+  manutencao:  'maintenance',
+};
+
+function toSensorStatus(apiStatus: string): SensorStatus {
+  if (apiStatus === 'operational')  return 'operacional';
+  if (apiStatus === 'offline')      return 'offline';
+  if (apiStatus === 'maintenance')  return 'manutencao';
+  return 'falha'; // degraded and anything else
 }
 
-function mergeSensorStatus(
-  locals: SensorDevice[],
-  apiSensors: SensorSummary[],
-): SensorDevice[] {
-  const localIds = new Set(locals.map((s) => s.id));
-
-  // Update status of sensors that exist in the mock
-  const updated = locals.map((s) => {
-    const api = apiSensors.find((a) => a.sensorId === s.id);
-    if (!api) return s;
-    return { ...s, status: toSensorStatus(api.status, s.status), ultimaLeitura: api.lastSeenAt };
-  });
-
-  // Add sensors from the API that don't exist in the mock
-  const newFromApi: SensorDevice[] = apiSensors
-    .filter((a) => !localIds.has(a.sensorId))
-    .map((a) => ({
-      id: a.sensorId,
-      tipo: 'IR' as const,
-      parqueId: a.parkingLotId.toString(),
-      parqueNome: a.parkingLotName,
-      cidade: '',
-      zona: a.zone,
-      status: toSensorStatus(a.status, 'offline'),
-      ultimaLeitura: a.lastSeenAt,
-      uptimePercent: 0,
-      taxaFalsosPositivos: 0,
-      firmware: '—',
-      instaladoEm: a.createdAt,
-      ultimaManutencao: '—',
-      historicoErros: [],
-    }));
-
-  return [...updated, ...newFromApi];
+function apiSensorToDevice(a: SensorSummary): SensorDevice {
+  return {
+    id: a.sensorId,
+    tipo: 'IR' as const,
+    parqueId: a.parkingLotId.toString(),
+    parqueNome: a.parkingLotName,
+    cidade: '',
+    zona: a.zone,
+    status: toSensorStatus(a.status),
+    ultimaLeitura: a.lastSeenAt,
+    uptimePercent: 0,
+    taxaFalsosPositivos: 0,
+    firmware: '—',
+    instaladoEm: a.createdAt,
+    ultimaManutencao: '—',
+    historicoErros: [],
+  };
 }
 
 export function MaintenancePage() {
   const [tab, setTab]                       = useState<PageTab>('ocorrencias');
   const [sensors, setSensors]               = useState<SensorDevice[]>([]);
-  const [orders, setOrders]                 = useState<MaintenanceOrder[]>(mockMaintenanceOrders);
-  const [apiError, setApiError]             = useState<string | null>(null);
+  const [issues, setIssues]                 = useState<IssueReport[]>([]);
+  const [orders, setOrders]                 = useState<MaintenanceOrder[]>([]);
+  const [sensorError, setSensorError]       = useState<string | null>(null);
+  const [issuesError, setIssuesError]       = useState<string | null>(null);
   const [selectedIssue, setSelectedIssue]   = useState<IssueReport | null>(null);
   const [statusFil, setStatusFil]           = useState<StatusFil>('todos');
   const [selectedSensor, setSelectedSensor] = useState<SensorDevice | null>(null);
@@ -75,27 +71,37 @@ export function MaintenancePage() {
   const [updateTarget, setUpdateTarget]     = useState<SensorDevice | null>(null);
   const [toast, setToast]                   = useState<string | null>(null);
 
-  // Load real sensor statuses from API on mount
   useEffect(() => {
     fetchSensorList()
-      .then((apiSensors) => setSensors((prev) => mergeSensorStatus(prev, apiSensors)))
+      .then((apiSensors) => setSensors(apiSensors.map(apiSensorToDevice)))
       .catch((err: unknown) => {
-        const msg = err instanceof Error ? err.message : 'Erro ao carregar sensores da API.';
-        setApiError(msg);
+        setSensorError(err instanceof Error ? err.message : 'Erro ao carregar sensores.');
+      });
+
+    fetchAlerts()
+      .then(setIssues)
+      .catch((err: unknown) => {
+        setIssuesError(err instanceof Error ? err.message : 'Erro ao carregar ocorrências.');
       });
   }, []);
 
   const kpis = computeTechKPIs(sensors);
   const filteredSensors = statusFil === 'todos' ? sensors : sensors.filter((s) => s.status === statusFil);
   const openOrders = orders.filter((o) => o.estado !== 'concluida').length;
-  const openIssues = techIssues.filter((i) => i.estado === 'aberto').length;
+  const openIssues = issues.filter((i) => i.estado === 'aberto').length;
 
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 4000);
   };
 
-  // When opening a sensor, enrich its error history with real API logs
+  const reloadSensors = () => {
+    setSensorError(null);
+    fetchSensorList()
+      .then((apiSensors) => setSensors(apiSensors.map(apiSensorToDevice)))
+      .catch((err: unknown) => setSensorError(err instanceof Error ? err.message : 'Erro'));
+  };
+
   const handleSelectSensor = async (sensor: SensorDevice) => {
     setLogsLoading(true);
     setSelectedSensor(sensor);
@@ -121,13 +127,18 @@ export function MaintenancePage() {
           : prev,
       );
     } catch {
-      // silently fallback to mock logs
+      // silently keep empty error history
     } finally {
       setLogsLoading(false);
     }
   };
 
   const handleStatusUpdate = (sensorId: string, newStatus: SensorStatus, notes: string) => {
+    const apiStatus = STATUS_TO_API[newStatus] ?? newStatus;
+    updateSensorStatus(sensorId, apiStatus, notes || undefined).catch(() => {
+      // optimistic update — API failure is silent
+    });
+
     setSensors((prev) =>
       prev.map((s) => {
         if (s.id !== sensorId) return s;
@@ -169,20 +180,32 @@ export function MaintenancePage() {
         </div>
       )}
 
-      {apiError && (
+      {sensorError && (
         <div
           role="alert"
           className="flex items-center gap-2 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800"
           style={{ fontSize: '0.82rem' }}
         >
           <i className="fas fa-triangle-exclamation" aria-hidden="true" />
-          <span>Dados parciais: {apiError} — a usar dados locais.</span>
+          <span>Sensores indisponíveis: {sensorError}</span>
+          <button onClick={reloadSensors} className="ml-auto underline font-semibold">
+            Tentar novamente
+          </button>
+        </div>
+      )}
+
+      {issuesError && (
+        <div
+          role="alert"
+          className="flex items-center gap-2 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800"
+          style={{ fontSize: '0.82rem' }}
+        >
+          <i className="fas fa-triangle-exclamation" aria-hidden="true" />
+          <span>Ocorrências indisponíveis: {issuesError}</span>
           <button
             onClick={() => {
-              setApiError(null);
-              fetchSensorList()
-                .then((apiSensors) => setSensors((prev) => mergeSensorStatus(prev, apiSensors)))
-                .catch((err: unknown) => setApiError(err instanceof Error ? err.message : 'Erro'));
+              setIssuesError(null);
+              fetchAlerts().then(setIssues).catch((err: unknown) => setIssuesError(err instanceof Error ? err.message : 'Erro'));
             }}
             className="ml-auto underline font-semibold"
           >
@@ -208,6 +231,7 @@ export function MaintenancePage() {
 
       {tab === 'ocorrencias' && (
         <IncidentsTab
+          issues={issues}
           sensors={sensors}
           onSelectIssue={setSelectedIssue}
           onUpdateSensor={setUpdateTarget}

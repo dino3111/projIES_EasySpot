@@ -4,6 +4,7 @@ import {
   fetchSensorList,
   fetchSensorDetail,
   updateAlertState,
+  updateSensorStatus,
 } from '../technicianApi';
 
 // Mock the shared apiService so we don't re-test its internals
@@ -92,6 +93,52 @@ describe('technicianApi', () => {
           body: JSON.stringify({ state: 'IN_PROGRESS' }),
         }),
       );
+    });
+  });
+
+  describe('updateSensorStatus', () => {
+    it('calls request with PATCH method, encoded sensorId, status and notes', async () => {
+      apiServiceMock.request.mockResolvedValueOnce(undefined);
+
+      await updateSensorStatus('IR-AV1-B07', 'operational', 'Reparação concluída.');
+
+      expect(apiServiceMock.request).toHaveBeenCalledWith(
+        '/api/technician/sensors/IR-AV1-B07/status',
+        expect.objectContaining({
+          method: 'PATCH',
+          body: JSON.stringify({ status: 'operational', notes: 'Reparação concluída.' }),
+        }),
+      );
+    });
+
+    it('sends null notes when notes argument is omitted', async () => {
+      apiServiceMock.request.mockResolvedValueOnce(undefined);
+
+      await updateSensorStatus('IR-AV1-B07', 'maintenance');
+
+      expect(apiServiceMock.request).toHaveBeenCalledWith(
+        '/api/technician/sensors/IR-AV1-B07/status',
+        expect.objectContaining({
+          body: JSON.stringify({ status: 'maintenance', notes: null }),
+        }),
+      );
+    });
+
+    it('encodes special characters in sensorId', async () => {
+      apiServiceMock.request.mockResolvedValueOnce(undefined);
+
+      await updateSensorStatus('IR AV1/B07', 'offline');
+
+      expect(apiServiceMock.request).toHaveBeenCalledWith(
+        '/api/technician/sensors/IR%20AV1%2FB07/status',
+        expect.anything(),
+      );
+    });
+
+    it('propagates errors from request', async () => {
+      apiServiceMock.request.mockRejectedValueOnce(new Error('Network error'));
+
+      await expect(updateSensorStatus('IR-AV1-B07', 'operational')).rejects.toThrow('Network error');
     });
   });
 });

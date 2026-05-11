@@ -227,6 +227,70 @@ test('Fechar painel de diagnóstico remove o modal', async ({ page }) => {
   await expect(page.getByRole('dialog')).not.toBeVisible();
 });
 
+test('Botão Atualizar Estado abre modal de atualização de status', async ({ page }) => {
+  await page.goto('/technician/maintenance');
+
+  await page.getByRole('tab', { name: /sensores/i }).click();
+  await page.getByText('Fórum Aveiro').click();
+  await page.getByText('IR-AV1-B07').click();
+
+  await expect(page.getByRole('dialog')).toBeVisible();
+
+  await page.getByRole('button', { name: /atualizar estado/i }).click();
+
+  // StatusUpdateModal should open (it's a second dialog at z-60)
+  await expect(page.getByText(/atualizar estado do sensor/i)).toBeVisible();
+  await expect(page.getByText(/IR-AV1-B07/)).toBeVisible();
+});
+
+test('Confirmar atualização de status chama API e mostra toast', async ({ page }) => {
+  let statusPatchCalled = false;
+  await page.route('**/api/technician/sensors/IR-AV1-B07/status', (route) => {
+    statusPatchCalled = true;
+    route.fulfill({ status: 204, body: '' });
+  });
+
+  await page.goto('/technician/maintenance');
+
+  await page.getByRole('tab', { name: /sensores/i }).click();
+  await page.getByText('Fórum Aveiro').click();
+  await page.getByText('IR-AV1-B07').click();
+
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.getByRole('button', { name: /atualizar estado/i }).click();
+
+  // Select "Operacional" in the modal
+  await page.getByRole('radio', { name: /operacional/i }).click();
+
+  await page.getByRole('button', { name: /confirmar atualização/i }).click();
+
+  // Toast should appear
+  await expect(page.getByRole('status')).toBeVisible();
+  await expect(page.getByText(/IR-AV1-B07/)).toBeVisible();
+
+  expect(statusPatchCalled).toBe(true);
+});
+
+test('Atualização de status para operacional fecha modais', async ({ page }) => {
+  await page.route('**/api/technician/sensors/IR-AV1-B07/status', (route) =>
+    route.fulfill({ status: 204, body: '' }),
+  );
+
+  await page.goto('/technician/maintenance');
+
+  await page.getByRole('tab', { name: /sensores/i }).click();
+  await page.getByText('Fórum Aveiro').click();
+  await page.getByText('IR-AV1-B07').click();
+
+  await page.getByRole('button', { name: /atualizar estado/i }).click();
+  await page.getByRole('radio', { name: /operacional/i }).click();
+  await page.getByRole('button', { name: /confirmar atualização/i }).click();
+
+  // Both modals should close
+  await expect(page.getByText(/atualizar estado do sensor/i)).not.toBeVisible();
+  await expect(page.getByRole('dialog')).not.toBeVisible();
+});
+
 test('Painel mostra loading enquanto carrega logs do sensor', async ({ page }) => {
   // Atrasa a resposta de logs para confirmar o estado de loading
   await page.unroute('**/api/technician/sensors/IR-AV1-B07/logs');

@@ -24,7 +24,8 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
+import pt.ua.deti.apieasyspot.sensor.dto.SensorStatusUpdateRequest;
 
 @ExtendWith(MockitoExtension.class)
 class SensorLogsServiceTest {
@@ -121,5 +122,85 @@ class SensorLogsServiceTest {
         SensorDetailDto detail = service.getSensorDetail("GW-TEST-01");
 
         assertThat(detail.logs()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("updateSensorStatus persists new status")
+    void updateSensorStatus_persistsNewStatus() {
+        UUID parkId = UUID.randomUUID();
+        ParkingLot lot = new ParkingLot();
+        lot.setId(parkId);
+        lot.setName("Parque Teste");
+
+        SensorRegistry sensor = new SensorRegistry();
+        sensor.setSensorId("IR-TEST-01");
+        sensor.setParkingLot(lot);
+        sensor.setZone("Zona A");
+        sensor.setStatus(SensorStatus.OFFLINE);
+        sensor.setLastSeenAt(LocalDateTime.now());
+        sensor.setCreatedAt(LocalDateTime.now());
+
+        when(sensorRegistryRepository.findById("IR-TEST-01")).thenReturn(Optional.of(sensor));
+
+        service.updateSensorStatus("IR-TEST-01", new SensorStatusUpdateRequest("operational", "Reparação concluída."));
+
+        verify(sensorRegistryRepository).save(sensor);
+        assertThat(sensor.getStatus()).isEqualTo(SensorStatus.OPERATIONAL);
+    }
+
+    @Test
+    @DisplayName("updateSensorStatus sets MAINTENANCE status")
+    void updateSensorStatus_setsMaintenanceStatus() {
+        UUID parkId = UUID.randomUUID();
+        ParkingLot lot = new ParkingLot();
+        lot.setId(parkId);
+        lot.setName("Parque Teste");
+
+        SensorRegistry sensor = new SensorRegistry();
+        sensor.setSensorId("IR-TEST-02");
+        sensor.setParkingLot(lot);
+        sensor.setZone("Zona B");
+        sensor.setStatus(SensorStatus.OPERATIONAL);
+        sensor.setLastSeenAt(LocalDateTime.now());
+        sensor.setCreatedAt(LocalDateTime.now());
+
+        when(sensorRegistryRepository.findById("IR-TEST-02")).thenReturn(Optional.of(sensor));
+
+        service.updateSensorStatus("IR-TEST-02", new SensorStatusUpdateRequest("maintenance", null));
+
+        verify(sensorRegistryRepository).save(sensor);
+        assertThat(sensor.getStatus()).isEqualTo(SensorStatus.MAINTENANCE);
+    }
+
+    @Test
+    @DisplayName("updateSensorStatus throws SensorNotFoundException for unknown sensor")
+    void updateSensorStatus_unknownSensor_throwsNotFound() {
+        when(sensorRegistryRepository.findById("UNKNOWN")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() ->
+            service.updateSensorStatus("UNKNOWN", new SensorStatusUpdateRequest("operational", null)))
+            .isInstanceOf(SensorNotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("updateSensorStatus throws IllegalArgumentException for invalid status")
+    void updateSensorStatus_invalidStatus_throwsIllegalArgument() {
+        UUID parkId = UUID.randomUUID();
+        ParkingLot lot = new ParkingLot();
+        lot.setId(parkId);
+
+        SensorRegistry sensor = new SensorRegistry();
+        sensor.setSensorId("IR-TEST-03");
+        sensor.setParkingLot(lot);
+        sensor.setStatus(SensorStatus.OPERATIONAL);
+        sensor.setLastSeenAt(LocalDateTime.now());
+        sensor.setCreatedAt(LocalDateTime.now());
+
+        when(sensorRegistryRepository.findById("IR-TEST-03")).thenReturn(Optional.of(sensor));
+
+        assertThatThrownBy(() ->
+            service.updateSensorStatus("IR-TEST-03", new SensorStatusUpdateRequest("invalid_status", null)))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("invalid_status");
     }
 }

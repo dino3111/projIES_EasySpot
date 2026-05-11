@@ -70,9 +70,13 @@ function parseJwtClaims(token: string): Record<string, unknown> {
 
 function extractRole(claims: Record<string, unknown>): AppProfile {
   const groups = claims['groups'];
+  console.log('[AUTH] extractRole — raw groups:', groups);
   if (Array.isArray(groups) && groups.length > 0) {
-    const r = String(groups[0]).toUpperCase();
-    if (r === 'MANAGER' || r === 'TECHNICAL') return r as AppProfile;
+    for (const g of groups) {
+      // Authentik may prefix groups with '/' (e.g. "/TECHNICAL") — strip it
+      const r = String(g).replace(/^\/+/, '').toUpperCase();
+      if (r === 'MANAGER' || r === 'TECHNICAL') return r as AppProfile;
+    }
   }
   return 'DRIVER';
 }

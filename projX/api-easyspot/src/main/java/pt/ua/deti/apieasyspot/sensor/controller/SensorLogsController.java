@@ -3,11 +3,13 @@ package pt.ua.deti.apieasyspot.sensor.controller;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import pt.ua.deti.apieasyspot.sensor.dto.SensorDetailDto;
+import pt.ua.deti.apieasyspot.sensor.dto.SensorStatusUpdateRequest;
 import pt.ua.deti.apieasyspot.sensor.dto.SensorSummaryDto;
 import pt.ua.deti.apieasyspot.sensor.service.SensorLogsService;
 import pt.ua.deti.apieasyspot.sensor.service.SensorNotFoundException;
@@ -43,8 +45,28 @@ public class SensorLogsController {
         return ResponseEntity.ok(sensorLogsService.getSensorDetail(sensorId));
     }
 
+    @Operation(summary = "Update sensor status after repair")
+    @ApiResponse(responseCode = "204", description = "Sensor status updated")
+    @ApiResponse(responseCode = "400", description = "Invalid status value")
+    @ApiResponse(responseCode = "401", description = "Not authenticated")
+    @ApiResponse(responseCode = "403", description = "Not a technician")
+    @ApiResponse(responseCode = "404", description = "Sensor not found")
+    @PatchMapping("/{sensorId}/status")
+    @PreAuthorize("hasRole('TECHNICAL')")
+    public ResponseEntity<Void> updateSensorStatus(
+            @PathVariable String sensorId,
+            @RequestBody @Valid SensorStatusUpdateRequest body) {
+        sensorLogsService.updateSensorStatus(sensorId, body);
+        return ResponseEntity.noContent().build();
+    }
+
     @ExceptionHandler(SensorNotFoundException.class)
     ResponseEntity<Void> handleNotFound() {
         return ResponseEntity.notFound().build();
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    ResponseEntity<Void> handleBadRequest() {
+        return ResponseEntity.badRequest().build();
     }
 }

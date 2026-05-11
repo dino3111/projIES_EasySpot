@@ -4,8 +4,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import pt.ua.deti.apieasyspot.sensor.dto.SensorDetailDto;
 import pt.ua.deti.apieasyspot.sensor.dto.SensorLogEntry;
+import pt.ua.deti.apieasyspot.sensor.dto.SensorStatusUpdateRequest;
 import pt.ua.deti.apieasyspot.sensor.dto.SensorSummaryDto;
 import pt.ua.deti.apieasyspot.sensor.model.SensorRegistry;
+import pt.ua.deti.apieasyspot.sensor.model.SensorStatus;
 import pt.ua.deti.apieasyspot.sensor.repository.SensorLogsRepository;
 import pt.ua.deti.apieasyspot.sensor.repository.SensorRegistryRepository;
 
@@ -27,7 +29,6 @@ public class SensorLogsService {
         SensorRegistry sensor = sensorRegistryRepository.findById(sensorId)
             .orElseThrow(() -> new SensorNotFoundException(sensorId));
 
-
         List<SensorLogEntry> logs = sensorLogsRepository.findLogsBySensorId(sensorId);
 
         return new SensorDetailDto(
@@ -40,5 +41,20 @@ public class SensorLogsService {
             sensor.getCreatedAt().atOffset(ZoneOffset.UTC),
             logs
         );
+    }
+
+    public void updateSensorStatus(String sensorId, SensorStatusUpdateRequest request) {
+        SensorRegistry sensor = sensorRegistryRepository.findById(sensorId)
+            .orElseThrow(() -> new SensorNotFoundException(sensorId));
+
+        SensorStatus newStatus;
+        try {
+            newStatus = SensorStatus.valueOf(request.status().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid sensor status: " + request.status());
+        }
+
+        sensor.setStatus(newStatus);
+        sensorRegistryRepository.save(sensor);
     }
 }

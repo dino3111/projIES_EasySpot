@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { type SensorDevice } from '../../../data/technicianData';
 import { type IssueReport } from '../../../data/gestorData';
-import { parkManagers, techIssues, parkCityMapFromSensors, type ParkManager } from './maintenanceTypes';
+import { parkManagers, type ParkManager } from './maintenanceTypes';
 import { QuickStat, EmptyState } from './shared';
 
 type IncidentStatusFilter = 'todos' | 'aberto' | 'em-progresso' | 'resolvido';
 type IncidentSeverityFilter = 'todos' | 'critica' | 'aviso';
 
 type IncidentsTabProps = Readonly<{
+  issues: IssueReport[];
   sensors: SensorDevice[];
   onSelectIssue: (i: IssueReport) => void;
   onUpdateSensor: (s: SensorDevice) => void;
@@ -40,6 +41,7 @@ const ISSUE_STATUS_BADGES: Record<IssueReport['estado'], { label: string; color:
 };
 
 export function IncidentsTab({
+  issues,
   sensors,
   onSelectIssue,
   onUpdateSensor,
@@ -50,13 +52,16 @@ export function IncidentsTab({
   const [cidadeFilter, setCidadeFilter] = useState('todas');
   const [selectedPark, setSelectedPark] = useState<string | null>(null);
 
-  const parkCityMap = parkCityMapFromSensors();
-  const parkNames = Array.from(new Set(techIssues.map(i => i.parque)));
+  const parkNames = Array.from(new Set(issues.map(i => i.parque)));
   const parkIssuesMap = new Map<string, IssueReport[]>();
-  parkNames.forEach(n => parkIssuesMap.set(n, techIssues.filter(i => i.parque === n)));
+  parkNames.forEach(n => parkIssuesMap.set(n, issues.filter(i => i.parque === n)));
+
+  // Build city map from sensors (API data)
+  const parkCityMap = new Map<string, string>();
+  sensors.forEach(s => { if (!parkCityMap.has(s.parqueNome)) parkCityMap.set(s.parqueNome, s.cidade); });
 
   const uniqueCities = Array.from(new Set(
-    parkNames.map(n => parkCityMap.get(n)).filter((c): c is string => c !== undefined)
+    parkNames.map(n => parkCityMap.get(n)).filter((c): c is string => !!c)
   )).sort((a, b) => a.localeCompare(b, 'pt-PT'));
 
   if (selectedPark) {
@@ -65,7 +70,7 @@ export function IncidentsTab({
       <ParkOcorrenciasView
         parkName={selectedPark}
         manager={manager}
-        issues={parkIssuesMap.get(selectedPark) || []}
+        issues={parkIssuesMap.get(selectedPark) ?? []}
         onBack={() => setSelectedPark(null)}
         onSelectIssue={onSelectIssue}
         onUpdateSensor={onUpdateSensor}
@@ -81,9 +86,9 @@ export function IncidentsTab({
   });
 
   const counts = {
-    aberto: techIssues.filter(i => i.estado === 'aberto').length,
-    prog:   techIssues.filter(i => i.estado === 'em-progresso').length,
-    resolv: techIssues.filter(i => i.estado === 'resolvido').length,
+    aberto: issues.filter(i => i.estado === 'aberto').length,
+    prog:   issues.filter(i => i.estado === 'em-progresso').length,
+    resolv: issues.filter(i => i.estado === 'resolvido').length,
   };
 
   return (
@@ -94,28 +99,30 @@ export function IncidentsTab({
         <QuickStat label="Resolvidas"   value={counts.resolv} color="#22c55e" icon="fa-circle-check" />
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <div className="flex rounded-xl overflow-hidden border border-border flex-wrap">
-          <button
-            onClick={() => setCidadeFilter('todas')}
-            className={`px-3 py-1.5 transition-colors ${cidadeFilter === 'todas' ? 'bg-primary text-white' : 'bg-card text-muted-foreground hover:bg-muted'}`}
-            style={{ fontSize: '0.75rem', fontWeight: 600 }}
-          >
-            <i className="fas fa-map-pin mr-1" aria-hidden="true"></i>
-            Todas as Cidades
-          </button>
-          {uniqueCities.map(city => (
+      {uniqueCities.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          <div className="flex rounded-xl overflow-hidden border border-border flex-wrap">
             <button
-              key={city}
-              onClick={() => setCidadeFilter(city)}
-              className={`px-3 py-1.5 transition-colors ${cidadeFilter === city ? 'bg-primary text-white' : 'bg-card text-muted-foreground hover:bg-muted'}`}
+              onClick={() => setCidadeFilter('todas')}
+              className={`px-3 py-1.5 transition-colors ${cidadeFilter === 'todas' ? 'bg-primary text-white' : 'bg-card text-muted-foreground hover:bg-muted'}`}
               style={{ fontSize: '0.75rem', fontWeight: 600 }}
             >
-              {city}
+              <i className="fas fa-map-pin mr-1" aria-hidden="true"></i>
+              Todas as Cidades
             </button>
-          ))}
+            {uniqueCities.map(city => (
+              <button
+                key={city}
+                onClick={() => setCidadeFilter(city)}
+                className={`px-3 py-1.5 transition-colors ${cidadeFilter === city ? 'bg-primary text-white' : 'bg-card text-muted-foreground hover:bg-muted'}`}
+                style={{ fontSize: '0.75rem', fontWeight: 600 }}
+              >
+                {city}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="flex flex-wrap gap-2">
         <div className="flex rounded-xl overflow-hidden border border-border">
@@ -149,7 +156,7 @@ export function IncidentsTab({
       ) : (
         <div className="grid gap-3 sm:grid-cols-1 lg:grid-cols-2">
           {visibleParkNames.map(parkName => {
-            const parkIssues = parkIssuesMap.get(parkName) || [];
+            const parkIssues = parkIssuesMap.get(parkName) ?? [];
             const manager = parkManagers.find(m => m.parkName === parkName);
             const filtered = parkIssues.filter(i => {
               const estOk = estFilter === 'todos' || i.estado === estFilter;
@@ -280,8 +287,8 @@ function IssueCard({
 }: IssueCardProps) {
   const severityMap = {
     critica: { color: '#d4183d', label: 'Crítico' },
-    aviso: { color: '#f59e0b', label: 'Aviso' },
-    info: { color: '#3b82f6', label: 'Info' },
+    aviso:   { color: '#f59e0b', label: 'Aviso' },
+    info:    { color: '#3b82f6', label: 'Info' },
   };
   const severityInfo = severityMap[issue.severidade];
   const tipoIcon = issue.tipo === 'sensor' ? 'fa-microchip' : 'fa-server';
