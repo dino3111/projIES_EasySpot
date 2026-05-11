@@ -87,11 +87,13 @@ test('Fluxo de reserva completa passo-a-passo', async ({ page }) => {
   await expect(page).toHaveURL(/\/reservation\?parkId=park-1/);
   await fillValidReservationSchedule(page);
 
-  // STEP 1: Horário
-  // Garantir que os inputs estão preenchidos (os defaults devem funcionar, mas forçamos para estabilidade)
-  // O botão "Escolher Lugar" deve estar habilitado
+  // STEP 1: Horário — forçar datas válidas para garantir que o botão fica enabled
+  const arrival = new Date(Date.now() + 2 * 3600_000).toISOString().slice(0, 16);
+  const exit = new Date(Date.now() + 4 * 3600_000).toISOString().slice(0, 16);
+  await page.locator('#arrival-input').fill(arrival);
+  await page.locator('#exit-input').fill(exit);
   const nextBtn1 = page.locator('button:has-text("Escolher Lugar")');
-  await expect(nextBtn1).toBeVisible();
+  await expect(nextBtn1).toBeEnabled();
   await nextBtn1.click();
 
   // STEP 2: Escolha de Lugar
