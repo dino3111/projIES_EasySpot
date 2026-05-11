@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.jwt.Jwt;
 import pt.ua.deti.apieasyspot.booking.dto.CreateReservationRequest;
 import pt.ua.deti.apieasyspot.booking.dto.ReservationResponse;
+import pt.ua.deti.apieasyspot.booking.dto.UpdateReservationRequest;
 import pt.ua.deti.apieasyspot.booking.service.ReservationService;
 import pt.ua.deti.apieasyspot.common.exception.ConflictException;
 import pt.ua.deti.apieasyspot.common.exception.UnprocessableEntityException;
@@ -19,6 +20,7 @@ import pt.ua.deti.apieasyspot.common.exception.UnprocessableEntityException;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -34,7 +36,9 @@ class ReservationControllerTest {
     @InjectMocks private ReservationController reservationController;
 
     private CreateReservationRequest validRequest;
+    private UpdateReservationRequest updateRequest;
     private ReservationResponse confirmedResponse;
+    private UUID reservationId;
 
     private static final String AUTH_ID = "auth-sub-456";
 
@@ -44,12 +48,15 @@ class ReservationControllerTest {
         UUID vehicleId = UUID.randomUUID();
         OffsetDateTime arrival = OffsetDateTime.now(ZoneOffset.UTC).plusHours(2);
         OffsetDateTime departure = arrival.plusHours(2);
+        reservationId = UUID.randomUUID();
 
         validRequest = new CreateReservationRequest(
             parkId, vehicleId, arrival.toString(), departure.toString(), null);
+        updateRequest = new UpdateReservationRequest(
+            parkId, vehicleId, arrival.plusHours(1).toString(), departure.plusHours(1).toString(), null);
 
         confirmedResponse = new ReservationResponse(
-            UUID.randomUUID(),
+            reservationId,
             "ES-ABCD-1234",
             parkId,
             "Parque Central",
@@ -122,5 +129,55 @@ class ReservationControllerTest {
 
         verify(jwt).getSubject();
         verify(reservationService).create(eq(AUTH_ID), any(), any());
+    }
+
+    @Test
+    @DisplayName("listReservations - returns service payload")
+    void listReservations_returnsPayload() {
+        when(reservationService.list(AUTH_ID)).thenReturn(List.of(confirmedResponse));
+
+        ResponseEntity<List<ReservationResponse>> response = reservationController.listReservations(jwt);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).containsExactly(confirmedResponse);
+        verify(reservationService).list(AUTH_ID);
+    }
+
+    @Test
+    @DisplayName("getReservation - delegates to service with reservation id")
+    void getReservation_delegatesToService() {
+        when(reservationService.getById(AUTH_ID, reservationId)).thenReturn(confirmedResponse);
+
+        ResponseEntity<ReservationResponse> response = reservationController.getReservation(reservationId, jwt);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isEqualTo(confirmedResponse);
+        verify(reservationService).getById(AUTH_ID, reservationId);
+    }
+
+    @Test
+    @DisplayName("updateReservation - valid request - returns 200 OK")
+    void updateReservation_validRequest_returns200() {
+        when(reservationService.update(AUTH_ID, reservationId, updateRequest)).thenReturn(confirmedResponse);
+
+        ResponseEntity<ReservationResponse> response =
+            reservationController.updateReservation(reservationId, updateRequest, jwt);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isEqualTo(confirmedResponse);
+        verify(reservationService).update(AUTH_ID, reservationId, updateRequest);
+    }
+
+    @Test
+    @DisplayName("cancelReservation - valid reservation - returns 200 OK")
+    void cancelReservation_validRequest_returns200() {
+        when(reservationService.cancel(AUTH_ID, reservationId)).thenReturn(confirmedResponse);
+
+        ResponseEntity<ReservationResponse> response =
+            reservationController.cancelReservation(reservationId, jwt);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isEqualTo(confirmedResponse);
+        verify(reservationService).cancel(AUTH_ID, reservationId);
     }
 }

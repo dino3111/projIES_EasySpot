@@ -19,6 +19,7 @@ import pt.ua.deti.apieasyspot.auth.model.User;
 import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
 import pt.ua.deti.apieasyspot.billing.service.BillingService;
 import pt.ua.deti.apieasyspot.booking.dto.CreateReservationRequest;
+import pt.ua.deti.apieasyspot.booking.dto.UpdateReservationRequest;
 import pt.ua.deti.apieasyspot.booking.event.ReservationEventPublisher;
 import pt.ua.deti.apieasyspot.booking.model.Reservation;
 import pt.ua.deti.apieasyspot.booking.model.ReservationStatus;
@@ -50,7 +51,10 @@ import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static pt.ua.deti.apieasyspot.support.TestJwtRequests.jwtWithRole;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
@@ -572,6 +576,133 @@ class ReservationControllerIT {
         }
     }
 
+    @Test
+    @DisplayName("GET /api/reservations - driver sees own reservations")
+    void listReservations_driverSeesOwnReservations() throws Exception {
+        Reservation reservation = seedReservation(now().plusHours(3), now().plusHours(5), ReservationStatus.CONFIRMED);
+
+        mockMvc.perform(get("/api/reservations")
+                .with(jwtWithRole("auth-sub-123", "DRIVER")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$", hasSize(1)))
+            .andExpect(jsonPath("$[0].reservationId").value(reservation.getId().toString()))
+            .andExpect(jsonPath("$[0].bookingCode").value(reservation.getBookingCode()));
+    }
+
+    @Test
+    @DisplayName("GET /api/reservations/{id} - owned reservation - returns 200")
+    void getReservation_ownedReservation_returns200() throws Exception {
+        Reservation reservation = seedReservation(now().plusHours(3), now().plusHours(5), ReservationStatus.CONFIRMED);
+
+        mockMvc.perform(get("/api/reservations/{reservationId}", reservation.getId())
+                .with(jwtWithRole("auth-sub-123", "DRIVER")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.reservationId").value(reservation.getId().toString()))
+            .andExpect(jsonPath("$.status").value("CONFIRMED"));
+    }
+
+    @Test
+    @DisplayName("GET /api/reservations/{id} - foreign reservation - returns 404")
+    void getReservation_foreignReservation_returns404() throws Exception {
+        User otherUser = new User();
+        otherUser.setAuthentikUserId("auth-sub-999");
+        otherUser.setEmail("driver9@test.com");
+        otherUser.setName("Other Driver");
+        otherUser.setRole("DRIVER");
+        otherUser = userRepository.save(otherUser);
+
+        Reservation reservation = new Reservation();
+        reservation.setUser(otherUser);
+        reservation.setParkingLot(lot);
+        reservation.setParkingSpot(spot);
+        reservation.setVehicle(vehicle);
+        reservation.setArrivalTime(now().plusHours(3));
+        reservation.setDepartureTime(now().plusHours(5));
+        reservation.setStatus(ReservationStatus.CONFIRMED);
+        reservation.setLockedUntil(reservation.getArrivalTime().plusMinutes(30));
+        reservation.setEstimatedCost(new BigDecimal("3.00"));
+        reservation.setBookingCode("ES-FOREIGN-1");
+        reservationRepository.save(reservation);
+
+        mockMvc.perform(get("/api/reservations/{reservationId}", reservation.getId())
+                .with(jwtWithRole("auth-sub-123", "DRIVER")))
+            .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("PUT /api/reservations/{id} - future reservation - updates successfully")
+    void updateReservation_futureReservation_returns200() throws Exception {
+        Reservation reservation = seedReservation(now().plusHours(3), now().plusHours(5), ReservationStatus.CONFIRMED);
+        ParkingSpot secondSpot = new ParkingSpot();
+        secondSpot.setParkingLot(lot);
+        secondSpot.setSpotNumber("A02");
+        secondSpot.setZone(ZoneType.STANDARD);
+        secondSpot.setSpotRow(1);
+        secondSpot.setSpotCol(2);
+        secondSpot.setStatus("free");
+        secondSpot = parkingSpotRepository.save(secondSpot);
+
+        UpdateReservationRequest body = new UpdateReservationRequest(
+            lot.getId(),
+            vehicle.getId(),
+            now().plusHours(6).toString(),
+            now().plusHours(8).toString(),
+            secondSpot.getId()
+        );
+
+        mockMvc.perform(put("/api/reservations/{reservationId}", reservation.getId())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(body))
+                .with(jwtWithRole("auth-sub-123", "DRIVER")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.reservationId").value(reservation.getId().toString()))
+            .andExpect(jsonPath("$.spotId").value(secondSpot.getId().toString()))
+            .andExpect(jsonPath("$.status").value("CONFIRMED"));
+    }
+
+    @Test
+    @DisplayName("PUT /api/reservations/{id} - reservation already started - returns 409")
+    void updateReservation_startedReservation_returns409() throws Exception {
+        Reservation reservation = seedReservation(now().minusMinutes(5), now().plusHours(1), ReservationStatus.CONFIRMED);
+
+        UpdateReservationRequest body = new UpdateReservationRequest(
+            lot.getId(),
+            vehicle.getId(),
+            now().plusHours(3).toString(),
+            now().plusHours(4).toString(),
+            null
+        );
+
+        mockMvc.perform(put("/api/reservations/{reservationId}", reservation.getId())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(body))
+                .with(jwtWithRole("auth-sub-123", "DRIVER")))
+            .andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("DELETE /api/reservations/{id} - future reservation - cancels successfully")
+    void cancelReservation_futureReservation_returns200() throws Exception {
+        Reservation reservation = seedReservation(now().plusHours(3), now().plusHours(5), ReservationStatus.CONFIRMED);
+
+        mockMvc.perform(delete("/api/reservations/{reservationId}", reservation.getId())
+                .with(jwtWithRole("auth-sub-123", "DRIVER")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.reservationId").value(reservation.getId().toString()))
+            .andExpect(jsonPath("$.status").value("CANCELLED"))
+            .andExpect(jsonPath("$.lockedUntil").value(nullValue()));
+    }
+
+    @Test
+    @DisplayName("DELETE /api/reservations/{id} - already cancelled - returns 409")
+    void cancelReservation_alreadyCancelled_returns409() throws Exception {
+        Reservation reservation = seedReservation(now().plusHours(3), now().plusHours(5), ReservationStatus.CANCELLED);
+
+        mockMvc.perform(delete("/api/reservations/{reservationId}", reservation.getId())
+                .with(jwtWithRole("auth-sub-123", "DRIVER")))
+            .andExpect(status().isConflict());
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private OffsetDateTime now() {
@@ -583,5 +714,20 @@ class ReservationControllerIT {
         return new CreateReservationRequest(
             lot.getId(), vehicle.getId(),
             arrival.toString(), arrival.plusHours(2).toString(), null);
+    }
+
+    private Reservation seedReservation(OffsetDateTime arrival, OffsetDateTime departure, ReservationStatus status) {
+        Reservation reservation = new Reservation();
+        reservation.setUser(user);
+        reservation.setParkingLot(lot);
+        reservation.setParkingSpot(spot);
+        reservation.setVehicle(vehicle);
+        reservation.setArrivalTime(arrival);
+        reservation.setDepartureTime(departure);
+        reservation.setStatus(status);
+        reservation.setLockedUntil(status == ReservationStatus.CONFIRMED ? arrival.plusMinutes(30) : null);
+        reservation.setEstimatedCost(new BigDecimal("3.00"));
+        reservation.setBookingCode("ES-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+        return reservationRepository.save(reservation);
     }
 }

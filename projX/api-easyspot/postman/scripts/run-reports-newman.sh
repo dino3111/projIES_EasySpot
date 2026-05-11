@@ -18,3 +18,11 @@ newman run postman/EasySpot_DriverSpending.postman_collection.json \
   --reporters cli,junit,json \
   --reporter-junit-export newman/easyspot-driver-spending.xml \
   --reporter-json-export newman/easyspot-driver-spending.json
+
+newman run postman/EasySpot_Reservations.postman_collection.json \
+  --working-dir . \
+  --bail failure \
+  --disable-unicode \
+  --reporters cli,junit,json \
+  --reporter-junit-export newman/easyspot-reservations.xml \
+  --reporter-json-export newman/easyspot-reservations.json
