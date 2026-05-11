@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { type SensorDevice } from '../../../data/technicianData';
-import { type IssueReport } from '../../../data/gestorData';
-import { parkManagers, techIssues, parkCityMapFromSensors, type ParkManager } from './maintenanceTypes';
+import { type IssueReport } from '../MaintenancePage';
+import { parkManagers, parkCityMapFromSensors, type ParkManager } from './maintenanceTypes';
 import { QuickStat, EmptyState } from './shared';
 
 type IncidentStatusFilter = 'todos' | 'aberto' | 'em-progresso' | 'resolvido';
@@ -9,6 +9,7 @@ type IncidentSeverityFilter = 'todos' | 'critica' | 'aviso';
 
 type IncidentsTabProps = Readonly<{
   sensors: SensorDevice[];
+  issues: IssueReport[];
   onSelectIssue: (i: IssueReport) => void;
   onUpdateSensor: (s: SensorDevice) => void;
   onCreateTaskFromIssue: (i: IssueReport) => void;
@@ -41,6 +42,7 @@ const ISSUE_STATUS_BADGES: Record<IssueReport['estado'], { label: string; color:
 
 export function IncidentsTab({
   sensors,
+  issues,
   onSelectIssue,
   onUpdateSensor,
   onCreateTaskFromIssue,
@@ -50,10 +52,10 @@ export function IncidentsTab({
   const [cidadeFilter, setCidadeFilter] = useState('todas');
   const [selectedPark, setSelectedPark] = useState<string | null>(null);
 
-  const parkCityMap = parkCityMapFromSensors();
-  const parkNames = Array.from(new Set(techIssues.map(i => i.parque)));
+  const parkCityMap = parkCityMapFromSensors(sensors);
+  const parkNames = Array.from(new Set(issues.map(i => i.parque)));
   const parkIssuesMap = new Map<string, IssueReport[]>();
-  parkNames.forEach(n => parkIssuesMap.set(n, techIssues.filter(i => i.parque === n)));
+  parkNames.forEach(n => parkIssuesMap.set(n, issues.filter(i => i.parque === n)));
 
   const uniqueCities = Array.from(new Set(
     parkNames.map(n => parkCityMap.get(n)).filter((c): c is string => c !== undefined)
@@ -81,9 +83,9 @@ export function IncidentsTab({
   });
 
   const counts = {
-    aberto: techIssues.filter(i => i.estado === 'aberto').length,
-    prog:   techIssues.filter(i => i.estado === 'em-progresso').length,
-    resolv: techIssues.filter(i => i.estado === 'resolvido').length,
+    aberto: issues.filter(i => i.estado === 'aberto').length,
+    prog:   issues.filter(i => i.estado === 'em-progresso').length,
+    resolv: issues.filter(i => i.estado === 'resolvido').length,
   };
 
   return (
@@ -94,14 +96,14 @@ export function IncidentsTab({
         <QuickStat label="Resolvidas"   value={counts.resolv} color="#22c55e" icon="fa-circle-check" />
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      {uniqueCities.length > 0 && (
         <div className="flex rounded-xl overflow-hidden border border-border flex-wrap">
           <button
             onClick={() => setCidadeFilter('todas')}
             className={`px-3 py-1.5 transition-colors ${cidadeFilter === 'todas' ? 'bg-primary text-white' : 'bg-card text-muted-foreground hover:bg-muted'}`}
             style={{ fontSize: '0.75rem', fontWeight: 600 }}
           >
-            <i className="fas fa-map-pin mr-1" aria-hidden="true"></i>
+            <i className="fas fa-map-pin mr-1" aria-hidden="true" />
             Todas as Cidades
           </button>
           {uniqueCities.map(city => (
@@ -115,7 +117,7 @@ export function IncidentsTab({
             </button>
           ))}
         </div>
-      </div>
+      )}
 
       <div className="flex flex-wrap gap-2">
         <div className="flex rounded-xl overflow-hidden border border-border">
@@ -173,12 +175,12 @@ export function IncidentsTab({
                     <h3 className="text-foreground font-bold" style={{ fontSize: '1rem' }}>{parkName}</h3>
                     {manager && (
                       <p className="text-muted-foreground" style={{ fontSize: '0.75rem' }}>
-                        <i className="fas fa-user mr-1" aria-hidden="true"></i>
+                        <i className="fas fa-user mr-1" aria-hidden="true" />
                         {manager.managerName}
                       </p>
                     )}
                   </div>
-                  <i className="fas fa-chevron-right text-primary" style={{ fontSize: '1rem' }} aria-hidden="true"></i>
+                  <i className="fas fa-chevron-right text-primary" style={{ fontSize: '1rem' }} aria-hidden="true" />
                 </div>
                 <div className="flex flex-wrap gap-2 mt-3">
                   <span className="px-2 py-1 rounded-full text-xs font-bold" style={{ background: '#d4183d20', color: '#d4183d' }}>Abertos: {byType.aberto}</span>
@@ -209,7 +211,7 @@ function ParkOcorrenciasView({
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors text-muted-foreground"
           style={{ fontSize: '0.8rem', fontWeight: 600 }}
         >
-          <i className="fas fa-arrow-left" aria-hidden="true"></i>
+          <i className="fas fa-arrow-left" aria-hidden="true" />
           Voltar
         </button>
       </div>
@@ -217,29 +219,20 @@ function ParkOcorrenciasView({
       {manager && (
         <div className="bg-primary/5 border border-primary/20 rounded-2xl p-4">
           <h3 className="text-foreground font-bold mb-3" style={{ fontSize: '0.875rem' }}>
-            <i className="fas fa-info-circle text-primary mr-1.5" aria-hidden="true"></i>
+            <i className="fas fa-info-circle text-primary mr-1.5" aria-hidden="true" />
             Contacto do Gerente
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="bg-card rounded-xl p-3 border border-border">
-              <p className="text-muted-foreground text-xs mb-1">
-                <i className="fas fa-user text-primary mr-1.5" aria-hidden="true"></i>
-                Nome
-              </p>
+              <p className="text-muted-foreground text-xs mb-1"><i className="fas fa-user text-primary mr-1.5" aria-hidden="true" />Nome</p>
               <p className="text-foreground font-semibold" style={{ fontSize: '0.9rem' }}>{manager.managerName}</p>
             </div>
             <div className="bg-card rounded-xl p-3 border border-border">
-              <p className="text-muted-foreground text-xs mb-1">
-                <i className="fas fa-phone text-primary mr-1.5" aria-hidden="true"></i>
-                Telemóvel
-              </p>
+              <p className="text-muted-foreground text-xs mb-1"><i className="fas fa-phone text-primary mr-1.5" aria-hidden="true" />Telemóvel</p>
               <a href={`tel:${manager.phone}`} className="text-primary font-semibold hover:underline" style={{ fontSize: '0.9rem' }}>{manager.phone}</a>
             </div>
             <div className="bg-card rounded-xl p-3 border border-border">
-              <p className="text-muted-foreground text-xs mb-1">
-                <i className="fas fa-envelope text-primary mr-1.5" aria-hidden="true"></i>
-                Email
-              </p>
+              <p className="text-muted-foreground text-xs mb-1"><i className="fas fa-envelope text-primary mr-1.5" aria-hidden="true" />Email</p>
               <a href={`mailto:${manager.email}`} className="text-primary font-semibold hover:underline truncate" style={{ fontSize: '0.9rem' }}>{manager.email}</a>
             </div>
           </div>
@@ -248,7 +241,7 @@ function ParkOcorrenciasView({
 
       <div>
         <h3 className="text-foreground font-bold mb-2" style={{ fontSize: '0.875rem' }}>
-          <i className="fas fa-list-check text-primary mr-1.5" aria-hidden="true"></i>
+          <i className="fas fa-list-check text-primary mr-1.5" aria-hidden="true" />
           Ocorrências ({issues.length})
         </h3>
         {issues.length === 0 ? (
@@ -275,13 +268,11 @@ function ParkOcorrenciasView({
   );
 }
 
-function IssueCard({
-  issue, sensor, onClick, onUpdate, onCreateTask,
-}: IssueCardProps) {
+function IssueCard({ issue, sensor, onClick, onUpdate, onCreateTask }: IssueCardProps) {
   const severityMap = {
     critica: { color: '#d4183d', label: 'Crítico' },
-    aviso: { color: '#f59e0b', label: 'Aviso' },
-    info: { color: '#3b82f6', label: 'Info' },
+    aviso:   { color: '#f59e0b', label: 'Aviso' },
+    info:    { color: '#3b82f6', label: 'Info' },
   };
   const severityInfo = severityMap[issue.severidade];
   const tipoIcon = issue.tipo === 'sensor' ? 'fa-microchip' : 'fa-server';
@@ -292,7 +283,7 @@ function IssueCard({
       <div className="flex items-start gap-3">
         <button onClick={onClick} className="flex-1 text-left flex items-start gap-3" aria-label={`Ver ocorrência: ${issue.parque}`}>
           <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: `${severityInfo.color}15` }} aria-hidden="true">
-            <i className={`fas ${tipoIcon}`} style={{ color: severityInfo.color, fontSize: '0.9rem' }}></i>
+            <i className={`fas ${tipoIcon}`} style={{ color: severityInfo.color, fontSize: '0.9rem' }} />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-1.5 mb-1">
@@ -302,9 +293,8 @@ function IssueCard({
             <p className="text-foreground/80" style={{ fontSize: '0.8rem', lineHeight: 1.4 }}>{issue.descricao}</p>
             {issue.sensorId && (
               <p className="text-muted-foreground mt-1" style={{ fontSize: '0.7rem' }}>
-                <i className="fas fa-tag mr-1" aria-hidden="true"></i>
-                Sensor:{' '}
-                <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{issue.sensorId}</span>
+                <i className="fas fa-tag mr-1" aria-hidden="true" />
+                Sensor: <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{issue.sensorId}</span>
                 {sensor && ` · Uptime: ${sensor.uptimePercent}% · Tx.FP: ${sensor.taxaFalsosPositivos}%`}
               </p>
             )}
@@ -323,10 +313,10 @@ function IssueCard({
             onClick={onCreateTask}
             className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-green-500/10 hover:bg-green-500/20 text-green-600 dark:text-green-400 transition-colors"
             style={{ fontSize: '0.72rem', fontWeight: 600 }}
-            aria-label="Criar tarefa de manutenção"
+            aria-label="Colocar em progresso"
           >
-            <i className="fas fa-plus-circle" style={{ fontSize: '0.7rem' }} aria-hidden="true"></i>
-            Tarefa
+            <i className="fas fa-play-circle" style={{ fontSize: '0.7rem' }} aria-hidden="true" />
+            Iniciar
           </button>
         )}
         {onUpdate && issue.estado !== 'resolvido' && (
@@ -336,7 +326,7 @@ function IssueCard({
             style={{ fontSize: '0.72rem', fontWeight: 600 }}
             aria-label="Atualizar estado do sensor"
           >
-            <i className="fas fa-pen-to-square" style={{ fontSize: '0.7rem' }} aria-hidden="true"></i>
+            <i className="fas fa-pen-to-square" style={{ fontSize: '0.7rem' }} aria-hidden="true" />
             Atualizar
           </button>
         )}

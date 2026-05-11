@@ -1,4 +1,4 @@
-import { type IssueReport } from '../../../data/gestorData';
+import { type IssueReport } from '../MaintenancePage';
 import { type SensorDevice } from '../../../data/technicianData';
 import { STATUS_COLOR, STATUS_LABEL } from './maintenanceTypes';
 import { MetaRow } from './shared';

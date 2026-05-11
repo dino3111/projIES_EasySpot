@@ -24,7 +24,7 @@ public class AlertService {
         return alertRepository.findAllFiltered(parkId, state, severity);
     }
 
-    public void updateState(UUID id, String rawState) {
+    public void updateState(UUID id, String rawState, String notes) {
         Alert alert = alertRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Alert not found: " + id));
 
@@ -33,6 +33,9 @@ public class AlertService {
         boolean leavingResolved = newState != StateAlert.RESOLVED && alert.getState() == StateAlert.RESOLVED;
 
         alert.setState(newState);
+        if (notes != null && !notes.isBlank()) {
+            alert.setNotes(notes);
+        }
         if (becomingResolved) {
             alert.setResolvedAt(OffsetDateTime.now(ZoneOffset.UTC));
         } else if (leavingResolved) {

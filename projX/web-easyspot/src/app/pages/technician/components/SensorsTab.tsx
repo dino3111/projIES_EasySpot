@@ -37,7 +37,7 @@ export function SensorsTab({
   const [cidadeFilter, setCidadeFilter] = useState('todas');
 
   const allParkIds = Array.from(new Set(sensors.map(s => s.parqueId)));
-  const uniqueCities = Array.from(new Set(sensors.map(s => s.cidade))).sort((a: string, b: string) => a.localeCompare(b, 'pt-PT'));
+  const uniqueCities = Array.from(new Set(sensors.map(s => s.cidade).filter(c => c.trim() !== ''))).sort((a: string, b: string) => a.localeCompare(b, 'pt-PT'));
 
   const statusFilters: { value: StatusFil; label: string; count: number }[] = [
     { value: 'todos',       label: 'Todos',       count: sensors.length },
@@ -70,29 +70,31 @@ export function SensorsTab({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
-        <div className="flex rounded-xl overflow-hidden border border-border flex-wrap">
-          <button
-            onClick={() => setCidadeFilter('todas')}
-            className={`px-3 py-1.5 transition-colors ${cidadeFilter === 'todas' ? 'bg-primary text-white' : 'bg-card text-muted-foreground hover:bg-muted'}`}
-            style={{ fontSize: '0.75rem', fontWeight: 600 }}
-          >
-            <i className="fas fa-map-pin mr-1" aria-hidden="true"></i>
-            {' '}
-            Todas as Cidades
-          </button>
-          {uniqueCities.map(city => (
+      {uniqueCities.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          <div className="flex rounded-xl overflow-hidden border border-border flex-wrap">
             <button
-              key={city}
-              onClick={() => setCidadeFilter(city)}
-              className={`px-3 py-1.5 transition-colors ${cidadeFilter === city ? 'bg-primary text-white' : 'bg-card text-muted-foreground hover:bg-muted'}`}
+              onClick={() => setCidadeFilter('todas')}
+              className={`px-3 py-1.5 transition-colors ${cidadeFilter === 'todas' ? 'bg-primary text-white' : 'bg-card text-muted-foreground hover:bg-muted'}`}
               style={{ fontSize: '0.75rem', fontWeight: 600 }}
             >
-              {city}
+              <i className="fas fa-map-pin mr-1" aria-hidden="true"></i>
+              {' '}
+              Todas as Cidades
             </button>
-          ))}
+            {uniqueCities.map(city => (
+              <button
+                key={city}
+                onClick={() => setCidadeFilter(city)}
+                className={`px-3 py-1.5 transition-colors ${cidadeFilter === city ? 'bg-primary text-white' : 'bg-card text-muted-foreground hover:bg-muted'}`}
+                style={{ fontSize: '0.75rem', fontWeight: 600 }}
+              >
+                {city}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="flex flex-wrap gap-2">
         {statusFilters.map(f => (
