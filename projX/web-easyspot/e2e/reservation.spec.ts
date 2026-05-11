@@ -46,7 +46,36 @@ test.beforeEach(async ({ page }) => {
   await page.route('**/api/parks/park-1/favorite', async (route) => {
     await route.fulfill({ json: { parkId: 'park-1', isFavorite: false } });
   });
+
+  await page.route('**/api/payments/methods', async (route) => {
+    await route.fulfill({
+      json: [{
+        id: 'pm_1',
+        type: 'card',
+        brand: 'visa',
+        last4: '4242',
+        expMonth: 12,
+        expYear: 2030,
+        isDefault: true,
+      }],
+    });
+  });
 });
+
+async function fillValidReservationSchedule(page: import('@playwright/test').Page) {
+  const toLocalInput = (date: Date) => {
+    const pad = (value: number) => String(value).padStart(2, '0');
+    return [
+      date.getFullYear(),
+      pad(date.getMonth() + 1),
+      pad(date.getDate()),
+    ].join('-') + `T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  };
+  const arrival = toLocalInput(new Date(Date.now() + 60 * 60 * 1000));
+  const exit = toLocalInput(new Date(Date.now() + 2 * 60 * 60 * 1000));
+  await page.getByLabel('Data e hora de chegada').fill(arrival);
+  await page.getByLabel('Hora de saída prevista').fill(exit);
+}
 
 test('Fluxo de reserva completa passo-a-passo', async ({ page }) => {
   // 1. Ir para os detalhes
@@ -56,6 +85,7 @@ test('Fluxo de reserva completa passo-a-passo', async ({ page }) => {
   // 2. Iniciar Reserva
   await page.getByRole('link', { name: /Reservar/i }).click();
   await expect(page).toHaveURL(/\/reservation\?parkId=park-1/);
+  await fillValidReservationSchedule(page);
 
   // STEP 1: Horário
   // Garantir que os inputs estão preenchidos (os defaults devem funcionar, mas forçamos para estabilidade)
@@ -91,7 +121,7 @@ test('Fluxo de reserva completa passo-a-passo', async ({ page }) => {
   });
 
   // Confirmar Final
-  const confirmBtn = page.getByRole('button', { name: /Confirmar e reservar lugar/i });
+  const confirmBtn = page.getByRole('button', { name: /Confirmar Reserva/i });
   await expect(confirmBtn).toBeEnabled();
   await confirmBtn.click();
 

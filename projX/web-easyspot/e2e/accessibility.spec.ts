@@ -203,9 +203,9 @@ test('US#9 — estado de loading é mostrado enquanto dados carregam', async ({ 
 
   await page.goto('/accessibility');
   // Loading spinner should be visible initially
-  await expect(page.locator('[aria-busy="true"]')).toBeVisible();
+  await expect(page.getByRole('status').filter({ has: page.getByText('A carregar dados...') })).toBeVisible();
 
   resolveList(undefined);
   await expect(page.getByRole('heading', { name: 'Lugares Acessíveis' })).toBeVisible();
-  await expect(page.locator('[aria-busy="true"]')).not.toBeVisible();
+  await expect(page.getByRole('status').filter({ has: page.getByText('A carregar dados...') })).not.toBeVisible();
 });

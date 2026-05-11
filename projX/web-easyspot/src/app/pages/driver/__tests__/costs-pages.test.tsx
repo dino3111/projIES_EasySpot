@@ -205,6 +205,28 @@ describe('CostsPage', () => {
         }
       ]
     });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes('nominatim.openstreetmap.org/search')) {
+          return new Response(
+            JSON.stringify([
+              {
+                lat: '40.6405',
+                lon: '-8.6538',
+                display_name: 'Cidade de Destino, Aveiro, Portugal',
+              },
+            ]),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          );
+        }
+        return new Response(JSON.stringify({}), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }),
+    );
 
     render(
       <MemoryRouter initialEntries={['/costs?tab=planeamento']}>
@@ -212,7 +234,12 @@ describe('CostsPage', () => {
       </MemoryRouter>
     );
 
-    expect(await screen.findByText(/Cidade de Destino/i)).toBeInTheDocument();
+    const destinationInput = screen.getByLabelText(/Pesquisar destino no mapa/i);
+    fireEvent.change(destinationInput, { target: { value: 'Cidade de Destino' } });
+
+    const suggestion = await screen.findByRole('option');
+    fireEvent.click(suggestion.querySelector('button') ?? suggestion);
+
     await waitFor(() => {
       expect(screen.getByText(/Parque Estádio/i)).toBeInTheDocument();
       expect(screen.getByText(/€1.50/i)).toBeInTheDocument();
