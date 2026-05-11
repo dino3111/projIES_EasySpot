@@ -19,8 +19,19 @@ interface QueryState {
 }
 
 export function ParkingListPage() {
-  const { vehicles } = useProfile();
+  const { vehicles, driverType } = useProfile();
   const primaryVehicle = vehicles.find((v) => v.isPrimary) ?? vehicles[0] ?? null;
+
+  const resolveProfileFilters = () => {
+    if (driverType === 'ev') return { evOnly: true, accessibleOnly: false };
+    if (driverType === 'reduced_mobility') return { evOnly: false, accessibleOnly: true };
+    return {
+      evOnly: primaryVehicle?.isEV ?? false,
+      accessibleOnly: primaryVehicle?.isAccessible ?? false,
+    };
+  };
+
+  const profileFilters = resolveProfileFilters();
 
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [parkingLots, setParkingLots] = useState<ParkingLot[]>([]);
@@ -36,8 +47,8 @@ export function ParkingListPage() {
     const vehicle = primaryVehicle;
     return {
       page: 1,
-      showEVOnly: vehicle?.isEV ?? false,
-      showAccessibleOnly: vehicle?.isAccessible ?? false,
+      showEVOnly: driverType === 'ev' ? true : (vehicle?.isEV ?? false),
+      showAccessibleOnly: driverType === 'reduced_mobility' ? true : (vehicle?.isAccessible ?? false),
       showAvailableOnly: false,
       searchQuery: '',
       selectedDistrict: '',
@@ -72,11 +83,11 @@ export function ParkingListPage() {
     setQuery((prev) => ({
       ...prev,
       selectedVehicleId: primaryVehicle?.id ?? null,
-      showEVOnly: primaryVehicle?.isEV ?? false,
-      showAccessibleOnly: primaryVehicle?.isAccessible ?? false,
+      showEVOnly: profileFilters.evOnly,
+      showAccessibleOnly: profileFilters.accessibleOnly,
       page: 1,
     }));
-  }, [primaryVehicle?.id, primaryVehicle?.isEV, primaryVehicle?.isAccessible]);
+  }, [primaryVehicle?.id, primaryVehicle?.isEV, primaryVehicle?.isAccessible, profileFilters.evOnly, profileFilters.accessibleOnly]);
 
   const setFilter = <K extends keyof Omit<QueryState, 'page'>>(key: K, value: QueryState[K]) => {
     setQuery((prev) => ({ ...prev, [key]: value, page: 1 }));

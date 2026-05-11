@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { useProfile } from '../../../context/ProfileContext';
@@ -50,15 +50,15 @@ function Chip({ active, icon, label, onClick, ariaLabel }: ChipProps) {
 
 export function PlanningTab() {
   const navigate = useNavigate();
-  const { vehicles } = useProfile();
+  const { vehicles, driverType } = useProfile();
   const primaryVehicle = vehicles.find((v) => v.isPrimary) ?? vehicles[0] ?? null;
 
   const [planVehicleId, setPlanVehicleId]       = useState<string | null>(primaryVehicle?.id ?? null);
   const [destination, setDestination]           = useState<DestinationPoint | null>(null);
   const [durationHours, setDurationHours]       = useState(2);
   const [durationMinutes, setDurationMinutes]   = useState(0);
-  const [filterEV, setFilterEV]                 = useState(false);
-  const [filterAccessible, setFilterAccessible] = useState(false);
+  const [filterEV, setFilterEV]                 = useState(driverType === 'ev');
+  const [filterAccessible, setFilterAccessible] = useState(driverType === 'reduced_mobility');
   const [maxDistance, setMaxDistance]           = useState(5);
   const [sortBy, setSortBy]                     = useState<'price' | 'distance' | 'ratio'>('ratio');
   const [expandedPark, setExpandedPark]         = useState<string | null>(null);
@@ -66,6 +66,40 @@ export function PlanningTab() {
   const [recommendations, setRecommendations]   = useState<PlanningRecommendation[]>([]);
   const [loading, setLoading]                   = useState(false);
   const [error, setError]                       = useState<string | null>(null);
+  const userSelectedVehicleRef = useRef(false);
+
+  useEffect(() => {
+    if (userSelectedVehicleRef.current) return;
+    if (driverType === 'ev') {
+      setFilterEV(true);
+      setFilterAccessible(false);
+      return;
+    }
+    if (driverType === 'reduced_mobility') {
+      setFilterEV(false);
+      setFilterAccessible(true);
+      return;
+    }
+    setFilterEV(false);
+    setFilterAccessible(false);
+  }, [driverType]);
+
+  useEffect(() => {
+    if (!userSelectedVehicleRef.current) return;
+    const vehicle = vehicles.find((v) => v.id === planVehicleId) ?? null;
+    if (!vehicle) {
+      setFilterEV(false);
+      setFilterAccessible(false);
+      return;
+    }
+    setFilterEV(vehicle.isEV);
+    setFilterAccessible(vehicle.isAccessible);
+  }, [planVehicleId, vehicles]);
+
+  const handleVehicleSelect = (id: string | null) => {
+    userSelectedVehicleRef.current = true;
+    setPlanVehicleId(id);
+  };
 
   useEffect(() => {
     if (!destination) {
@@ -108,7 +142,7 @@ export function PlanningTab() {
           <VehiclePicker
             vehicles={vehicles}
             selectedId={planVehicleId}
-            onSelect={setPlanVehicleId}
+            onSelect={handleVehicleSelect}
             allLabel="Sem veículo selecionado"
             className="w-full"
           />

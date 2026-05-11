@@ -22,7 +22,7 @@ import { StepPaymentStripe } from '../welcome/StepPaymentStripe';
 export function ReservationPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { vehicles } = useProfile();
+  const { vehicles, driverType } = useProfile();
 
   const [step, setStep] = useState<ReservationStep>(1);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>(
@@ -40,7 +40,11 @@ export function ReservationPage() {
 
   const [selectedFloorId, setSelectedFloorId] = useState<string>('');
   const [selectedSpotId, setSelectedSpotId]   = useState<string>('');
-  const [spotFilter, setSpotFilter]           = useState<SpotFilter>('todos');
+  const [spotFilter, setSpotFilter] = useState<SpotFilter>(() => {
+    if (driverType === 'ev') return 'ev';
+    if (driverType === 'reduced_mobility') return 'accessible';
+    return 'todos';
+  });
 
   useEffect(() => {
     if (didInitVehicleSelection.current) return;
@@ -135,6 +139,27 @@ export function ReservationPage() {
       setSelectedSpotId('');
     }
   }, [selectedLot]);
+
+  useEffect(() => {
+    if (selectedSpotId) return;
+    if (selectedVehicle?.isEV) {
+      setSpotFilter('ev');
+      return;
+    }
+    if (selectedVehicle?.isAccessible) {
+      setSpotFilter('accessible');
+      return;
+    }
+    if (driverType === 'ev') {
+      setSpotFilter('ev');
+      return;
+    }
+    if (driverType === 'reduced_mobility') {
+      setSpotFilter('accessible');
+      return;
+    }
+    setSpotFilter('todos');
+  }, [driverType, selectedSpotId, selectedVehicle?.isEV, selectedVehicle?.isAccessible]);
 
   useEffect(() => {
     if (step !== 4) return;

@@ -4,6 +4,7 @@ import { useProfile } from '../../../context/ProfileContext';
 import { paymentApi, profileApi, type DriverProfileResponse, type ManagerProfileResponse, type PaymentMethodSummaryResponse, type ProfileResponse, type TechnicianProfileResponse } from '../../../../services/apiService';
 import { SectionHeader, UserTypeOption, ToggleRow, StatCard, AccountRow, AccountRowWithBadge } from './ProfilePrimitives';
 import { StepPaymentStripe } from '../welcome/StepPaymentStripe';
+import { LocationPreviewMap } from '../../../components/parking/LocationPreviewMap';
 
 const DRIVER_LOCATION_ENABLED_KEY = 'easyspot_driver_location_enabled';
 
@@ -29,17 +30,6 @@ export function DriverProfile({ profileData, onProfileUpdate }: Readonly<{ profi
   const [notificationsError, setNotificationsError] = useState<string | null>(null);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
-
-  const locationMapUrl = currentLocation
-    ? (() => {
-        const delta = 0.0035;
-        const left = currentLocation.lng - delta;
-        const right = currentLocation.lng + delta;
-        const top = currentLocation.lat + delta;
-        const bottom = currentLocation.lat - delta;
-        return `https://www.openstreetmap.org/export/embed.html?bbox=${left}%2C${bottom}%2C${right}%2C${top}&layer=mapnik&marker=${currentLocation.lat}%2C${currentLocation.lng}`;
-      })()
-    : null;
 
   const persistProfile = async (payload: { notificationsEnabled?: boolean; pushNotificationsEnabled?: boolean; emailNotificationsEnabled?: boolean; driverType?: 'regular' | 'ev' | 'reduced_mobility' | null }) => {
     const updated = await profileApi.update(payload);
@@ -210,18 +200,9 @@ export function DriverProfile({ profileData, onProfileUpdate }: Readonly<{ profi
                 <p className="text-muted-foreground" style={{ fontSize: '0.74rem' }}>
                   Local atual: {currentLocation.lat.toFixed(6)}, {currentLocation.lng.toFixed(6)} · {currentLocation.capturedAt.toLocaleTimeString('pt-PT')}
                 </p>
-                {locationMapUrl && (
-                  <div className="rounded-xl overflow-hidden border border-border bg-muted/20">
-                    <iframe
-                      title="Mapa da sua localização"
-                      src={locationMapUrl}
-                      className="w-full"
-                      style={{ height: '190px', border: 0 }}
-                      loading="lazy"
-                      referrerPolicy="no-referrer-when-downgrade"
-                    />
-                  </div>
-                )}
+                <div className="rounded-xl overflow-hidden border border-border bg-muted/20">
+                  <LocationPreviewMap lat={currentLocation.lat} lng={currentLocation.lng} />
+                </div>
               </div>
             ) : (
               <p className="text-muted-foreground" style={{ fontSize: '0.74rem' }}>
