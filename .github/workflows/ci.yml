@@ -83,7 +83,7 @@ jobs:
       - name: Run unit and integration tests
         run: |
           cd projX/api-easyspot
-          ./mvnw -B clean verify
+          mvn -B clean verify
         timeout-minutes: 20
 
       - name: Upload test reports
@@ -141,7 +141,7 @@ jobs:
       - name: Build project
         run: |
           cd projX/api-easyspot
-          ./mvnw -B -DskipTests package
+          mvn -B -DskipTests package
 
       - name: Start API with postman profile
         env:
@@ -154,7 +154,7 @@ jobs:
           POSTMAN_JWT_SECRET: easyspot-postman-secret-key-change-me-2026
         run: |
           cd projX/api-easyspot
-          ./mvnw -B spring-boot:run > app.log 2>&1 &
+          mvn -B spring-boot:run > app.log 2>&1 &
           echo $! > app.pid
 
       - name: Wait for health endpoint

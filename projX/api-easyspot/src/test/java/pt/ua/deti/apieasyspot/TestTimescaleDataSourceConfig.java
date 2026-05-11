@@ -1,0 +1,25 @@
+package pt.ua.deti.apieasyspot;
+
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Profile;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+
+import javax.sql.DataSource;
+
+@TestConfiguration
+@Profile("test")
+public class TestTimescaleDataSourceConfig {
+
+    @Bean(name = "timescaleJdbcTemplate")
+    public JdbcTemplate timescaleJdbcTemplate(DataSource dataSource) {
+        return new JdbcTemplate(dataSource);
+    }
+
+    @Bean(name = "timescaleNamedJdbcTemplate")
+    public NamedParameterJdbcTemplate timescaleNamedJdbcTemplate(DataSource dataSource) {
+        return new NamedParameterJdbcTemplate(dataSource);
+    }
+}

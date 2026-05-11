@@ -6,16 +6,22 @@ export function TabEV({ lot, myVehicle }: Readonly<{ lot: ParkingLot; myVehicle:
 
   return (
     <div className="animate-in fade-in duration-200">
-      {myVehicle?.isEV && myVehicle.chargerTypes && myVehicle.chargerTypes.length > 0 && (
+      {myVehicle?.isEV && (
         <div className="mb-3 flex items-start gap-2 px-3 py-2.5 rounded-xl bg-primary/6 border border-primary/20">
           <i className="fas fa-plug text-primary mt-0.5 flex-shrink-0" style={{ fontSize: '0.8rem' }} />
           <div>
             <p className="text-foreground font-semibold" style={{ fontSize: '0.78rem' }}>
-              Compatibilidade do seu {myVehicle.make ?? 'veículo'}
+              Compatibilidade
             </p>
-            <p className="text-muted-foreground" style={{ fontSize: '0.72rem' }}>
-              {myVehicle.chargerTypes.join(' · ')}
-            </p>
+            {myVehicle.chargerTypes && myVehicle.chargerTypes.length > 0 ? (
+              <p className="text-muted-foreground" style={{ fontSize: '0.72rem' }}>
+                {myVehicle.chargerTypes.join(' · ')}
+              </p>
+            ) : (
+              <p className="text-muted-foreground" style={{ fontSize: '0.72rem' }}>
+                O seu veículo é elétrico e pode usar os carregadores disponíveis.
+              </p>
+            )}
           </div>
         </div>
       )}

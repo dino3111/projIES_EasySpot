@@ -2,13 +2,9 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy only package files first for better caching
-COPY package.json package-lock.json* .npmrc* ./
+COPY package.json package-lock.json* ./
+RUN npm install --no-audit --no-fund
 
-# Install dependencies (this layer is cached if package.json doesn't change)
-RUN CI=true npm ci
-
-# Copy the rest of the application
 COPY . .
 
 EXPOSE 5173

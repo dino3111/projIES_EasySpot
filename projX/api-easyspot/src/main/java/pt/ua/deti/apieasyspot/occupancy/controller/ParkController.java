@@ -87,4 +87,15 @@ public class ParkController {
     ) {
         return ResponseEntity.ok(parkService.getDetails(id));
     }
+
+    @Operation(summary = "Get hourly occupancy trend for a parking lot (last 7 days average)")
+    @ApiResponse(responseCode = "200", description = "Hourly occupancy data retrieved successfully")
+    @ApiResponse(responseCode = "404", description = "Parking lot not found")
+    @GetMapping("/{id}/occupancy/hourly")
+    public ResponseEntity<List<java.util.Map<String, Object>>> getHourlyOccupancy(
+        @Parameter(description = "Parking lot UUID")
+        @PathVariable UUID id
+    ) {
+        return ResponseEntity.ok(parkService.getHourlyOccupancy(id));
+    }
 }

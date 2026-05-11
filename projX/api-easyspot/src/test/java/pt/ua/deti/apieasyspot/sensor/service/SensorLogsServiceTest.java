@@ -47,7 +47,7 @@ class SensorLogsServiceTest {
     void listAllSensors_delegatesToRepository() {
         UUID parkId = UUID.randomUUID();
         SensorSummaryDto summary = new SensorSummaryDto(
-            "IR-TEST-01", parkId, "Parque Teste", "Zona A", "operational",
+            "IR-TEST-01", parkId, "Parque Teste", "Aveiro", "Zona A", "operational",
             OffsetDateTime.now(ZoneOffset.UTC), OffsetDateTime.now(ZoneOffset.UTC));
         when(sensorLogsRepository.findAllSensors()).thenReturn(List.of(summary));
 

@@ -431,7 +431,7 @@ def create_provider(groups_mapping_pk: str) -> str:
         "redirect_uris": _build_redirect_uris(REDIRECT_URI),
         "signing_key": signing_key_pk,
         "access_code_validity": "minutes=1",
-        "access_token_validity": "minutes=5",
+        "access_token_validity": "hours=1",
         "refresh_token_validity": "days=30",
         "include_claims_in_id_token": True,
         "issuer_mode": "per_provider",
