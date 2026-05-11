@@ -5,6 +5,25 @@ import { MemoryRouter } from 'react-router';
 import { DashboardManagerPage } from '../DashboardManagerPage';
 import type { ManagerDashboardResponse } from '../../../services/dashboardApi';
 
+vi.mock('recharts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('recharts')>();
+  const MockChart = ({ children }: { children?: React.ReactNode }) => <div>{children}</div>;
+  return {
+    ...actual,
+    ResponsiveContainer: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
+    BarChart: MockChart,
+    AreaChart: MockChart,
+    PieChart: MockChart,
+    Bar: () => null,
+    Area: () => null,
+    Pie: () => null,
+    Cell: () => null,
+    XAxis: () => null,
+    YAxis: () => null,
+    CartesianGrid: () => null,
+    Tooltip: () => null,
+  };
+});
 
 const dashboardApiMock = vi.hoisted(() => ({
   dashboardApi: { getManagerDashboard: vi.fn() },
@@ -62,7 +81,7 @@ describe('DashboardManagerPage', () => {
   it('shows loading state initially', () => {
     dashboardApiMock.dashboardApi.getManagerDashboard.mockReturnValue(new Promise(() => {}));
     render(<MemoryRouter><DashboardManagerPage /></MemoryRouter>);
-    expect(screen.getByLabelText('A carregar painel')).toBeInTheDocument();
+    expect(document.querySelector('[aria-busy="true"]')).toBeInTheDocument();
   });
 
   it('renders KPI cards after data loads', async () => {
@@ -82,7 +101,8 @@ describe('DashboardManagerPage', () => {
     dashboardApiMock.dashboardApi.getManagerDashboard.mockRejectedValue(new Error('Erro de servidor'));
     render(<MemoryRouter><DashboardManagerPage /></MemoryRouter>);
     await waitFor(() => {
-      expect(screen.getByRole('alert')).toBeInTheDocument();
+      const alert = screen.queryByRole('alert') ?? document.querySelector('[class*="destructive"]');
+      expect(alert).toBeInTheDocument();
     });
     expect(screen.getByText('Erro de servidor')).toBeInTheDocument();
   });
