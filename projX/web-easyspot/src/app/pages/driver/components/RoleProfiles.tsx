@@ -30,6 +30,17 @@ export function DriverProfile({ profileData, onProfileUpdate }: Readonly<{ profi
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
 
+  const locationMapUrl = currentLocation
+    ? (() => {
+        const delta = 0.0035;
+        const left = currentLocation.lng - delta;
+        const right = currentLocation.lng + delta;
+        const top = currentLocation.lat + delta;
+        const bottom = currentLocation.lat - delta;
+        return `https://www.openstreetmap.org/export/embed.html?bbox=${left}%2C${bottom}%2C${right}%2C${top}&layer=mapnik&marker=${currentLocation.lat}%2C${currentLocation.lng}`;
+      })()
+    : null;
+
   const persistProfile = async (payload: { notificationsEnabled?: boolean; pushNotificationsEnabled?: boolean; emailNotificationsEnabled?: boolean; driverType?: 'regular' | 'ev' | 'reduced_mobility' | null }) => {
     const updated = await profileApi.update(payload);
     onProfileUpdate(updated);
@@ -195,9 +206,23 @@ export function DriverProfile({ profileData, onProfileUpdate }: Readonly<{ profi
         <div className="px-4 pb-3">
           {locationEnabled ? (
             currentLocation ? (
-              <p className="text-muted-foreground" style={{ fontSize: '0.74rem' }}>
-                Local atual: {currentLocation.lat.toFixed(6)}, {currentLocation.lng.toFixed(6)} · {currentLocation.capturedAt.toLocaleTimeString('pt-PT')}
-              </p>
+              <div className="space-y-2">
+                <p className="text-muted-foreground" style={{ fontSize: '0.74rem' }}>
+                  Local atual: {currentLocation.lat.toFixed(6)}, {currentLocation.lng.toFixed(6)} · {currentLocation.capturedAt.toLocaleTimeString('pt-PT')}
+                </p>
+                {locationMapUrl && (
+                  <div className="rounded-xl overflow-hidden border border-border bg-muted/20">
+                    <iframe
+                      title="Mapa da sua localização"
+                      src={locationMapUrl}
+                      className="w-full"
+                      style={{ height: '190px', border: 0 }}
+                      loading="lazy"
+                      referrerPolicy="no-referrer-when-downgrade"
+                    />
+                  </div>
+                )}
+              </div>
             ) : (
               <p className="text-muted-foreground" style={{ fontSize: '0.74rem' }}>
                 A obter localização...

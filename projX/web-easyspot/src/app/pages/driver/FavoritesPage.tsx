@@ -1,9 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import type { ParkingLot } from '../../data/parkingTypes';
 import { CompactParkRow } from './components/CompactParkRow';
-import { fetchFavoriteParks } from '../../services/parksApi';
-import { subscribeSpaceAvailableAlerts } from '../../services/parksApi';
+import { fetchFavoriteParks, haversineKm, formatDistance, formatWalkingTime, subscribeSpaceAvailableAlerts } from '../../services/parksApi';
+
+function enrichWithDistance(
+  lots: ParkingLot[],
+  coords: { lat: number; lng: number },
+): ParkingLot[] {
+  return lots.map((lot) => {
+    const km = haversineKm(coords.lat, coords.lng, lot.latitude, lot.longitude);
+    return { ...lot, distance: formatDistance(km), walkingTime: formatWalkingTime(km) };
+  });
+}
 
 export function FavoritesPage() {
   const [favorites, setFavorites] = useState<ParkingLot[]>([]);
@@ -11,6 +20,20 @@ export function FavoritesPage() {
   const [error, setError] = useState<string | null>(null);
   const [subscribingAll, setSubscribingAll] = useState(false);
   const [subscribeMessage, setSubscribeMessage] = useState<string | null>(null);
+  const userCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
+
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        userCoordsRef.current = coords;
+        setFavorites((prev) => prev.length > 0 ? enrichWithDistance(prev, coords) : prev);
+      },
+      () => { /* permission denied — keep N/D */ },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+    );
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -19,7 +42,9 @@ export function FavoritesPage() {
         setLoading(true);
         setError(null);
         const data = await fetchFavoriteParks();
-        if (mounted) setFavorites(data);
+        if (!mounted) return;
+        const coords = userCoordsRef.current;
+        setFavorites(coords ? enrichWithDistance(data, coords) : data);
       } catch {
         if (mounted) setError('Não foi possível carregar os favoritos.');
       } finally {

@@ -57,7 +57,8 @@ type ParkDetailsResponse = {
   spotMap: Array<{ spotId: string; spotNumber: string; zone: string; row: number; col: number; status: ParkingSpot['status'] }>;
   evChargers: Array<{ type: EVCharger['type']; speed: EVCharger['speed']; speedKw: number; pricePerKwh: number; availability: boolean }>;
   accessibility: Array<{ location: string; availability: boolean; distanceToEntranceMeters: number; baySize: string; monitored: boolean; hasRampSpace: boolean; sensorStatus: string; ledStatus: string }>;
-
+  tariffs?: Array<{ pricePerHour: number; maxDaily: number; monthly: number }>;
+  amenities?: string[];
 };
 
 type FavoriteToggleResponse = {
@@ -101,6 +102,14 @@ function formatFloorName(floorId: string): string {
   return floorId;
 }
 
+function resolveSpotStatus(apiStatus: ParkingSpot['status'], zone: string): ParkingSpot['status'] {
+  if (apiStatus === 'occupied' || apiStatus === 'reserved') return apiStatus;
+  const z = zone.toUpperCase();
+  if (z === 'EV') return 'ev';
+  if (z === 'ACCESSIBLE') return 'accessible';
+  return apiStatus;
+}
+
 function mapFloors(spots: ParkDetailsResponse['spotMap']): ParkingFloor[] {
   const grouped = new Map<string, ParkingSpot[]>();
   for (const spot of spots) {
@@ -109,7 +118,7 @@ function mapFloors(spots: ParkDetailsResponse['spotMap']): ParkingFloor[] {
       id: spot.spotId ?? spot.spotNumber,
       row: Math.max(0, spot.row - 1),
       col: Math.max(0, spot.col - 1),
-      status: spot.status,
+      status: resolveSpotStatus(spot.status, spot.zone),
       label: mapSpotLabel(spot.spotNumber),
     };
     const prev = grouped.get(floorId) ?? [];
@@ -241,7 +250,7 @@ export async function fetchParkDetails(parkId: string): Promise<ParkingLot> {
   if (!resp.ok) throw new Error(`Failed to fetch park details (${resp.status})`);
   const data = (await resp.json()) as ParkDetailsResponse;
 
-  const primaryTariff = data.tariffs[0];
+  const primaryTariff = data.tariffs?.[0];
   const availableCharger = data.evChargers.find((c) => c.availability) ?? data.evChargers[0];
   const evChargers: EVCharger[] = data.evChargers.map((c, idx) => ({
     id: `${data.id}-ev-${idx + 1}`,
@@ -259,7 +268,7 @@ export async function fetchParkDetails(parkId: string): Promise<ParkingLot> {
     distanceToEntrance: a.distanceToEntranceMeters,
     hasRampSpace: a.hasRampSpace ?? false,
     dimensions: a.baySize,
-    sensorStatus: (a.sensorStatus === 'faulty' ? 'faulty' : 'online') as 'online' | 'faulty',
+    sensorStatus: a.sensorStatus === 'faulty' ? 'faulty' : 'online',
     ledStatus: (a.ledStatus ?? (a.availability ? 'green' : 'red')) as 'green' | 'red' | 'blue' | 'yellow',
   }));
   const zones: ParkingZone[] = data.zones.map((z, idx) => ({

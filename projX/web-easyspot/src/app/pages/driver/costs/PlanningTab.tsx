@@ -57,8 +57,8 @@ export function PlanningTab() {
   const [destination, setDestination]           = useState<DestinationPoint | null>(null);
   const [durationHours, setDurationHours]       = useState(2);
   const [durationMinutes, setDurationMinutes]   = useState(0);
-  const [filterEV, setFilterEV]                 = useState(primaryVehicle?.isEV ?? false);
-  const [filterAccessible, setFilterAccessible] = useState(primaryVehicle?.isAccessible ?? false);
+  const [filterEV, setFilterEV]                 = useState(false);
+  const [filterAccessible, setFilterAccessible] = useState(false);
   const [maxDistance, setMaxDistance]           = useState(5);
   const [sortBy, setSortBy]                     = useState<'price' | 'distance' | 'ratio'>('ratio');
   const [expandedPark, setExpandedPark]         = useState<string | null>(null);
@@ -66,14 +66,6 @@ export function PlanningTab() {
   const [recommendations, setRecommendations]   = useState<PlanningRecommendation[]>([]);
   const [loading, setLoading]                   = useState(false);
   const [error, setError]                       = useState<string | null>(null);
-
-  useEffect(() => {
-    const v = vehicles.find((v) => v.id === planVehicleId) ?? null;
-    if (v) {
-      setFilterEV(v.isEV);
-      setFilterAccessible(v.isAccessible);
-    }
-  }, [planVehicleId, vehicles]);
 
   useEffect(() => {
     if (!destination) {
@@ -87,8 +79,8 @@ export function PlanningTab() {
         setError(null);
         const resp = await fetchParkingPlanning({
           durationMinutes: durationHours * 60 + durationMinutes,
-          isElectric: filterEV,
-          isAccessible: filterAccessible,
+          isElectric: filterEV || undefined,
+          isAccessible: filterAccessible || undefined,
           maxDistanceMeters: maxDistance * 1000,
           lat: destination.lat,
           lng: destination.lng,
@@ -123,7 +115,7 @@ export function PlanningTab() {
           {planVehicleId && (
             <p className="text-muted-foreground mt-2" style={{ fontSize: '0.72rem' }}>
               <i className="fas fa-circle-info mr-1" aria-hidden="true" />{' '}
-              Os filtros EV e Acessível foram ajustados automaticamente.
+              O veículo está selecionado. Ativa os filtros EV/Acessível apenas se precisares.
             </p>
           )}
         </div>
