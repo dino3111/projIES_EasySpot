@@ -263,6 +263,13 @@ test.describe('Reserva de lugar', () => {
     await waitForLoaded(page);
     await expect(page.getByRole('heading', { name: 'Reservar Lugar' })).toBeVisible();
 
+    // Ensure arrival/exit times are valid (far future) so button is enabled
+    const arrival = new Date(Date.now() + 2 * 3600_000).toISOString().slice(0, 16);
+    const exit = new Date(Date.now() + 4 * 3600_000).toISOString().slice(0, 16);
+    await page.locator('#arrival-input').fill(arrival);
+    await page.locator('#exit-input').fill(exit);
+
+    // Avança para step 2 — selecionar parque já está pré-definido pelo parkId
     await page.getByRole('button', { name: /Avançar para escolha do lugar/i }).click();
 
     await expect(page.getByRole('button', { name: 'Lugar A1' })).toBeVisible();
@@ -278,6 +285,13 @@ test.describe('Reserva de lugar', () => {
     await waitForLoaded(page);
     await expect(page.getByRole('heading', { name: 'Reservar Lugar' })).toBeVisible();
 
+    // Ensure arrival/exit times are valid so button is enabled
+    const arrival = new Date(Date.now() + 2 * 3600_000).toISOString().slice(0, 16);
+    const exit = new Date(Date.now() + 4 * 3600_000).toISOString().slice(0, 16);
+    await page.locator('#arrival-input').fill(arrival);
+    await page.locator('#exit-input').fill(exit);
+
+    // Step 1: avança (parque já pré-selecionado via parkId)
     await page.getByRole('button', { name: /Avançar para escolha do lugar/i }).click();
 
     await expect(page.getByRole('button', { name: 'Lugar A1' })).toBeVisible();
