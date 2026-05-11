@@ -117,7 +117,6 @@ export function IncidentsTab({
             </button>
           ))}
         </div>
-        </div>
       )}
 
       <div className="flex flex-wrap gap-2">
