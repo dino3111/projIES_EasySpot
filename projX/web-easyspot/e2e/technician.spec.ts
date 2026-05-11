@@ -305,8 +305,9 @@ test('Botão Atualizar Estado abre modal de atualização de status', async ({ p
   await page.getByRole('button', { name: /atualizar estado/i }).click();
 
   // StatusUpdateModal should open (it's a second dialog at z-60)
-  await expect(page.getByText(/atualizar estado do sensor/i)).toBeVisible();
-  await expect(page.getByText(/IR-AV1-B07/)).toBeVisible();
+  const updateModal = page.getByRole('dialog', { name: /atualizar estado do sensor/i });
+  await expect(updateModal).toBeVisible();
+  await expect(updateModal.getByText('IR-AV1-B07')).toBeVisible();
 });
 
 test('Confirmar atualização de status chama API e mostra toast', async ({ page }) => {
@@ -326,13 +327,15 @@ test('Confirmar atualização de status chama API e mostra toast', async ({ page
   await page.getByRole('button', { name: /atualizar estado/i }).click();
 
   // Select "Operacional" in the modal
-  await page.getByRole('radio', { name: /operacional/i }).click();
+  const updateModal = page.getByRole('dialog', { name: /atualizar estado do sensor/i });
+  await updateModal.locator('label', { hasText: 'Operacional' }).click();
 
   await page.getByRole('button', { name: /confirmar atualização/i }).click();
 
   // Toast should appear
-  await expect(page.getByRole('status')).toBeVisible();
-  await expect(page.getByText(/IR-AV1-B07/)).toBeVisible();
+  const toast = page.getByRole('status');
+  await expect(toast).toBeVisible();
+  await expect(toast).toContainText('IR-AV1-B07');
 
   expect(statusPatchCalled).toBe(true);
 });
@@ -349,7 +352,8 @@ test('Atualização de status para operacional fecha modais', async ({ page }) =
   await page.getByText('IR-AV1-B07').click();
 
   await page.getByRole('button', { name: /atualizar estado/i }).click();
-  await page.getByRole('radio', { name: /operacional/i }).click();
+  const updateModal = page.getByRole('dialog', { name: /atualizar estado do sensor/i });
+  await updateModal.locator('label', { hasText: 'Operacional' }).click();
   await page.getByRole('button', { name: /confirmar atualização/i }).click();
 
   // Both modals should close
@@ -391,10 +395,10 @@ test('Tab ocorrências mostra alertas abertos da API', async ({ page }) => {
 test('Tab ocorrências mostra badge com contagem de alertas abertos', async ({ page }) => {
   await page.goto('/technician/maintenance');
 
-  // 2 alertas OPEN no mock → badge "2" no tab
+  // 3 alertas OPEN no mock → badge "3" no tab
   const tab = page.getByRole('tab', { name: /ocorrências/i });
   await expect(tab).toBeVisible();
-  await expect(tab.getByText('2')).toBeVisible();
+  await expect(tab.getByText('3')).toBeVisible();
 });
 
 test('Tab ocorrências filtra por severidade crítica', async ({ page }) => {
@@ -437,8 +441,8 @@ test('Tab tarefas mostra badge com contagem de tarefas abertas', async ({ page }
 
   const tab = page.getByRole('tab', { name: /tarefas/i });
   await expect(tab).toBeVisible();
-  // 2 alertas não-RESOLVED no mock
-  await expect(tab.getByText('2')).toBeVisible();
+  // 3 alertas não-RESOLVED no mock
+  await expect(tab.getByText('3')).toBeVisible();
 });
 
 test('Tab tarefas mostra tarefas urgentes da API', async ({ page }) => {
