@@ -369,7 +369,10 @@ test.describe('Reserva de lugar', () => {
     // Step 1: avança (parque já pré-selecionado via parkId)
     await page.getByRole('button', { name: /Avançar para escolha do lugar/i }).click();
 
+    // O perfil do condutor pode iniciar o filtro em EV; garantir que lugares standard ficam selecionáveis.
+    await page.getByRole('button', { name: /^Todos$/i }).click();
     await expect(page.getByRole('button', { name: 'Lugar A1' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Lugar A1' })).toBeEnabled();
     await page.getByRole('button', { name: 'Lugar A1' }).click();
     await expect(page.getByText('Lugar A1 selecionado')).toBeVisible();
     await page.getByRole('button', { name: 'Confirmar Lugar' }).click();
@@ -393,7 +396,10 @@ test.describe('Reserva de lugar', () => {
     await waitForLoaded(page);
     await fillValidReservationSchedule(page);
     await page.getByRole('button', { name: /Escolher Lugar/i }).click();
+    // O perfil do condutor pode iniciar o filtro em EV; garantir que lugares standard ficam selecionáveis.
+    await page.getByRole('button', { name: /^Todos$/i }).click();
     await expect(page.getByRole('button', { name: 'Lugar A1' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Lugar A1' })).toBeEnabled();
     await page.getByRole('button', { name: 'Lugar A1' }).click();
     await page.getByRole('button', { name: 'Confirmar Lugar' }).click();
     await page.getByRole('checkbox').click();

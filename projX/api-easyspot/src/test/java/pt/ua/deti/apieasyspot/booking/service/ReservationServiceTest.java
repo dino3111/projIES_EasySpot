@@ -198,6 +198,36 @@ class ReservationServiceTest {
             .hasMessageContaining("opening hours");
     }
 
+    @Test
+    @DisplayName("create - opening hours in 08h00-22h00 format are validated")
+    void create_hFormatOpeningHours_isValidated() {
+        stubUserAndLotAndVehicle();
+        lot.setOpeningHours("08h00-22h00");
+        OffsetDateTime lateArrival = ARRIVAL.withHour(23);
+        OffsetDateTime lateDeparture = lateArrival.plusMinutes(30);
+        CreateReservationRequest req = new CreateReservationRequest(
+            lot.getId(), vehicle.getId(), lateArrival.toString(), lateDeparture.toString(), null);
+
+        assertThatThrownBy(() -> reservationService.create(AUTH_ID, null, req))
+            .isInstanceOf(UnprocessableEntityException.class)
+            .hasMessageContaining("opening hours");
+    }
+
+    @Test
+    @DisplayName("create - non-24h reservation spanning multiple dates is rejected")
+    void create_multiDayNon24h_throwsUnprocessable() {
+        stubUserAndLotAndVehicle();
+        lot.setOpeningHours("20:00-06:00");
+        OffsetDateTime arrival = ARRIVAL.withHour(21);
+        OffsetDateTime departure = arrival.plusDays(1);
+        CreateReservationRequest req = new CreateReservationRequest(
+            lot.getId(), vehicle.getId(), arrival.toString(), departure.toString(), null);
+
+        assertThatThrownBy(() -> reservationService.create(AUTH_ID, null, req))
+            .isInstanceOf(UnprocessableEntityException.class)
+            .hasMessageContaining("spanning multiple dates");
+    }
+
     // ── Conflict errors ─────────────────────────────────────────────────────
 
     @Test
@@ -355,11 +385,9 @@ class ReservationServiceTest {
             .thenReturn(vehicleConflicts);
         when(occupancySnapshotRepository.sumFreeSpacesFromLatestSnapshot(lot.getId())).thenReturn(-1);
         when(tariffRepository.findByParkingLotId(lot.getId())).thenReturn(List.of(tariff));
-        when(parkingSpotRepository.findFreeByParkingLotIdForUpdateSkipLocked(eq(lot.getId()), eq("free")))
-            .thenReturn(freeSpots);
-        if (!freeSpots.isEmpty()) {
-            when(reservationRepository.countSpotConflicts(any(), any(), any())).thenReturn(spotConflicts);
-        }
+        Optional<ParkingSpot> first = freeSpots.isEmpty() ? Optional.empty() : Optional.of(freeSpots.get(0));
+        when(parkingSpotRepository.findFirstFreeByParkingLotIdForUpdateSkipLocked(
+            eq(lot.getId()), eq("free"), any(), any())).thenReturn(first);
     }
 
     private void stubSave() {

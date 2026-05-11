@@ -2,6 +2,7 @@ package pt.ua.deti.apieasyspot.booking.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,7 +32,6 @@ import pt.ua.deti.apieasyspot.vehicle.repository.VehicleRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.security.SecureRandom;
-import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
@@ -145,7 +145,7 @@ public class ReservationService {
         try {
             saved = reservationRepository.save(reservation);
         } catch (DataIntegrityViolationException ex) {
-            throw new ConflictException("The selected spot became unavailable. Please choose another spot.");
+            throw mapDataIntegrityViolation(ex);
         }
 
         // 9. BillingModule: create Stripe PaymentIntent + ParkingSession record
@@ -201,10 +201,9 @@ public class ReservationService {
             return spot;
         }
 
-        return parkingSpotRepository.findFreeByParkingLotIdForUpdateSkipLocked(lot.getId(), "free").stream()
-            .filter(s -> reservationRepository.countSpotConflicts(s.getId(), arrival, departure) == 0)
-            .findFirst()
-            .orElse(null);
+        return parkingSpotRepository.findFirstFreeByParkingLotIdForUpdateSkipLocked(
+            lot.getId(), "free", arrival, departure
+        ).orElse(null);
     }
 
     private BigDecimal calculateCost(ParkingLot lot, OffsetDateTime arrival, OffsetDateTime departure) {
@@ -253,31 +252,86 @@ public class ReservationService {
     private void validateOpeningHours(ParkingLot lot, OffsetDateTime arrival, OffsetDateTime departure) {
         String hours = lot.getOpeningHours();
         if (hours == null || hours.isBlank()) return;
-
-        String[] parts = hours.split("-");
-        if (parts.length != 2) return;
-
-        try {
-            LocalTime open  = LocalTime.parse(parts[0].trim());
-            LocalTime close = LocalTime.parse(parts[1].trim());
-            LocalTime arrivalTime   = arrival.toLocalTime();
-            LocalTime departureTime = departure.toLocalTime();
-
-            boolean overnight = close.isBefore(open);
-            if (overnight) {
-                boolean arrivalOk = !arrivalTime.isBefore(open) || !arrivalTime.isAfter(close);
-                boolean departureOk = !departureTime.isBefore(open) || !departureTime.isAfter(close);
-                if (!arrivalOk || !departureOk) {
-                    throw new UnprocessableEntityException(
-                        "Reservation is outside the parking lot's opening hours (" + hours + ")");
-                }
-            } else if (arrivalTime.isBefore(open) || arrivalTime.isAfter(close) || departureTime.isAfter(close)) {
-                throw new UnprocessableEntityException(
-                    "Reservation is outside the parking lot's opening hours (" + hours + ")");
-            }
-        } catch (DateTimeParseException ignored) {
-            // Unparseable format — skip validation
+        if (isAlwaysOpen(hours)) {
+            return;
         }
+        if (!arrival.toLocalDate().isEqual(departure.toLocalDate())) {
+            throw new UnprocessableEntityException(
+                "Reservations spanning multiple dates are only allowed for 24h parking lots");
+        }
+
+        int[] schedule = parseOpeningHoursWindow(hours, lot.getId());
+        if (schedule == null) return;
+
+        int openMinutes = schedule[0];
+        int closeMinutes = schedule[1];
+        int arrivalMinutes = arrival.toLocalTime().getHour() * 60 + arrival.toLocalTime().getMinute();
+        int departureMinutes = departure.toLocalTime().getHour() * 60 + departure.toLocalTime().getMinute();
+
+        boolean arrivalOk = isWithinWindow(arrivalMinutes, openMinutes, closeMinutes);
+        boolean departureOk = isWithinWindow(departureMinutes, openMinutes, closeMinutes);
+        if (!arrivalOk || !departureOk) {
+            throw new UnprocessableEntityException(
+                "Reservation is outside the parking lot's opening hours (" + hours + ")");
+        }
+    }
+
+    private int[] parseOpeningHoursWindow(String openingHours, UUID lotId) {
+        String normalized = openingHours.toLowerCase().replaceAll("\\s+", "");
+        normalized = normalized.replace("aberto", "");
+        normalized = normalized.replace("às", "-");
+        normalized = normalized.replace("a", "-");
+        normalized = normalized.replace('h', ':');
+
+        String[] parts = normalized.split("-");
+        if (parts.length != 2) {
+            log.warn("Unparseable opening hours '{}' for lot {} - skipping reservation opening-hours check", openingHours, lotId);
+            return null;
+        }
+        try {
+            return new int[] { parseClockToMinutes(parts[0]), parseClockToMinutes(parts[1]) };
+        } catch (RuntimeException ex) {
+            log.warn("Failed to parse opening hours '{}' for lot {}: {}", openingHours, lotId, ex.getMessage());
+            return null;
+        }
+    }
+
+    private int parseClockToMinutes(String value) {
+        String[] hm = value.split(":");
+        int hour = Integer.parseInt(hm[0]);
+        int minute = hm.length > 1 && !hm[1].isBlank() ? Integer.parseInt(hm[1]) : 0;
+        if (hour == 24 && minute == 0) return 24 * 60;
+        if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+            throw new IllegalArgumentException("Invalid hour/minute");
+        }
+        return hour * 60 + minute;
+    }
+
+    private boolean isWithinWindow(int minutesOfDay, int openMinutes, int closeMinutes) {
+        if (openMinutes == closeMinutes) {
+            return true;
+        }
+        if (closeMinutes > openMinutes) {
+            return minutesOfDay >= openMinutes && minutesOfDay <= closeMinutes;
+        }
+        return minutesOfDay >= openMinutes || minutesOfDay <= closeMinutes;
+    }
+
+    private boolean isAlwaysOpen(String openingHours) {
+        String normalized = openingHours.trim().toLowerCase();
+        return normalized.contains("24h") || normalized.contains("24/7");
+    }
+
+    private ConflictException mapDataIntegrityViolation(DataIntegrityViolationException ex) {
+        String message = ex.getMostSpecificCause() != null ? ex.getMostSpecificCause().getMessage() : "";
+        String constraint = ex.getCause() instanceof ConstraintViolationException cve ? cve.getConstraintName() : null;
+
+        boolean idempotencyConflict = (constraint != null && constraint.contains("uq_reservations_user_idempotency"))
+            || message.contains("uq_reservations_user_idempotency");
+        if (idempotencyConflict) {
+            return new ConflictException("A reservation with this idempotency key already exists for this user.");
+        }
+        return new ConflictException("The selected spot became unavailable. Please choose another spot.");
     }
 
     private String generateUniqueBookingCode() {

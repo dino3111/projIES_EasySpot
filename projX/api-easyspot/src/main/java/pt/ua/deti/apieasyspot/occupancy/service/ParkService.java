@@ -195,7 +195,7 @@ public class ParkService {
             .collect(Collectors.toMap(ZoneSnapshot::zoneType, s -> s, (a, b) -> a));
 
         Map<ZoneType, List<ParkingSpot>> freeSpotsByZone = spots.stream()
-            .filter(s -> STATUS_FREE.equalsIgnoreCase(statusBySpot.get(s.getId())))
+            .filter(s -> isCandidateForSensorProjection(statusBySpot.get(s.getId())))
             .collect(Collectors.groupingBy(ParkingSpot::getZone));
 
         for (Map.Entry<ZoneType, ZoneSnapshot> entry : snapshotByZone.entrySet()) {
@@ -293,6 +293,13 @@ public class ParkService {
         if (spot.getZone() == ZoneType.EV) return "ev";
         if (spot.getZone() == ZoneType.ACCESSIBLE) return "accessible";
         return normalizeSpotStatus(spot.getStatus());
+    }
+
+    private boolean isCandidateForSensorProjection(String status) {
+        if (!StringUtils.hasText(status)) {
+            return true;
+        }
+        return !STATUS_RESERVED.equalsIgnoreCase(status) && !STATUS_OCCUPIED.equalsIgnoreCase(status);
     }
 
     private List<ParkingLotDetailsResponse.EVChargerResponse> fetchEVChargers(UUID lotId) {
