@@ -54,7 +54,7 @@ public class AlertController {
     @ApiResponse(responseCode = "400", description = "Invalid subscription request payload")
     @ApiResponse(responseCode = "401", description = "Missing or invalid authentication token")
     @ApiResponse(responseCode = "403", description = "User is authenticated but not a DRIVER")
-    @PostMapping
+    @PostMapping("/subscriptions")
     @PreAuthorize("hasRole('DRIVER')")
     public ResponseEntity<AlertSubscriptionResponse> createSubscription(
         @RequestBody @Valid CreateAlertSubscriptionRequest request,
@@ -77,7 +77,7 @@ public class AlertController {
         @PathVariable UUID id,
         @RequestBody AlertStateUpdate body
     ) {
-        alertService.updateState(id, body.state());
+        alertService.updateState(id, body.state(), body.notes());
         return ResponseEntity.noContent().build();
     }
 
