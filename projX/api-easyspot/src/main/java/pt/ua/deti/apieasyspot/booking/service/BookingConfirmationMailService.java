@@ -2,10 +2,9 @@ package pt.ua.deti.apieasyspot.booking.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import pt.ua.deti.apieasyspot.notification.service.EmailDeliveryDedupService;
 import pt.ua.deti.apieasyspot.booking.model.Reservation;
 
 import java.time.format.DateTimeFormatter;
@@ -17,7 +16,7 @@ public class BookingConfirmationMailService {
 
     private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
-    private final JavaMailSender mailSender;
+    private final EmailDeliveryDedupService emailDeliveryDedupService;
 
     @Async
     public void sendConfirmation(Reservation reservation) {
@@ -26,12 +25,19 @@ public class BookingConfirmationMailService {
             log.warn("Cannot send booking confirmation: user {} has no email", reservation.getUser().getId());
             return;
         }
+        String deliveryKey = "booking-confirmation:" + reservation.getId();
         try {
-            SimpleMailMessage msg = new SimpleMailMessage();
-            msg.setTo(email);
-            msg.setSubject("EasySpot — Reserva confirmada " + reservation.getBookingCode());
-            msg.setText(buildBody(reservation));
-            mailSender.send(msg);
+            boolean sent = emailDeliveryDedupService.sendOnce(
+                deliveryKey,
+                "BOOKING_CONFIRMATION",
+                email,
+                "EasySpot — Reserva confirmada " + reservation.getBookingCode(),
+                buildBody(reservation)
+            );
+            if (!sent) {
+                log.debug("Skipping duplicate booking confirmation email for reservation {}", reservation.getBookingCode());
+                return;
+            }
             log.info("Booking confirmation email sent to {} for reservation {}", email, reservation.getBookingCode());
         } catch (Exception ex) {
             log.warn("Failed to send booking confirmation email for {} (reservation still confirmed): {}",

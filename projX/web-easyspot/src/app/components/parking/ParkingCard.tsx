@@ -22,16 +22,19 @@ interface AvailabilityContext {
   statusLabel: string;
 }
 
-function buildAvailabilityContext(
-  available: number,
-  total: number,
-  label: string,
-  icon: string | null,
-  availableLabel: string,
-  almostLabel: string,
-  fullLabel: string,
-  normalColor: string
-): AvailabilityContext {
+interface AvailabilityParams {
+  available: number;
+  total: number;
+  label: string;
+  icon: string | null;
+  availableLabel: string;
+  almostLabel: string;
+  fullLabel: string;
+  normalColor: string;
+}
+
+function buildAvailabilityContext(params: AvailabilityParams): AvailabilityContext {
+  const { available, total, label, icon, availableLabel, almostLabel, fullLabel, normalColor } = params;
   const isFull = available === 0;
   const isAlmost = !isFull && available <= Math.ceil(total * 0.3);
   let accentColor = normalColor;
@@ -68,27 +71,30 @@ export function ParkingCard({ lot, highlightAccessible = false, filterMode = nul
 
   const getSingleCtx = (): AvailabilityContext => {
     if (filterMode === 'ev' && evTotal > 0) {
-      return buildAvailabilityContext(
-        evAvail, evTotal, 'Carregadores', 'fa-charging-station',
-        'EV livre', 'Quase cheio', 'Sem EV', '#22c55e'
-      );
+      return buildAvailabilityContext({
+        available: evAvail, total: evTotal, label: 'Carregadores', icon: 'fa-charging-station',
+        availableLabel: 'EV livre', almostLabel: 'Quase cheio', fullLabel: 'Sem EV', normalColor: '#22c55e'
+      });
     }
     if (filterMode === 'accessible' && accTotal > 0) {
-      return buildAvailabilityContext(
-        accAvail, accTotal, 'Acessíveis', 'fa-wheelchair',
-        'Acessível', 'Quase cheio', 'Sem acessíveis', '#7357ec'
-      );
+      return buildAvailabilityContext({
+        available: accAvail, total: accTotal, label: 'Acessíveis', icon: 'fa-wheelchair',
+        availableLabel: 'Acessível', almostLabel: 'Quase cheio', fullLabel: 'Sem acessíveis', normalColor: '#7357ec'
+      });
     }
-    return buildAvailabilityContext(
-      availableSpots, totalSpots, 'Livres', null,
-      'Disponível', 'Quase cheio', 'Lotado', '#22c55e'
-    );
+    return buildAvailabilityContext({
+      available: availableSpots, total: totalSpots, label: 'Livres', icon: null,
+      availableLabel: 'Disponível', almostLabel: 'Quase cheio', fullLabel: 'Lotado', normalColor: '#22c55e'
+    });
   };
 
   const singleCtx = getSingleCtx();
+  const ctx = filterMode === 'both' ? null : singleCtx;
 
-  const ctx = filterMode !== 'both' ? singleCtx : null;
-  const pct = ctx ? (ctx.total > 0 ? Math.round((ctx.available / ctx.total) * 100) : 0) : 0;
+  let pct = 0;
+  if (ctx && ctx.total > 0) {
+    pct = Math.round((ctx.available / ctx.total) * 100);
+  }
 
   const getBorderClass = () => {
     if (filterMode === 'both')       return 'border-primary';
@@ -109,14 +115,14 @@ export function ParkingCard({ lot, highlightAccessible = false, filterMode = nul
   };
 
   const defaultBadgeStyle = getBadgeStyle(defaultIsFull, defaultIsAlmost);
+  const badgeStyle = ctx ? getBadgeStyle(ctx.isFull, ctx.isAlmost) : defaultBadgeStyle;
+
   let defaultBadgeLabel = 'Disponível';
   if (defaultIsFull) {
     defaultBadgeLabel = 'Lotado';
   } else if (defaultIsAlmost) {
     defaultBadgeLabel = 'Quase Cheio';
   }
-
-  const badgeStyle = ctx ? getBadgeStyle(ctx.isFull, ctx.isAlmost) : defaultBadgeStyle;
   const badgeLabel = ctx ? ctx.statusLabel : defaultBadgeLabel;
 
   return (
@@ -261,7 +267,7 @@ export function ParkingCard({ lot, highlightAccessible = false, filterMode = nul
   );
 }
 
-function DistanceBadge({ distance }: { distance: number }) {
+function DistanceBadge({ distance }: Readonly<{ distance: number }>) {
   const { bg, label } = getDistanceColor(distance);
   return (
     <span
@@ -275,7 +281,7 @@ function DistanceBadge({ distance }: { distance: number }) {
   );
 }
 
-function DimBadge({ category }: { category: ReturnType<typeof getSpotDimCategory> }) {
+function DimBadge({ category }: Readonly<{ category: ReturnType<typeof getSpotDimCategory> }>) {
   return (
     <span
       className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-bold border ${category.bgClass} ${category.textClass}`}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { FilterBar } from '../../components/parking/FilterBar';
 import { ParkingCard, type FilterMode } from '../../components/parking/ParkingCard';
 import { VehiclePicker } from '../../components/shared/VehiclePicker';
@@ -9,6 +9,16 @@ import { FilterBanners } from './components/FilterBanners';
 import { fetchParkCities, fetchParksList } from '../../services/parksApi';
 import { subscribeSpaceAvailableAlerts } from '../../services/parksApi';
 
+interface QueryState {
+  page: number;
+  showEVOnly: boolean;
+  showAccessibleOnly: boolean;
+  showAvailableOnly: boolean;
+  searchQuery: string;
+  selectedDistrict: string;
+  selectedVehicleId: string | null;
+}
+
 export function ParkingListPage() {
   const { vehicles } = useProfile();
   const primaryVehicle = vehicles.find((v) => v.isPrimary) ?? vehicles[0] ?? null;
@@ -16,24 +26,54 @@ export function ParkingListPage() {
   const [parkingLots, setParkingLots] = useState<ParkingLot[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [showEVOnly, setShowEVOnly] = useState(false);
-  const [showAccessibleOnly, setShowAccessibleOnly] = useState(false);
-  const [showAvailableOnly, setShowAvailableOnly] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedDistrict, setSelectedDistrict] = useState('');
-  const [mobileView, setMobileView] = useState<'list' | 'grid'>('list');
-  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(primaryVehicle?.id ?? null);
-  const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [districts, setDistricts] = useState<string[]>([]);
+  const [mobileView, setMobileView] = useState<'list' | 'grid'>('list');
   const [subscribing, setSubscribing] = useState(false);
   const [subscribeMessage, setSubscribeMessage] = useState<string | null>(null);
 
+  const [query, setQuery] = useState<QueryState>(() => {
+    const vehicle = primaryVehicle;
+    return {
+      page: 1,
+      showEVOnly: vehicle?.isEV ?? false,
+      showAccessibleOnly: vehicle?.isAccessible ?? false,
+      showAvailableOnly: false,
+      searchQuery: '',
+      selectedDistrict: '',
+      selectedVehicleId: vehicle?.id ?? null,
+    };
+  });
+
+  // Track whether the user has manually chosen a vehicle so we don't overwrite their selection.
+  const userSelectedVehicleRef = useRef(false);
+
   useEffect(() => {
-    const vehicle = vehicles.find((v) => v.id === selectedVehicleId) ?? null;
-    setShowEVOnly(vehicle?.isEV ?? false);
-    setShowAccessibleOnly(vehicle?.isAccessible ?? false);
-  }, [selectedVehicleId, vehicles]);
+    if (userSelectedVehicleRef.current) return;
+    setQuery((prev) => ({
+      ...prev,
+      selectedVehicleId: primaryVehicle?.id ?? null,
+      showEVOnly: primaryVehicle?.isEV ?? false,
+      showAccessibleOnly: primaryVehicle?.isAccessible ?? false,
+      page: 1,
+    }));
+  }, [primaryVehicle?.id, primaryVehicle?.isEV, primaryVehicle?.isAccessible]);
+
+  const setFilter = <K extends keyof Omit<QueryState, 'page'>>(key: K, value: QueryState[K]) => {
+    setQuery((prev) => ({ ...prev, [key]: value, page: 1 }));
+  };
+
+  const handleVehicleSelect = (id: string | null) => {
+    userSelectedVehicleRef.current = true;
+    const vehicle = vehicles.find((v) => v.id === id) ?? null;
+    setQuery((prev) => ({
+      ...prev,
+      selectedVehicleId: id,
+      showEVOnly: vehicle?.isEV ?? false,
+      showAccessibleOnly: vehicle?.isAccessible ?? false,
+      page: 1,
+    }));
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -44,24 +84,20 @@ export function ParkingListPage() {
   }, []);
 
   useEffect(() => {
-    setPage(1);
-  }, [showEVOnly, showAccessibleOnly, showAvailableOnly, searchQuery, selectedDistrict, selectedVehicleId]);
-
-  useEffect(() => {
     let mounted = true;
     const load = async () => {
       try {
         setLoading(true);
         setLoadError(null);
         const data = await fetchParksList({
-          page,
+          page: query.page,
           pageSize: 20,
-          textQuery: searchQuery || undefined,
-          city: selectedDistrict || undefined,
-          vehicleId: selectedVehicleId,
-          evOnly: showEVOnly,
-          accessibleOnly: showAccessibleOnly,
-          availableOnly: showAvailableOnly,
+          textQuery: query.searchQuery || undefined,
+          city: query.selectedDistrict || undefined,
+          vehicleId: query.selectedVehicleId,
+          evOnly: query.showEVOnly,
+          accessibleOnly: query.showAccessibleOnly,
+          availableOnly: query.showAvailableOnly,
         });
         if (!mounted) return;
         setParkingLots(data.items);
@@ -74,7 +110,9 @@ export function ParkingListPage() {
     };
     load();
     return () => { mounted = false; };
-  }, [page, showEVOnly, showAccessibleOnly, showAvailableOnly, searchQuery, selectedDistrict, selectedVehicleId]);
+  }, [query]);
+
+  const { showEVOnly, showAccessibleOnly, showAvailableOnly, searchQuery, selectedDistrict, selectedVehicleId, page } = query;
 
   let filterMode: FilterMode = null;
   if (showAccessibleOnly && showEVOnly) {
@@ -122,7 +160,7 @@ export function ParkingListPage() {
 
       {vehicles.length > 0 && (
         <div className="mb-3">
-          <VehiclePicker vehicles={vehicles} selectedId={selectedVehicleId} onSelect={setSelectedVehicleId} />
+          <VehiclePicker vehicles={vehicles} selectedId={selectedVehicleId} onSelect={handleVehicleSelect} />
         </div>
       )}
 
@@ -131,9 +169,11 @@ export function ParkingListPage() {
           showEVOnly={showEVOnly} showAccessibleOnly={showAccessibleOnly}
           showAvailableOnly={showAvailableOnly} searchQuery={searchQuery}
           selectedDistrict={selectedDistrict} districts={districts}
-          onEVFilterChange={setShowEVOnly} onAccessibleFilterChange={setShowAccessibleOnly}
-          onAvailableFilterChange={setShowAvailableOnly} onSearchChange={setSearchQuery}
-          onDistrictChange={setSelectedDistrict}
+          onEVFilterChange={(v) => setFilter('showEVOnly', v)}
+          onAccessibleFilterChange={(v) => setFilter('showAccessibleOnly', v)}
+          onAvailableFilterChange={(v) => setFilter('showAvailableOnly', v)}
+          onSearchChange={(v) => setFilter('searchQuery', v)}
+          onDistrictChange={(v) => setFilter('selectedDistrict', v)}
         />
       </div>
 
@@ -167,9 +207,9 @@ export function ParkingListPage() {
         <EmptyState />
       )}
       <div className="mt-4 flex items-center justify-between">
-        <button className="btn btn-sm" disabled={page <= 1 || loading} onClick={() => setPage((p) => Math.max(1, p - 1))}>Anterior</button>
+        <button className="btn btn-sm" disabled={page <= 1 || loading} onClick={() => setQuery((prev) => ({ ...prev, page: Math.max(1, prev.page - 1) }))}>Anterior</button>
         <span className="text-sm text-muted-foreground">Página {page} / {Math.max(totalPages, 1)}</span>
-        <button className="btn btn-sm" disabled={loading || (totalPages > 0 && page >= totalPages)} onClick={() => setPage((p) => p + 1)}>Seguinte</button>
+        <button className="btn btn-sm" disabled={loading || (totalPages > 0 && page >= totalPages)} onClick={() => setQuery((prev) => ({ ...prev, page: prev.page + 1 }))}>Seguinte</button>
       </div>
     </div>
   );

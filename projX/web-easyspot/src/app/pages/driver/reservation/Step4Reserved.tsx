@@ -1,4 +1,3 @@
-import { useRef } from 'react';
 import type { ParkingLot, ParkingSpot } from '../../../data/parkingTypes';
 import type { Vehicle } from '../../../context/ProfileContext';
 import { calcHours, fmtDateTime, fmtDuration, fmtCountdown } from './reservationHelpers';
@@ -12,7 +11,6 @@ export function Step4Reserved({
   arrivalTime: string; exitTime: string; cost: number;
   onNewBooking: () => void; onNavigate: () => void;
 }>) {
-  const codeRef = useRef<HTMLDivElement>(null);
   const hours = calcHours(arrivalTime, exitTime);
   const pct = (countdown / (30 * 60)) * 100;
   const isExpiring = countdown < 5 * 60;
@@ -25,8 +23,128 @@ export function Step4Reserved({
   else if (isExpiring) progressTone = 'bg-warning';
   const hourglassIcon = isExpiring ? 'end' : 'half';
 
-  function copyCode() {
-    navigator.clipboard.writeText(bookingCode).catch(() => {});
+  const reservationTitle = lot?.name ? `Reserva EasySpot - ${lot.name}` : 'Reserva EasySpot';
+  const reservationDetails = [
+    `Código: ${bookingCode}`,
+    lot?.name ? `Parque: ${lot.name}` : null,
+    spot?.label ? `Lugar: ${spot.label}` : null,
+    `Chegada: ${fmtDateTime(arrivalTime)}`,
+    `Saída prevista: ${fmtDateTime(exitTime)}`,
+  ].filter(Boolean).join('\n');
+
+  function getReservationSummary() {
+    return [
+      `${reservationTitle}`,
+      lot?.address ? `Morada: ${lot.address}` : null,
+      `Código: ${bookingCode}`,
+      `Chegada: ${fmtDateTime(arrivalTime)}`,
+      `Saída prevista: ${fmtDateTime(exitTime)}`,
+      `Custo total: €${cost.toFixed(2)}`,
+    ].filter(Boolean).join('\n');
+  }
+
+  function escapeHtml(value: string) {
+    return value.replace(/[&<>"']/g, (char) => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;',
+    }[char] || char));
+  }
+
+  function downloadCalendarEvent() {
+    const start = new Date(arrivalTime);
+    const end = new Date(exitTime);
+    const formatIcsDate = (date: Date) => date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+    const escapeIcs = (s: string) =>
+      s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+    const location = [lot?.name, lot?.address].filter(Boolean).join(' - ');
+    const ics = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//EasySpot//Reservation//PT',
+      'CALSCALE:GREGORIAN',
+      'METHOD:PUBLISH',
+      'BEGIN:VEVENT',
+      `UID:${bookingCode || crypto.randomUUID()}@easyspot`,
+      `DTSTAMP:${formatIcsDate(new Date())}`,
+      `DTSTART:${formatIcsDate(start)}`,
+      `DTEND:${formatIcsDate(end)}`,
+      `SUMMARY:${reservationTitle}`,
+      location ? `LOCATION:${escapeIcs(location)}` : null,
+      `DESCRIPTION:${escapeIcs(reservationDetails)}`,
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ].filter(Boolean).join('\r\n');
+
+    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'reserva-easyspot.ics';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  async function shareReservation() {
+    const text = getReservationSummary();
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: reservationTitle, text });
+        return;
+      }
+      await navigator.clipboard.writeText(text);
+    } catch {
+      window.prompt('Copie os detalhes da reserva:', text);
+    }
+  }
+
+  function printReservation() {
+    const printWindow = window.open('', '_blank', 'noopener,noreferrer,width=900,height=1000');
+    if (!printWindow) return;
+
+    printWindow.document.write(`
+      <!doctype html>
+      <html lang="pt">
+        <head>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <title>${escapeHtml(reservationTitle)}</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              margin: 0;
+              padding: 32px;
+              color: #111827;
+              background: #fff;
+            }
+            h1 { margin: 0 0 16px; font-size: 24px; }
+            pre {
+              white-space: pre-wrap;
+              font-size: 14px;
+              line-height: 1.6;
+              background: #f3f4f6;
+              padding: 16px;
+              border-radius: 12px;
+            }
+          </style>
+        </head>
+        <body>
+          <h1>${escapeHtml(reservationTitle)}</h1>
+          <pre>${escapeHtml(getReservationSummary())}</pre>
+          <script>
+            window.onload = () => {
+              window.print();
+              window.onafterprint = () => window.close();
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
   }
 
   return (
@@ -41,31 +159,9 @@ export function Step4Reserved({
 
       <div className="text-center">
         <h2 className="text-2xl font-bold text-base-content mb-1">Reserva Confirmada!</h2>
-        <p className="text-base-content/60 text-sm">O seu lugar está garantido. Apresente o código ou dirija-se ao parque.</p>
-      </div>
-
-      <div className="card bg-base-200 shadow-xl w-full max-w-md border-2 border-primary/20">
-        <div className="card-body p-6 text-center">
-          <p className="text-xs text-base-content/50 uppercase tracking-widest mb-2">Código de Reserva</p>
-          <div
-            ref={codeRef}
-            className="text-3xl font-bold font-mono tracking-[0.15em] text-primary bg-primary/10 rounded-2xl py-4 px-6 select-all"
-            aria-label={`Código de reserva: ${bookingCode}`}
-          >
-            {bookingCode}
-          </div>
-          <button
-            onClick={copyCode}
-            className="btn btn-xs btn-ghost rounded-full mt-2 text-base-content/60"
-            aria-label="Copiar código de reserva"
-          >
-            <i className="fa-solid fa-copy mr-1" /> Copiar código
-          </button>
-          <div className="mt-3 w-24 h-24 mx-auto rounded-xl bg-base-300 flex flex-col items-center justify-center border-2 border-dashed border-base-content/20">
-            <i className="fa-solid fa-qrcode text-base-content/30 text-3xl" />
-            <p className="text-[9px] text-base-content/30 mt-1">QR Code</p>
-          </div>
-        </div>
+        <p className="text-base-content/60 text-sm">
+          A reserva está ativa. Guarde os detalhes abaixo para referência rápida.
+        </p>
       </div>
 
       <div className="card w-full max-w-md shadow-md border border-base-300 bg-base-200">
@@ -116,6 +212,10 @@ export function Step4Reserved({
               <div><p className="text-base-content/50">Saída prevista</p><p className="font-medium text-base-content">{fmtDateTime(exitTime)}{' '}<span className="text-base-content/50">({fmtDuration(hours)})</span></p></div>
               <div><p className="text-base-content/50">Custo total</p><p className="font-bold text-primary">€{cost.toFixed(2)}</p></div>
               <div><p className="text-base-content/50">Telefone</p><p className="font-medium text-base-content">{lot.phone}</p></div>
+              <div className="col-span-2">
+                <p className="text-base-content/50">Código da reserva</p>
+                <p className="font-mono font-bold text-primary break-all">{bookingCode}</p>
+              </div>
               {vehicle && (
                 <div className="col-span-2">
                   <p className="text-base-content/50">Veículo</p>
@@ -137,13 +237,13 @@ export function Step4Reserved({
       </div>
 
       <div className="flex gap-4">
-        <button className="btn btn-ghost btn-xs rounded-full text-base-content/50">
+        <button type="button" onClick={shareReservation} className="btn btn-ghost btn-xs rounded-full text-base-content/50">
           <i className="fa-solid fa-share-nodes mr-1" /> Partilhar
         </button>
-        <button className="btn btn-ghost btn-xs rounded-full text-base-content/50">
+        <button type="button" onClick={downloadCalendarEvent} className="btn btn-ghost btn-xs rounded-full text-base-content/50">
           <i className="fa-solid fa-calendar-plus mr-1" /> Adicionar ao Calendário
         </button>
-        <button className="btn btn-ghost btn-xs rounded-full text-base-content/50">
+        <button type="button" onClick={printReservation} className="btn btn-ghost btn-xs rounded-full text-base-content/50">
           <i className="fa-solid fa-download mr-1" /> Guardar PDF
         </button>
       </div>

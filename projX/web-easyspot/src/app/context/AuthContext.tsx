@@ -47,10 +47,10 @@ function randomBytes(length: number): Uint8Array {
 }
 
 function base64urlEncode(bytes: Uint8Array): string {
-  return btoa(String.fromCharCode(...bytes))
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=/g, '');
+  return btoa(Array.from(bytes, (b) => String.fromCharCode(b)).join(''))
+    .replaceAll('+', '-')
+    .replaceAll('/', '_')
+    .replaceAll('=', '');
 }
 
 async function sha256(plain: string): Promise<Uint8Array> {
@@ -72,7 +72,8 @@ function parseJwtClaims(token: string): Record<string, unknown> {
 }
 
 function normalizeIssuer(issuer: unknown): string {
-  return String(issuer ?? '').replace(/\/+$/g, '');
+  const s = typeof issuer === 'string' ? issuer : (issuer ? String(issuer) : '');
+  return s.replace(/\/+$/u, '');
 }
 
 function tokenIssuerMatches(claims: Record<string, unknown>): boolean {
@@ -90,7 +91,6 @@ function extractRole(claims: Record<string, unknown>): AppProfile {
   if (import.meta.env.DEV) console.log('[AUTH] extractRole — raw groups:', groups);
   if (Array.isArray(groups) && groups.length > 0) {
     for (const g of groups) {
-      // Authentik may prefix groups with '/' (e.g. "/TECHNICAL") — strip it
       const r = String(g).replace(/^\/+/, '').toUpperCase();
       if (r === 'MANAGER' || r === 'TECHNICAL') return r as AppProfile;
     }
@@ -102,7 +102,7 @@ function buildUser(claims: Record<string, unknown>): AuthUser {
   const claimToString = (value: unknown): string => {
     if (value == null) return '';
     if (typeof value === 'object') return JSON.stringify(value);
-    return String(value);
+    return typeof value === 'string' ? value : String(value);
   };
 
   return {

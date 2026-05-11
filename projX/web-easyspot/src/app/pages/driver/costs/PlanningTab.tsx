@@ -1,18 +1,10 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { useProfile } from '../../../context/ProfileContext';
 import { VehiclePicker } from '../../../components/shared/VehiclePicker';
-import { fetchParkCities } from '../../../services/parksApi';
 import { fetchParkingPlanning, type PlanningRecommendation } from '../../../services/costsApi';
-
-// Default coordinates for some cities to support the planning API without a map picker
-const CITY_COORDS: Record<string, { lat: number; lng: number }> = {
-  'Aveiro': { lat: 40.6405, lng: -8.6538 },
-  'Coimbra': { lat: 40.2033, lng: -8.4103 },
-  'Porto': { lat: 41.1579, lng: -8.6291 },
-  'Lisboa': { lat: 38.7223, lng: -9.1393 },
-};
+import { DestinationPicker, type DestinationPoint } from '../../../components/planning/DestinationPicker';
 
 interface OccupancyTooltipProps {
   readonly active?: boolean;
@@ -62,30 +54,18 @@ export function PlanningTab() {
   const primaryVehicle = vehicles.find((v) => v.isPrimary) ?? vehicles[0] ?? null;
 
   const [planVehicleId, setPlanVehicleId]       = useState<string | null>(primaryVehicle?.id ?? null);
+  const [destination, setDestination]           = useState<DestinationPoint | null>(null);
   const [durationHours, setDurationHours]       = useState(2);
   const [durationMinutes, setDurationMinutes]   = useState(0);
-  const [selectedCity, setSelectedCity]         = useState<string>('Aveiro');
   const [filterEV, setFilterEV]                 = useState(primaryVehicle?.isEV ?? false);
   const [filterAccessible, setFilterAccessible] = useState(primaryVehicle?.isAccessible ?? false);
-  const [maxDistance, setMaxDistance]           = useState(10); // Aumentado para 10km por defeito
+  const [maxDistance, setMaxDistance]           = useState(5);
   const [sortBy, setSortBy]                     = useState<'price' | 'distance' | 'ratio'>('ratio');
   const [expandedPark, setExpandedPark]         = useState<string | null>(null);
 
-  const [availableCities, setAvailableCities]   = useState<string[]>([]);
   const [recommendations, setRecommendations]   = useState<PlanningRecommendation[]>([]);
   const [loading, setLoading]                   = useState(false);
   const [error, setError]                       = useState<string | null>(null);
-
-  useEffect(() => {
-    fetchParkCities().then((cities) => {
-      setAvailableCities(cities);
-      // Se tivermos cidades, selecionar Coimbra como padrão (mais parques no seed)
-      if (cities.length > 0) {
-        const defaultCity = cities.find(c => c.toLowerCase().includes('coimbra')) || cities[0];
-        setSelectedCity(defaultCity);
-      }
-    });
-  }, []);
 
   useEffect(() => {
     const v = vehicles.find((v) => v.id === planVehicleId) ?? null;
@@ -96,20 +76,22 @@ export function PlanningTab() {
   }, [planVehicleId, vehicles]);
 
   useEffect(() => {
+    if (!destination) {
+      setRecommendations([]);
+      return;
+    }
+
     const loadPlanning = async () => {
-      if (!selectedCity) return;
       try {
         setLoading(true);
         setError(null);
-        const coords = CITY_COORDS[selectedCity] || CITY_COORDS['Aveiro'];
         const resp = await fetchParkingPlanning({
-          city: selectedCity,
           durationMinutes: durationHours * 60 + durationMinutes,
           isElectric: filterEV,
           isAccessible: filterAccessible,
           maxDistanceMeters: maxDistance * 1000,
-          lat: coords.lat,
-          lng: coords.lng,
+          lat: destination.lat,
+          lng: destination.lng,
           orderBy: sortBy,
         });
         setRecommendations(resp.recommendations);
@@ -123,7 +105,7 @@ export function PlanningTab() {
 
     const timeout = setTimeout(loadPlanning, 400);
     return () => clearTimeout(timeout);
-  }, [selectedCity, durationHours, durationMinutes, filterEV, filterAccessible, maxDistance, sortBy]);
+  }, [destination, durationHours, durationMinutes, filterEV, filterAccessible, maxDistance, sortBy]);
 
   const activeFilters = [filterEV, filterAccessible].filter(Boolean).length;
 
@@ -148,19 +130,11 @@ export function PlanningTab() {
       )}
 
       <div className="bg-card rounded-2xl border border-border/40 shadow-sm p-4 mb-4">
-        <p className="text-foreground font-semibold mb-2" style={{ fontSize: '0.8rem' }}>
-          <i className="fas fa-city text-primary mr-1.5" aria-hidden="true" />{' '}
-          Cidade de Destino
+        <p className="text-foreground font-semibold mb-3" style={{ fontSize: '0.8rem' }}>
+          <i className="fas fa-map-location-dot text-primary mr-1.5" aria-hidden="true" />{' '}
+          Destino
         </p>
-        <select
-          value={selectedCity}
-          onChange={(e) => setSelectedCity(e.target.value)}
-          aria-label="Filtrar por cidade"
-          className="w-full rounded-lg border border-border bg-background text-foreground px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-        >
-          {availableCities.map((city) => <option key={city} value={city}>{city}</option>)}
-          {availableCities.length === 0 && <option value="Aveiro">Aveiro</option>}
-        </select>
+        <DestinationPicker value={destination} onChange={setDestination} height="240px" />
       </div>
 
       <div className="bg-card rounded-2xl border border-border/40 shadow-sm p-4 mb-5">
@@ -230,8 +204,8 @@ export function PlanningTab() {
 
         <div className="flex items-center justify-between mb-1.5">
           <p className="text-foreground font-semibold" style={{ fontSize: '0.8rem' }}>
-            <i className="fas fa-location-dot text-primary mr-1.5" aria-hidden="true" />{' '}
-            Distância máxima
+            <i className="fas fa-circle-dot text-primary mr-1.5" aria-hidden="true" />{' '}
+            Raio à volta do destino
           </p>
           <span className="text-primary font-bold" style={{ fontSize: '0.8rem' }}>{maxDistance} km</span>
         </div>
@@ -239,14 +213,24 @@ export function PlanningTab() {
           type="range" min={1} max={10} step={1} value={maxDistance}
           onChange={(e) => setMaxDistance(Number(e.target.value))}
           className="w-full accent-primary h-1.5 rounded-full cursor-pointer"
-          aria-label={`Distância máxima: ${maxDistance} km`}
+          aria-label={`Raio à volta do destino: ${maxDistance} km`}
         />
         <div className="flex justify-between text-muted-foreground mt-1" style={{ fontSize: '0.65rem' }}>
           <span>1 km</span><span>5 km</span><span>10 km</span>
         </div>
       </div>
 
-      {loading ? (
+      {!destination ? (
+        <div className="flex flex-col items-center justify-center rounded-2xl py-16 px-6 text-center bg-card border-2 border-dashed border-border">
+          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-3">
+            <i className="fas fa-map-location-dot text-primary" style={{ fontSize: '1.5rem' }} aria-hidden="true" />
+          </div>
+          <p className="text-foreground font-bold mb-1" style={{ fontSize: '1rem' }}>Escolhe um destino</p>
+          <p className="text-muted-foreground" style={{ fontSize: '0.875rem' }}>
+            Pesquisa, clica no mapa ou usa a localização atual para ver os melhores parques.
+          </p>
+        </div>
+      ) : loading ? (
         <div className="py-20 text-center text-muted-foreground">A calcular as melhores opções...</div>
       ) : error ? (
         <div className="py-20 text-center text-error font-bold">{error}</div>
@@ -256,7 +240,7 @@ export function PlanningTab() {
             <i className="fas fa-triangle-exclamation text-warning" style={{ fontSize: '1.5rem' }} aria-hidden="true" />
           </div>
           <p className="text-foreground font-bold mb-1" style={{ fontSize: '1rem' }}>Nenhum parque encontrado</p>
-          <p className="text-muted-foreground" style={{ fontSize: '0.875rem' }}>Tente ajustar os filtros ou aumentar a distância máxima.</p>
+          <p className="text-muted-foreground" style={{ fontSize: '0.875rem' }}>Tenta ajustar os filtros ou aumentar o raio.</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -354,16 +338,14 @@ export function PlanningTab() {
                       {isExpanded ? 'Ocultar previsão' : 'Ver previsão de ocupação'}
                       <i className={`fas fa-chevron-${isExpanded ? 'up' : 'down'}`} aria-hidden="true" style={{ fontSize: '0.65rem' }} />
                     </button>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => navigate(`/parking/${park.id}`)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border text-muted-foreground hover:border-primary/40 hover:text-primary transition-all font-medium"
-                        style={{ fontSize: '0.78rem' }} aria-label={`Ver detalhes de ${park.name}`}
-                      >
-                        <i className="fas fa-circle-info" aria-hidden="true" style={{ fontSize: '0.7rem' }} />{' '}
-                        Detalhes
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => navigate(`/parking/${park.id}`)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border text-muted-foreground hover:border-primary/40 hover:text-primary transition-all font-medium"
+                      style={{ fontSize: '0.78rem' }} aria-label={`Ver detalhes de ${park.name}`}
+                    >
+                      <i className="fas fa-circle-info" aria-hidden="true" style={{ fontSize: '0.7rem' }} />{' '}
+                      Detalhes
+                    </button>
                   </div>
                 </div>
 
@@ -400,8 +382,9 @@ export function PlanningTab() {
         <div>
           <p className="text-foreground font-bold mb-0.5" style={{ fontSize: '0.8rem' }}>Informação sobre planeamento</p>
           <p className="text-muted-foreground leading-relaxed" style={{ fontSize: '0.78rem' }}>
-            As estimativas de custo baseiam-se nas tarifas atuais do parque. A previsão de ocupação utiliza dados históricos
-            e tendências em tempo real para ajudar a escolher o melhor momento para a sua viagem.
+            As estimativas de custo baseiam-se nas tarifas atuais. O raio de pesquisa é calculado a partir
+            do ponto exato que escolheste no mapa. A previsão de ocupação usa dados históricos e tendências
+            em tempo real para ajudar a escolher o melhor momento para a tua viagem.
           </p>
         </div>
       </aside>

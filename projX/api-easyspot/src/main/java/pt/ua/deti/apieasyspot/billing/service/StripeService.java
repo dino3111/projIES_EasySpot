@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.transaction.annotation.Transactional;
 import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
+import pt.ua.deti.apieasyspot.auth.model.User;
 import pt.ua.deti.apieasyspot.billing.dto.CheckoutSessionRequest;
 import pt.ua.deti.apieasyspot.billing.dto.CheckoutSessionResponse;
 import pt.ua.deti.apieasyspot.billing.dto.PaymentSetupStatusResponse;
@@ -252,13 +253,7 @@ public class StripeService {
         String customerEmail = resolveCustomerEmail(authentikUserId, tokenEmail);
         log.info("Creating Stripe SetupIntent for user={} email={}", authentikUserId, customerEmail);
 
-        String customerId = findCustomerIdByEmail(customerEmail);
-        if (customerId == null) {
-            var createParams = com.stripe.param.CustomerCreateParams.builder()
-                .setEmail(customerEmail)
-                .build();
-            customerId = com.stripe.model.Customer.create(createParams).getId();
-        }
+        String customerId = resolveStripeCustomerId(authentikUserId, customerEmail, true);
 
         var params = com.stripe.param.SetupIntentCreateParams.builder()
             .setCustomer(customerId)
@@ -274,7 +269,7 @@ public class StripeService {
         String customerEmail = resolveCustomerEmail(authentikUserId, tokenEmail);
         log.info("Creating Stripe customer portal session for user={} email={}", authentikUserId, customerEmail);
 
-        String customerId = findCustomerIdByEmail(customerEmail);
+        String customerId = resolveStripeCustomerId(authentikUserId, customerEmail, false);
         if (customerId == null) {
             throw new ResourceNotFoundException("No Stripe customer found for email: " + customerEmail);
         }
@@ -291,7 +286,7 @@ public class StripeService {
     public PaymentSetupStatusResponse getPaymentSetupStatus(String authentikUserId, String tokenEmail) throws StripeException {
         ensureStripeConfigured();
         String customerEmail = resolveCustomerEmail(authentikUserId, tokenEmail);
-        String customerId = findCustomerIdByEmail(customerEmail);
+        String customerId = resolveStripeCustomerId(authentikUserId, customerEmail, false);
 
         if (customerId == null) {
             log.info("Stripe setup status for user={} email={} -> no customer yet", authentikUserId, customerEmail);
@@ -315,7 +310,7 @@ public class StripeService {
         ensureStripeConfigured();
         String customerEmail = resolveCustomerEmail(authentikUserId, tokenEmail);
         log.info("Listing Stripe payment methods for user={} email={}", authentikUserId, customerEmail);
-        String customerId = findCustomerIdByEmail(customerEmail);
+        String customerId = resolveStripeCustomerId(authentikUserId, customerEmail, false);
 
         if (customerId == null) {
             log.info("No Stripe customer found for user={} email={}, returning empty list", authentikUserId, customerEmail);
@@ -348,7 +343,7 @@ public class StripeService {
     public void detachPaymentMethod(String authentikUserId, String tokenEmail, String paymentMethodId) throws StripeException {
         ensureStripeConfigured();
         String customerEmail = resolveCustomerEmail(authentikUserId, tokenEmail);
-        String customerId = findCustomerIdByEmail(customerEmail);
+        String customerId = resolveStripeCustomerId(authentikUserId, customerEmail, false);
 
         if (customerId == null) {
             throw new ResourceNotFoundException("No Stripe customer found for authenticated user");
@@ -369,6 +364,30 @@ public class StripeService {
         }
     }
 
+    private String resolveStripeCustomerId(String authentikUserId, String customerEmail, boolean createIfMissing) throws StripeException {
+        User user = userRepository.findByAuthentikUserId(authentikUserId).orElse(null);
+        if (user != null && StringUtils.hasText(user.getStripeCustomerId())) {
+            return user.getStripeCustomerId();
+        }
+
+        String customerId = findCustomerIdByEmail(customerEmail);
+        if (StringUtils.hasText(customerId)) {
+            persistStripeCustomerId(authentikUserId, customerId);
+            return customerId;
+        }
+
+        if (!createIfMissing) {
+            return null;
+        }
+
+        var createParams = com.stripe.param.CustomerCreateParams.builder()
+            .setEmail(customerEmail)
+            .build();
+        customerId = com.stripe.model.Customer.create(createParams).getId();
+        persistStripeCustomerId(authentikUserId, customerId);
+        return customerId;
+    }
+
     private String findCustomerIdByEmail(String customerEmail) throws StripeException {
         com.stripe.param.CustomerListParams listParams = com.stripe.param.CustomerListParams.builder()
             .setEmail(customerEmail)
@@ -378,16 +397,26 @@ public class StripeService {
         return customers.isEmpty() ? null : customers.get(0).getId();
     }
 
-    private String resolveCustomerEmail(String authentikUserId, String tokenEmail) {
-        if (StringUtils.hasText(tokenEmail)) {
-            return tokenEmail;
-        }
+    private void persistStripeCustomerId(String authentikUserId, String customerId) {
+        userRepository.findByAuthentikUserId(authentikUserId).ifPresent(user -> {
+            if (!customerId.equals(user.getStripeCustomerId())) {
+                user.setStripeCustomerId(customerId);
+                userRepository.save(user);
+            }
+        });
+    }
 
+    private String resolveCustomerEmail(String authentikUserId, String tokenEmail) {
         return userRepository.findByAuthentikUserId(authentikUserId)
             .map(user -> user.getEmail())
             .filter(StringUtils::hasText)
-            .orElseThrow(() -> new IllegalStateException(
-                "Authenticated user does not have an email address available for Stripe"));
+            .orElseGet(() -> {
+                if (StringUtils.hasText(tokenEmail)) {
+                    return tokenEmail;
+                }
+                throw new IllegalStateException(
+                    "Authenticated user does not have an email address available for Stripe");
+            });
     }
 
     private PaymentMethodSummaryResponse toSummary(PaymentMethod method, String defaultPaymentMethodId) {

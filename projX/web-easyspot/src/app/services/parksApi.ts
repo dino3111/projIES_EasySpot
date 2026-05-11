@@ -76,6 +76,12 @@ function mapSpotLabel(spotNumber: string): string {
   return idx >= 0 ? spotNumber.slice(idx + 1) : spotNumber;
 }
 
+function formatFloorName(floorId: string): string {
+  const match = /p(\d+)$/i.exec(floorId);
+  if (match) return `Piso ${match[1]}`;
+  return floorId;
+}
+
 function mapFloors(spots: ParkDetailsResponse['spotMap']): ParkingFloor[] {
   const grouped = new Map<string, ParkingSpot[]>();
   for (const spot of spots) {
@@ -97,7 +103,7 @@ function mapFloors(spots: ParkDetailsResponse['spotMap']): ParkingFloor[] {
     const maxCol = floorSpots.reduce((max, s) => Math.max(max, s.col), 0);
     return {
       id,
-      name: id,
+      name: formatFloorName(id),
       rows: maxRow + 1,
       cols: maxCol + 1,
       spots: floorSpots,

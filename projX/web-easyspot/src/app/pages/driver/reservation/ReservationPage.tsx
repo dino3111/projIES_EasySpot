@@ -14,7 +14,10 @@ import { Step3Confirmation } from './Step3Confirmation';
 import { Step4Reserved } from './Step4Reserved';
 import { createReservation, lockedUntilCountdownSeconds } from '../../../../services/reservationService';
 import { fetchAllParksSummary, fetchParkDetailsById } from '../../../services/parksCatalog';
+import { paymentApi } from '../../../../services/apiService';
+import type { PaymentMethodSummaryResponse } from '../../../../services/apiService';
 import { getAccessToken } from '../../../services/authToken';
+import { StepPaymentStripe } from '../welcome/StepPaymentStripe';
 
 export function ReservationPage() {
   const [searchParams] = useSearchParams();
@@ -62,9 +65,50 @@ export function ReservationPage() {
   const [reservationError, setReservationError] = useState<string | null>(null);
   const [parks, setParks] = useState<ParkingLot[]>([]);
   const [selectedLot, setSelectedLot] = useState<ParkingLot | null>(null);
+  const [paymentConfigured, setPaymentConfigured] = useState<boolean | null>(null);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethodSummaryResponse[]>([]);
+  const [showPaymentSetup, setShowPaymentSetup] = useState(false);
 
   useEffect(() => {
     fetchAllParksSummary().then(setParks).catch(() => setParks([]));
+  }, []);
+  useEffect(() => {
+    let active = true;
+    const token = getAccessToken();
+
+    if (!token) {
+      setPaymentConfigured(null);
+      return () => {
+        active = false;
+      };
+    }
+
+    Promise.allSettled([paymentApi.getSetupStatus(), paymentApi.listMethods()])
+      .then(([setupResult, methodsResult]) => {
+        if (!active) return;
+
+        if (setupResult.status === 'fulfilled') {
+          setPaymentConfigured(setupResult.value.configured);
+        } else {
+          setPaymentConfigured(null);
+        }
+
+        if (methodsResult.status === 'fulfilled') {
+          setPaymentMethods(methodsResult.value);
+          if (methodsResult.value.length > 0) {
+            setPaymentConfigured(true);
+          }
+        } else {
+          setPaymentMethods([]);
+        }
+      })
+      .catch(() => {
+        if (active) setPaymentConfigured(null);
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
   useEffect(() => {
     if (!selectedParkId) {
@@ -109,6 +153,7 @@ export function ReservationPage() {
 
   async function handleConfirm() {
     if (isSubmitting) return;
+
     setIsSubmitting(true);
     setReservationError(null);
 
@@ -116,6 +161,21 @@ export function ReservationPage() {
     const idempotencyKey = crypto.randomUUID();
 
     try {
+      if (paymentConfigured !== true) {
+        const [status, methods] = await Promise.all([
+          paymentApi.getSetupStatus(),
+          paymentApi.listMethods(),
+        ]);
+        setPaymentMethods(methods);
+        const configuredNow = status.configured || methods.length > 0;
+        setPaymentConfigured(configuredNow);
+        if (!configuredNow) {
+          setReservationError('Antes de reservar, configure um método de pagamento Stripe nas suas definições.');
+          setShowPaymentSetup(true);
+          return;
+        }
+      }
+
       const token = getAccessToken();
       const effectiveVehicleId =
         selectedVehicleId || vehicles.find((v) => v.isPrimary)?.id || vehicles[0]?.id || '';
@@ -144,6 +204,10 @@ export function ReservationPage() {
       setStep(4);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao criar reserva. Tente novamente.';
+      const lowered = message.toLowerCase();
+      if (lowered.includes('stripe') || lowered.includes('pagamento') || lowered.includes('payment')) {
+        setShowPaymentSetup(true);
+      }
       setReservationError(message);
     } finally {
       setIsSubmitting(false);
@@ -155,7 +219,7 @@ export function ReservationPage() {
       <div className="bg-base-200 border-b border-base-300 px-4 md:px-6 py-4">
         <h1 className="text-2xl font-bold text-base-content flex items-center gap-2">
           <i className="fa-solid fa-bookmark text-primary" />
-          Reservar Lugar
+          {' Reservar Lugar'}
         </h1>
         <p className="text-base-content/60 text-sm mt-0.5">
           Reservas disponíveis com pelo menos 30 minutos de antecedência · Válidas 30 min após a hora marcada
@@ -203,13 +267,66 @@ export function ReservationPage() {
               />
             )}
             {step === 3 && selectedLot && (
-              <Step3Confirmation
-                lot={selectedLot} floor={selectedFloor?.name || '—'} spot={selectedSpot}
-                arrivalTime={arrivalTime} exitTime={exitTime} cost={estimatedCost}
-                vehicle={selectedVehicle} agreeTerms={agreeTerms} setAgreeTerms={setAgreeTerms}
-                onConfirm={handleConfirm} onBack={() => setStep(2)}
-                isSubmitting={isSubmitting}
-              />
+              <div className="space-y-4">
+                <Step3Confirmation
+                  lot={selectedLot} floor={selectedFloor?.name || '—'} spot={selectedSpot}
+                  arrivalTime={arrivalTime} exitTime={exitTime} cost={estimatedCost}
+                  vehicle={selectedVehicle} agreeTerms={agreeTerms} setAgreeTerms={setAgreeTerms}
+                  onConfirm={handleConfirm} onBack={() => setStep(2)}
+                  isSubmitting={isSubmitting} paymentConfigured={paymentConfigured}
+                  paymentMethods={paymentMethods}
+                  onAddPaymentMethod={() => setShowPaymentSetup(true)}
+                />
+
+                {showPaymentSetup && (
+                  <div className="card bg-base-200 shadow-md">
+                    <div className="card-body p-4 space-y-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <h3 className="font-semibold text-base-content">
+                          <i className="fa-solid fa-credit-card text-primary mr-2" />
+                          Adicionar método de pagamento
+                        </h3>
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-xs"
+                          onClick={() => setShowPaymentSetup(false)}
+                        >
+                          Fechar
+                        </button>
+                      </div>
+                      <StepPaymentStripe
+                        allowContinueWithoutPayment={false}
+                        onCancel={() => setShowPaymentSetup(false)}
+                        onReady={async (confirmed) => {
+                          if (confirmed) {
+                            setPaymentConfigured(true);
+                            setShowPaymentSetup(false);
+                            setReservationError(null);
+                            return;
+                          }
+
+                          try {
+                            const [status, methods] = await Promise.all([
+                              paymentApi.getSetupStatus(),
+                              paymentApi.listMethods(),
+                            ]);
+                            setPaymentMethods(methods);
+                            const configuredNow = status.configured || methods.length > 0;
+                            setPaymentConfigured(configuredNow);
+                            if (!configuredNow) {
+                              setReservationError('Ainda não existe um método de pagamento guardado. Complete o processo Stripe para reservar.');
+                            } else {
+                              setShowPaymentSetup(false);
+                            }
+                          } catch {
+                            setPaymentConfigured(false);
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
             {step === 4 && (
               <Step4Reserved

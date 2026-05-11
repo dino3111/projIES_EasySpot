@@ -1,27 +1,14 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 
-async function waitForLoaded(page: Page) {
-  await page.waitForSelector('[aria-busy="true"]', { state: 'hidden', timeout: 10000 }).catch(() => {});
-}
+const jwt =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1MSIsIm5hbWUiOiJBbmEgU2lsdmEiLCJlbWFpbCI6ImFuYUBlYXN5c3BvdC5wdCIsImdyb3VwcyI6WyJEUklWRVIiXSwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdC9hdXRoZW50aWsvYXBwbGljYXRpb24vby9lYXN5c3BvdC8iLCJleHAiOjk5OTk5OTk5OTl9.fake-sig';
 
-const jwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1MSIsIm5hbWUiOiJBbmEiLCJlbWFpbCI6ImFuYUBlYXN5c3BvdC5wdCIsImdyb3VwcyI6WyJEUklWRVIiXSwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdC9hdXRoZW50aWsvYXBwbGljYXRpb24vby9lYXN5c3BvdC8iLCJleHAiOjk5OTk5OTk5OTl9.fake-sig';
-
-const parks = [
-  { id: 'park-1', name: 'Parque Central', city: 'Coimbra', address: 'Rua A, Coimbra', latitude: 40.2, longitude: -8.4,
-    openingHours: '24h', pricePerHour: 1.5, totalSpaces: 50, freeSpaces: 10,
-    evChargers: { available: 1, total: 2 }, accessibleSpaces: { available: 1, total: 2 } },
-];
-
-const parkDetails = {
-  id: 'park-1', name: 'Parque Central', address: 'Rua A, Coimbra', coordinates: { lat: 40.2, lng: -8.4 },
-  openingHours: '24h', totalSpaces: 50, freeSpaces: 10, zones: [],
-  spotMap: [],
-  evChargers: [],
-  accessibility: [
-    { location: 'Zona A - Piso 0', availability: true, distanceToEntranceMeters: 12, baySize: '4.0m x 5.0m',
-      monitored: true, hasRampSpace: true, sensorStatus: 'online', ledStatus: 'green' },
+const parksList = {
+  items: [
+    { id: 'park-1', name: 'Parque Central', city: 'Aveiro', address: 'Rua Central, Aveiro', latitude: 40.6, longitude: -8.6, openingHours: '24h', pricePerHour: 1.5, totalSpaces: 50, freeSpaces: 10, evChargers: { available: 0, total: 0 }, accessibleSpaces: { available: 0, total: 0 }, availabilityStatus: 'AVAILABLE' },
+    { id: 'park-2', name: 'Forum Aveiro', city: 'Aveiro', address: 'Fórum Aveiro', latitude: 40.6, longitude: -8.6, openingHours: '24h', pricePerHour: 1.2, totalSpaces: 100, freeSpaces: 20, evChargers: { available: 0, total: 0 }, accessibleSpaces: { available: 0, total: 0 }, availabilityStatus: 'AVAILABLE' },
   ],
-  tariffs: [{ pricePerHour: 1.5, maxDaily: 12, monthly: 60 }], amenities: [],
+  pagination: { page: 1, pageSize: 500, totalItems: 2, totalPages: 1 },
 };
 
 test.beforeEach(async ({ page }) => {
