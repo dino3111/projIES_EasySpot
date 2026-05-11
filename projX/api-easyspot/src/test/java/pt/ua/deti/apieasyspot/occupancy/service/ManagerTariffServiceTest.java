@@ -67,7 +67,7 @@ class ManagerTariffServiceTest {
         t.setPricePerHour(BigDecimal.ONE);
         t.setStatus(TariffStatus.ACTIVE);
 
-        when(tariffRepository.findFiltered(lotId, "Test City", TariffStatus.ACTIVE, pageable))
+        when(tariffRepository.findFiltered(lotId, "%test city%", TariffStatus.ACTIVE, pageable))
             .thenReturn(new PageImpl<>(List.of(t)));
 
         Page<TariffResponse> responses = managerTariffService.listTariffs(lotId, "Test City", TariffStatus.ACTIVE, pageable);
