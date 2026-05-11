@@ -64,8 +64,8 @@ function mapAlert(a: AlertResponse): IssueReport {
     sensorId: a.sensorId,
     matricula: a.plate,
     descricao: a.description,
-    severidade: severityMap[a.severity] || 'info',
-    estado: stateMap[a.state] || 'aberto',
+    severidade: severityMap[a.severity.toUpperCase()] || 'info',
+    estado: stateMap[a.state.toUpperCase().replace('-', '_')] || 'aberto',
     criadoEm: a.createdAt,
     atribuidoA: a.attributedTo,
     notas: a.notes,
@@ -143,7 +143,7 @@ export function TariffsIncidentsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <i className="fas fa-circle-notch fa-spin text-primary text-3xl"></i>
+        <i className="fas fa-circle-notch fa-spin text-primary text-3xl" role="status" aria-label="A carregar"></i>
       </div>
     );
   }

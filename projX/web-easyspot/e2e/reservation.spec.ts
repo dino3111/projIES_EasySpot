@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-const jwt = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1MSIsIm5hbWUiOiJBbmEiLCJlbWFpbCI6ImFuYUBlYXN5c3BvdC5wdCIsImdyb3VwcyI6WyJEUklWRVIiXX0.sig';
+const jwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1MSIsIm5hbWUiOiJBbmEiLCJlbWFpbCI6ImFuYUBlYXN5c3BvdC5wdCIsImdyb3VwcyI6WyJEUklWRVIiXSwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdC9hdXRoZW50aWsvYXBwbGljYXRpb24vby9lYXN5c3BvdC8iLCJleHAiOjk5OTk5OTk5OTl9.fake-sig';
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript((token) => {
@@ -37,12 +37,10 @@ test.beforeEach(async ({ page }) => {
     await route.fulfill({ json: parkDetails });
   });
 
-  await page.route('**/api/parks/catalog/details/park-1', async (route) => {
-    await route.fulfill({ json: parkDetails });
-  });
-
-  await page.route('**/api/parks/catalog/summary', async (route) => {
-    await route.fulfill({ json: [parkDetails] });
+  await page.route('**/api/parks/list**', async (route) => {
+    await route.fulfill({ json: { items: [
+      { id: 'park-1', name: 'Parque Central', city: 'Coimbra', address: 'Rua Central, 1', latitude: 40.6405, longitude: -8.6538, openingHours: '24h', pricePerHour: 1.5, totalSpaces: 50, freeSpaces: 10, evChargers: { available: 0, total: 0 }, accessibleSpaces: { available: 0, total: 0 }, availabilityStatus: 'AVAILABLE' },
+    ], pagination: { page: 1, pageSize: 500, totalItems: 1, totalPages: 1 } } });
   });
 
   await page.route('**/api/parks/park-1/favorite', async (route) => {
@@ -93,7 +91,7 @@ test('Fluxo de reserva completa passo-a-passo', async ({ page }) => {
   });
 
   // Confirmar Final
-  const confirmBtn = page.locator('button:has-text("Confirmar Reserva")');
+  const confirmBtn = page.getByRole('button', { name: /Confirmar e reservar lugar/i });
   await expect(confirmBtn).toBeEnabled();
   await confirmBtn.click();
 

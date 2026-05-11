@@ -37,6 +37,9 @@ lerna-debug.log*
 node_modules/
 .pnp.cjs
 .pnp.js
+.pnpm-lock
+.pnpm-store
+
 
 # production
 /build
@@ -171,6 +174,7 @@ db.sqlite3-journal
 # Ignore docker build outputs, local compose overrides
 docker-compose.override.yml
 docker-compose.*.yml
+compose.override.*.yml
 # Do not ignore primary Dockerfiles or .dockerignore files; only ignore local/temporary variants
 **/Dockerfile.*.local
 **/Dockerfile.*.tmp
@@ -181,6 +185,7 @@ docker-compose.dev.yml
 # Container data/volumes
 volumes/
 tmp_volume/
+projX/sonarqube_data/
 
 # Secrets, keys, certificates
 # Private keys
@@ -257,3 +262,4 @@ crash.log
 package-lock.json
 CLAUDE.md
 pnpm-lock.yaml
+playwrite-report

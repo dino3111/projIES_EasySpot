@@ -105,4 +105,17 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
 
     @Query("SELECT COUNT(s) > 0 FROM ParkingSpot s WHERE s.id = :spotId AND s.parkingLot.id = :parkId")
     boolean spotBelongsToPark(@Param("spotId") UUID spotId, @Param("parkId") UUID parkId);
+
+    @Query("""
+        SELECT DISTINCT r.parkingSpot.id FROM Reservation r
+        WHERE r.parkingSpot.id IN :spotIds
+          AND r.status NOT IN ('CANCELLED', 'EXPIRED', 'COMPLETED')
+          AND r.arrivalTime < :departureTime
+          AND r.departureTime > :arrivalTime
+        """)
+    List<UUID> findReservedSpotIds(
+        @Param("spotIds") List<UUID> spotIds,
+        @Param("arrivalTime") OffsetDateTime arrivalTime,
+        @Param("departureTime") OffsetDateTime departureTime
+    );
 }

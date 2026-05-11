@@ -5,6 +5,8 @@ import { toast } from 'sonner';
 import { API_BASE } from '../../../services/apiBase';
 import { useAuth } from '../../context/AuthContext';
 
+const realtimeAlertsDisabled = import.meta.env.VITE_DISABLE_REALTIME_ALERTS === 'true';
+
 type AlertTriggerEvent = {
   alertType?: string;
   parkId?: string;
@@ -25,6 +27,7 @@ export function RealtimeAlerts() {
   const { user, accessToken } = useAuth();
 
   useEffect(() => {
+    if (realtimeAlertsDisabled) return;
     if (!user?.sub || !accessToken) return;
 
     const wsBase = API_BASE.replace(/\/api$/i, '');

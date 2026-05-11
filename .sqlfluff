@@ -1,5 +1,6 @@
 [sqlfluff]
 dialect = postgres
+max_line_length = 80
 # RF04: column names like 'type', 'state', 'zone' are reserved words in SQL
 # standard but valid identifiers in PostgreSQL — quoting them would break
 # compatibility with existing JPA entity mappings.

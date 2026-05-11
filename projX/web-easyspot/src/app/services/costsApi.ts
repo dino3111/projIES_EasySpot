@@ -25,9 +25,15 @@ export interface SpendingTimeseriesPoint {
   totalSpent: number;
 }
 
-export interface SpendingBreakdown {
-  id: string;
-  name: string;
+export interface ParkBreakdown {
+  parkId: string;
+  parkName: string;
+  totalSpent: number;
+}
+
+export interface VehicleBreakdown {
+  vehicleId: string;
+  licensePlate: string;
   totalSpent: number;
 }
 
@@ -44,9 +50,10 @@ export interface DriverSpendingResponse {
   totals: SpendingTotals;
   insights: SpendingInsights;
   timeseries: SpendingTimeseriesPoint[];
-  breakdownByPark: SpendingBreakdown[];
-  breakdownByVehicle: SpendingBreakdown[];
+  breakdownByPark: ParkBreakdown[];
+  breakdownByVehicle: VehicleBreakdown[];
   history: SpendingHistoryItem[];
+  historyTotal: number;
 }
 
 export interface PlanningRecommendation {
@@ -120,7 +127,10 @@ export async function fetchParkingPlanning(query: PlanningQuery): Promise<Planni
   if (query.isElectric !== undefined) params.set('isElectric', String(query.isElectric));
   if (query.isAccessible !== undefined) params.set('isAccessible', String(query.isAccessible));
   if (query.maxDistanceMeters !== undefined) params.set('maxDistanceMeters', String(query.maxDistanceMeters));
-  if (query.orderBy) params.set('orderBy', query.orderBy.toUpperCase());
+  if (query.orderBy) {
+    const orderByMap: Record<string, string> = { ratio: 'BEST', price: 'LOWEST_PRICE', distance: 'NEAREST' };
+    params.set('orderBy', orderByMap[query.orderBy] ?? 'BEST');
+  }
 
   const token = getAccessToken();
   const resp = await withGlobalLoading(() => fetch(`${API_BASE}/api/driver/costs/planning?${params.toString()}`, {

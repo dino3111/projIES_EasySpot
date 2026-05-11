@@ -1,9 +1,16 @@
+import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import '@testing-library/jest-dom/vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { TariffsIncidentsPage } from '../TariffsIncidentsPage';
 import { ProfileProvider } from '../../../context/ProfileContext';
+import { AuthProvider } from '../../../context/AuthContext';
 import { fetchManagerTariffs, fetchManagerAlerts } from '../../../services/managerApi';
+import { fetchAllParksSummary } from '../../../services/parksCatalog';
 
+import { fetchVehicles } from '../../../services/vehiclesApi';
+
+// Mock services
 vi.mock('../../../services/managerApi', () => ({
   fetchManagerTariffs: vi.fn(),
   fetchManagerAlerts: vi.fn(),
@@ -11,31 +18,41 @@ vi.mock('../../../services/managerApi', () => ({
   updateAlertState: vi.fn(),
 }));
 
+vi.mock('../../../services/parksCatalog', () => ({
+  fetchAllParksSummary: vi.fn(),
+}));
+
 vi.mock('../../../services/vehiclesApi', () => ({
   fetchVehicles: vi.fn().mockResolvedValue([]),
 }));
 
 describe('TariffsIncidentsPage', () => {
+  function renderPage() {
+    return render(
+      <AuthProvider>
+        <ProfileProvider>
+          <TariffsIncidentsPage />
+        </ProfileProvider>
+      </AuthProvider>
+    );
+  }
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('renders loading state initially', () => {
-    (fetchManagerTariffs as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}));
-    (fetchManagerAlerts as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}));
+  it('renders loading state initially', async () => {
+    (fetchManagerTariffs as any).mockReturnValue(new Promise(() => {}));
+    (fetchManagerAlerts as any).mockReturnValue(new Promise(() => {}));
+    (fetchAllParksSummary as any).mockReturnValue(new Promise(() => {}));
 
-    render(
-      <ProfileProvider>
-        <TariffsIncidentsPage />
-      </ProfileProvider>
-    );
+    renderPage();
 
-    const spinner = document.querySelector('.fa-spin');
-    expect(spinner).toBeTruthy();
+    expect(screen.getByRole('status', { name: /a carregar/i })).toBeInTheDocument();
   });
 
   it('renders data after fetching', async () => {
-    (fetchManagerTariffs as ReturnType<typeof vi.fn>).mockResolvedValue([
+    (fetchManagerTariffs as any).mockResolvedValue([
       {
         id: '1',
         parkId: 'park-1',
@@ -45,10 +62,10 @@ describe('TariffsIncidentsPage', () => {
         maxDaily: 12,
         monthlyPrice: 100,
         pricePerKwh: 0.3,
-        status: 'ACTIVE',
-      },
+        status: 'ACTIVE'
+      }
     ]);
-    (fetchManagerAlerts as ReturnType<typeof vi.fn>).mockResolvedValue([
+    (fetchManagerAlerts as any).mockResolvedValue([
       {
         id: 'alert-1',
         type: 'SENSOR',
@@ -62,15 +79,14 @@ describe('TariffsIncidentsPage', () => {
         state: 'OPEN',
         createdAt: new Date().toISOString(),
         attributedTo: 'Tech 1',
-        notes: '',
-      },
+        notes: ''
+      }
+    ]);
+    (fetchAllParksSummary as any).mockResolvedValue([
+      { id: 'park-1', name: 'Test Park', city: 'Aveiro' }
     ]);
 
-    render(
-      <ProfileProvider>
-        <TariffsIncidentsPage />
-      </ProfileProvider>
-    );
+    renderPage();
 
     await waitFor(() => {
       expect(screen.getByText('Tarifas & Ocorrências')).toBeTruthy();

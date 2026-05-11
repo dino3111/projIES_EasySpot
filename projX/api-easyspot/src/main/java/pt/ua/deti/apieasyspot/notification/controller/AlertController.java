@@ -45,21 +45,8 @@ public class AlertController {
         @RequestParam(required = false) SeverityAlert severity
     ) {
         return ResponseEntity.ok(alertService.listAlerts(parkId, state, severity).stream()
-            .map(a -> new AlertResponse(
-                a.getId(),
-                a.getType().name(),
-                a.getParkingLotName(),
-                a.getZone(),
-                a.getSpotNumber(),
-                a.getSensorId(),
-                a.getPlate(),
-                a.getDescription(),
-                a.getSeverity().name(),
-                a.getState().name(),
-                a.getCreatedAt(),
-                a.getAttributedTo(),
-                a.getNotes()
-            )).toList());
+            .map(AlertResponse::from)
+            .toList());
     }
 
     @Operation(summary = "Create an alert subscription")

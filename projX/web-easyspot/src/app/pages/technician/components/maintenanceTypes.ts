@@ -1,4 +1,4 @@
-import { mockSensors, type SensorStatus } from '../../../data/technicianData';
+import { mockSensors, type SensorDevice, type SensorStatus } from '../../../data/technicianData';
 import { mockIssues } from '../../../data/gestorData';
 
 export const STATUS_COLOR: Record<SensorStatus, string> = {
