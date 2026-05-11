@@ -55,6 +55,7 @@ interface LeafletMapProps {
   readonly singleLot?: ParkingLot;
   readonly height?: string;
   readonly className?: string;
+  readonly pinColorOverrides?: Record<string, string>;
 }
 
 export function LeafletMap({
@@ -64,6 +65,7 @@ export function LeafletMap({
   singleLot,
   height = '100%',
   className = '',
+  pinColorOverrides,
 }: LeafletMapProps) {
   const mapRef = useRef<L.Map | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -152,7 +154,7 @@ export function LeafletMap({
 
     activeLots.forEach((lot) => {
       const isSelected = lot.id === selectedId;
-      const icon = createParkingIcon(getPinColor(lot), isSelected);
+      const icon = createParkingIcon(pinColorOverrides?.[lot.id] ?? getPinColor(lot), isSelected);
 
       if (markersRef.current.has(lot.id)) {
         const existing = markersRef.current.get(lot.id)!;
@@ -174,8 +176,7 @@ export function LeafletMap({
       map.fitBounds(bounds, { padding: [20, 20], animate: false });
       hasFitBounds.current = true;
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lots, selectedId, singleLot]);
+  }, [lots, selectedId, singleLot, pinColorOverrides]);
 
   useEffect(() => {
     if (!selectedId || !mapRef.current) return;
