@@ -22,7 +22,7 @@ import { StepPaymentStripe } from '../welcome/StepPaymentStripe';
 export function ReservationPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { vehicles } = useProfile();
+  const { vehicles, driverType } = useProfile();
 
   const [step, setStep] = useState<ReservationStep>(1);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>(
@@ -40,7 +40,12 @@ export function ReservationPage() {
 
   const [selectedFloorId, setSelectedFloorId] = useState<string>('');
   const [selectedSpotId, setSelectedSpotId]   = useState<string>('');
-  const [spotFilter, setSpotFilter]           = useState<SpotFilter>('todos');
+  const [spotFilter, setSpotFilter] = useState<SpotFilter>(() => {
+    if (driverType === 'ev') return 'ev';
+    if (driverType === 'reduced_mobility') return 'accessible';
+    return 'todos';
+  });
+  const didUserSetSpotFilterRef = useRef(false);
 
   useEffect(() => {
     if (didInitVehicleSelection.current) return;
@@ -135,6 +140,37 @@ export function ReservationPage() {
       setSelectedSpotId('');
     }
   }, [selectedLot]);
+
+  useEffect(() => {
+    if (selectedSpotId) return;
+    if (didUserSetSpotFilterRef.current) return;
+    if (selectedVehicle?.isEV) {
+      setSpotFilter('ev');
+      return;
+    }
+    if (selectedVehicle?.isAccessible) {
+      setSpotFilter('accessible');
+      return;
+    }
+    if (driverType === 'ev') {
+      setSpotFilter('ev');
+      return;
+    }
+    if (driverType === 'reduced_mobility') {
+      setSpotFilter('accessible');
+      return;
+    }
+    setSpotFilter('todos');
+  }, [driverType, selectedSpotId, selectedVehicle?.isEV, selectedVehicle?.isAccessible]);
+
+  useEffect(() => {
+    didUserSetSpotFilterRef.current = false;
+  }, [selectedVehicleId, driverType, selectedParkId]);
+
+  const handleSpotFilterChange = (filter: SpotFilter) => {
+    didUserSetSpotFilterRef.current = true;
+    setSpotFilter(filter);
+  };
 
   useEffect(() => {
     if (step !== 4) return;
@@ -260,7 +296,7 @@ export function ReservationPage() {
             {step === 2 && selectedLot && (
               <Step2SpotChoice
                 lot={selectedLot}
-                spotFilter={spotFilter} setSpotFilter={setSpotFilter}
+                spotFilter={spotFilter} onSpotFilterChange={handleSpotFilterChange}
                 selectedFloorId={selectedFloorId} setSelectedFloorId={setSelectedFloorId}
                 selectedSpotId={selectedSpotId} setSelectedSpotId={setSelectedSpotId}
                 onNext={() => setStep(3)} onBack={() => setStep(1)}

@@ -78,6 +78,11 @@ export function CompactParkRow({ lot, filterMode }: Readonly<CompactParkRowProps
         <div className="text-right flex-shrink-0">
           <span className="block font-extrabold text-foreground" style={{ fontSize: '0.875rem' }}>€{lot.hourlyRate.toFixed(2)}</span>
           <span className="text-muted-foreground uppercase" style={{ fontSize: '0.6rem' }}>/hora</span>
+          {lot.distance && lot.distance !== 'N/D' && (
+            <span className="flex items-center gap-1 text-muted-foreground justify-end mt-1" style={{ fontSize: '0.7rem' }}>
+              <i className="fas fa-car text-[0.6rem]" /> {lot.distance}
+            </span>
+          )}
           <span className="flex items-center gap-1 text-muted-foreground justify-end mt-1" style={{ fontSize: '0.7rem' }}>
             <i className="fas fa-person-walking text-[0.6rem]" /> {lot.walkingTime}
           </span>

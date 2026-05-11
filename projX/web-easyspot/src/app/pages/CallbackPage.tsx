@@ -33,7 +33,8 @@ export function CallbackPage() {
     }
 
     if (!code || !state) {
-      setError('Parâmetros de callback inválidos.');
+      // Logout callback can return without OIDC auth params.
+      navigate('/welcome', { replace: true });
       return;
     }
 

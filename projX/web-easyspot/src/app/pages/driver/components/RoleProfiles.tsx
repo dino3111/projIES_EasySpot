@@ -4,6 +4,7 @@ import { useProfile } from '../../../context/ProfileContext';
 import { parksApi, paymentApi, profileApi, type DriverProfileResponse, type ManagerProfileResponse, type ParkSummary, type PaymentMethodSummaryResponse, type ProfileResponse, type TechnicianProfileResponse } from '../../../../services/apiService';
 import { SectionHeader, UserTypeOption, ToggleRow, StatCard, AccountRow, AccountRowWithBadge } from './ProfilePrimitives';
 import { StepPaymentStripe } from '../welcome/StepPaymentStripe';
+import { LocationPreviewMap } from '../../../components/parking/LocationPreviewMap';
 
 const DRIVER_LOCATION_ENABLED_KEY = 'easyspot_driver_location_enabled';
 
@@ -195,9 +196,14 @@ export function DriverProfile({ profileData, onProfileUpdate }: Readonly<{ profi
         <div className="px-4 pb-3">
           {locationEnabled ? (
             currentLocation ? (
-              <p className="text-muted-foreground" style={{ fontSize: '0.74rem' }}>
-                Local atual: {currentLocation.lat.toFixed(6)}, {currentLocation.lng.toFixed(6)} · {currentLocation.capturedAt.toLocaleTimeString('pt-PT')}
-              </p>
+              <div className="space-y-2">
+                <p className="text-muted-foreground" style={{ fontSize: '0.74rem' }}>
+                  Local atual: {currentLocation.lat.toFixed(6)}, {currentLocation.lng.toFixed(6)} · {currentLocation.capturedAt.toLocaleTimeString('pt-PT')}
+                </p>
+                <div className="rounded-xl overflow-hidden border border-border bg-muted/20">
+                  <LocationPreviewMap lat={currentLocation.lat} lng={currentLocation.lng} />
+                </div>
+              </div>
             ) : (
               <p className="text-muted-foreground" style={{ fontSize: '0.74rem' }}>
                 A obter localização...

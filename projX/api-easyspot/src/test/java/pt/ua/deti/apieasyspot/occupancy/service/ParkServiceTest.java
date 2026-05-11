@@ -154,4 +154,30 @@ class ParkServiceTest {
         assertThatThrownBy(() -> parkService.getDetails(lotId))
             .isInstanceOf(ResourceNotFoundException.class);
     }
+
+    @Test
+    void getDetails_sensorOccupancyMarksEvAsOccupied() {
+        when(parkingLotRepository.findById(lotId)).thenReturn(Optional.of(lot));
+        when(reservationRepository.findActiveWithSpotByParkId(lotId)).thenReturn(List.of());
+        when(timescaleOccupancySnapshotRepository.latestByLot(lotId)).thenReturn(List.of(
+            new ZoneSnapshot(ZoneType.EV, 1, 1, Instant.now())
+        ));
+        when(tariffRepository.findByParkingLotId(lotId)).thenReturn(List.of());
+        when(evChargerRepository.findByParkingLotId(lotId)).thenReturn(List.of());
+        when(accessibleSpotRepository.findByParkingLotId(lotId)).thenReturn(List.of());
+
+        ParkingSpot evSpot = new ParkingSpot();
+        evSpot.setId(UUID.randomUUID());
+        evSpot.setSpotNumber("EV1");
+        evSpot.setZone(ZoneType.EV);
+        evSpot.setSpotRow(1);
+        evSpot.setSpotCol(1);
+        evSpot.setStatus("ev");
+        when(parkingSpotRepository.findByParkingLotId(lotId)).thenReturn(List.of(evSpot));
+
+        ParkingLotDetailsResponse response = parkService.getDetails(lotId);
+
+        assertThat(response.spotMap()).hasSize(1);
+        assertThat(response.spotMap().get(0).status()).isEqualTo("occupied");
+    }
 }

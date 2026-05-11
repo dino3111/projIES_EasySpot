@@ -15,6 +15,7 @@ import java.util.UUID;
 public interface ReservationRepository extends JpaRepository<Reservation, UUID> {
 
     Optional<Reservation> findByIdempotencyKey(String idempotencyKey);
+    Optional<Reservation> findByUserIdAndIdempotencyKey(UUID userId, String idempotencyKey);
 
     List<Reservation> findByUserIdOrderByCreatedAtDesc(UUID userId);
 

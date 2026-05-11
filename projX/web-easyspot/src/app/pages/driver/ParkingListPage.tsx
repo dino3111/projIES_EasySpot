@@ -6,8 +6,7 @@ import type { ParkingLot } from '../../data/parkingTypes';
 import { useProfile } from '../../context/ProfileContext';
 import { CompactParkRow } from './components/CompactParkRow';
 import { FilterBanners } from './components/FilterBanners';
-import { fetchParkCities, fetchParksList } from '../../services/parksApi';
-import { subscribeSpaceAvailableAlerts } from '../../services/parksApi';
+import { fetchParkCities, fetchParksList, subscribeSpaceAvailableAlerts, haversineKm, formatDistance, formatWalkingTime } from '../../services/parksApi';
 
 interface QueryState {
   page: number;
@@ -20,9 +19,21 @@ interface QueryState {
 }
 
 export function ParkingListPage() {
-  const { vehicles } = useProfile();
+  const { vehicles, driverType } = useProfile();
   const primaryVehicle = vehicles.find((v) => v.isPrimary) ?? vehicles[0] ?? null;
 
+  const resolveProfileFilters = () => {
+    if (driverType === 'ev') return { evOnly: true, accessibleOnly: false };
+    if (driverType === 'reduced_mobility') return { evOnly: false, accessibleOnly: true };
+    return {
+      evOnly: primaryVehicle?.isEV ?? false,
+      accessibleOnly: primaryVehicle?.isAccessible ?? false,
+    };
+  };
+
+  const profileFilters = resolveProfileFilters();
+
+  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [parkingLots, setParkingLots] = useState<ParkingLot[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -36,14 +47,33 @@ export function ParkingListPage() {
     const vehicle = primaryVehicle;
     return {
       page: 1,
-      showEVOnly: vehicle?.isEV ?? false,
-      showAccessibleOnly: vehicle?.isAccessible ?? false,
+      showEVOnly: driverType === 'ev' ? true : (vehicle?.isEV ?? false),
+      showAccessibleOnly: driverType === 'reduced_mobility' ? true : (vehicle?.isAccessible ?? false),
       showAvailableOnly: false,
       searchQuery: '',
       selectedDistrict: '',
       selectedVehicleId: vehicle?.id ?? null,
     };
   });
+
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setUserCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => { /* permission denied or unavailable — keep null */ },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+    );
+  }, []);
+
+  useEffect(() => {
+    if (!userCoords) return;
+    setParkingLots((prev) =>
+      prev.map((lot) => {
+        const km = haversineKm(userCoords.lat, userCoords.lng, lot.latitude, lot.longitude);
+        return { ...lot, distance: formatDistance(km), walkingTime: formatWalkingTime(km) };
+      }),
+    );
+  }, [userCoords]);
 
   // Track whether the user has manually chosen a vehicle so we don't overwrite their selection.
   const userSelectedVehicleRef = useRef(false);
@@ -53,11 +83,11 @@ export function ParkingListPage() {
     setQuery((prev) => ({
       ...prev,
       selectedVehicleId: primaryVehicle?.id ?? null,
-      showEVOnly: primaryVehicle?.isEV ?? false,
-      showAccessibleOnly: primaryVehicle?.isAccessible ?? false,
+      showEVOnly: profileFilters.evOnly,
+      showAccessibleOnly: profileFilters.accessibleOnly,
       page: 1,
     }));
-  }, [primaryVehicle?.id, primaryVehicle?.isEV, primaryVehicle?.isAccessible]);
+  }, [primaryVehicle?.id, primaryVehicle?.isEV, primaryVehicle?.isAccessible, profileFilters.evOnly, profileFilters.accessibleOnly]);
 
   const setFilter = <K extends keyof Omit<QueryState, 'page'>>(key: K, value: QueryState[K]) => {
     setQuery((prev) => ({ ...prev, [key]: value, page: 1 }));
@@ -100,7 +130,14 @@ export function ParkingListPage() {
           availableOnly: query.showAvailableOnly,
         });
         if (!mounted) return;
-        setParkingLots(data.items);
+        const coords = userCoords;
+        const lots = coords
+          ? data.items.map((lot) => {
+              const km = haversineKm(coords.lat, coords.lng, lot.latitude, lot.longitude);
+              return { ...lot, distance: formatDistance(km), walkingTime: formatWalkingTime(km) };
+            })
+          : data.items;
+        setParkingLots(lots);
         setTotalPages(data.pagination.totalPages);
       } catch {
         if (mounted) setLoadError('Não foi possível carregar parques do backend.');

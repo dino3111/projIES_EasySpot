@@ -52,7 +52,7 @@ function buildAvailabilityContext(params: AvailabilityParams): AvailabilityConte
 }
 
 export function ParkingCard({ lot, highlightAccessible = false, filterMode = null }: ParkingCardProps) {
-  const { id, name, address, availableSpots, totalSpots, hourlyRate, walkingTime,
+  const { id, name, address, availableSpots, totalSpots, hourlyRate, walkingTime, distance,
           hasEVCharger, hasAccessible, evChargers, accessibleSpots } = lot;
 
   const evAvail = evChargers?.filter((c) => c.available).length ?? 0;
@@ -249,9 +249,16 @@ export function ParkingCard({ lot, highlightAccessible = false, filterMode = nul
                   </p>
                 </div>
               </div>
-              <span className="flex items-center gap-1 text-muted-foreground font-medium" style={{ fontSize: '0.7rem' }}>
-                <i className="fas fa-person-walking" aria-hidden="true" /> {walkingTime}
-              </span>
+              <div className="flex flex-col items-end gap-0.5">
+                {distance && distance !== 'N/D' && (
+                  <span className="flex items-center gap-1 text-muted-foreground font-medium" style={{ fontSize: '0.7rem' }}>
+                    <i className="fas fa-car" aria-hidden="true" /> {distance}
+                  </span>
+                )}
+                <span className="flex items-center gap-1 text-muted-foreground font-medium" style={{ fontSize: '0.7rem' }}>
+                  <i className="fas fa-person-walking" aria-hidden="true" /> {walkingTime}
+                </span>
+              </div>
             </div>
 
             {filterMode === 'accessible' && closestAvailAcc && (

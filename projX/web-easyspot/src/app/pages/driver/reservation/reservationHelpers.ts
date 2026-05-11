@@ -98,13 +98,12 @@ export function isSpotSelectable(spot: ParkingSpot, filter: SpotFilter): boolean
 }
 
 export function spotColorClasses(spot: ParkingSpot, selected: boolean, selectable: boolean): string {
-  if (selected) return 'bg-primary text-primary-content border-primary shadow-md scale-110';
+  if (selected) return 'bg-[#1d4ed8] text-white border-[#1e40af] ring-2 ring-[#93c5fd] shadow-lg scale-110';
   if (!selectable) {
-    if (spot.status === 'occupied') return 'bg-error/80 text-error-content cursor-not-allowed opacity-80';
-    // reservado e filtrado: mesmo cinzento uniforme, sem se destacar
-    return 'bg-base-300 text-base-content/30 cursor-not-allowed opacity-50';
+    if (spot.status === 'occupied') return 'bg-[#b91c1c] text-white border-[#7f1d1d] cursor-not-allowed opacity-90';
+    return 'bg-[#6b7280] text-white border-[#4b5563] cursor-not-allowed opacity-65';
   }
-  if (spot.status === 'ev') return 'bg-warning text-warning-content hover:scale-105 hover:shadow cursor-pointer border-warning';
-  if (spot.status === 'accessible') return 'bg-info text-info-content hover:scale-105 hover:shadow cursor-pointer border-info';
-  return 'bg-success/80 text-success-content hover:scale-105 hover:shadow cursor-pointer border-success/50';
+  if (spot.status === 'ev') return 'bg-[#f59e0b] text-black border-[#b45309] ring-1 ring-[#fcd34d] hover:scale-105 hover:shadow-md cursor-pointer';
+  if (spot.status === 'accessible') return 'bg-[#06b6d4] text-black border-[#0e7490] ring-1 ring-[#67e8f9] hover:scale-105 hover:shadow-md cursor-pointer';
+  return 'bg-[#22c55e] text-black border-[#15803d] ring-1 ring-[#86efac] hover:scale-105 hover:shadow-md cursor-pointer';
 }

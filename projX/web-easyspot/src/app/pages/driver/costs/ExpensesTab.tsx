@@ -6,6 +6,7 @@ import {
 import { COLORS } from './costsHelpers';
 import { fetchDriverSpending, type DriverSpendingResponse, type SpendingTimeWindow } from '../../../services/costsApi';
 import { useProfile } from '../../../context/ProfileContext';
+import { VehiclePicker } from '../../../components/shared/VehiclePicker';
 
 const PERIODS: { id: SpendingTimeWindow; label: string }[] = [
   { id: '7D', label: '7 dias' }, { id: '30D', label: '30 dias' }, { id: '3M', label: '3 meses' },
@@ -120,22 +121,13 @@ export function ExpensesTab() {
     <div className="animate-in fade-in duration-200">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
         <div className="flex items-center gap-2">
-          <span className="text-muted-foreground font-semibold flex-shrink-0" style={{ fontSize: '0.78rem' }}>
-            <i className="fas fa-car mr-1 text-primary/70" />Veículo
-          </span>
-          <div className="relative flex items-center">
-            <select
-              value={selectedVehicleId ?? ''}
-              onChange={(e) => setSelectedVehicleId(e.target.value || null)}
-              aria-label="Filtrar por veículo"
-              className="rounded-xl border border-border bg-card text-foreground font-semibold focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all appearance-none pl-3 pr-7"
-              style={{ fontSize: '0.82rem', paddingTop: '0.4rem', paddingBottom: '0.4rem' }}
-            >
-              <option value="">Todos</option>
-              {vehicles.map((v) => <option key={v.id} value={v.id}>{v.plate} ({v.model})</option>)}
-            </select>
-            <i className="fas fa-chevron-down text-muted-foreground pointer-events-none absolute right-2.5" style={{ fontSize: '0.6rem' }} />
-          </div>
+          <VehiclePicker
+            vehicles={vehicles}
+            selectedId={selectedVehicleId}
+            onSelect={setSelectedVehicleId}
+            allLabel="Todos"
+            className="flex items-center"
+          />
         </div>
         <div className="flex gap-1 p-1 bg-muted rounded-xl">
           {PERIODS.map((p) => (
