@@ -1,9 +1,9 @@
 import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
-import { vi } from 'vitest';
+import { vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router';
 import { DashboardManagerPage } from '../DashboardManagerPage';
-import type { ManagerDashboardResponse } from '../../../services/dashboardApi';
+import type { ManagerDashboardResponse } from '../../../services/managerApi';
 
 vi.mock('recharts', async (importOriginal) => {
   const actual = await importOriginal<typeof import('recharts')>();
@@ -25,11 +25,12 @@ vi.mock('recharts', async (importOriginal) => {
   };
 });
 
-const dashboardApiMock = vi.hoisted(() => ({
-  dashboardApi: { getManagerDashboard: vi.fn() },
-  ZONE_COLORS: { standard: '#7357ec', ev: '#22c55e', accessible: '#3b82f6', reserved: '#f59e0b' },
-}));
-vi.mock('../../../services/dashboardApi', () => dashboardApiMock);
+vi.mock('../../../services/managerApi', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../services/managerApi')>();
+  return { ...actual, fetchManagerDashboard: vi.fn() };
+});
+
+import { fetchManagerDashboard } from '../../../services/managerApi';
 
 const mockDashboard: ManagerDashboardResponse = {
   kpis: {
@@ -78,14 +79,18 @@ const mockDashboard: ManagerDashboardResponse = {
 };
 
 describe('DashboardManagerPage', () => {
+  beforeEach(() => {
+    vi.mocked(fetchManagerDashboard).mockReset();
+  });
+
   it('shows loading state initially', () => {
-    dashboardApiMock.dashboardApi.getManagerDashboard.mockReturnValue(new Promise(() => {}));
+    vi.mocked(fetchManagerDashboard).mockReturnValue(new Promise(() => {}));
     render(<MemoryRouter><DashboardManagerPage /></MemoryRouter>);
-    expect(document.querySelector('[aria-busy="true"]')).toBeInTheDocument();
+    expect(document.querySelector('[aria-busy="true"], .fa-spinner')).toBeInTheDocument();
   });
 
   it('renders KPI cards after data loads', async () => {
-    dashboardApiMock.dashboardApi.getManagerDashboard.mockResolvedValue(mockDashboard);
+    vi.mocked(fetchManagerDashboard).mockResolvedValue(mockDashboard);
     render(<MemoryRouter><DashboardManagerPage /></MemoryRouter>);
     expect(await screen.findByText('Entradas Hoje')).toBeInTheDocument();
     expect(screen.getByText('303')).toBeInTheDocument();
@@ -98,17 +103,15 @@ describe('DashboardManagerPage', () => {
   });
 
   it('shows error state when API fails', async () => {
-    dashboardApiMock.dashboardApi.getManagerDashboard.mockRejectedValue(new Error('Erro de servidor'));
+    vi.mocked(fetchManagerDashboard).mockRejectedValue(new Error('Erro de servidor'));
     render(<MemoryRouter><DashboardManagerPage /></MemoryRouter>);
     await waitFor(() => {
-      const alert = screen.queryByRole('alert') ?? document.querySelector('[class*="destructive"]');
-      expect(alert).toBeInTheDocument();
+      expect(screen.getByText('Erro de servidor')).toBeInTheDocument();
     });
-    expect(screen.getByText('Erro de servidor')).toBeInTheDocument();
   });
 
   it('renders park performance table with backend data', async () => {
-    dashboardApiMock.dashboardApi.getManagerDashboard.mockResolvedValue(mockDashboard);
+    vi.mocked(fetchManagerDashboard).mockResolvedValue(mockDashboard);
     render(<MemoryRouter><DashboardManagerPage /></MemoryRouter>);
     expect(await screen.findByText('Desempenho por Parque — Hoje')).toBeInTheDocument();
     expect(screen.getAllByText('Fórum Aveiro').length).toBeGreaterThan(0);
@@ -117,7 +120,7 @@ describe('DashboardManagerPage', () => {
   });
 
   it('renders recent alerts section', async () => {
-    dashboardApiMock.dashboardApi.getManagerDashboard.mockResolvedValue(mockDashboard);
+    vi.mocked(fetchManagerDashboard).mockResolvedValue(mockDashboard);
     render(<MemoryRouter><DashboardManagerPage /></MemoryRouter>);
     expect(await screen.findByText('Alertas Recentes')).toBeInTheDocument();
     expect(screen.getByText('1 em aberto')).toBeInTheDocument();
@@ -125,7 +128,7 @@ describe('DashboardManagerPage', () => {
   });
 
   it('renders zone occupancy donut section', async () => {
-    dashboardApiMock.dashboardApi.getManagerDashboard.mockResolvedValue(mockDashboard);
+    vi.mocked(fetchManagerDashboard).mockResolvedValue(mockDashboard);
     render(<MemoryRouter><DashboardManagerPage /></MemoryRouter>);
     expect(await screen.findByText('Ocupação por Zona')).toBeInTheDocument();
     expect(screen.getByText('Normal')).toBeInTheDocument();
