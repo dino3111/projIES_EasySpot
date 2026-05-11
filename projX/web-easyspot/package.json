@@ -6,7 +6,7 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite",
-    "test": "vitest run",
+    "test": "node scripts/run-vitest-sequential.mjs",
     "test:watch": "vitest",
     "preview": "vite preview",
     "test:e2e": "playwright test"

@@ -79,6 +79,24 @@ test.beforeEach(async ({ page }) => {
       emailNotificationsEnabled: true, spending: { totalEuros: 0, sessionCount: 0, avgEuros: 0 }, favoritesCount: 1,
     } });
   });
+
+  await page.route('**/api/payments/setup-status', async (route) => {
+    await route.fulfill({ json: { configured: true } });
+  });
+
+  await page.route('**/api/payments/methods', async (route) => {
+    await route.fulfill({
+      json: [{
+        id: 'pm_1',
+        type: 'card',
+        brand: 'visa',
+        last4: '4242',
+        expMonth: 12,
+        expYear: 2030,
+        isDefault: true,
+      }],
+    });
+  });
 });
 
 test('Lista de parques', async ({ page }) => {
@@ -204,6 +222,24 @@ test('Tarifas do parque — mostra gráfico de ocupação histórica', async ({ 
 });
 
 test('Planeamento — condutor vê recomendações com preços', async ({ page }) => {
+  await page.route('**/search?*', async (route) => {
+    const url = new URL(route.request().url());
+    const query = url.searchParams.get('q') ?? '';
+    if (query.toLowerCase().includes('coimbra')) {
+      await route.fulfill({
+        json: [
+          {
+            lat: '40.20331',
+            lon: '-8.41026',
+            display_name: 'Coimbra, Portugal',
+          },
+        ],
+      });
+      return;
+    }
+    await route.fulfill({ json: [] });
+  });
+
   await page.route('**/api/driver/costs/planning**', async (route) => {
     await route.fulfill({ json: { recommendations: [{
       id: 'park-1', name: 'Parque Central', address: 'Rua A, Coimbra',
@@ -216,6 +252,9 @@ test('Planeamento — condutor vê recomendações com preços', async ({ page }
     }] } });
   });
   await page.goto('/costs?tab=planeamento');
+  await page.getByLabel('Pesquisar destino no mapa').fill('Coimbra');
+  await expect(page.getByText('Coimbra, Portugal')).toBeVisible();
+  await page.getByText('Coimbra, Portugal').click();
   await expect(page.getByText('Parque Central')).toBeVisible();
   await expect(page.getByText(/€1\.50/)).toBeVisible();
 });
@@ -232,12 +271,46 @@ test('Planeamento — condutor expande previsão de ocupação', async ({ page }
       ],
     }] } });
   });
+  await page.route('**/search?*', async (route) => {
+    const url = new URL(route.request().url());
+    if ((url.searchParams.get('q') ?? '').toLowerCase().includes('coimbra')) {
+      await route.fulfill({
+        json: [
+          {
+            lat: '40.20331',
+            lon: '-8.41026',
+            display_name: 'Coimbra, Portugal',
+          },
+        ],
+      });
+      return;
+    }
+    await route.fulfill({ json: [] });
+  });
   await page.goto('/costs?tab=planeamento');
-  await page.getByRole('button', { name: /Ver previsão/i }).click();
+  await page.getByLabel('Pesquisar destino no mapa').fill('Coimbra');
+  await expect(page.getByText('Coimbra, Portugal')).toBeVisible();
+  await page.getByText('Coimbra, Portugal').click();
+  await page.getByRole('button', { name: /Ver previsão de ocupação/i }).click();
   await expect(page.getByText(/Previsão de ocupação/).first()).toBeVisible();
 });
 
 // ── Reservation E2E tests ────────────────────────────────────────────────────
+
+async function fillValidReservationSchedule(page: import('@playwright/test').Page) {
+  const toLocalInput = (date: Date) => {
+    const pad = (value: number) => String(value).padStart(2, '0');
+    return [
+      date.getFullYear(),
+      pad(date.getMonth() + 1),
+      pad(date.getDate()),
+    ].join('-') + `T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  };
+  const arrival = toLocalInput(new Date(Date.now() + 60 * 60 * 1000));
+  const exit = toLocalInput(new Date(Date.now() + 2 * 60 * 60 * 1000));
+  await page.getByLabel('Data e hora de chegada').fill(arrival);
+  await page.getByLabel('Hora de saída prevista').fill(exit);
+}
 
 test.describe('Reserva de lugar', () => {
   test.beforeEach(async ({ page }) => {
@@ -262,6 +335,7 @@ test.describe('Reserva de lugar', () => {
     await page.goto('/reservation?parkId=park-1');
     await waitForLoaded(page);
     await expect(page.getByRole('heading', { name: 'Reservar Lugar' })).toBeVisible();
+    await fillValidReservationSchedule(page);
 
     // Ensure arrival/exit times are valid (far future) so button is enabled
     const arrival = new Date(Date.now() + 2 * 3600_000).toISOString().slice(0, 16);
@@ -284,12 +358,13 @@ test.describe('Reserva de lugar', () => {
     await page.goto('/reservation?parkId=park-1');
     await waitForLoaded(page);
     await expect(page.getByRole('heading', { name: 'Reservar Lugar' })).toBeVisible();
+    await fillValidReservationSchedule(page);
 
     // Ensure arrival/exit times are valid so button is enabled
-    const arrival = new Date(Date.now() + 2 * 3600_000).toISOString().slice(0, 16);
-    const exit = new Date(Date.now() + 4 * 3600_000).toISOString().slice(0, 16);
-    await page.locator('#arrival-input').fill(arrival);
-    await page.locator('#exit-input').fill(exit);
+    const arrival2 = new Date(Date.now() + 2 * 3600_000).toISOString().slice(0, 16);
+    const exit2 = new Date(Date.now() + 4 * 3600_000).toISOString().slice(0, 16);
+    await page.locator('#arrival-input').fill(arrival2);
+    await page.locator('#exit-input').fill(exit2);
 
     // Step 1: avança (parque já pré-selecionado via parkId)
     await page.getByRole('button', { name: /Avançar para escolha do lugar/i }).click();
@@ -300,7 +375,7 @@ test.describe('Reserva de lugar', () => {
     await page.getByRole('button', { name: 'Confirmar Lugar' }).click();
 
     await page.getByRole('checkbox').click();
-    await page.getByRole('button', { name: /Confirmar e reservar lugar/i }).click();
+    await page.getByRole('button', { name: /Confirmar Reserva/i }).click();
 
     await expect(page.getByText('ES-ABCD-EFGH')).toBeVisible();
   });
@@ -316,13 +391,14 @@ test.describe('Reserva de lugar', () => {
 
     await page.goto('/reservation?parkId=park-1');
     await waitForLoaded(page);
-    await page.getByRole('button', { name: /Avançar para escolha do lugar/i }).click();
+    await fillValidReservationSchedule(page);
+    await page.getByRole('button', { name: /Escolher Lugar/i }).click();
     await expect(page.getByRole('button', { name: 'Lugar A1' })).toBeVisible();
     await page.getByRole('button', { name: 'Lugar A1' }).click();
     await page.getByRole('button', { name: 'Confirmar Lugar' }).click();
     await page.getByRole('checkbox').click();
-    await page.getByRole('button', { name: /Confirmar e reservar lugar/i }).click();
+    await page.getByRole('button', { name: /Confirmar Reserva/i }).click();
 
-    await expect(page.locator('.alert-error')).toContainText(/not available|indisponível|conflito/i);
+    await expect(page.locator('.alert-error')).toContainText(/não está disponível/i);
   });
 });

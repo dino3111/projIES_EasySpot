@@ -60,7 +60,7 @@ public class Reservation {
     @Column(nullable = false, length = 20)
     private ReservationStatus status;
 
-    // Spot is held for 30 min after arrivalTime; null once COMPLETED/CANCELLED
+    // Spot is held for 30 min after arrivalTime; null once terminal (COMPLETED/CANCELLED/EXPIRED)
     @Column
     private OffsetDateTime lockedUntil;
 

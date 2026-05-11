@@ -52,19 +52,66 @@ export async function createReservation(
   }));
 
   if (!res.ok) {
-    const detail = await res.json().catch(() => ({})) as { detail?: string; title?: string };
-    const message = detail.detail ?? detail.title ?? `HTTP ${res.status}`;
+    const rawBody = await res.text().catch(() => '');
+    const message = buildReservationErrorMessage(res.status, rawBody);
     throw Object.assign(new Error(message), { status: res.status });
   }
 
   return res.json() as Promise<ReservationResponse>;
 }
 
+function buildReservationErrorMessage(status: number, body: string): string {
+  const trimmed = body.trim();
+
+  if (!trimmed) {
+    return defaultReservationErrorMessage(status);
+  }
+
+  try {
+    const parsed = JSON.parse(trimmed) as { detail?: string; title?: string; message?: string };
+    const message = parsed.detail ?? parsed.message ?? parsed.title;
+    if (message) {
+      return normalizeReservationErrorMessage(status, message);
+    }
+  } catch {
+    // Fall through to plain-text handling.
+  }
+
+  return normalizeReservationErrorMessage(status, trimmed);
+}
+
+function normalizeReservationErrorMessage(status: number, message: string): string {
+  const lowered = message.toLowerCase();
+  if (status === 422 && (lowered.includes('stripe') || lowered.includes('payment') || lowered.includes('caução'))) {
+    return 'Antes de reservar, configure um método de pagamento Stripe nas suas definições.';
+  }
+  if (status === 409) {
+    return 'O lugar ou o parque já não está disponível para o período selecionado.';
+  }
+  if (status === 404) {
+    return 'Não foi possível encontrar o parque, veículo ou lugar selecionado.';
+  }
+  return message;
+}
+
+function defaultReservationErrorMessage(status: number): string {
+  switch (status) {
+    case 422:
+      return 'Não foi possível validar a reserva. Verifique horários e configuração de pagamento.';
+    case 409:
+      return 'Não foi possível concluir a reserva porque existe um conflito de disponibilidade.';
+    case 404:
+      return 'O parque, veículo ou lugar selecionado não foi encontrado.';
+    default:
+      return `HTTP ${status}`;
+  }
+}
+
 const FALLBACK_LOCK_SECONDS = 30 * 60;
 
 export function lockedUntilCountdownSeconds(lockedUntil: string): number {
   const lockDate = new Date(lockedUntil);
-  if (isNaN(lockDate.getTime())) return FALLBACK_LOCK_SECONDS;
+  if (Number.isNaN(lockDate.getTime())) return FALLBACK_LOCK_SECONDS;
   const diff = Math.floor((lockDate.getTime() - Date.now()) / 1000);
   return diff > 0 ? diff : FALLBACK_LOCK_SECONDS;
 }

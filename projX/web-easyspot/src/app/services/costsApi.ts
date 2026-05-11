@@ -88,7 +88,7 @@ export interface SpendingQuery {
 }
 
 export interface PlanningQuery {
-  city: string;
+  city?: string;
   durationMinutes: number;
   isElectric?: boolean;
   isAccessible?: boolean;
@@ -118,11 +118,11 @@ export async function fetchDriverSpending(query: SpendingQuery = {}): Promise<Dr
 
 export async function fetchParkingPlanning(query: PlanningQuery): Promise<PlanningResponse> {
   const params = new URLSearchParams({
-    city: query.city,
     estimatedDurationMinutes: String(query.durationMinutes),
     lat: String(query.lat),
     lng: String(query.lng),
   });
+  if (query.city) params.set('city', query.city);
 
   if (query.isElectric !== undefined) params.set('isElectric', String(query.isElectric));
   if (query.isAccessible !== undefined) params.set('isAccessible', String(query.isAccessible));

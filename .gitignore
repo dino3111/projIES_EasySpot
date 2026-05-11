@@ -262,6 +262,6 @@ crash.log
 package-lock.json
 CLAUDE.md
 pnpm-lock.yaml
+playwright-report
 test-results
 .claude
-playwrite-report
