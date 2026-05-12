@@ -60,6 +60,7 @@ const mockDashboard: ManagerDashboardResponse = {
       sensorId: 'IR-AV1-B07',
       plate: null,
       description: 'Sensor infravermelho sem leituras.',
+      photoUrl: null,
       severity: 'critica',
       state: 'aberto',
       createdAt: '2026-03-09T08:14:00Z',

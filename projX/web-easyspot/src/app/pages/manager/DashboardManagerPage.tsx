@@ -4,6 +4,7 @@ import {
   AreaChart, Area, PieChart, Pie, Cell,
 } from 'recharts';
 import { KpiCard, AlertRow, OccBar } from './components/shared';
+import { IssueModal } from './components/IssueModal';
 import type { IssueReport } from '../../data/gestorData';
 import {
   fetchManagerDashboard,
@@ -56,6 +57,7 @@ function mapAlertToIssue(a: DashboardAlertSummary): IssueReport {
     criadoEm: a.createdAt ?? '',
     atribuidoA: a.attributedTo ?? undefined,
     notas: a.notes ?? undefined,
+    fotoUrl: a.photoUrl ?? undefined,
   };
 }
 
@@ -77,6 +79,7 @@ function formatVariation(variation: number) {
 
 export function DashboardManagerPage() {
   const [chartTab, setChartTab] = useState<ChartTab>('entradas');
+  const [selectedIssue, setSelectedIssue] = useState<IssueReport | null>(null);
   const [data, setData] = useState<ManagerDashboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -138,9 +141,10 @@ export function DashboardManagerPage() {
 
       <HourlyChart series={occupancyPerHour} />
 
-      <AlertsSection alerts={lastAlerts} alertasAbertos={alertasAbertos.length} />
+      <AlertsSection alerts={lastAlerts} alertasAbertos={alertasAbertos.length} onSelectIssue={setSelectedIssue} />
 
       <ParkTable parks={performancePerPark} />
+      {selectedIssue && <IssueModal issue={selectedIssue} onClose={() => setSelectedIssue(null)} />}
     </div>
   );
 }
@@ -264,7 +268,15 @@ function HourlyChart({ series }: { readonly series: DashboardHourlyOccupancy[] }
   );
 }
 
-function AlertsSection({ alerts, alertasAbertos }: { readonly alerts: DashboardAlertSummary[]; readonly alertasAbertos: number }) {
+function AlertsSection({
+  alerts,
+  alertasAbertos,
+  onSelectIssue,
+}: {
+  readonly alerts: DashboardAlertSummary[];
+  readonly alertasAbertos: number;
+  readonly onSelectIssue: (issue: IssueReport) => void;
+}) {
   const issues = alerts.slice(0, 5).map(mapAlertToIssue);
   return (
     <div className="bg-card border border-border rounded-2xl p-4">
@@ -275,7 +287,11 @@ function AlertsSection({ alerts, alertasAbertos }: { readonly alerts: DashboardA
         </span>
       </div>
       <div className="space-y-2">
-        {issues.map((issue) => <AlertRow key={issue.id} issue={issue} />)}
+        {issues.map((issue) => (
+          <button key={issue.id} onClick={() => onSelectIssue(issue)} className="w-full text-left">
+            <AlertRow issue={issue} />
+          </button>
+        ))}
       </div>
       <a href="/manager/tariffs-incidents" className="mt-3 flex items-center gap-1.5 text-primary hover:opacity-80 transition-opacity" style={{ fontSize: '0.8rem', fontWeight: 600 }}>
         Ver todos os registos

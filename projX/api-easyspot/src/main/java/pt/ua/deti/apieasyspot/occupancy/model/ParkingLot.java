@@ -2,6 +2,7 @@ package pt.ua.deti.apieasyspot.occupancy.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import pt.ua.deti.apieasyspot.auth.model.User;
 
 import java.util.List;
 import java.util.UUID;
@@ -35,6 +36,10 @@ public class ParkingLot {
 
     @Column(nullable = false)
     private Integer totalSpaces;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "technician_user_id")
+    private User technician;
 
     @ElementCollection
     @CollectionTable(name = "parking_lot_amenities", joinColumns = @JoinColumn(name = "parking_lot_id"))

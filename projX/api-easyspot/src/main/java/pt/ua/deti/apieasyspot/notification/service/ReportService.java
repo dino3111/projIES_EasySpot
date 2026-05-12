@@ -47,10 +47,11 @@ public class ReportService {
 
         User driver = findUser(authentikUserId);
         ParkingLot parkingLot = findPark(request.parkingLotId());
+        User technician = findTechnician(parkingLot);
 
         String photoUrl = (photo != null && !photo.isEmpty()) ? uploadPhoto(photo) : null;
 
-        Alert alert = buildAlert(request, parkingLot, driver, photoUrl);
+        Alert alert = buildAlert(request, parkingLot, technician, photoUrl);
         Alert saved = alertRepository.save(alert);
 
         ReportResponse response = toResponse(saved, parkingLot);
@@ -84,7 +85,7 @@ public class ReportService {
         }
     }
 
-    private Alert buildAlert(CreateReportRequest request, ParkingLot park, User driver, String photoUrl) {
+    private Alert buildAlert(CreateReportRequest request, ParkingLot park, User technician, String photoUrl) {
         Alert alert = new Alert();
         alert.setParkingLotId(park.getId());
         alert.setParkingLotName(park.getName());
@@ -96,9 +97,20 @@ public class ReportService {
         alert.setPlate(request.vehiclePlate());
         alert.setDescription(request.description());
         alert.setPhotoUrl(photoUrl);
-        alert.setAttributedTo(driver.getName());
+        alert.setAttributedTo(technician.getName());
         alert.setCreatedAt(OffsetDateTime.now(ZoneOffset.UTC));
         return alert;
+    }
+
+    private User findTechnician(ParkingLot parkingLot) {
+        User technician = parkingLot.getTechnician();
+        if (technician == null) {
+            throw new ResourceNotFoundException("Parking lot has no assigned technician: " + parkingLot.getId());
+        }
+        if (!"TECHNICAL".equalsIgnoreCase(technician.getRole())) {
+            throw new IllegalStateException("Assigned park user is not a technician: " + technician.getAuthentikUserId());
+        }
+        return technician;
     }
 
     private SeverityAlert toSeverity(String violationType) {

@@ -47,6 +47,7 @@ class ReportServiceTest {
     @InjectMocks private ReportService reportService;
 
     private User driver;
+    private User technician;
     private ParkingLot parkingLot;
 
     @BeforeEach
@@ -55,11 +56,19 @@ class ReportServiceTest {
         driver.setId(UUID.randomUUID());
         driver.setAuthentikUserId("driver-sub-001");
         driver.setName("Filipe Teixeira");
+        driver.setRole("DRIVER");
+
+        technician = new User();
+        technician.setId(UUID.randomUUID());
+        technician.setAuthentikUserId("tech-sub-001");
+        technician.setName("Laura Farias");
+        technician.setRole("TECHNICAL");
 
         parkingLot = new ParkingLot();
         parkingLot.setId(UUID.randomUUID());
         parkingLot.setName("Parque Central");
         parkingLot.setCity("Aveiro");
+        parkingLot.setTechnician(technician);
 
         lenient().when(userRepository.findByAuthentikUserId("driver-sub-001")).thenReturn(Optional.of(driver));
         lenient().when(parkingLotRepository.findById(parkingLot.getId())).thenReturn(Optional.of(parkingLot));
@@ -234,8 +243,8 @@ class ReportServiceTest {
     }
 
     @Test
-    @DisplayName("create - attributedTo is set from driver name")
-    void create_attributedToIsDriverName() {
+    @DisplayName("create - attributedTo is set from park technician name")
+    void create_attributedToIsTechnicianName() {
         CreateReportRequest req = new CreateReportRequest(
             parkingLot.getId(), "A", "A12", "accessible", null, "desc"
         );
@@ -243,7 +252,22 @@ class ReportServiceTest {
         reportService.create("driver-sub-001", req, null);
 
         verify(alertRepository).save(argThat(alert ->
-            "Filipe Teixeira".equals(alert.getAttributedTo())
+            "Laura Farias".equals(alert.getAttributedTo())
         ));
+    }
+
+    @Test
+    @DisplayName("create - park without technician - throws ResourceNotFoundException")
+    void create_parkWithoutTechnician_throws() {
+        parkingLot.setTechnician(null);
+        CreateReportRequest req = new CreateReportRequest(
+            parkingLot.getId(), "A", "A12", "accessible", null, "desc"
+        );
+
+        assertThatThrownBy(() -> reportService.create("driver-sub-001", req, null))
+            .isInstanceOf(ResourceNotFoundException.class)
+            .hasMessageContaining("no assigned technician");
+
+        verifyNoInteractions(alertRepository, messagingTemplate);
     }
 }

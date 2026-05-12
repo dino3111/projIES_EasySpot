@@ -11,6 +11,7 @@ public record AlertSummary(
     String sensorId,
     String plate,
     String description,
+    String photoUrl,
     String severity,
     String state,
     OffsetDateTime createdAt,

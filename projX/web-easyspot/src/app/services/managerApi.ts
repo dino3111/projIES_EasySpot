@@ -43,6 +43,7 @@ export interface DashboardAlertSummary {
   sensorId: string;
   plate: string;
   description: string;
+  photoUrl: string | null;
   severity: string;
   state: string;
   createdAt: string;

@@ -33,6 +33,7 @@ export interface IssueReport {
   criadoEm: string;
   atribuidoA?: string;
   notas?: string;
+  fotoUrl?: string;
 }
 
 export interface TariffEntry {

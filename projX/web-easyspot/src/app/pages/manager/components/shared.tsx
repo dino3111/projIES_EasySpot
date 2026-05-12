@@ -65,6 +65,15 @@ export function AlertRow({ issue }: { readonly issue: IssueReport }) {
           <span className="px-1.5 py-0.5 rounded-full" style={{ fontSize: '0.62rem', fontWeight: 700, background: estadoBadge.bg, color: estadoBadge.color }}>{estadoBadge.label}</span>
         </div>
         <p className="text-muted-foreground truncate" style={{ fontSize: '0.72rem' }}>{issue.descricao}</p>
+        {issue.fotoUrl && (
+          <div className="mt-2">
+            <img
+              src={issue.fotoUrl}
+              alt={`Imagem do reporte em ${issue.parque}`}
+              className="h-20 w-full max-w-48 rounded-lg object-cover border border-border"
+            />
+          </div>
+        )}
         <p className="text-muted-foreground/70 mt-0.5" style={{ fontSize: '0.65rem' }}>
           {new Date(issue.criadoEm).toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
           {issue.atribuidoA ? ` · ${issue.atribuidoA}` : ''}
