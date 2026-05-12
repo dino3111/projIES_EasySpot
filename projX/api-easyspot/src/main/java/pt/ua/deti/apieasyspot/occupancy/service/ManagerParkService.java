@@ -59,6 +59,7 @@ public class ManagerParkService {
 
         User user = new User();
         user.setAuthentikUserId(akUser.uid());
+        user.setAuthentikPk(akUser.pk());
         user.setEmail(req.email());
         user.setName(req.name());
         user.setRole("TECHNICAL");

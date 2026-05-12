@@ -32,14 +32,14 @@ INSERT INTO users (
 
 -- test_technical parks: Fórum Aveiro, Glicínias Plaza, EasySpot EV Hub Aveiro
 INSERT INTO technician_park_assignments (id, technician_id, parking_lot_id) VALUES
-    ('31e8cb3f-8a94-4cd4-8cf7-4f913b68a74c', '80de0901-9dee-4123-b884-d9b2f99891dd', '4731819f-a806-5c1f-be8c-a478d4276840'),
-    ('57468ead-fab7-420b-a74c-9aee4d99fd2b', '80de0901-9dee-4123-b884-d9b2f99891dd', 'd8085d8f-7aaa-5eb4-b47d-2e2fe79bfe43'),
-    ('1225e501-0e3e-4bcd-9aa1-3c2c2de0b555', '80de0901-9dee-4123-b884-d9b2f99891dd', 'ee000001-0000-0000-0000-000000000001')
+('31e8cb3f-8a94-4cd4-8cf7-4f913b68a74c', '80de0901-9dee-4123-b884-d9b2f99891dd', '4731819f-a806-5c1f-be8c-a478d4276840'),
+('57468ead-fab7-420b-a74c-9aee4d99fd2b', '80de0901-9dee-4123-b884-d9b2f99891dd', 'd8085d8f-7aaa-5eb4-b47d-2e2fe79bfe43'),
+('1225e501-0e3e-4bcd-9aa1-3c2c2de0b555', '80de0901-9dee-4123-b884-d9b2f99891dd', 'ee000001-0000-0000-0000-000000000001')
 ON CONFLICT DO NOTHING;
 
 -- test_technical2 parks: Estádio Cidade de Coimbra, CoimbraShopping, Europa (Leiria)
 INSERT INTO technician_park_assignments (id, technician_id, parking_lot_id) VALUES
-    ('a1000001-0000-0000-0000-000000000001', '8d1b2b9b-e5d5-4de7-98c9-ff1d379f3c36', 'b231a846-7d40-5100-ba29-b9c0ca0ef9aa'),
-    ('a1000001-0000-0000-0000-000000000002', '8d1b2b9b-e5d5-4de7-98c9-ff1d379f3c36', '452ed8eb-d0a3-5d61-8428-572e946614a5'),
-    ('a1000001-0000-0000-0000-000000000003', '8d1b2b9b-e5d5-4de7-98c9-ff1d379f3c36', '070b4f4d-9a9e-5c4a-92bd-eae711ecb6b3')
+('a1000001-0000-0000-0000-000000000001', '8d1b2b9b-e5d5-4de7-98c9-ff1d379f3c36', 'b231a846-7d40-5100-ba29-b9c0ca0ef9aa'),
+('a1000001-0000-0000-0000-000000000002', '8d1b2b9b-e5d5-4de7-98c9-ff1d379f3c36', '452ed8eb-d0a3-5d61-8428-572e946614a5'),
+('a1000001-0000-0000-0000-000000000003', '8d1b2b9b-e5d5-4de7-98c9-ff1d379f3c36', '070b4f4d-9a9e-5c4a-92bd-eae711ecb6b3')
 ON CONFLICT DO NOTHING;

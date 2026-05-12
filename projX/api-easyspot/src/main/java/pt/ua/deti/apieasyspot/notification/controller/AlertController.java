@@ -47,13 +47,17 @@ public class AlertController {
         @RequestParam(required = false) SeverityAlert severity,
         @AuthenticationPrincipal Jwt jwt
     ) {
-        List<String> groups = jwt.getClaimAsStringList("groups");
-        String role = (groups != null && !groups.isEmpty()) ? groups.get(0) : "";
+        boolean isTechnical = jwt.getClaimAsStringList("groups") != null
+            && jwt.getClaimAsStringList("groups").contains("TECHNICAL");
 
-        if ("TECHNICAL".equals(role) && parkId == null) {
+        if (isTechnical) {
             List<UUID> assignedParkIds = assignmentService.getAssignedParkIds(jwt.getSubject());
+            if (parkId != null && !assignedParkIds.contains(parkId)) {
+                return ResponseEntity.status(403).build();
+            }
+            List<UUID> effectiveParkIds = parkId != null ? List.of(parkId) : assignedParkIds;
             return ResponseEntity.ok(
-                alertService.listAlertsByParks(assignedParkIds, state, severity).stream()
+                alertService.listAlertsByParks(effectiveParkIds, state, severity).stream()
                     .map(AlertResponse::from)
                     .toList());
         }

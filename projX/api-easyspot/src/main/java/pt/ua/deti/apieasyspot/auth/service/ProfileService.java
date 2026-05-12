@@ -48,6 +48,12 @@ public class ProfileService {
         return buildProfileResponse(user, jwtRole, false, authentikUserId);
     }
 
+    public String resolveAuthentikPk(String authentikUserId) {
+        return userRepository.findByAuthentikUserId(authentikUserId)
+            .map(User::getAuthentikPk)
+            .orElseThrow(() -> new ResourceNotFoundException("User not found: " + authentikUserId));
+    }
+
     private void requireValidRole(String jwtRole) {
         if (!VALID_ROLES.contains(jwtRole)) {
             throw new IllegalArgumentException("Unknown role: " + jwtRole);

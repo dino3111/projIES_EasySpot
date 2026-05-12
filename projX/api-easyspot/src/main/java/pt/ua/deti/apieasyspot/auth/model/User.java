@@ -26,6 +26,9 @@ public class User {
     @NotBlank
     private String authentikUserId;
 
+    @Column
+    private String authentikPk;
+
     @Column(unique = true, nullable = false, length = 255)
     @Email @NotBlank
     private String email;

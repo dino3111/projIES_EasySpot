@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.multipart.MultipartFile;
@@ -69,8 +70,10 @@ public class ProfileController {
     @Operation(summary = "Clear the must-change-password flag after technician changes password")
     @ApiResponse(responseCode = "204", description = "Flag cleared")
     @PostMapping("/password-changed")
+    @PreAuthorize("hasRole('TECHNICAL')")
     public ResponseEntity<Void> passwordChanged(@AuthenticationPrincipal Jwt jwt) {
-        authentikClient.clearPasswordChangeFlag(jwt.getSubject());
+        String authentikPk = profileService.resolveAuthentikPk(jwt.getSubject());
+        authentikClient.clearPasswordChangeFlag(authentikPk);
         return ResponseEntity.noContent().build();
     }
 
