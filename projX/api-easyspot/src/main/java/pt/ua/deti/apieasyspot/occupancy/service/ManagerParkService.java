@@ -3,8 +3,6 @@ package pt.ua.deti.apieasyspot.occupancy.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import pt.ua.deti.apieasyspot.analytics.model.TechnicianParkAssignment;
-import pt.ua.deti.apieasyspot.analytics.repository.TechnicianParkAssignmentRepository;
 import pt.ua.deti.apieasyspot.auth.model.User;
 import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
 import pt.ua.deti.apieasyspot.auth.service.AuthentikClient;
@@ -12,6 +10,8 @@ import pt.ua.deti.apieasyspot.common.exception.ResourceNotFoundException;
 import pt.ua.deti.apieasyspot.occupancy.dto.*;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingLotRepository;
+import pt.ua.deti.apieasyspot.occupancy.model.TechnicianParkAssignment;
+import pt.ua.deti.apieasyspot.occupancy.repository.TechnicianParkAssignmentRepository;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -35,7 +35,7 @@ public class ManagerParkService {
         List<TechnicianParkAssignment> all = assignmentRepository.findAll();
         Map<UUID, List<UUID>> byPark = new HashMap<>();
         for (TechnicianParkAssignment a : all) {
-            byPark.computeIfAbsent(a.getParkingLot().getId(), k -> new ArrayList<>()).add(a.getTechnicianId());
+            byPark.computeIfAbsent(a.getParkingLotId(), k -> new ArrayList<>()).add(a.getTechnicianId());
         }
         Map<UUID, User> techById = userRepository.findByRole("TECHNICAL").stream()
             .collect(Collectors.toMap(User::getId, u -> u));
@@ -70,7 +70,10 @@ public class ManagerParkService {
             ParkingLot lot = parkingLotRepository.findById(parkId)
                 .orElseThrow(() -> new ResourceNotFoundException("Park not found: " + parkId));
             assignmentRepository.deleteByParkingLotId(parkId);
-            assignmentRepository.save(new TechnicianParkAssignment(saved.getId(), lot));
+            TechnicianParkAssignment assignment = new TechnicianParkAssignment();
+            assignment.setTechnicianId(saved.getId());
+            assignment.setParkingLotId(lot.getId());
+            assignmentRepository.save(assignment);
         }
 
         return new TechnicianDetailResponse(saved.getId(), saved.getName(), saved.getEmail(), req.username(), parkIds);
@@ -84,7 +87,10 @@ public class ManagerParkService {
             .orElseThrow(() -> new ResourceNotFoundException("Technician not found: " + technicianId));
 
         assignmentRepository.deleteByParkingLotId(parkId);
-        assignmentRepository.save(new TechnicianParkAssignment(technicianId, lot));
+        TechnicianParkAssignment assignment = new TechnicianParkAssignment();
+        assignment.setTechnicianId(technicianId);
+        assignment.setParkingLotId(lot.getId());
+        assignmentRepository.save(assignment);
     }
 
     @Transactional
@@ -111,7 +117,10 @@ public class ManagerParkService {
         ParkingLot saved = parkingLotRepository.save(lot);
 
         if (req.technicianId() != null) {
-            assignmentRepository.save(new TechnicianParkAssignment(req.technicianId(), saved));
+            TechnicianParkAssignment assignment = new TechnicianParkAssignment();
+            assignment.setTechnicianId(req.technicianId());
+            assignment.setParkingLotId(saved.getId());
+            assignmentRepository.save(assignment);
         }
 
         return saved;
