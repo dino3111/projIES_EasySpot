@@ -225,7 +225,7 @@ jobs:
   test-frontend-e2e:
     name: Frontend E2E (Playwright)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -241,6 +241,18 @@ jobs:
         run: |
           cd projX/web-easyspot
           npm install --no-audit --no-fund --package-lock=false
+
+      - name: Create frontend .env for E2E
+        run: |
+          cat > projX/web-easyspot/.env <<'EOF'
+          VITE_API_BASE_URL=http://localhost:8080
+          VITE_AUTHENTIK_URL=http://localhost/authentik
+          VITE_AUTHENTIK_CLIENT_ID=e2e-client
+          VITE_AUTHENTIK_REDIRECT_URI=http://localhost/callback
+          VITE_FIREBASE_API_KEY=placeholder
+          VITE_STRIPE_PUBLISHABLE_KEY=placeholder
+          VITE_DISABLE_REALTIME_ALERTS=true
+          EOF
 
       - name: Install Playwright browser
         run: |

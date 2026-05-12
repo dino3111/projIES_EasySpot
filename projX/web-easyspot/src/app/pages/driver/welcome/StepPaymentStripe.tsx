@@ -67,7 +67,15 @@ function PaymentForm({ onReady }: Readonly<{ onReady: (confirmed: boolean) => vo
   );
 }
 
-export function StepPaymentStripe({ onReady }: Readonly<{ onReady: (confirmed: boolean) => void }>) {
+export function StepPaymentStripe({
+  onReady,
+  allowContinueWithoutPayment = true,
+  onCancel,
+}: Readonly<{
+  onReady: (confirmed: boolean) => void;
+  allowContinueWithoutPayment?: boolean;
+  onCancel?: () => void;
+}>) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => getCurrentTheme());
@@ -153,14 +161,24 @@ export function StepPaymentStripe({ onReady }: Readonly<{ onReady: (confirmed: b
           <i className="fas fa-triangle-exclamation text-warning mt-0.5 flex-shrink-0" style={{ fontSize: '0.85rem' }} />
           <p className="text-muted-foreground" style={{ fontSize: '0.8rem' }}>{loadError}</p>
         </div>
-        <button
-          type="button"
-          onClick={() => onReady(false)}
-          className="text-primary font-semibold hover:underline"
-          style={{ fontSize: '0.82rem' }}
-        >
-          Continuar sem método de pagamento
-        </button>
+        {allowContinueWithoutPayment ? (
+          <button
+            type="button"
+            onClick={() => onReady(false)}
+            className="text-primary font-semibold hover:underline"
+            style={{ fontSize: '0.82rem' }}
+          >
+            Continuar sem método de pagamento
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="btn btn-ghost btn-sm"
+          >
+            Fechar
+          </button>
+        )}
       </div>
     );
   }

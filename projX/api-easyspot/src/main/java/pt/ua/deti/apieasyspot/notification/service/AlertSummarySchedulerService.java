@@ -2,8 +2,6 @@ package pt.ua.deti.apieasyspot.notification.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -14,7 +12,9 @@ import pt.ua.deti.apieasyspot.notification.repository.AlertSubscriptionRepositor
 
 import java.time.*;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.WeekFields;
 import java.util.List;
+import java.util.Locale;
 
 @Slf4j
 @Service
@@ -24,7 +24,7 @@ public class AlertSummarySchedulerService {
     private static final DateTimeFormatter SCHEDULE_TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
 
     private final AlertSubscriptionRepository alertSubscriptionRepository;
-    private final JavaMailSender mailSender;
+    private final EmailDeliveryDedupService emailDeliveryDedupService;
 
     @Scheduled(cron = "${alerts.summary.cron:0 * * * * *}")
     public void runScheduledSummaries() {
@@ -39,8 +39,9 @@ public class AlertSummarySchedulerService {
             if (!isDue(subscription, now)) {
                 continue;
             }
-            sendSummaryMail(subscription, now);
-            sent++;
+            if (sendSummaryMail(subscription, now)) {
+                sent++;
+            }
         }
         return sent;
     }
@@ -69,16 +70,27 @@ public class AlertSummarySchedulerService {
         }
     }
 
-    private void sendSummaryMail(AlertSubscription subscription, Instant now) {
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setTo(subscription.getEmail());
-        message.setSubject("EasySpot availability summary");
-        message.setText(buildSummaryBody(subscription, now));
-        mailSender.send(message);
+    private boolean sendSummaryMail(AlertSubscription subscription, Instant now) {
+        String deliveryKey = buildDeliveryKey(subscription, now);
+        return emailDeliveryDedupService.sendOnce(
+            deliveryKey,
+            "DAILY_SUMMARY",
+            subscription.getEmail(),
+            "EasySpot availability summary",
+            buildSummaryBody(subscription, now)
+        );
     }
 
     private String buildSummaryBody(AlertSubscription subscription, Instant now) {
         String scope = StringUtils.hasText(subscription.getParkIdsCsv()) ? subscription.getParkIdsCsv() : "ALL_PARKS";
         return "Summary generated at " + now + "\nScope: " + scope + "\n";
+    }
+
+    private String buildDeliveryKey(AlertSubscription subscription, Instant now) {
+        ZonedDateTime zonedNow = now.atZone(ZoneId.of(subscription.getScheduleTimezone()));
+        String slot = subscription.getScheduleFrequency() == SummaryFrequency.WEEKLY
+            ? zonedNow.get(WeekFields.ISO.weekBasedYear()) + "-W" + String.format(Locale.ROOT, "%02d", zonedNow.get(WeekFields.ISO.weekOfWeekBasedYear()))
+            : zonedNow.toLocalDate().toString();
+        return "alert-summary:" + subscription.getId() + ":" + slot;
     }
 }

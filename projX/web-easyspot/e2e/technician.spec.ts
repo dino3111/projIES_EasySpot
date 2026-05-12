@@ -65,6 +65,21 @@ const mockSensors = [
 
 const mockAlerts = [
   {
+    id: '9f6a9a7b-c6a2-43a2-a2b6-f57e6d03df57',
+    type: 'SENSOR',
+    park: 'Fórum Aveiro',
+    zone: 'Piso 0 – Zona B',
+    spotNumber: null,
+    sensorId: 'IR-AV1-B07',
+    plate: null,
+    description: 'Falha de leitura IR sem sinal',
+    severity: 'CRITICAL',
+    state: 'OPEN',
+    createdAt: '2026-05-08T09:00:00Z',
+    attributedTo: null,
+    notes: null,
+  },
+  {
     id: 'alert-uuid-001',
     type: 'SENSOR',
     park: 'Fórum Aveiro',
@@ -163,6 +178,7 @@ test.beforeEach(async ({ page }) => {
   await page.route('**/api/technician/sensors/IR-AV1-B07/logs', (route) => route.fulfill({ json: mockSensorDetail }));
   await page.route('**/api/alerts', (route) => route.fulfill({ json: mockAlerts }));
   await page.route('**/api/alerts/**/state', (route) => route.fulfill({ status: 204, body: '' }));
+  await page.route('**/api/alerts**', (route) => route.fulfill({ json: mockAlerts }));
 });
 
 test('Painel técnico mostra KPIs da API', async ({ page }) => {
@@ -277,6 +293,74 @@ test('Fechar painel de diagnóstico remove o modal', async ({ page }) => {
   await expect(page.getByRole('dialog')).not.toBeVisible();
 });
 
+test('Botão Atualizar Estado abre modal de atualização de status', async ({ page }) => {
+  await page.goto('/technician/maintenance');
+
+  await page.getByRole('tab', { name: /sensores/i }).click();
+  await page.getByText('Fórum Aveiro').click();
+  await page.getByText('IR-AV1-B07').click();
+
+  await expect(page.getByRole('dialog')).toBeVisible();
+
+  await page.getByRole('button', { name: /atualizar estado/i }).click();
+
+  // StatusUpdateModal should open (it's a second dialog at z-60)
+  const updateModal = page.getByRole('dialog', { name: /atualizar estado do sensor/i });
+  await expect(updateModal).toBeVisible();
+  await expect(updateModal.getByText('IR-AV1-B07')).toBeVisible();
+});
+
+test('Confirmar atualização de status chama API e mostra toast', async ({ page }) => {
+  let statusPatchCalled = false;
+  await page.route('**/api/technician/sensors/IR-AV1-B07/status', (route) => {
+    statusPatchCalled = true;
+    route.fulfill({ status: 204, body: '' });
+  });
+
+  await page.goto('/technician/maintenance');
+
+  await page.getByRole('tab', { name: /sensores/i }).click();
+  await page.getByText('Fórum Aveiro').click();
+  await page.getByText('IR-AV1-B07').click();
+
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.getByRole('button', { name: /atualizar estado/i }).click();
+
+  // Select "Operacional" in the modal
+  const updateModal = page.getByRole('dialog', { name: /atualizar estado do sensor/i });
+  await updateModal.locator('label', { hasText: 'Operacional' }).click();
+
+  await page.getByRole('button', { name: /confirmar atualização/i }).click();
+
+  // Toast should appear
+  const toast = page.getByRole('status');
+  await expect(toast).toBeVisible();
+  await expect(toast).toContainText('IR-AV1-B07');
+
+  expect(statusPatchCalled).toBe(true);
+});
+
+test('Atualização de status para operacional fecha modais', async ({ page }) => {
+  await page.route('**/api/technician/sensors/IR-AV1-B07/status', (route) =>
+    route.fulfill({ status: 204, body: '' }),
+  );
+
+  await page.goto('/technician/maintenance');
+
+  await page.getByRole('tab', { name: /sensores/i }).click();
+  await page.getByText('Fórum Aveiro').click();
+  await page.getByText('IR-AV1-B07').click();
+
+  await page.getByRole('button', { name: /atualizar estado/i }).click();
+  const updateModal = page.getByRole('dialog', { name: /atualizar estado do sensor/i });
+  await updateModal.locator('label', { hasText: 'Operacional' }).click();
+  await page.getByRole('button', { name: /confirmar atualização/i }).click();
+
+  // Both modals should close
+  await expect(page.getByText(/atualizar estado do sensor/i)).not.toBeVisible();
+  await expect(page.getByRole('dialog')).not.toBeVisible();
+});
+
 test('Painel mostra loading enquanto carrega logs do sensor', async ({ page }) => {
   await page.unroute('**/api/technician/sensors/IR-AV1-B07/logs');
   await page.route('**/api/technician/sensors/IR-AV1-B07/logs', async (route) => {
@@ -311,10 +395,10 @@ test('Tab ocorrências mostra alertas abertos da API', async ({ page }) => {
 test('Tab ocorrências mostra badge com contagem de alertas abertos', async ({ page }) => {
   await page.goto('/technician/maintenance');
 
-  // 2 alertas OPEN no mock → badge "2" no tab
+  // 3 alertas OPEN no mock → badge "3" no tab
   const tab = page.getByRole('tab', { name: /ocorrências/i });
   await expect(tab).toBeVisible();
-  await expect(tab.getByText('2')).toBeVisible();
+  await expect(tab.getByText('3')).toBeVisible();
 });
 
 test('Tab ocorrências filtra por severidade crítica', async ({ page }) => {
@@ -357,8 +441,8 @@ test('Tab tarefas mostra badge com contagem de tarefas abertas', async ({ page }
 
   const tab = page.getByRole('tab', { name: /tarefas/i });
   await expect(tab).toBeVisible();
-  // 2 alertas não-RESOLVED no mock
-  await expect(tab.getByText('2')).toBeVisible();
+  // 3 alertas não-RESOLVED no mock
+  await expect(tab.getByText('3')).toBeVisible();
 });
 
 test('Tab tarefas mostra tarefas urgentes da API', async ({ page }) => {

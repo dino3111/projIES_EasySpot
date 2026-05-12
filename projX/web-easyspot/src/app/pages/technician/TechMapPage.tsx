@@ -3,7 +3,7 @@ import type { ParkingLot } from '../../data/parkingTypes';
 import type { SensorDevice } from '../../data/technicianData';
 import { LeafletMap } from '../../components/parking/LeafletMap';
 import { fetchAllParksSummary } from '../../services/parksCatalog';
-import { fetchSensorList } from '../../services/technicianApi';
+import { fetchSensorList, fetchMyAssignedParks } from '../../services/technicianApi';
 
 type FilterType = 'todos' | 'problemas' | 'operacionais';
 
@@ -22,7 +22,12 @@ export function TechMapPage() {
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    fetchAllParksSummary().then(setParkingLots).catch(() => setParkingLots([]));
+    Promise.all([fetchAllParksSummary(), fetchMyAssignedParks()])
+      .then(([allParks, assigned]) => {
+        const assignedIds = new Set(assigned.map(a => a.parkingLotId));
+        setParkingLots(allParks.filter(p => assignedIds.has(p.id)));
+      })
+      .catch(() => setParkingLots([]));
     fetchSensorList().then(setSensors).catch(() => setSensors([]));
   }, []);
 
@@ -57,6 +62,18 @@ export function TechMapPage() {
     return { healthy, total, pct, color };
   };
 
+  const pinColorOverrides = useMemo(() => {
+    const map: Record<string, string> = {};
+    parkingLots.forEach(lot => {
+      const parkSensors = sensors.filter(s => s.parkingLotId === lot.id);
+      const healthy = parkSensors.filter(s => toSensorStatus(s.status) === 'operacional').length;
+      const total   = parkSensors.length;
+      const pct     = total > 0 ? Math.round((healthy / total) * 100) : 100;
+      map[lot.id]   = pct === 100 ? '#22c55e' : pct >= 70 ? '#f59e0b' : '#d4183d';
+    });
+    return map;
+  }, [parkingLots, sensors]);
+
   const FILTERS: { id: FilterType; icon: string; label: string }[] = [
     { id: 'todos',        icon: 'fa-layer-group',        label: 'Todos' },
     { id: 'operacionais', icon: 'fa-circle-check',       label: 'Operacionais' },
@@ -66,21 +83,18 @@ export function TechMapPage() {
   return (
     <div className="relative w-full flex overflow-hidden bg-background overscroll-none" style={{ height: 'calc(100vh - 56px)' }}>
 
-      {/* ── Mapa ──────────────────────────────────────────────────────── */}
       <div className="absolute inset-0 z-0 bg-muted">
         <LeafletMap
           lots={filteredLots}
           selectedId={selectedLotId}
           onSelect={handleSelectLot}
           height="100%"
+          pinColorOverrides={pinColorOverrides}
         />
       </div>
 
-      {/* ── Barra de controlo flutuante ──────────────────────────────── */}
       <div className="absolute top-3 left-3 right-3 z-10 pointer-events-none">
         <div className="flex flex-col gap-2 md:flex-row md:items-center">
-
-          {/* Campo de pesquisa */}
           <div className="flex items-center gap-2 bg-card/95 backdrop-blur-md rounded-2xl px-4 py-2.5 shadow-xl border border-border pointer-events-auto md:w-72 flex-shrink-0">
             <i className="fas fa-magnifying-glass text-primary flex-shrink-0 text-sm" aria-hidden="true" />
             <input
@@ -103,7 +117,6 @@ export function TechMapPage() {
             )}
           </div>
 
-          {/* Filtros */}
           <div className="flex gap-2 pointer-events-auto overflow-x-auto scrollbar-none overscroll-x-contain">
             {FILTERS.map((f) => (
               <button
@@ -123,15 +136,12 @@ export function TechMapPage() {
         </div>
       </div>
 
-      {/* ── Painel do lado direito (detalhes) ──────────────────────── */}
       {selectedLot && (
         <div className="absolute bottom-3 right-3 z-20 pointer-events-auto">
           <div className="bg-card/95 backdrop-blur-md border border-border rounded-2xl p-4 shadow-xl max-w-sm">
             <div className="flex items-start justify-between gap-3 mb-3">
               <div className="min-w-0">
-                <h3 className="text-foreground font-bold" style={{ fontSize: '1rem' }}>
-                  {selectedLot.name}
-                </h3>
+                <h3 className="text-foreground font-bold" style={{ fontSize: '1rem' }}>{selectedLot.name}</h3>
                 <p className="text-muted-foreground text-xs mt-0.5">
                   <i className="fas fa-map-pin mr-1" aria-hidden="true"></i>
                   {selectedLot.address}
@@ -146,7 +156,6 @@ export function TechMapPage() {
               </button>
             </div>
 
-            {/* Sensor health */}
             {(() => {
               const health = getParkHealth(selectedLot);
               return (
@@ -159,10 +168,7 @@ export function TechMapPage() {
                       </span>
                     </div>
                     <div className="h-2 rounded-full bg-muted overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all"
-                        style={{ width: `${health.pct}%`, background: health.color }}
-                      />
+                      <div className="h-full rounded-full transition-all" style={{ width: `${health.pct}%`, background: health.color }} />
                     </div>
                   </div>
 
@@ -198,10 +204,7 @@ export function TechMapPage() {
                   )}
 
                   <div className="mt-2 px-2 py-1.5 rounded-lg bg-card border border-border">
-                    <a
-                      href={`tel:${selectedLot.phone}`}
-                      className="text-primary text-xs font-semibold hover:underline"
-                    >
+                    <a href={`tel:${selectedLot.phone}`} className="text-primary text-xs font-semibold hover:underline">
                       <i className="fas fa-phone mr-1.5" aria-hidden="true"></i>
                       {selectedLot.phone}
                     </a>

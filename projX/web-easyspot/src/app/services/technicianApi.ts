@@ -1,8 +1,11 @@
 import { request } from '../../services/apiService';
+import type { IssueReport } from '../data/gestorData';
 
 // ── Types matching backend DTOs ────────────────────────────────────────────────
 
-export type SensorStatus = 'operational' | 'degraded' | 'offline';
+export type SensorStatus = 'operational' | 'degraded' | 'offline' | 'maintenance';
+
+export type { IssueReport };
 
 export interface SensorSummary {
   sensorId: string;
@@ -111,6 +114,12 @@ export const updateAlertState = (alertId: string, state: AlertState, notes?: str
     body: JSON.stringify({ state, notes }),
   });
 
+export const updateSensorStatus = (sensorId: string, status: string, notes?: string): Promise<void> =>
+  request<void>(`/api/technician/sensors/${encodeURIComponent(sensorId)}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status, notes: notes ?? null }),
+  });
+
 export type FetchAlertsQuery = {
   parkId?: string;
   state?: AlertState;
@@ -125,3 +134,14 @@ export const fetchAlerts = (query: FetchAlertsQuery = {}): Promise<AlertResponse
   const qs = params.toString();
   return request<AlertResponse[]>(`/api/alerts${qs ? `?${qs}` : ''}`);
 };
+
+export interface AssignedPark {
+  assignmentId: string;
+  technicianId: string;
+  parkingLotId: string;
+  parkingLotName: string;
+  parkingLotCity: string;
+}
+
+export const fetchMyAssignedParks = (): Promise<AssignedPark[]> =>
+  request<AssignedPark[]>('/api/technician/parks/my');

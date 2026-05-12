@@ -14,6 +14,7 @@ import pt.ua.deti.apieasyspot.analytics.repository.TechnicianRepository;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -83,17 +84,17 @@ class TechnicianServiceTest {
     @Test
     @DisplayName("buildDashboard returns response with all sections populated")
     void buildDashboard_returnsCompleteResponse() {
-        when(technicianRepository.countTotalSensors()).thenReturn(12);
-        when(technicianRepository.countOperationalSensors()).thenReturn(10);
-        when(technicianRepository.countFailuresToday()).thenReturn(2L);
-        when(technicianRepository.countFailuresYesterday()).thenReturn(1L);
-        when(technicianRepository.avgMttrCurrentWeekMinutes()).thenReturn(90.0);
-        when(technicianRepository.avgMttrHistoricalMinutes()).thenReturn(120.0);
-        when(technicianRepository.uptimeLast7Days()).thenReturn(List.of());
-        when(technicianRepository.sensorDistribution()).thenReturn(List.of());
-        when(technicianRepository.urgentWorkOrders()).thenReturn(List.of());
+        when(technicianRepository.countTotalSensors(anyList())).thenReturn(12);
+        when(technicianRepository.countOperationalSensors(anyList())).thenReturn(10);
+        when(technicianRepository.countFailuresToday(anyList())).thenReturn(2L);
+        when(technicianRepository.countFailuresYesterday(anyList())).thenReturn(1L);
+        when(technicianRepository.avgMttrCurrentWeekMinutes(anyList())).thenReturn(90.0);
+        when(technicianRepository.avgMttrHistoricalMinutes(anyList())).thenReturn(120.0);
+        when(technicianRepository.uptimeLast7Days(anyList())).thenReturn(List.of());
+        when(technicianRepository.sensorDistribution(anyList())).thenReturn(List.of());
+        when(technicianRepository.urgentWorkOrders(anyList())).thenReturn(List.of());
 
-        TechnicianDashboardResponse response = service.buildDashboard();
+        TechnicianDashboardResponse response = service.buildDashboard(List.of());
 
         assertThat(response.kpis().totalSensors()).isEqualTo(12);
         assertThat(response.kpis().operationalSensors()).isEqualTo(10);
@@ -108,17 +109,17 @@ class TechnicianServiceTest {
     @Test
     @DisplayName("buildDashboard handles zero sensors gracefully")
     void buildDashboard_zeroSensors_noArithmeticException() {
-        when(technicianRepository.countTotalSensors()).thenReturn(0);
-        when(technicianRepository.countOperationalSensors()).thenReturn(0);
-        when(technicianRepository.countFailuresToday()).thenReturn(0L);
-        when(technicianRepository.countFailuresYesterday()).thenReturn(0L);
-        when(technicianRepository.avgMttrCurrentWeekMinutes()).thenReturn(null);
-        when(technicianRepository.avgMttrHistoricalMinutes()).thenReturn(null);
-        when(technicianRepository.uptimeLast7Days()).thenReturn(List.of());
-        when(technicianRepository.sensorDistribution()).thenReturn(List.of());
-        when(technicianRepository.urgentWorkOrders()).thenReturn(List.of());
+        when(technicianRepository.countTotalSensors(anyList())).thenReturn(0);
+        when(technicianRepository.countOperationalSensors(anyList())).thenReturn(0);
+        when(technicianRepository.countFailuresToday(anyList())).thenReturn(0L);
+        when(technicianRepository.countFailuresYesterday(anyList())).thenReturn(0L);
+        when(technicianRepository.avgMttrCurrentWeekMinutes(anyList())).thenReturn(null);
+        when(technicianRepository.avgMttrHistoricalMinutes(anyList())).thenReturn(null);
+        when(technicianRepository.uptimeLast7Days(anyList())).thenReturn(List.of());
+        when(technicianRepository.sensorDistribution(anyList())).thenReturn(List.of());
+        when(technicianRepository.urgentWorkOrders(anyList())).thenReturn(List.of());
 
-        TechnicianDashboardResponse response = service.buildDashboard();
+        TechnicianDashboardResponse response = service.buildDashboard(List.of());
 
         assertThat(response.kpis().uptimePct()).isEqualTo(0.0);
         assertThat(response.kpis().meanTimeToRepair()).isEqualTo("N/A");

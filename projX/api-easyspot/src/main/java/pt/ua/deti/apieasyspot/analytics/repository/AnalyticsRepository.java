@@ -70,7 +70,10 @@ public class AnalyticsRepository {
 
     public int[] currentOccupancy() {
         long[] result = timescaleJdbc.queryForObject(
-            "select coalesce(sum(occupied_count), 0), coalesce(sum(total_count), 0) from v_latest_occupancy",
+            """
+            select coalesce(sum(occupied_count), 0), coalesce(sum(total_count), 0)
+            from v_latest_occupancy
+            """,
             (rs, rowNum) -> new long[]{rs.getLong(1), rs.getLong(2)});
         return new int[]{(int) result[0], (int) result[1]};
     }

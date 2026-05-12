@@ -23,10 +23,14 @@ import pt.ua.deti.apieasyspot.sensor.model.SensorStatus;
 import pt.ua.deti.apieasyspot.sensor.repository.SensorRegistryRepository;
 
 import java.time.LocalDateTime;
+import org.springframework.http.MediaType;
+import pt.ua.deti.apieasyspot.sensor.model.SensorStatus;
 
 import static pt.ua.deti.apieasyspot.support.TestJwtRequests.jwtWithRole;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
@@ -202,5 +206,72 @@ class SensorLogsControllerIT {
         mockMvc.perform(get("/api/technician/sensors/SENSOR-DOES-NOT-EXIST/logs")
                 .with(jwtWithRole("sub-tech", "TECHNICAL")))
             .andExpect(status().isNotFound());
+    }
+
+    // ── PATCH /{sensorId}/status ──────────────────────────────────────────────
+
+    @Test
+    @DisplayName("PATCH /api/technician/sensors/{id}/status - unauthenticated - returns 401")
+    void updateStatus_unauthenticated_returns401() throws Exception {
+        mockMvc.perform(patch("/api/technician/sensors/IR-IT-01/status")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"status\":\"operational\"}"))
+            .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("PATCH /api/technician/sensors/{id}/status - DRIVER role - returns 403")
+    void updateStatus_driverRole_returns403() throws Exception {
+        mockMvc.perform(patch("/api/technician/sensors/IR-IT-01/status")
+                .with(jwtWithRole("sub-driver", "DRIVER"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"status\":\"operational\"}"))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("PATCH /api/technician/sensors/{id}/status - TECHNICAL role - updates to OPERATIONAL - returns 204")
+    void updateStatus_technicalRole_toOperational_returns204() throws Exception {
+        mockMvc.perform(patch("/api/technician/sensors/IR-IT-01/status")
+                .with(jwtWithRole("sub-tech", "TECHNICAL"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"status\":\"operational\",\"notes\":\"Reparação concluída.\"}"))
+            .andExpect(status().isNoContent());
+
+        SensorRegistry updated = sensorRegistryRepository.findById("IR-IT-01").orElseThrow();
+        assertThat(updated.getStatus()).isEqualTo(SensorStatus.OPERATIONAL);
+    }
+
+    @Test
+    @DisplayName("PATCH /api/technician/sensors/{id}/status - TECHNICAL role - updates to MAINTENANCE - returns 204")
+    void updateStatus_technicalRole_toMaintenance_returns204() throws Exception {
+        mockMvc.perform(patch("/api/technician/sensors/IR-IT-01/status")
+                .with(jwtWithRole("sub-tech", "TECHNICAL"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"status\":\"maintenance\"}"))
+            .andExpect(status().isNoContent());
+
+        SensorRegistry updated = sensorRegistryRepository.findById("IR-IT-01").orElseThrow();
+        assertThat(updated.getStatus()).isEqualTo(SensorStatus.MAINTENANCE);
+    }
+
+    @Test
+    @DisplayName("PATCH /api/technician/sensors/{id}/status - unknown sensor - returns 404")
+    void updateStatus_unknownSensor_returns404() throws Exception {
+        mockMvc.perform(patch("/api/technician/sensors/SENSOR-DOES-NOT-EXIST/status")
+                .with(jwtWithRole("sub-tech", "TECHNICAL"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"status\":\"operational\"}"))
+            .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("PATCH /api/technician/sensors/{id}/status - invalid status value - returns 400")
+    void updateStatus_invalidStatus_returns400() throws Exception {
+        mockMvc.perform(patch("/api/technician/sensors/IR-IT-01/status")
+                .with(jwtWithRole("sub-tech", "TECHNICAL"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"status\":\"invalid_value\"}"))
+            .andExpect(status().isBadRequest());
     }
 }

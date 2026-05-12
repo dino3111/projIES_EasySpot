@@ -106,7 +106,7 @@ class ReservationControllerTest {
     @DisplayName("createReservation - service throws UnprocessableEntityException - propagates")
     void createReservation_invalidDate_propagatesException() {
         when(reservationService.create(any(), any(), any()))
-            .thenThrow(new UnprocessableEntityException("arrivalDateTime must be in the future"));
+            .thenThrow(new UnprocessableEntityException("A data de chegada tem de ser no futuro."));
 
         assertThatThrownBy(() ->
             reservationController.createReservation(validRequest, null, jwt))

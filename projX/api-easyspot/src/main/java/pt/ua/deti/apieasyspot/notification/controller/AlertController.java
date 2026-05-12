@@ -18,6 +18,7 @@ import pt.ua.deti.apieasyspot.notification.dto.AlertStateUpdate;
 import pt.ua.deti.apieasyspot.notification.dto.CreateAlertSubscriptionRequest;
 import pt.ua.deti.apieasyspot.notification.model.SeverityAlert;
 import pt.ua.deti.apieasyspot.notification.model.StateAlert;
+import pt.ua.deti.apieasyspot.analytics.service.TechnicianParkAssignmentService;
 import pt.ua.deti.apieasyspot.notification.service.AlertService;
 import pt.ua.deti.apieasyspot.notification.service.AlertSubscriptionService;
 
@@ -32,8 +33,9 @@ public class AlertController {
 
     private final AlertService alertService;
     private final AlertSubscriptionService alertSubscriptionService;
+    private final TechnicianParkAssignmentService assignmentService;
 
-    @Operation(summary = "List all alerts (with filters)")
+    @Operation(summary = "List alerts (technicians see only their assigned parks)")
     @ApiResponse(responseCode = "200", description = "List of alerts")
     @ApiResponse(responseCode = "401", description = "Not authenticated")
     @ApiResponse(responseCode = "403", description = "Not a technical or manager")
@@ -42,8 +44,20 @@ public class AlertController {
     public ResponseEntity<List<AlertResponse>> listAlerts(
         @RequestParam(required = false) UUID parkId,
         @RequestParam(required = false) StateAlert state,
-        @RequestParam(required = false) SeverityAlert severity
+        @RequestParam(required = false) SeverityAlert severity,
+        @AuthenticationPrincipal Jwt jwt
     ) {
+        List<String> groups = jwt.getClaimAsStringList("groups");
+        String role = (groups != null && !groups.isEmpty()) ? groups.get(0) : "";
+
+        if ("TECHNICAL".equals(role) && parkId == null) {
+            List<UUID> assignedParkIds = assignmentService.getAssignedParkIds(jwt.getSubject());
+            return ResponseEntity.ok(
+                alertService.listAlertsByParks(assignedParkIds, state, severity).stream()
+                    .map(AlertResponse::from)
+                    .toList());
+        }
+
         return ResponseEntity.ok(alertService.listAlerts(parkId, state, severity).stream()
             .map(AlertResponse::from)
             .toList());

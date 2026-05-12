@@ -7,6 +7,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import pt.ua.deti.apieasyspot.analytics.repository.AnalyticsRepository;
+import pt.ua.deti.apieasyspot.analytics.repository.TechnicianParkAssignmentRepository;
 import pt.ua.deti.apieasyspot.analytics.repository.TechnicianRepository;
 import pt.ua.deti.apieasyspot.auth.dto.*;
 import pt.ua.deti.apieasyspot.auth.model.DriverType;
@@ -22,6 +23,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -31,6 +33,7 @@ class ProfileServiceTest {
     @Mock ProfileRepository profileRepository;
     @Mock AnalyticsRepository analyticsRepository;
     @Mock TechnicianRepository technicianRepository;
+    @Mock TechnicianParkAssignmentRepository technicianParkAssignmentRepository;
     @Mock UserFavoriteRepository userFavoriteRepository;
 
     ProfileService profileService;
@@ -39,7 +42,7 @@ class ProfileServiceTest {
     void setUp() {
         profileService = new ProfileService(
             userRepository, profileRepository,
-            analyticsRepository, technicianRepository, userFavoriteRepository);
+            analyticsRepository, technicianRepository, technicianParkAssignmentRepository, userFavoriteRepository);
     }
 
     @Test
@@ -82,9 +85,10 @@ class ProfileServiceTest {
     void getProfile_technician_returnsTechnicianResponse() {
         User user = buildUser("TECHNICAL");
         when(userRepository.findByAuthentikUserId("sub")).thenReturn(Optional.of(user));
-        when(technicianRepository.countTotalSensors()).thenReturn(100);
-        when(technicianRepository.countOperationalSensors()).thenReturn(90);
-        when(technicianRepository.countFailuresToday()).thenReturn(5L);
+        when(technicianParkAssignmentRepository.findParkingLotIdsByTechnicianId(any())).thenReturn(java.util.List.of());
+        when(technicianRepository.countTotalSensors(anyList())).thenReturn(100);
+        when(technicianRepository.countOperationalSensors(anyList())).thenReturn(90);
+        when(technicianRepository.countFailuresToday(anyList())).thenReturn(5L);
         when(profileRepository.countAssignedTasks("sub")).thenReturn(2L);
 
         Object result = profileService.getProfile("sub", "test@test.com", "TECHNICAL");

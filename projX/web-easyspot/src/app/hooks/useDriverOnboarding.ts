@@ -24,7 +24,7 @@ export function useDriverOnboarding() {
       .then(([vehicleResult, paymentResult]) => {
         const hasVehicleData = vehicleResult.status === 'fulfilled';
         const serverVehicles = hasVehicleData ? vehicleResult.value : [];
-        const vehicleMissing = hasVehicleData ? serverVehicles.length === 0 : vehicles.length === 0;
+        const vehicleMissing = hasVehicleData ? serverVehicles.length === 0 : false;
 
         if (hasVehicleData) {
           syncVehiclesToContext(serverVehicles, vehicles, addVehicle);
@@ -32,7 +32,7 @@ export function useDriverOnboarding() {
 
         const paymentMissing = paymentResult.status === 'fulfilled'
           ? !paymentResult.value.configured
-          : true;
+          : false;
 
         setNeedsVehicle(vehicleMissing);
         setNeedsPayment(paymentMissing);

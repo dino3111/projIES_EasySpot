@@ -91,14 +91,33 @@ test.describe('Costs and Planning', () => {
   });
 
   test('should navigate to planning and show recommendations', async ({ page }) => {
+    await page.route('**/search?*', async (route) => {
+      const url = new URL(route.request().url());
+      if ((url.searchParams.get('q') ?? '').toLowerCase().includes('coimbra')) {
+        await route.fulfill({
+          json: [
+            {
+              lat: '40.20331',
+              lon: '-8.41026',
+              display_name: 'Coimbra, Portugal',
+            },
+          ],
+        });
+        return;
+      }
+      await route.fulfill({ json: [] });
+    });
+
     await waitForLoading(page);
     const tab = page.getByRole('tab', { name: /Planeamento/i });
     await expect(tab).toBeVisible();
     await tab.click();
-    
+
     await waitForLoading(page);
-    await expect(page.getByText('Cidade de Destino')).toBeVisible();
-    
+    await page.getByLabel('Pesquisar destino no mapa').fill('Coimbra');
+    await expect(page.getByText('Coimbra, Portugal')).toBeVisible();
+    await page.getByText('Coimbra, Portugal').click();
+
     // Check if recommendation from mock appears
     await expect(page.getByText('Parque Estádio')).toBeVisible();
     await expect(page.getByText('€1.50')).toBeVisible();
