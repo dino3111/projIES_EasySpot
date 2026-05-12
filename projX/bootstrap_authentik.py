@@ -803,6 +803,124 @@ def _bind_stage(flow_pk: str, stage_pk: str, order: int) -> None:
     )
 
 
+def setup_password_change_redirect() -> None:
+    """Wire the default-authentication-flow to redirect technicians to
+    change their password on first login.
+
+    Flow order after this runs:
+      10  Identification
+      20  Password
+      30  MFA
+     100  UserLogin
+     110  Redirect → default-password-change  (only if flag set)
+    """
+    print("Configuring password-change-on-first-login redirect...")
+
+    # 1. Locate required flows
+    auth_flow_resp = api("GET", "/flows/instances/?slug=default-authentication-flow")
+    auth_results = auth_flow_resp.get("results", [])
+    if not auth_results:
+        print("  WARNING: default-authentication-flow not found, skipping.")
+        return
+    auth_flow_pk = auth_results[0]["pk"]
+
+    pw_flow_resp = api("GET", "/flows/instances/?slug=default-password-change")
+    pw_results = pw_flow_resp.get("results", [])
+    if not pw_results:
+        print("  WARNING: default-password-change flow not found, skipping.")
+        return
+    pw_flow_pk = pw_results[0]["pk"]
+
+    # 2. Get or create expression policy
+    policy_name = "easyspot-check-password-change"
+    expression = (
+        "return request.user.attributes"
+        '.get("settings", {}).get("password_change_on_login", False)'
+    )
+    existing_policy = api("GET", f"/policies/expression/?name={policy_name}")
+    if existing_policy.get("results"):
+        policy_pk = existing_policy["results"][0]["pk"]
+        api(
+            "PATCH",
+            f"/policies/expression/{policy_pk}/",
+            json={"expression": expression},
+        )
+    else:
+        created = api(
+            "POST",
+            "/policies/expression/",
+            json={"name": policy_name, "expression": expression},
+        )
+        policy_pk = created["pk"]
+    print(f"  Expression policy ready: {policy_pk}")
+
+    # 3. Get or create redirect stage
+    stage_name = "easyspot-password-change-redirect"
+    existing_stage = api("GET", f"/stages/redirect/?name={stage_name}")
+    if existing_stage.get("results"):
+        redirect_stage_pk = existing_stage["results"][0]["pk"]
+    else:
+        created = api(
+            "POST",
+            "/stages/redirect/",
+            json={
+                "name": stage_name,
+                "mode": "flow",
+                "target_flow": pw_flow_pk,
+            },
+        )
+        redirect_stage_pk = created["pk"]
+    print(f"  Redirect stage ready: {redirect_stage_pk}")
+
+    # 4. Bind redirect stage to auth flow at order 110 (after UserLogin at 100)
+    existing_binding = api(
+        "GET", f"/flows/bindings/?target={auth_flow_pk}&stage={redirect_stage_pk}"
+    )
+    if existing_binding.get("results"):
+        binding_pk = existing_binding["results"][0]["pk"]
+        print(f"  Stage binding already exists: {binding_pk}")
+    else:
+        binding = api(
+            "POST",
+            "/flows/bindings/",
+            json={
+                "target": auth_flow_pk,
+                "stage": redirect_stage_pk,
+                "order": 110,
+                "enabled": True,
+                "evaluate_on_plan": True,
+                "re_evaluate_policies": True,
+            },
+        )
+        binding_pk = binding["pk"]
+        print(f"  Stage binding created: {binding_pk}")
+
+    # 5. Attach expression policy to the stage binding
+    existing_policy_binding = api("GET", f"/policies/bindings/?policy={policy_pk}")
+    already_bound = any(
+        b.get("target") == binding_pk
+        for b in existing_policy_binding.get("results", [])
+    )
+    if not already_bound:
+        api(
+            "POST",
+            "/policies/bindings/",
+            json={
+                "policy": policy_pk,
+                "target": binding_pk,
+                "enabled": True,
+                "order": 0,
+                "timeout": 30,
+                "negate": False,
+            },
+        )
+        print("  Policy binding created.")
+    else:
+        print("  Policy binding already exists.")
+
+    print("  Password-change redirect configured.")
+
+
 def main() -> None:
     _load_bootstrap_env()
     _refresh_runtime_config()
@@ -831,6 +949,7 @@ def main() -> None:
     provider_pk = create_provider(groups_mapping_pk)
     create_application(provider_pk)
     create_enrollment_flow()
+    setup_password_change_redirect()
     create_test_users(group_ids)
     apply_branding(APP_SLUG)
     print_summary(provider_pk)

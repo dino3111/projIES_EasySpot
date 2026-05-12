@@ -10,6 +10,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.*;
 import pt.ua.deti.apieasyspot.auth.dto.ProfileUpdateRequest;
+import pt.ua.deti.apieasyspot.auth.service.AuthentikClient;
 import pt.ua.deti.apieasyspot.auth.service.ProfilePhotoService;
 import pt.ua.deti.apieasyspot.auth.service.ProfileService;
 
@@ -24,6 +25,7 @@ public class ProfileController {
     private static final String CLAIM_EMAIL = "email";
     private final ProfileService profileService;
     private final ProfilePhotoService profilePhotoService;
+    private final AuthentikClient authentikClient;
 
     @Operation(summary = "Get authenticated user profile (role-aware)")
     @ApiResponse(responseCode = "200", description = "Authenticated profile retrieved successfully")
@@ -62,6 +64,14 @@ public class ProfileController {
             new ProfileUpdateRequest(null, null, null, null, photoUrl),
             extractRole(jwt)
         ));
+    }
+
+    @Operation(summary = "Clear the must-change-password flag after technician changes password")
+    @ApiResponse(responseCode = "204", description = "Flag cleared")
+    @PostMapping("/password-changed")
+    public ResponseEntity<Void> passwordChanged(@AuthenticationPrincipal Jwt jwt) {
+        authentikClient.clearPasswordChangeFlag(jwt.getSubject());
+        return ResponseEntity.noContent().build();
     }
 
     private String extractRole(Jwt jwt) {

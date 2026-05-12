@@ -40,6 +40,9 @@ public class CustomJwtAuthenticationConverter implements Converter<Jwt, Abstract
         String role = (groups != null && !groups.isEmpty()) ? groups.get(0) : "DRIVER";
 
         var existing = userRepository.findByAuthentikUserId(subject);
+        if (existing.isEmpty() && email != null) {
+            existing = userRepository.findByEmail(email);
+        }
         if (existing.isEmpty() && (email == null || name == null)) {
             // Some synthetic/test tokens don't provide profile fields.
             // Skip persistence and keep JWT-based auth working.

@@ -32,6 +32,8 @@ public class AuthentikClient {
         this.token = token;
     }
 
+    private static final String USERS_API = "/api/v3/core/users/";
+
     public record AuthentikUser(String pk, String username, String email, String name) {}
 
     public AuthentikUser createUser(String username, String name, String email, String groupPk) {
@@ -44,7 +46,7 @@ public class AuthentikClient {
                 "groups", List.of(groupPk),
                 "type", "internal"
             ));
-            var resp = post("/api/v3/core/users/", body);
+            var resp = post(USERS_API, body);
             return new AuthentikUser(
                 resp.get("pk").asText(),
                 resp.get("username").asText(),
@@ -59,13 +61,26 @@ public class AuthentikClient {
     public void setPassword(String userPk, String password, boolean mustChangeOnLogin) {
         try {
             var body = mapper.writeValueAsString(Map.of("password", password));
-            post("/api/v3/core/users/" + userPk + "/set_password/", body);
+            post(USERS_API + userPk + "/set_password/", body);
             if (mustChangeOnLogin) {
-                var patchBody = mapper.writeValueAsString(Map.of("password_change_on_login", true));
-                patch("/api/v3/core/users/" + userPk + "/", patchBody);
+                var patchBody = mapper.writeValueAsString(Map.of(
+                    "attributes", Map.of("settings", Map.of("password_change_on_login", true))
+                ));
+                patch(USERS_API + userPk + "/", patchBody);
             }
         } catch (Exception e) {
             throw new RuntimeException("Failed to set Authentik password: " + e.getMessage(), e);
+        }
+    }
+
+    public void clearPasswordChangeFlag(String userPk) {
+        try {
+            var patchBody = mapper.writeValueAsString(Map.of(
+                "attributes", Map.of("settings", Map.of("password_change_on_login", false))
+            ));
+            patch(USERS_API + userPk + "/", patchBody);
+        } catch (Exception e) {
+            log.warn("Failed to clear password_change_on_login for user {}: {}", userPk, e.getMessage());
         }
     }
 
@@ -92,7 +107,7 @@ public class AuthentikClient {
     public void deleteUser(String userPk) {
         try {
             var req = HttpRequest.newBuilder()
-                .uri(URI.create(apiUrl + "/api/v3/core/users/" + userPk + "/"))
+                .uri(URI.create(apiUrl + USERS_API + userPk + "/"))
                 .header("Authorization", "Bearer " + token)
                 .DELETE()
                 .build();

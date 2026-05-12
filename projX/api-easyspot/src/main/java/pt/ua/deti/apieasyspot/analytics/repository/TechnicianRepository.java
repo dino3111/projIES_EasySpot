@@ -1,6 +1,5 @@
 package pt.ua.deti.apieasyspot.analytics.repository;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -18,11 +17,17 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Repository
-@RequiredArgsConstructor
 public class TechnicianRepository {
 
-    private final @Qualifier("jdbcTemplate") JdbcTemplate jdbc;
-    private final @Qualifier("timescaleJdbcTemplate") JdbcTemplate timescaleJdbc;
+    private final JdbcTemplate jdbc;
+    private final JdbcTemplate timescaleJdbc;
+
+    public TechnicianRepository(
+            @Qualifier("jdbcTemplate") JdbcTemplate jdbc,
+            @Qualifier("timescaleJdbcTemplate") JdbcTemplate timescaleJdbc) {
+        this.jdbc = jdbc;
+        this.timescaleJdbc = timescaleJdbc;
+    }
 
     public int countTotalSensors() {
         Long result = jdbc.queryForObject("select count(*) from sensor_registry", Long.class);
@@ -97,7 +102,7 @@ public class TechnicianRepository {
 
         int total = countTotalSensors();
 
-        return jdbc.query(
+        return timescaleJdbc.query(
             """
             select generate_series(
                 (current_date - 6)::timestamp,
@@ -147,17 +152,28 @@ public class TechnicianRepository {
             order by a.created_at desc
             limit 10
             """,
-            (rs, rowNum) -> new WorkOrderSummary(
-                UUID.fromString(rs.getString("id")),
-                rs.getString("type").toLowerCase(Locale.ROOT),
-                parkNames.getOrDefault(UUID.fromString(rs.getString("parking_lot_id")), "Unknown"),
-                rs.getString("zone"),
-                rs.getString("sensor_id"),
-                rs.getString("description"),
-                rs.getString("severity").toLowerCase(Locale.ROOT),
-                rs.getString("state").toLowerCase(Locale.ROOT).replace("_", "-"),
-                rs.getTimestamp("created_at").toInstant().atOffset(ZoneOffset.UTC),
-                rs.getString("attributed_to")));
+            (rs, rowNum) -> {
+                String parkingLotIdStr = rs.getString("parking_lot_id");
+                String parkName = "Unknown";
+                if (parkingLotIdStr != null) {
+                    try {
+                        parkName = parkNames.getOrDefault(UUID.fromString(parkingLotIdStr), "Unknown");
+                    } catch (IllegalArgumentException ignored) {
+                        // malformed UUID in DB — fall back to "Unknown"
+                    }
+                }
+                return new WorkOrderSummary(
+                    UUID.fromString(rs.getString("id")),
+                    rs.getString("type").toLowerCase(Locale.ROOT),
+                    parkName,
+                    rs.getString("zone"),
+                    rs.getString("sensor_id"),
+                    rs.getString("description"),
+                    rs.getString("severity").toLowerCase(Locale.ROOT),
+                    rs.getString("state").toLowerCase(Locale.ROOT).replace("_", "-"),
+                    rs.getTimestamp("created_at").toInstant().atOffset(ZoneOffset.UTC),
+                    rs.getString("attributed_to"));
+            });
     }
 
     private String statusLabel(String status) {
