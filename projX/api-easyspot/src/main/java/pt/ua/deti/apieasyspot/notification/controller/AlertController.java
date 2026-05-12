@@ -16,11 +16,16 @@ import pt.ua.deti.apieasyspot.notification.dto.AlertResponse;
 import pt.ua.deti.apieasyspot.notification.dto.AlertSubscriptionResponse;
 import pt.ua.deti.apieasyspot.notification.dto.AlertStateUpdate;
 import pt.ua.deti.apieasyspot.notification.dto.CreateAlertSubscriptionRequest;
+import pt.ua.deti.apieasyspot.notification.model.Alert;
 import pt.ua.deti.apieasyspot.notification.model.SeverityAlert;
 import pt.ua.deti.apieasyspot.notification.model.StateAlert;
 import pt.ua.deti.apieasyspot.analytics.service.TechnicianParkAssignmentService;
 import pt.ua.deti.apieasyspot.notification.service.AlertService;
 import pt.ua.deti.apieasyspot.notification.service.AlertSubscriptionService;
+import pt.ua.deti.apieasyspot.common.exception.ResourceNotFoundException;
+import pt.ua.deti.apieasyspot.sensor.model.SensorRegistry;
+import pt.ua.deti.apieasyspot.sensor.model.SensorStatus;
+import pt.ua.deti.apieasyspot.sensor.repository.SensorRegistryRepository;
 
 import java.util.List;
 import java.util.UUID;
@@ -34,6 +39,7 @@ public class AlertController {
     private final AlertService alertService;
     private final AlertSubscriptionService alertSubscriptionService;
     private final TechnicianParkAssignmentService assignmentService;
+    private final SensorRegistryRepository sensorRegistryRepository;
 
     @Operation(summary = "List alerts (technicians see only their assigned parks)")
     @ApiResponse(responseCode = "200", description = "List of alerts")
@@ -99,6 +105,36 @@ public class AlertController {
     ) {
         alertService.updateState(id, body.state(), body.notes());
         return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "Create a sensor alert when a technician needs to open a task from a failed sensor")
+    @ApiResponse(responseCode = "201", description = "Sensor alert created successfully")
+    @ApiResponse(responseCode = "400", description = "Sensor is not in a failed state")
+    @ApiResponse(responseCode = "401", description = "Missing or invalid authentication token")
+    @ApiResponse(responseCode = "403", description = "User is authenticated but not a TECHNICAL or MANAGER")
+    @ApiResponse(responseCode = "404", description = "Sensor not found")
+    @PostMapping("/sensor-tasks/{sensorId}")
+    @PreAuthorize("hasAnyRole('TECHNICAL', 'MANAGER')")
+    public ResponseEntity<AlertResponse> createSensorTask(
+        @PathVariable String sensorId,
+        @RequestBody(required = false) AlertStateUpdate body
+    ) {
+        SensorRegistry sensor = sensorRegistryRepository.findById(sensorId)
+            .orElseThrow(() -> new ResourceNotFoundException("Sensor not found: " + sensorId));
+
+        if (sensor.getStatus() == SensorStatus.OPERATIONAL) {
+            throw new IllegalStateException("Sensor is operational: " + sensorId);
+        }
+
+        Alert saved = alertService.createSensorAlert(
+            sensor.getParkingLot().getId(),
+            sensor.getParkingLot().getName(),
+            sensor.getZone(),
+            sensorId,
+            "Falha detetada no sensor " + sensorId + ".",
+            body != null ? body.notes() : null
+        );
+        return ResponseEntity.status(201).body(AlertResponse.from(saved));
     }
 
 }

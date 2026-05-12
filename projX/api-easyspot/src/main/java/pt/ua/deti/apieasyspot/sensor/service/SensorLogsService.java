@@ -21,7 +21,6 @@ import pt.ua.deti.apieasyspot.sensor.repository.SensorRegistryRepository;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor

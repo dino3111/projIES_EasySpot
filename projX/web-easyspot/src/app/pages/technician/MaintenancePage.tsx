@@ -13,6 +13,7 @@ import {
   fetchSensorList,
   fetchSensorDetail,
   fetchAlerts,
+  createSensorTaskAlert,
   updateAlertState,
   updateSensorStatus,
   type SensorSummary,
@@ -272,7 +273,22 @@ export function MaintenancePage() {
         showToast('Erro ao criar tarefa.', 'error');
       }
     } else {
-      showToast(`Não foi possível criar a tarefa "${titulo}": não existe nenhum alerta aberto para o sensor ${sensorId}.`, 'error');
+      const sensor = sensors.find((s) => s.id === sensorId);
+      if (!sensor || (sensor.status !== 'falha' && sensor.status !== 'offline')) {
+        showToast(`Não foi possível criar a tarefa "${titulo}": não existe nenhum alerta aberto para o sensor ${sensorId}.`, 'error');
+        setNewOrderModal(false);
+        return;
+      }
+
+      try {
+        const created = await createSensorTaskAlert(sensorId, descricao || undefined);
+        await updateAlertState(created.id, 'IN_PROGRESS', descricao || undefined);
+        setOrders((prev) => [ { ...alertToWorkOrder(created), state: 'IN_PROGRESS' }, ...prev ]);
+        setIssues((prev) => [ { ...alertToIssue(created), estado: 'em-progresso' }, ...prev ]);
+        showToast(`Tarefa "${titulo}" criada — sensor ${sensorId} em progresso.`, 'success');
+      } catch {
+        showToast(`Não foi possível criar a tarefa "${titulo}": não existe nenhum alerta aberto para o sensor ${sensorId}.`, 'error');
+      }
     }
     setNewOrderModal(false);
   };

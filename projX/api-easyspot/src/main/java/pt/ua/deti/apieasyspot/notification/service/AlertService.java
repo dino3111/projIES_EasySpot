@@ -63,6 +63,21 @@ public class AlertService {
         alertRepository.save(alert);
     }
 
+    public Alert createSensorAlert(UUID parkingLotId, String parkingLotName, String zone, String sensorId, String description, String notes) {
+        Alert alert = new Alert();
+        alert.setParkingLotId(parkingLotId);
+        alert.setParkingLotName(parkingLotName);
+        alert.setType(AlertType.SENSOR);
+        alert.setSeverity(SeverityAlert.CRITICAL);
+        alert.setState(StateAlert.OPEN);
+        alert.setZone(zone);
+        alert.setSensorId(sensorId);
+        alert.setDescription(description);
+        alert.setNotes(notes);
+        alert.setCreatedAt(OffsetDateTime.now(ZoneOffset.UTC));
+        return alertRepository.save(alert);
+    }
+
     private StateAlert parseState(String rawState) {
         if (rawState == null || rawState.isBlank()) {
             throw new IllegalArgumentException("State must not be blank");
