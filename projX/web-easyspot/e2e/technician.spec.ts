@@ -237,7 +237,9 @@ test('Banner de erro parcial aparece quando API de sensores falha', async ({ pag
 test('Tab sensores mostra parques e sensores vindos da API', async ({ page }) => {
   await page.goto('/technician/maintenance');
 
-  await page.getByRole('tab', { name: /sensores/i }).click();
+  const sensoresTab = page.getByRole('tab', { name: /sensores/i });
+  await expect(sensoresTab).toBeVisible();
+  await sensoresTab.click();
 
   // parkingLotName "Fórum Aveiro" vem da API mock (mockSensors)
   await expect(page.getByText('Fórum Aveiro')).toBeVisible();
@@ -246,7 +248,9 @@ test('Tab sensores mostra parques e sensores vindos da API', async ({ page }) =>
 test('Abrir sensor mostra painel de diagnóstico com logs carregados da API', async ({ page }) => {
   await page.goto('/technician/maintenance');
 
-  await page.getByRole('tab', { name: /sensores/i }).click();
+  const sensoresTab = page.getByRole('tab', { name: /sensores/i });
+  await expect(sensoresTab).toBeVisible();
+  await sensoresTab.click();
 
   // Entra no parque Fórum Aveiro
   await page.getByText('Fórum Aveiro').click();
@@ -265,7 +269,9 @@ test('Abrir sensor mostra painel de diagnóstico com logs carregados da API', as
 test('Painel de diagnóstico distingue log aberto de log resolvido', async ({ page }) => {
   await page.goto('/technician/maintenance');
 
-  await page.getByRole('tab', { name: /sensores/i }).click();
+  const sensoresTab = page.getByRole('tab', { name: /sensores/i });
+  await expect(sensoresTab).toBeVisible();
+  await sensoresTab.click();
   await page.getByText('Fórum Aveiro').click();
   await page.getByText('IR-AV1-B07').click();
 
