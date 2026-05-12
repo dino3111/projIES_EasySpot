@@ -23,10 +23,12 @@ Usage (Manual - if automatic setup fails):
 Optional env vars:
     AUTHENTIK_URL       Base URL of Authentik (default: http://localhost:9000)
     AUTHENTIK_TOKEN     API token (optional if auto-setup works)
+    APP_FRONTEND_URL    Public frontend URL used by Authentik launch links
+                        (default: http://localhost/)
     REDIRECT_URI        Frontend OAuth2 callback
-                        (default: http://localhost:5173/callback)
+                        (default: http://localhost/callback)
     LOGOUT_REDIRECT_URI Frontend post-logout destination
-                        (default: http://localhost:5173/welcome)
+                        (default: http://localhost/welcome)
     BOOTSTRAP_ENV_FILE  Optional explicit .env file path to load first
     BOOTSTRAP_LOAD_PARENT_ENV
                         Set to 1/true to also load ../.env
@@ -105,6 +107,7 @@ BASE_URL = ""
 TOKEN = ""
 REDIRECT_URI = ""
 LOGOUT_REDIRECT_URI = ""
+APP_FRONTEND_URL = ""
 _AUTHENTIK_HOST = ""
 ISSUER_URI = ""
 
@@ -114,6 +117,7 @@ def _refresh_runtime_config() -> None:
     global TOKEN
     global REDIRECT_URI
     global LOGOUT_REDIRECT_URI
+    global APP_FRONTEND_URL
     global _AUTHENTIK_HOST
     global ISSUER_URI
 
@@ -129,6 +133,7 @@ def _refresh_runtime_config() -> None:
     LOGOUT_REDIRECT_URI = os.environ.get(
         "LOGOUT_REDIRECT_URI", "http://localhost/welcome"
     )
+    APP_FRONTEND_URL = os.environ.get("APP_FRONTEND_URL", "http://localhost/")
     _AUTHENTIK_HOST = (
         os.environ.get("AUTHENTIK_URL", "http://localhost:9000")
         .rstrip("/")
@@ -475,19 +480,19 @@ def create_provider(groups_mapping_pk: str) -> str:
 
 def create_application(provider_pk: str) -> dict:
     print("Creating application...")
-    app = get_or_create(
-        "/core/applications/",
-        "/core/applications/",
-        "slug",
-        APP_SLUG,
-        {
-            "name": APP_NAME,
-            "slug": APP_SLUG,
-            "provider": provider_pk,
-            "meta_launch_url": "http://localhost:5173",
-            "policy_engine_mode": "any",
-        },
-    )
+    payload = {
+        "name": APP_NAME,
+        "slug": APP_SLUG,
+        "provider": provider_pk,
+        "meta_launch_url": APP_FRONTEND_URL,
+        "policy_engine_mode": "any",
+    }
+    existing = api("GET", f"/core/applications/?slug={APP_SLUG}")
+    results = existing.get("results", [])
+    if results:
+        app = api("PATCH", f"/core/applications/{results[0]['pk']}/", json=payload)
+    else:
+        app = api("POST", "/core/applications/", json=payload)
     print(f"  Application slug='{app['slug']}'")
     return app
 
@@ -619,6 +624,7 @@ def print_summary(provider_pk: str) -> None:
     print(f"  Client ID:    {client_id}")
     print("  Client type:  public (PKCE)")
     print(f"  Redirect URI: {REDIRECT_URI}")
+    print(f"  Launch URL:   {APP_FRONTEND_URL}")
     print()
     print("Test users (all at http://localhost:9000):")
     for u in TEST_USERS:
