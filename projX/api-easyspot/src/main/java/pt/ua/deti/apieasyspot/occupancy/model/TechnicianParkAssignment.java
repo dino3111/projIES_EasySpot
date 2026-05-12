@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Data
-@Entity
+@Entity(name = "OccupancyTechnicianParkAssignment")
 @Table(name = "technician_park_assignments")
 public class TechnicianParkAssignment {
 
