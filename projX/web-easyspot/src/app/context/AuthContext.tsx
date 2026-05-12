@@ -229,8 +229,8 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
     const stateVal  = base64urlEncode(randomBytes(16));
     const challenge = base64urlEncode(await sha256(verifier));
 
-    sessionStorage.setItem(SK.pkceVerifier, verifier);
-    sessionStorage.setItem(SK.pkceState,    stateVal);
+    localStorage.setItem(SK.pkceVerifier, verifier);
+    localStorage.setItem(SK.pkceState,    stateVal);
 
     const params = new URLSearchParams({
       response_type:         'code',
@@ -250,8 +250,8 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
     const stateVal  = base64urlEncode(randomBytes(16));
     const challenge = base64urlEncode(await sha256(verifier));
 
-    sessionStorage.setItem(SK.pkceVerifier, verifier);
-    sessionStorage.setItem(SK.pkceState,    stateVal);
+    localStorage.setItem(SK.pkceVerifier, verifier);
+    localStorage.setItem(SK.pkceState,    stateVal);
 
     const authorizeParams = new URLSearchParams({
       response_type:         'code',
@@ -268,14 +268,14 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
   }, []);
 
   const handleCallback = useCallback(async (code: string, state: string) => {
-    const savedState   = sessionStorage.getItem(SK.pkceState);
-    const codeVerifier = sessionStorage.getItem(SK.pkceVerifier);
+    const savedState   = localStorage.getItem(SK.pkceState);
+    const codeVerifier = localStorage.getItem(SK.pkceVerifier);
 
     if (state !== savedState) throw new Error('State mismatch — possible CSRF');
     if (!codeVerifier)        throw new Error('Missing PKCE verifier');
 
-    sessionStorage.removeItem(SK.pkceState);
-    sessionStorage.removeItem(SK.pkceVerifier);
+    localStorage.removeItem(SK.pkceState);
+    localStorage.removeItem(SK.pkceVerifier);
 
     const body = new URLSearchParams({
       grant_type:    'authorization_code',
