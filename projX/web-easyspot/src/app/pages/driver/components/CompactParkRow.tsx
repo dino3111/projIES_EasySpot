@@ -137,17 +137,19 @@ function buildContext({ lot, filterMode, evAvail, evTotal, accAvail, accTotal }:
     };
   }
 
-  const isFull = lot.availableSpots === 0;
-  const isAlmost = !isFull && lot.availableSpots <= Math.ceil(lot.totalSpots * 0.2);
+  const totalSpots = Math.max(0, lot.totalSpots);
+  const availableSpots = Math.min(totalSpots, Math.max(0, lot.availableSpots));
+  const isFull = availableSpots === 0;
+  const isAlmost = !isFull && availableSpots <= Math.ceil(totalSpots * 0.2);
   
   let label = 'Disponível';
   if (isFull) label = 'Lotado';
   else if (isAlmost) label = 'Quase cheio';
 
   return {
-    avail: lot.availableSpots,
-    total: lot.totalSpots,
-    color: getStatusColor(lot.availableSpots, lot.totalSpots, isAlmost, '#22c55e'),
+    avail: availableSpots,
+    total: totalSpots,
+    color: getStatusColor(availableSpots, totalSpots, isAlmost, '#22c55e'),
     label,
     icon: null,
     borderCls: 'border-border',

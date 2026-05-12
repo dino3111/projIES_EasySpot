@@ -52,8 +52,10 @@ function buildAvailabilityContext(params: AvailabilityParams): AvailabilityConte
 }
 
 export function ParkingCard({ lot, highlightAccessible = false, filterMode = null }: ParkingCardProps) {
-  const { id, name, address, availableSpots, totalSpots, hourlyRate, walkingTime, distance,
+  const { id, name, address, hourlyRate, walkingTime, distance,
           hasEVCharger, hasAccessible, evChargers, accessibleSpots } = lot;
+  const totalSpots = Math.max(0, lot.totalSpots);
+  const availableSpots = Math.min(totalSpots, Math.max(0, lot.availableSpots));
 
   const evAvail = evChargers?.filter((c) => c.available).length ?? 0;
   const evTotal = evChargers?.length ?? 0;
