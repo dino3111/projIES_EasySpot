@@ -115,5 +115,6 @@ describe('Driver pages', () => {
     render(<MemoryRouter><ProfilePage /></MemoryRouter>);
     expect(await screen.findByText(/Perfil/i)).toBeInTheDocument();
     expect(screen.getByText(/Ana Silva/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Reportar Problema/i })).toHaveAttribute('href', '/report');
   });
 });

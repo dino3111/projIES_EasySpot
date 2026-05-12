@@ -236,6 +236,8 @@ export function DriverProfile({ profileData, onProfileUpdate }: Readonly<{ profi
         <AccountRow icon="fa-bell"          label="Gerir Notificacoes" onClick={() => setShowNotificationsModal(true)} />
         <div className="h-px bg-border mx-4" />
         <AccountRow icon="fa-shield-halved" label="Privacidade e Seguranca" onClick={() => setShowPrivacyModal(true)} />
+        <div className="h-px bg-border mx-4" />
+        <AccountRow icon="fa-flag" label="Reportar Problema" to="/report" />
       </div>
         </>
       ) : (
