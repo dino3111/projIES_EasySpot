@@ -108,7 +108,7 @@ public class BookingConfirmationMailService {
     private String buildUpdateBody(Reservation reservation, BigDecimal previousCost, BigDecimal newCost, BigDecimal delta) {
         BigDecimal prev = previousCost != null ? previousCost : BigDecimal.ZERO;
         BigDecimal next = newCost != null ? newCost : BigDecimal.ZERO;
-        BigDecimal d    = delta != null ? delta : next.subtract(prev);
+        BigDecimal d = delta != null ? delta : next.subtract(prev);
 
         String paymentLine;
         if (d.signum() > 0) {

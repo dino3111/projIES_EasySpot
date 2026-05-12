@@ -25,11 +25,15 @@ export function Step2SpotChoice({
 
   const spotsByRow = useMemo(() => {
     if (!floor) return {};
-    return floor.spots.reduce((acc, spot) => {
+    const grouped = floor.spots.reduce((acc, spot) => {
       if (!acc[spot.row]) acc[spot.row] = [];
       acc[spot.row].push(spot);
       return acc;
     }, {} as Record<number, ParkingSpot[]>);
+    for (const row of Object.keys(grouped)) {
+      grouped[Number(row)].sort((a, b) => a.col - b.col);
+    }
+    return grouped;
   }, [floor]);
 
   const freeCounts = useMemo(() => {
@@ -105,6 +109,7 @@ export function Step2SpotChoice({
             <div className="flex gap-3 text-xs text-base-content/60 flex-wrap">
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-success border border-success-content/30 inline-block" /> Livre ({freeCounts.free || 0})</span>
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-error border border-error-content/30 inline-block" /> Ocupado ({freeCounts.occupied || 0})</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm inline-block" style={{background:'#d97706'}} /> Reservado ({freeCounts.reserved || 0})</span>
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-warning border border-warning-content/30 inline-block" /> EV ({freeCounts.ev || 0})</span>
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-info border border-info-content/30 inline-block" /> Acessível ({freeCounts.accessible || 0})</span>
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-primary inline-block" /> Selecionado</span>

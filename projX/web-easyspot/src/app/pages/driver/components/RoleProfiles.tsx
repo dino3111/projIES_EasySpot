@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { useProfile } from '../../../context/ProfileContext';
-import { paymentApi, profileApi, type DriverProfileResponse, type ManagerProfileResponse, type PaymentMethodSummaryResponse, type ProfileResponse, type TechnicianProfileResponse } from '../../../../services/apiService';
+import { parksApi, paymentApi, profileApi, type DriverProfileResponse, type ManagerProfileResponse, type ParkSummary, type PaymentMethodSummaryResponse, type ProfileResponse, type TechnicianProfileResponse } from '../../../../services/apiService';
 import { SectionHeader, UserTypeOption, ToggleRow, StatCard, AccountRow, AccountRowWithBadge } from './ProfilePrimitives';
 import { StepPaymentStripe } from '../welcome/StepPaymentStripe';
 import { LocationPreviewMap } from '../../../components/parking/LocationPreviewMap';
@@ -236,8 +236,6 @@ export function DriverProfile({ profileData, onProfileUpdate }: Readonly<{ profi
         <AccountRow icon="fa-bell"          label="Gerir Notificacoes" onClick={() => setShowNotificationsModal(true)} />
         <div className="h-px bg-border mx-4" />
         <AccountRow icon="fa-shield-halved" label="Privacidade e Seguranca" onClick={() => setShowPrivacyModal(true)} />
-        <div className="h-px bg-border mx-4" />
-        <AccountRow to="/report" icon="fa-flag" label="Reportar Problema" accent />
       </div>
         </>
       ) : (
@@ -444,14 +442,22 @@ export function ManagerProfile({ profileData }: Readonly<{ profileData: ManagerP
         <AccountRow                                 icon="fa-file-export"   label="Exportar Relatorios" />
         <div className="h-px bg-border mx-4" />
         <AccountRow                                 icon="fa-shield-halved" label="Privacidade e Seguranca" />
-        <div className="h-px bg-border mx-4" />
-        <AccountRow to="/report" icon="fa-flag" label="Reportar Problema" accent />
       </div>
     </>
   );
 }
 
 export function TechnicianProfile({ profileData }: Readonly<{ profileData: TechnicianProfileResponse | null }>) {
+  const [parks, setParks] = useState<ParkSummary[]>([]);
+  const [loadingParks, setLoadingParks] = useState(true);
+
+  useEffect(() => {
+    parksApi.list()
+      .then((res) => setParks(res.items))
+      .catch(() => setParks([]))
+      .finally(() => setLoadingParks(false));
+  }, []);
+
   return (
     <>
       <SectionHeader icon="fa-wrench" title="Estado dos Sensores" />
@@ -461,22 +467,31 @@ export function TechnicianProfile({ profileData }: Readonly<{ profileData: Techn
         <StatCard icon="fa-circle-xmark"         value={String(profileData?.openFaults ?? 0)}   label="Falha"        color="#ef4444" />
       </div>
 
-      <SectionHeader icon="fa-building" title="Parque Atribuido" />
+      <SectionHeader icon="fa-building" title="Parques" />
       <div className="rounded-2xl overflow-hidden mb-5 bg-card border border-border">
-        <AccountRow icon="fa-square-parking" label="Parque Central - Aveiro" />
+        {loadingParks && (
+          <div className="px-4 py-3 text-muted-foreground" style={{ fontSize: '0.82rem' }}>A carregar parques...</div>
+        )}
+        {!loadingParks && parks.length === 0 && (
+          <div className="px-4 py-3 text-muted-foreground" style={{ fontSize: '0.82rem' }}>Sem parques disponíveis.</div>
+        )}
+        {!loadingParks && parks.map((park, idx) => (
+          <div key={park.id}>
+            {idx > 0 && <div className="h-px bg-border mx-4" />}
+            <AccountRow icon="fa-square-parking" label={`${park.name} - ${park.city}`} />
+          </div>
+        ))}
       </div>
 
       <SectionHeader icon="fa-list-check" title="Manutencao" />
       <div className="rounded-2xl overflow-hidden mb-5 bg-card border border-border">
-        <AccountRow icon="fa-screwdriver-wrench" label="Ordens de Manutencao Abertas" />
+        <AccountRow to="/technician/maintenance?tab=tasks"    icon="fa-screwdriver-wrench" label="Ordens de Manutencao Abertas" />
         <div className="h-px bg-border mx-4" />
-        <AccountRow icon="fa-microchip"          label="Diagnostico de Sensores" />
+        <AccountRow to="/technician/maintenance?tab=sensors"  icon="fa-microchip"          label="Diagnostico de Sensores" />
         <div className="h-px bg-border mx-4" />
-        <AccountRow icon="fa-file-lines"         label="Historico de Intervencoes" />
+        <AccountRow to="/technician/maintenance?tab=incidents" icon="fa-file-lines"         label="Historico de Intervencoes" />
         <div className="h-px bg-border mx-4" />
         <AccountRow icon="fa-shield-halved"      label="Privacidade e Seguranca" />
-        <div className="h-px bg-border mx-4" />
-        <AccountRow to="/report" icon="fa-flag" label="Reportar Problema" accent />
       </div>
     </>
   );

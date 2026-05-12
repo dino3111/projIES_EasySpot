@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { computeTechKPIs, type SensorDevice } from '../../../data/technicianData';
-import { STATUS_COLOR, STATUS_LABEL, TIPO_ICON, type StatusFil } from './maintenanceTypes';
-import { EmptyState, StatBadge } from './shared';
+import { STATUS_COLOR, STATUS_LABEL, type StatusFil } from './maintenanceTypes';
+import { EmptyState, StatBadge, TechMapLegend } from './shared';
 
 type SensorsTabProps = Readonly<{
   sensors: SensorDevice[];
@@ -14,7 +14,6 @@ type SensorsTabProps = Readonly<{
 type ParkSensorMapViewProps = Readonly<{
   parkId: string;
   allSensors: SensorDevice[];
-  statusFilter: StatusFil;
   onBack: () => void;
   onSelectSensor: (s: SensorDevice) => void;
 }>;
@@ -52,7 +51,7 @@ export function SensorsTab({
       <ParkSensorMapView
         parkId={selectedParkId}
         allSensors={sensors.filter(s => s.parqueId === selectedParkId)}
-        statusFilter={statusFil}
+
         onBack={() => setSelectedParkId(null)}
         onSelectSensor={onSelect}
       />
@@ -170,14 +169,11 @@ export function SensorsTab({
 }
 
 function ParkSensorMapView({
-  parkId, allSensors, statusFilter, onBack, onSelectSensor,
+  parkId, allSensors, onBack, onSelectSensor,
 }: ParkSensorMapViewProps) {
-  const [localFilter, setLocalFilter] = useState<StatusFil>(statusFilter);
-  const [visibleCount, setVisibleCount] = useState(5);
   const parkName = allSensors[0]?.parqueNome ?? parkId;
-
-  const sensorBySpot: Record<string, SensorDevice> = {};
-  allSensors.forEach(s => { if (s.lugar) sensorBySpot[s.lugar] = s; });
+  const [localFilter, setLocalFilter] = useState<StatusFil>('todos');
+  const [visibleCount, setVisibleCount] = useState(5);
 
   const statusCounts = {
     operacional: allSensors.filter(s => s.status === 'operacional').length,
@@ -186,7 +182,11 @@ function ParkSensorMapView({
     manutencao:  allSensors.filter(s => s.status === 'manutencao').length,
   };
 
-  const filteredSensors = allSensors.filter(s => localFilter === 'todos' || s.status === localFilter);
+  // Build a label for each sensor from sensorId suffix: "IR-AV1-B07" → "B07"
+  const sensorLabel = (s: SensorDevice) => s.lugar ?? s.id.split('-').pop() ?? s.id;
+
+  // Grid: up to 4 columns, rows expand as needed
+  const COLS = Math.min(4, allSensors.length);
 
   return (
     <div className="space-y-3">
@@ -209,17 +209,55 @@ function ParkSensorMapView({
         </button>
       </div>
 
-      <div className="grid grid-cols-4 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-4 gap-2">
         <StatBadge label="Operacional" value={statusCounts.operacional} color="#22c55e" icon="fa-circle-check" />
         <StatBadge label="Falha"       value={statusCounts.falha}       color="#d4183d" icon="fa-circle-xmark" />
         <StatBadge label="Manutenção"  value={statusCounts.manutencao}  color="#f59e0b" icon="fa-wrench" />
         <StatBadge label="Offline"     value={statusCounts.offline}     color="#6b7280" icon="fa-circle-minus" />
       </div>
 
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <div className="px-3 py-2 bg-muted/30 border-b border-border flex flex-wrap items-center gap-3">
+          <span className="text-foreground font-bold" style={{ fontSize: '0.8rem' }}>
+            <i className="fas fa-map-pin mr-1.5 text-primary" aria-hidden="true"></i>
+            Disposição dos Lugares
+          </span>
+          <div className="flex flex-wrap gap-x-3 gap-y-1">
+            <TechMapLegend color="#22c55e" label="Operacional" />
+            <TechMapLegend color="#d4183d" label="Falha" />
+            <TechMapLegend color="#f59e0b" label="Manutenção" />
+            <TechMapLegend color="#6b7280" label="Offline" />
+          </div>
+        </div>
+        <div className="p-4 flex justify-center bg-muted/10">
+          <div
+            className="grid gap-2"
+            style={{ gridTemplateColumns: `repeat(${COLS}, 52px)` }}
+          >
+            {allSensors.map(sensor => {
+              const color = STATUS_COLOR[sensor.status];
+              const label = sensorLabel(sensor);
+              return (
+                <button
+                  key={sensor.id}
+                  onClick={() => onSelectSensor(sensor)}
+                  className="flex flex-col items-center justify-center rounded-xl shadow-sm hover:scale-105 transition-all cursor-pointer"
+                  style={{ width: 52, height: 52, background: color }}
+                  title={`${label} — ${STATUS_LABEL[sensor.status]}\n${sensor.id}`}
+                >
+                  <i className="fas fa-microchip text-white" style={{ fontSize: '0.75rem' }} aria-hidden="true" />
+                  <span className="text-white font-bold leading-none mt-1" style={{ fontSize: '0.6rem' }}>{label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
       <div>
         <h3 className="text-foreground mb-3 font-bold" style={{ fontSize: '0.875rem' }}>
           <i className="fas fa-list mr-2 text-primary" aria-hidden="true"></i>
-          Sensores ({filteredSensors.length})
+          Sensores ({allSensors.filter(s => localFilter === 'todos' || s.status === localFilter).length})
         </h3>
         <div className="flex flex-wrap gap-2 mb-3">
           {([
@@ -231,7 +269,7 @@ function ParkSensorMapView({
           ]).map(({ v, l, active, inactive }) => (
             <button
               key={v}
-              onClick={() => setLocalFilter(v)}
+              onClick={() => { setLocalFilter(v); setVisibleCount(5); }}
               className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${localFilter === v ? active : inactive}`}
             >
               {l}
@@ -239,42 +277,45 @@ function ParkSensorMapView({
           ))}
         </div>
         <div className="space-y-2">
-          {filteredSensors.slice(0, visibleCount).map(sensor => {
-            const color = STATUS_COLOR[sensor.status];
-            return (
-              <button
-                key={sensor.id}
-                onClick={() => onSelectSensor(sensor)}
-                className="w-full text-left flex items-center gap-3 p-3 bg-card border border-border rounded-lg hover:border-primary/30 hover:bg-card/85 transition-all"
-              >
-                <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${color}20` }} aria-hidden="true">
-                  <i className={`fas ${TIPO_ICON[sensor.tipo]}`} style={{ color, fontSize: '0.9rem' }}></i>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-foreground font-bold" style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>{sensor.id}</span>
-                    <span className="text-muted-foreground" style={{ fontSize: '0.72rem' }}>
-                      {sensor.zona}{sensor.lugar ? ` · ${sensor.lugar}` : ''}
-                    </span>
+          {allSensors
+            .filter(s => localFilter === 'todos' || s.status === localFilter)
+            .slice(0, visibleCount)
+            .map(sensor => {
+              const color = STATUS_COLOR[sensor.status];
+              return (
+                <button
+                  key={sensor.id}
+                  onClick={() => onSelectSensor(sensor)}
+                  className="w-full text-left flex items-center gap-3 p-3 bg-card border border-border rounded-lg hover:border-primary/30 hover:bg-card/85 transition-all"
+                >
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${color}20` }}>
+                    <i className="fas fa-microchip" style={{ color, fontSize: '0.9rem' }} aria-hidden="true"></i>
                   </div>
-                  <p className="text-muted-foreground" style={{ fontSize: '0.7rem', marginTop: '0.25rem' }}>
-                    {sensor.tipo} • FW {sensor.firmware} • Uptime {sensor.uptimePercent}%
-                  </p>
-                </div>
-                <span className="px-2 py-1 rounded-full flex-shrink-0" style={{ fontSize: '0.65rem', fontWeight: 700, background: `${color}20`, color }}>
-                  {STATUS_LABEL[sensor.status]}
-                </span>
-              </button>
-            );
-          })}
-          {filteredSensors.length > visibleCount && (
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-foreground font-bold" style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>{sensor.id}</span>
+                      <span className="text-muted-foreground" style={{ fontSize: '0.72rem' }}>
+                        {sensor.zona}{sensor.lugar ? ` · ${sensor.lugar}` : ''}
+                      </span>
+                    </div>
+                    <p className="text-muted-foreground" style={{ fontSize: '0.7rem', marginTop: '0.25rem' }}>
+                      {sensor.tipo} • FW {sensor.firmware} • Uptime {sensor.uptimePercent}%
+                    </p>
+                  </div>
+                  <span className="px-2 py-1 rounded-full flex-shrink-0" style={{ fontSize: '0.65rem', fontWeight: 700, background: `${color}20`, color }}>
+                    {STATUS_LABEL[sensor.status]}
+                  </span>
+                </button>
+              );
+            })}
+          {allSensors.filter(s => localFilter === 'todos' || s.status === localFilter).length > visibleCount && (
             <button
               onClick={() => setVisibleCount(prev => prev + 5)}
               className="w-full flex items-center justify-center gap-2 p-3 mt-3 bg-muted border border-border rounded-lg hover:bg-muted/80 transition-colors text-primary font-bold"
               style={{ fontSize: '0.85rem' }}
             >
               <i className="fas fa-plus" aria-hidden="true"></i>
-              Mostrar mais ({filteredSensors.length - visibleCount} restantes)
+              Mostrar mais ({allSensors.filter(s => localFilter === 'todos' || s.status === localFilter).length - visibleCount} restantes)
             </button>
           )}
         </div>

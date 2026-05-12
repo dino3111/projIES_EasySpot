@@ -37,6 +37,17 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
 
     @Query("""
         SELECT COUNT(r) FROM Reservation r
+        WHERE r.parkingLot.id = :parkId
+          AND r.status NOT IN ('CANCELLED', 'EXPIRED', 'COMPLETED')
+          AND r.departureTime > :now
+        """)
+    long countActiveReservationsForLot(
+        @Param("parkId") UUID parkId,
+        @Param("now") OffsetDateTime now
+    );
+
+    @Query("""
+        SELECT COUNT(r) FROM Reservation r
         WHERE r.parkingSpot.id = :spotId
           AND r.id <> :reservationId
           AND r.status NOT IN ('CANCELLED', 'EXPIRED', 'COMPLETED')
@@ -128,6 +139,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
     @Query("""
         SELECT r FROM Reservation r
         LEFT JOIN FETCH r.parkingSpot
+        LEFT JOIN FETCH r.parkingLot
         WHERE r.status NOT IN ('CANCELLED', 'EXPIRED', 'COMPLETED')
           AND r.parkingSpot IS NOT NULL
         ORDER BY r.arrivalTime ASC
@@ -137,12 +149,24 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
     @Query("""
         SELECT r FROM Reservation r
         LEFT JOIN FETCH r.parkingSpot
+        LEFT JOIN FETCH r.parkingLot
         WHERE r.parkingLot.id = :parkId
           AND r.status NOT IN ('CANCELLED', 'EXPIRED', 'COMPLETED')
           AND r.parkingSpot IS NOT NULL
         ORDER BY r.arrivalTime ASC
         """)
     List<Reservation> findActiveWithSpotByParkId(@Param("parkId") UUID parkId);
+
+    @Query("""
+        SELECT r FROM Reservation r
+        LEFT JOIN FETCH r.parkingSpot
+        LEFT JOIN FETCH r.parkingLot
+        WHERE r.parkingLot.id IN :parkIds
+          AND r.status NOT IN ('CANCELLED', 'EXPIRED', 'COMPLETED')
+          AND r.parkingSpot IS NOT NULL
+        ORDER BY r.arrivalTime ASC
+        """)
+    List<Reservation> findActiveWithSpotByParkIds(@Param("parkIds") List<UUID> parkIds);
 
     @Query("""
         SELECT r FROM Reservation r

@@ -115,13 +115,15 @@ export function ReservationPage() {
       active = false;
     };
   }, []);
+  const [lotRefreshKey, setLotRefreshKey] = useState(0);
+
   useEffect(() => {
     if (!selectedParkId) {
       setSelectedLot(null);
       return;
     }
     fetchParkDetailsById(selectedParkId).then(setSelectedLot).catch(() => setSelectedLot(null));
-  }, [selectedParkId]);
+  }, [selectedParkId, lotRefreshKey]);
   const selectedFloor = useMemo(
     () => selectedLot?.floors.find(f => f.id === selectedFloorId) || selectedLot?.floors[0] || null,
     [selectedLot, selectedFloorId]
@@ -185,6 +187,7 @@ export function ReservationPage() {
     setBookingCode('');
     setCountdown(30 * 60);
     setReservationError(null);
+    setLotRefreshKey(k => k + 1);
   }
 
   async function handleConfirm() {
@@ -290,7 +293,7 @@ export function ReservationPage() {
                 exitTime={exitTime} setExitTime={setExitTime}
                 vehicles={vehicles} selectedVehicleId={selectedVehicleId} setSelectedVehicleId={setSelectedVehicleId}
                 parks={parks}
-                onNext={() => setStep(2)}
+                onNext={() => { setLotRefreshKey(k => k + 1); setStep(2); }}
               />
             )}
             {step === 2 && selectedLot && (
