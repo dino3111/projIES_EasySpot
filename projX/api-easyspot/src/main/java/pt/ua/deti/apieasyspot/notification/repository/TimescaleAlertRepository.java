@@ -121,7 +121,7 @@ public class TimescaleAlertRepository {
 
         StringBuilder sql = new StringBuilder("""
             select id, parking_lot_id, parking_lot_name, type, severity, state, zone, spot_number,
-                   sensor_id, plate, description, photo_url, attributed_to, notes, resolved_at, created_at
+                   sensor_id, plate, description, photo_url, reported_by, attributed_to, notes, resolved_at, created_at
             from alerts
             where 1=1
             """);
