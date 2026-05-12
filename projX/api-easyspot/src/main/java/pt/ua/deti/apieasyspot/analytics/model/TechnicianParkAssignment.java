@@ -23,12 +23,16 @@ public class TechnicianParkAssignment {
     @Column(name = "technician_id", nullable = false)
     private UUID technicianId;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "parking_lot_id", nullable = false)
+    @Column(name = "parking_lot_id", nullable = false)
+    private UUID parkingLotId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parking_lot_id", insertable = false, updatable = false)
     private ParkingLot parkingLot;
 
     public TechnicianParkAssignment(UUID technicianId, ParkingLot parkingLot) {
         this.technicianId = technicianId;
+        this.parkingLotId = parkingLot.getId();
         this.parkingLot = parkingLot;
     }
 }

@@ -220,18 +220,18 @@ function ZoneDonut({ zones }: { readonly zones: DashboardZoneOccupancy[] }) {
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie data={zones} dataKey="occupied" nameKey="name" cx="50%" cy="50%" innerRadius={45} outerRadius={70} paddingAngle={3}>
-              {zones.map((zone) => <Cell key={zone.name} fill={zoneColor(zone.type)} />)}
+              {zones.map((zone, i) => <Cell key={`${zone.name}-${i}`} fill={zoneColor(zone.type)} />)}
             </Pie>
             <Tooltip contentStyle={{ ...tooltipStyle, borderRadius: '10px', fontSize: '0.78rem' }} formatter={(v: number, name: string) => [`${v} ocupados`, name]} />
           </PieChart>
         </ResponsiveContainer>
       </div>
       <div className="space-y-1.5 mt-1">
-        {zones.map((zone) => {
+        {zones.map((zone, i) => {
           const pct = zone.total > 0 ? Math.round((zone.occupied / zone.total) * 100) : 0;
           const color = zoneColor(zone.type);
           return (
-            <div key={zone.name} className="flex items-center gap-2">
+            <div key={`${zone.name}-${i}`} className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: color }} aria-hidden="true" />
               <span className="text-foreground flex-1" style={{ fontSize: '0.72rem' }}>{zone.name}</span>
               <span className="text-muted-foreground" style={{ fontSize: '0.72rem' }}>{zone.occupied}/{zone.total}</span>
@@ -317,8 +317,8 @@ function ParkTable({ parks }: { readonly parks: DashboardParkSummary[] }) {
             </tr>
           </thead>
           <tbody>
-            {parks.map((row) => (
-              <tr key={row.name} className="border-b border-border/50 last:border-0">
+            {parks.map((row, i) => (
+              <tr key={`${row.name}-${i}`} className="border-b border-border/50 last:border-0">
                 <td className="py-2.5 text-foreground" style={{ fontWeight: 500 }}>
                   {row.name}
                   <span className="ml-1.5 text-muted-foreground" style={{ fontSize: '0.7rem' }}>{row.city}</span>

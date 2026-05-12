@@ -2,9 +2,7 @@ package pt.ua.deti.apieasyspot.occupancy.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
-import org.hibernate.annotations.CreationTimestamp;
 
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Data
@@ -21,8 +19,4 @@ public class TechnicianParkAssignment {
 
     @Column(name = "parking_lot_id", nullable = false)
     private UUID parkingLotId;
-
-    @CreationTimestamp
-    @Column(name = "assigned_at", nullable = false, updatable = false)
-    private LocalDateTime assignedAt;
 }

@@ -85,7 +85,7 @@ class ProfileServiceTest {
     void getProfile_technician_returnsTechnicianResponse() {
         User user = buildUser("TECHNICAL");
         when(userRepository.findByAuthentikUserId("sub")).thenReturn(Optional.of(user));
-        when(technicianParkAssignmentRepository.findParkingLotIdsByTechnicianId(any())).thenReturn(java.util.List.of());
+        when(technicianParkAssignmentRepository.findParkingLotIdByTechnicianId(any())).thenReturn(java.util.List.of());
         when(technicianRepository.countTotalSensors(anyList())).thenReturn(100);
         when(technicianRepository.countOperationalSensors(anyList())).thenReturn(90);
         when(technicianRepository.countFailuresToday(anyList())).thenReturn(5L);

@@ -29,14 +29,14 @@ public class TechnicianParkAssignmentService {
     public List<UUID> getAssignedParkIds(String authentikUserId) {
         User user = userRepository.findByAuthentikUserId(authentikUserId)
             .orElseThrow(() -> new ResourceNotFoundException("User not found: " + authentikUserId));
-        return assignmentRepository.findParkingLotIdsByTechnicianId(user.getId());
+        return assignmentRepository.findParkingLotIdByTechnicianId(user.getId());
     }
 
     @Transactional
     public TechnicianParkAssignment assign(UUID technicianId, UUID parkingLotId) {
-        if (assignmentRepository.existsByTechnicianIdAndParkingLot_Id(technicianId, parkingLotId)) {
+        if (assignmentRepository.existsByTechnicianIdAndParkingLotId(technicianId, parkingLotId)) {
             return assignmentRepository.findByTechnicianId(technicianId).stream()
-                .filter(a -> a.getParkingLot().getId().equals(parkingLotId))
+                .filter(a -> parkingLotId.equals(a.getParkingLotId()))
                 .findFirst()
                 .orElseThrow();
         }
@@ -47,7 +47,7 @@ public class TechnicianParkAssignmentService {
 
     @Transactional
     public void unassign(UUID technicianId, UUID parkingLotId) {
-        assignmentRepository.deleteByTechnicianIdAndParkingLot_Id(technicianId, parkingLotId);
+        assignmentRepository.deleteByTechnicianIdAndParkingLotId(technicianId, parkingLotId);
     }
 
     public UUID resolveDbId(String authentikUserId) {

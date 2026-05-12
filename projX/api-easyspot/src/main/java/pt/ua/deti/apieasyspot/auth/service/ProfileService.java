@@ -151,7 +151,7 @@ public class ProfileService {
                 0L);
         }
         try {
-            List<UUID> assignedParkIds = technicianParkAssignmentRepository.findParkingLotIdsByTechnicianId(user.getId());
+            List<UUID> assignedParkIds = technicianParkAssignmentRepository.findParkingLotIdByTechnicianId(user.getId());
             int total = technicianRepository.countTotalSensors(assignedParkIds);
             int operational = technicianRepository.countOperationalSensors(assignedParkIds);
             double uptimePct = total > 0 ? Math.round(operational * 1000.0 / total) / 10.0 : 0.0;
