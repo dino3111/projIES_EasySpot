@@ -69,6 +69,7 @@ public class ManagerParkService {
         for (UUID parkId : parkIds) {
             parkingLotRepository.findById(parkId)
                 .orElseThrow(() -> new ResourceNotFoundException("Park not found: " + parkId));
+            assignmentRepository.deleteByParkingLotId(parkId);
             TechnicianParkAssignment a = new TechnicianParkAssignment();
             a.setTechnicianId(saved.getId());
             a.setParkingLotId(parkId);
@@ -85,7 +86,8 @@ public class ManagerParkService {
         userRepository.findById(technicianId)
             .orElseThrow(() -> new ResourceNotFoundException("Technician not found: " + technicianId));
 
-        assignmentRepository.deleteByParkingLotIdAndTechnicianId(parkId, technicianId);
+        // Enforce one technician per park — remove any existing assignment first
+        assignmentRepository.deleteByParkingLotId(parkId);
 
         TechnicianParkAssignment a = new TechnicianParkAssignment();
         a.setTechnicianId(technicianId);

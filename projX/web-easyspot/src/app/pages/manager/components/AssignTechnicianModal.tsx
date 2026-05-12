@@ -16,7 +16,8 @@ interface Props {
 
 export function AssignTechnicianModal({ parkId, parkName, currentTechnicians, onClose, onSaved }: Props) {
   const [technicians, setTechnicians] = useState<TechnicianSummary[]>([]);
-  const [assigned, setAssigned] = useState<TechnicianSummary[]>(currentTechnicians);
+  const current = currentTechnicians[0] ?? null;
+  const [selected, setSelected] = useState<TechnicianSummary | null>(current);
   const [search, setSearch] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -39,36 +40,30 @@ export function AssignTechnicianModal({ parkId, parkName, currentTechnicians, on
 
   const filtered = technicians.filter(
     (t) =>
-      !assigned.some((a) => a.id === t.id) &&
+      (!selected || t.id !== selected.id) &&
       (t.name.toLowerCase().includes(search.toLowerCase()) ||
         t.email.toLowerCase().includes(search.toLowerCase())),
   );
 
-  const handleAdd = (tech: TechnicianSummary) => {
-    setAssigned((prev) => [...prev, tech]);
+  const handleSelect = (tech: TechnicianSummary) => {
+    setSelected(tech);
     setSearch('');
     setShowDropdown(false);
-  };
-
-  const handleRemove = (id: string) => {
-    setAssigned((prev) => prev.filter((t) => t.id !== id));
   };
 
   const handleSave = async () => {
     setError(null);
     setSaving(true);
     try {
-      const toAdd = assigned.filter((a) => !currentTechnicians.some((c) => c.id === a.id));
-      const toRemove = currentTechnicians.filter((c) => !assigned.some((a) => a.id === c.id));
-
-      await Promise.all([
-        ...toAdd.map((t) => assignTechnicianToPark(parkId, t.id)),
-        ...toRemove.map((t) => removeTechnicianFromPark(parkId, t.id)),
-      ]);
+      if (selected) {
+        await assignTechnicianToPark(parkId, selected.id);
+      } else if (current) {
+        await removeTechnicianFromPark(parkId, current.id);
+      }
       onSaved();
       onClose();
     } catch {
-      setError('Erro ao guardar atribuições.');
+      setError('Erro ao guardar atribuição.');
     } finally {
       setSaving(false);
     }
@@ -87,7 +82,7 @@ export function AssignTechnicianModal({ parkId, parkName, currentTechnicians, on
         <div className="flex items-center justify-between mb-5">
           <div>
             <h2 className="text-foreground" style={{ fontSize: '1.05rem', fontWeight: 800 }}>
-              Técnicos Responsáveis
+              Técnico Responsável
             </h2>
             <p className="text-muted-foreground" style={{ fontSize: '0.78rem' }}>{parkName}</p>
           </div>
@@ -101,27 +96,31 @@ export function AssignTechnicianModal({ parkId, parkName, currentTechnicians, on
           </button>
         </div>
 
-        {/* Técnicos atribuídos */}
-        {assigned.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mb-3">
-            {assigned.map((t) => (
-              <span
-                key={t.id}
-                className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-primary/15 text-primary"
-                style={{ fontSize: '0.75rem', fontWeight: 600 }}
-              >
-                <i className="fas fa-user-gear" style={{ fontSize: '0.65rem' }} aria-hidden="true" />
-                {t.name}
-                <button
-                  type="button"
-                  onClick={() => handleRemove(t.id)}
-                  className="hover:opacity-70 transition-opacity"
-                  aria-label={`Remover ${t.name}`}
-                >
-                  <i className="fas fa-xmark" style={{ fontSize: '0.65rem' }} aria-hidden="true" />
-                </button>
-              </span>
-            ))}
+        {/* Técnico selecionado */}
+        {selected ? (
+          <div className="flex items-center gap-2 mb-4 px-3 py-2.5 rounded-xl bg-primary/10 border border-primary/20">
+            <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+              <i className="fas fa-user-gear text-primary" style={{ fontSize: '0.7rem' }} aria-hidden="true" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-foreground truncate" style={{ fontSize: '0.82rem', fontWeight: 600 }}>{selected.name}</p>
+              <p className="text-muted-foreground truncate" style={{ fontSize: '0.72rem' }}>{selected.email}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSelected(null)}
+              className="text-muted-foreground hover:text-destructive transition-colors"
+              aria-label="Remover técnico"
+            >
+              <i className="fas fa-xmark" style={{ fontSize: '0.75rem' }} aria-hidden="true" />
+            </button>
+          </div>
+        ) : (
+          <div className="mb-4 px-3 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20">
+            <p className="text-amber-600" style={{ fontSize: '0.78rem' }}>
+              <i className="fas fa-circle-exclamation mr-1.5" aria-hidden="true" />
+              Nenhum técnico atribuído
+            </p>
           </div>
         )}
 
@@ -133,7 +132,7 @@ export function AssignTechnicianModal({ parkId, parkName, currentTechnicians, on
               value={search}
               onChange={(e) => { setSearch(e.target.value); setShowDropdown(true); }}
               onFocus={() => setShowDropdown(true)}
-              placeholder="Pesquisar técnico para adicionar..."
+              placeholder={selected ? 'Substituir técnico...' : 'Pesquisar técnico...'}
               className="flex-1 bg-transparent text-foreground outline-none"
               style={{ fontSize: '0.875rem' }}
               autoComplete="off"
@@ -151,7 +150,7 @@ export function AssignTechnicianModal({ parkId, parkName, currentTechnicians, on
                   <button
                     key={tech.id}
                     type="button"
-                    onClick={() => handleAdd(tech)}
+                    onClick={() => handleSelect(tech)}
                     className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-muted transition-colors text-left"
                   >
                     <div className="w-7 h-7 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0">

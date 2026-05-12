@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import {
-  fetchTechnicians,
   createTechnician,
+  fetchParkAssignments,
+  fetchTechnicians,
+  type ParkAssignment,
   type TechnicianSummary,
 } from '../../../services/managerApi';
 import { fetchParksList } from '../../../services/parksApi';
@@ -21,6 +23,8 @@ export function CreateTechnicianModal({ onClose, onCreated }: Props) {
   const [showPassword, setShowPassword] = useState(false);
 
   const [parks, setParks] = useState<ParkOption[]>([]);
+  const [assignments, setAssignments] = useState<ParkAssignment[]>([]);
+  const [allTechnicians, setAllTechnicians] = useState<TechnicianSummary[]>([]);
   const [parkSearch, setParkSearch] = useState('');
   const [selectedParks, setSelectedParks] = useState<ParkOption[]>([]);
   const [showParkDropdown, setShowParkDropdown] = useState(false);
@@ -33,6 +37,8 @@ export function CreateTechnicianModal({ onClose, onCreated }: Props) {
     fetchParksList({ pageSize: 200 })
       .then((r) => setParks(r.items.map((p) => ({ id: p.id, name: p.name, city: p.localidade }))))
       .catch(() => setParks([]));
+    fetchParkAssignments().then(setAssignments).catch(() => setAssignments([]));
+    fetchTechnicians().then(setAllTechnicians).catch(() => setAllTechnicians([]));
   }, []);
 
   useEffect(() => {
@@ -44,6 +50,13 @@ export function CreateTechnicianModal({ onClose, onCreated }: Props) {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const getCurrentTechnicianName = (parkId: string): string | null => {
+    const a = assignments.find((x) => x.parkId === parkId);
+    if (!a || a.technicians.length === 0) return null;
+    const tech = allTechnicians.find((t) => t.id === a.technicians[0].id);
+    return tech?.name ?? a.technicians[0].name ?? null;
+  };
 
   const filteredParks = parks.filter(
     (p) =>
@@ -196,25 +209,35 @@ export function CreateTechnicianModal({ onClose, onCreated }: Props) {
             </label>
 
             {selectedParks.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mb-2">
-                {selectedParks.map((p) => (
-                  <span
-                    key={p.id}
-                    className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-primary/15 text-primary"
-                    style={{ fontSize: '0.75rem', fontWeight: 600 }}
-                  >
-                    <i className="fas fa-parking" style={{ fontSize: '0.65rem' }} aria-hidden="true" />
-                    {p.name}
-                    <button
-                      type="button"
-                      onClick={() => handleRemovePark(p.id)}
-                      className="hover:opacity-70 transition-opacity"
-                      aria-label={`Remover ${p.name}`}
-                    >
-                      <i className="fas fa-xmark" style={{ fontSize: '0.65rem' }} aria-hidden="true" />
-                    </button>
-                  </span>
-                ))}
+              <div className="flex flex-col gap-1.5 mb-2">
+                {selectedParks.map((p) => {
+                  const existingTech = getCurrentTechnicianName(p.id);
+                  return (
+                    <div key={p.id} className="flex flex-col gap-0.5">
+                      <span
+                        className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-primary/15 text-primary self-start"
+                        style={{ fontSize: '0.75rem', fontWeight: 600 }}
+                      >
+                        <i className="fas fa-parking" style={{ fontSize: '0.65rem' }} aria-hidden="true" />
+                        {p.name}
+                        <button
+                          type="button"
+                          onClick={() => handleRemovePark(p.id)}
+                          className="hover:opacity-70 transition-opacity"
+                          aria-label={`Remover ${p.name}`}
+                        >
+                          <i className="fas fa-xmark" style={{ fontSize: '0.65rem' }} aria-hidden="true" />
+                        </button>
+                      </span>
+                      {existingTech && (
+                        <p className="text-amber-600 pl-1" style={{ fontSize: '0.7rem' }}>
+                          <i className="fas fa-triangle-exclamation mr-1" aria-hidden="true" />
+                          Já atribuído a <strong>{existingTech}</strong> — será substituído
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
 
