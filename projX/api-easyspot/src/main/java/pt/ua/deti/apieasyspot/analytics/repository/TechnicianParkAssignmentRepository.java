@@ -17,4 +17,15 @@ public interface TechnicianParkAssignmentRepository extends JpaRepository<Techni
 
     @Query("select a.parkingLot.id from TechnicianParkAssignment a where a.technicianId = :technicianId")
     List<UUID> findParkingLotIdsByTechnicianId(UUID technicianId);
+
+    @Query("select a from TechnicianParkAssignment a where a.parkingLot.id = :parkingLotId")
+    List<TechnicianParkAssignment> findByParkingLotId(UUID parkingLotId);
+
+    @Query("delete from TechnicianParkAssignment a where a.parkingLot.id = :parkingLotId")
+    @org.springframework.data.jpa.repository.Modifying
+    void deleteByParkingLotId(UUID parkingLotId);
+
+    @Query("delete from TechnicianParkAssignment a where a.parkingLot.id = :parkingLotId and a.technicianId = :technicianId")
+    @org.springframework.data.jpa.repository.Modifying
+    void deleteByParkingLotIdAndTechnicianId(UUID parkingLotId, UUID technicianId);
 }

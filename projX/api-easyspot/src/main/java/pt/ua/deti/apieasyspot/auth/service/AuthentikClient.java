@@ -34,7 +34,7 @@ public class AuthentikClient {
 
     private static final String USERS_API = "/api/v3/core/users/";
 
-    public record AuthentikUser(String pk, String username, String email, String name) {}
+    public record AuthentikUser(String pk, String uid, String username, String email, String name) {}
 
     public AuthentikUser createUser(String username, String name, String email, String groupPk) {
         try {
@@ -49,6 +49,7 @@ public class AuthentikClient {
             var resp = post(USERS_API, body);
             return new AuthentikUser(
                 resp.get("pk").asText(),
+                resp.get("uid").asText(),
                 resp.get("username").asText(),
                 resp.get("email").asText(),
                 resp.get("name").asText()
