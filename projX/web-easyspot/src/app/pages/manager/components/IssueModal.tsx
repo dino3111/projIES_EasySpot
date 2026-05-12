@@ -108,6 +108,18 @@ export function IssueModal({ issue, onClose }: { readonly issue: IssueReport; re
           </p>
         </div>
 
+        {issue.reportadoPor && (
+          <div className="mb-4">
+            <p className="block text-foreground mb-1.5" style={{ fontSize: '0.8rem', fontWeight: 700 }}>
+              Reportado por
+            </p>
+            <div className="px-3 py-2 rounded-xl border border-border bg-muted/30 text-foreground" style={{ fontSize: '0.85rem' }}>
+              <i className="fas fa-user mr-1.5 text-primary" aria-hidden="true"></i>
+              {issue.reportadoPor}
+            </div>
+          </div>
+        )}
+
         {issue.atribuidoA && (
           <div className="mb-4">
             <p className="block text-foreground mb-1.5" style={{ fontSize: '0.8rem', fontWeight: 700 }}>

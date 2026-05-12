@@ -32,11 +32,12 @@ public class TimescaleAlertRepository {
         }
         jdbc.update("""
             insert into alerts (id, parking_lot_id, parking_lot_name, type, severity, state, zone, spot_number,
-                sensor_id, plate, description, photo_url, attributed_to, notes, resolved_at, created_at)
-            values (?::uuid, ?::uuid, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                sensor_id, plate, description, photo_url, reported_by, attributed_to, notes, resolved_at, created_at)
+            values (?::uuid, ?::uuid, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             on conflict (id, created_at) do update set
                 state = excluded.state,
                 severity = excluded.severity,
+                reported_by = excluded.reported_by,
                 attributed_to = excluded.attributed_to,
                 notes = excluded.notes,
                 resolved_at = excluded.resolved_at,
@@ -55,6 +56,7 @@ public class TimescaleAlertRepository {
             alert.getPlate(),
             alert.getDescription(),
             alert.getPhotoUrl(),
+            alert.getReportedBy(),
             alert.getAttributedTo(),
             alert.getNotes(),
             alert.getResolvedAt() != null ? Timestamp.from(alert.getResolvedAt().toInstant()) : null,
@@ -75,7 +77,7 @@ public class TimescaleAlertRepository {
     public List<Alert> findAll() {
         return jdbc.query("""
             select id, parking_lot_id, parking_lot_name, type, severity, state, zone, spot_number,
-                   sensor_id, plate, description, photo_url, attributed_to, notes, resolved_at, created_at
+                   sensor_id, plate, description, photo_url, reported_by, attributed_to, notes, resolved_at, created_at
             from alerts
             """,
             this::mapRow
@@ -85,7 +87,7 @@ public class TimescaleAlertRepository {
     public List<Alert> findAllFiltered(UUID parkId, StateAlert state, SeverityAlert severity) {
         StringBuilder sql = new StringBuilder("""
             select id, parking_lot_id, parking_lot_name, type, severity, state, zone, spot_number,
-                   sensor_id, plate, description, photo_url, attributed_to, notes, resolved_at, created_at
+                   sensor_id, plate, description, photo_url, reported_by, attributed_to, notes, resolved_at, created_at
             from alerts
             where 1=1
             """);
@@ -112,7 +114,7 @@ public class TimescaleAlertRepository {
     public Optional<Alert> findOpenBySensorId(String sensorId) {
         var rows = jdbc.query("""
             select id, parking_lot_id, parking_lot_name, type, severity, state, zone, spot_number,
-                   sensor_id, plate, description, photo_url, attributed_to, notes, resolved_at, created_at
+                   sensor_id, plate, description, photo_url, reported_by, attributed_to, notes, resolved_at, created_at
             from alerts
             where sensor_id = ? and state != 'RESOLVED'
             order by created_at desc
@@ -127,7 +129,7 @@ public class TimescaleAlertRepository {
     public Optional<Alert> findById(UUID id) {
         var rows = jdbc.query("""
             select id, parking_lot_id, parking_lot_name, type, severity, state, zone, spot_number,
-                   sensor_id, plate, description, photo_url, attributed_to, notes, resolved_at, created_at
+                   sensor_id, plate, description, photo_url, reported_by, attributed_to, notes, resolved_at, created_at
             from alerts
             where id = ?::uuid
             """,
@@ -151,6 +153,7 @@ public class TimescaleAlertRepository {
         a.setPlate(rs.getString("plate"));
         a.setDescription(rs.getString("description"));
         a.setPhotoUrl(rs.getString("photo_url"));
+        a.setReportedBy(rs.getString("reported_by"));
         a.setAttributedTo(rs.getString("attributed_to"));
         a.setNotes(rs.getString("notes"));
         Timestamp resolvedAt = rs.getTimestamp("resolved_at");

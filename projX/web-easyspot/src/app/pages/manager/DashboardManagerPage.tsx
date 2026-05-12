@@ -55,6 +55,7 @@ function mapAlertToIssue(a: DashboardAlertSummary): IssueReport {
     severidade: sevMap[a.severity?.toLowerCase()] ?? 'info',
     estado: stateMap[a.state?.toLowerCase().replace('-', '_')] ?? 'aberto',
     criadoEm: a.createdAt ?? '',
+    reportadoPor: a.reportedBy ?? undefined,
     atribuidoA: a.attributedTo ?? undefined,
     notas: a.notes ?? undefined,
     fotoUrl: a.photoUrl ?? undefined,

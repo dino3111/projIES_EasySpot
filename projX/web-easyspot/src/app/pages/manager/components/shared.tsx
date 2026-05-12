@@ -76,7 +76,8 @@ export function AlertRow({ issue }: { readonly issue: IssueReport }) {
         )}
         <p className="text-muted-foreground/70 mt-0.5" style={{ fontSize: '0.65rem' }}>
           {new Date(issue.criadoEm).toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
-          {issue.atribuidoA ? ` · ${issue.atribuidoA}` : ''}
+          {issue.reportadoPor ? ` · Reportado por ${issue.reportadoPor}` : ''}
+          {issue.atribuidoA ? ` · Atribuído a ${issue.atribuidoA}` : ''}
         </p>
       </div>
     </div>

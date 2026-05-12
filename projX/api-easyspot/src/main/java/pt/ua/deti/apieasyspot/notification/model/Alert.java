@@ -20,6 +20,7 @@ public class Alert {
     private String plate;
     private String description;
     private String photoUrl;
+    private String reportedBy;
     private String attributedTo;
     private String notes;
     private OffsetDateTime resolvedAt;

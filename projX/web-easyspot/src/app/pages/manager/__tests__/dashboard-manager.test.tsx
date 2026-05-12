@@ -64,6 +64,7 @@ const mockDashboard: ManagerDashboardResponse = {
       severity: 'critica',
       state: 'aberto',
       createdAt: '2026-03-09T08:14:00Z',
+      reportedBy: 'Filipe Teixeira',
       attributedTo: null,
       notes: null,
     },

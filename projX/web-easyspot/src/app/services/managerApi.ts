@@ -47,6 +47,7 @@ export interface DashboardAlertSummary {
   severity: string;
   state: string;
   createdAt: string;
+  reportedBy: string | null;
   attributedTo: string;
   notes: string;
 }
