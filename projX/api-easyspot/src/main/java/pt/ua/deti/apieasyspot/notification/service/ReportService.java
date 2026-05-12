@@ -2,6 +2,7 @@ package pt.ua.deti.apieasyspot.notification.service;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -28,6 +29,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ReportService {
 
     private static final long MAX_PHOTO_BYTES = 10 * 1024 * 1024L;
@@ -55,7 +57,11 @@ public class ReportService {
         Alert saved = alertRepository.save(alert);
 
         ReportResponse response = toResponse(saved, parkingLot);
-        messagingTemplate.convertAndSend("/topic/reports", response);
+        try {
+            messagingTemplate.convertAndSend("/topic/reports", response);
+        } catch (Exception ex) {
+            log.warn("Failed to broadcast submitted report to websocket clients: {}", ex.getMessage());
+        }
         return response;
     }
 
