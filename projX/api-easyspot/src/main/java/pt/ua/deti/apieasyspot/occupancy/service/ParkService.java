@@ -26,6 +26,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.ToIntFunction;
 import java.util.stream.Collectors;
@@ -61,11 +62,18 @@ public class ParkService {
             allLots.stream().map(ParkingLot::getId).toList()
         );
 
+        Set<UUID> lotsWithEV = filterEV
+            ? evChargerRepository.findAll().stream().map(c -> c.getParkingLot().getId()).collect(java.util.stream.Collectors.toSet())
+            : Set.of();
+        Set<UUID> lotsWithAcc = filterAcc
+            ? accessibleSpotRepository.findAll().stream().map(a -> a.getParkingLot().getId()).collect(java.util.stream.Collectors.toSet())
+            : Set.of();
+
         List<ParkingLotSummaryResponse.ParkingLotSummary> filtered = allLots.stream()
+            .filter(lot -> !filterEV || lotsWithEV.contains(lot.getId()))
+            .filter(lot -> !filterAcc || lotsWithAcc.contains(lot.getId()))
             .map(lot -> toSummary(lot, snapshotsByLot.getOrDefault(lot.getId(), List.of())))
             .filter(summary -> minAvailableSpaces == null || summary.freeSpaces() >= minAvailableSpaces)
-            .filter(summary -> !filterEV || summary.evChargers().total() > 0)
-            .filter(summary -> !filterAcc || summary.accessibleSpaces().total() > 0)
             .sorted(Comparator.comparing(ParkingLotSummaryResponse.ParkingLotSummary::name))
             .toList();
 

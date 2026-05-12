@@ -16,6 +16,7 @@ import pt.ua.deti.apieasyspot.booking.dto.ReservationResponse;
 import pt.ua.deti.apieasyspot.booking.dto.UpdateReservationRequest;
 import pt.ua.deti.apieasyspot.billing.service.BillingService;
 import pt.ua.deti.apieasyspot.booking.event.ReservationEventPublisher;
+import pt.ua.deti.apieasyspot.notification.service.AlertNotificationDispatchService;
 import pt.ua.deti.apieasyspot.booking.model.Reservation;
 import pt.ua.deti.apieasyspot.booking.model.ReservationStatus;
 import pt.ua.deti.apieasyspot.booking.repository.ReservationRepository;
@@ -60,6 +61,7 @@ class ReservationServiceTest {
     @Mock private BillingService billingService;
     @Mock private BookingConfirmationMailService confirmationMailService;
     @Mock private ReservationEventPublisher eventPublisher;
+    @Mock private AlertNotificationDispatchService notificationDispatchService;
 
     @InjectMocks private ReservationService reservationService;
 

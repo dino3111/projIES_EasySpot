@@ -70,6 +70,12 @@ class ParkServiceTest {
         Tariff tariff = new Tariff();
         tariff.setPricePerHour(BigDecimal.valueOf(1.5));
         when(tariffRepository.findByParkingLotId(lotId)).thenReturn(List.of(tariff));
+        EVCharger evCharger = new EVCharger();
+        evCharger.setParkingLot(lot);
+        evCharger.setType("Type 2");
+        evCharger.setSpeed("Fast");
+        evCharger.setAvailable(true);
+        when(evChargerRepository.findAll()).thenReturn(List.of(evCharger));
 
         ParkingLotSummaryResponse response = parkService.searchParks("Test", 10, null, List.of("EV"), 1, 10);
 
