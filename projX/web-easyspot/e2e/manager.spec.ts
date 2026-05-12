@@ -99,6 +99,12 @@ const mockParks = {
   pagination: { page: 1, pageSize: 500, totalItems: 1, totalPages: 1 },
 };
 
+const mockBilling = {
+  content: [],
+  totalElements: 0,
+  totalPages: 0,
+};
+
 test.beforeEach(async ({ page }) => {
   await page.addInitScript((token) => {
     sessionStorage.setItem('es_access_token', token);
@@ -110,6 +116,7 @@ test.beforeEach(async ({ page }) => {
   await page.route('**/api/profile', (route) => route.fulfill({ json: mockProfile }));
   await page.route('**/api/vehicles', (route) => route.fulfill({ json: [] }));
   await page.route('**/api/manager/tariffs**', (route) => route.fulfill({ json: mockTariffs }));
+  await page.route('**/api/manager/billing**', (route) => route.fulfill({ json: mockBilling }));
   await page.route('**/api/alerts**', (route) => route.fulfill({ json: mockAlerts }));
   await page.route('**/api/parks/list**', (route) => route.fulfill({ json: mockParks }));
   await page.route('**/api/alerts/**/state', (route) => route.fulfill({ status: 204, body: '' }));
