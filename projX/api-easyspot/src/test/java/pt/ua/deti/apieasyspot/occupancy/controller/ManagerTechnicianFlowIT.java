@@ -7,14 +7,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.boot.jdbc.DataSourceBuilder;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
-import org.springframework.context.annotation.Primary;
 import org.springframework.http.MediaType;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -22,6 +16,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
+import pt.ua.deti.apieasyspot.TestcontainersConfiguration;
 import pt.ua.deti.apieasyspot.analytics.repository.TechnicianParkAssignmentRepository;
 import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
 import pt.ua.deti.apieasyspot.auth.service.AuthentikClient;
@@ -30,7 +25,6 @@ import pt.ua.deti.apieasyspot.infrastructure.TimescaleHypertableInitializer;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingLotRepository;
 
-import javax.sql.DataSource;
 import java.util.List;
 import java.util.UUID;
 
@@ -44,8 +38,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static pt.ua.deti.apieasyspot.support.TestJwtRequests.jwtWithRole;
 
 /**
- * Integration test: verifies the full manager→technician flow against the real
- * PostgreSQL instance that is already running via Docker Compose.
+ * Integration test: verifies the full manager→technician flow.
+ * Uses Testcontainers (via TestcontainersConfiguration) so the test is
+ * self-contained and does not rely on an external Docker Compose stack.
  *
  * Only AuthentikClient is mocked — DB, JPA, security, and all repositories are real.
  *
@@ -58,18 +53,10 @@ import static pt.ua.deti.apieasyspot.support.TestJwtRequests.jwtWithRole;
  */
 @ActiveProfiles("test")
 @SpringBootTest(properties = {
-    // Point at the real Compose PostgreSQL (already running on port 5432)
-    "spring.datasource.url=jdbc:postgresql://localhost:5432/easyspot",
-    "spring.datasource.username=easyspot",
-    "spring.datasource.password=6924e0426091208b59e5d4054ca5d789f7892ce3333449f5c45690803ae81368",
-    // Keep schema as-is — do not recreate or validate against a blank DB
-    "spring.jpa.hibernate.ddl-auto=none",
-    // Allow the inline TestConfig beans to override auto-configured ones
+    "spring.jpa.hibernate.ddl-auto=update",
     "spring.main.allow-bean-definition-overriding=true",
-    // Required by SecurityConfig (otherwise context fails to start)
     "authentik.issuer=http://localhost/authentik/application/o/easyspot/",
     "spring.security.oauth2.resourceserver.jwt.jwk-set-uri=http://localhost/authentik/.well-known/jwks.json",
-    // Mocked externals — values don't matter, just must be present
     "authentik.api.url=http://localhost:9000/authentik",
     "authentik.api.token=test-token",
     "stripe.api.key=sk_test_dummy",
@@ -81,46 +68,8 @@ import static pt.ua.deti.apieasyspot.support.TestJwtRequests.jwtWithRole;
     "autodoc.vehicle-image-base=http://localhost",
     "alerts.summary.cron=0 0 0 1 1 *"
 })
-@Import(ManagerTechnicianFlowIT.JdbcTestConfig.class)
+@Import(TestcontainersConfiguration.class)
 class ManagerTechnicianFlowIT {
-
-    /**
-     * Provides the named JdbcTemplate beans required by AnalyticsRepository and
-     * DriverSpendingRepository. In production these come from the Timescale datasource;
-     * in this test we route them to the same Postgres datasource that is already running.
-     */
-    @TestConfiguration
-    static class JdbcTestConfig {
-        // All timescale beans are routed to the same Postgres datasource in tests.
-        // Build a fresh DataSource to avoid a circular reference with the primary one.
-        @Bean(name = "timescaleDataSource")
-        DataSource timescaleDataSource() {
-            return DataSourceBuilder.create()
-                .url("jdbc:postgresql://localhost:5432/easyspot")
-                .username("easyspot")
-                .password("6924e0426091208b59e5d4054ca5d789f7892ce3333449f5c45690803ae81368")
-                .build();
-        }
-
-        @Bean(name = "jdbcTemplate")
-        @Primary
-        JdbcTemplate jdbcTemplate(DataSource ds) { return new JdbcTemplate(ds); }
-
-        @Bean(name = "namedParameterJdbcTemplate")
-        NamedParameterJdbcTemplate namedParameterJdbcTemplate(DataSource ds) {
-            return new NamedParameterJdbcTemplate(ds);
-        }
-
-        @Bean(name = "timescaleJdbcTemplate")
-        JdbcTemplate timescaleJdbcTemplate(@org.springframework.beans.factory.annotation.Qualifier("timescaleDataSource") DataSource ds) {
-            return new JdbcTemplate(ds);
-        }
-
-        @Bean(name = "timescaleNamedJdbcTemplate")
-        NamedParameterJdbcTemplate timescaleNamedJdbcTemplate(@org.springframework.beans.factory.annotation.Qualifier("timescaleDataSource") DataSource ds) {
-            return new NamedParameterJdbcTemplate(ds);
-        }
-    }
 
     @Autowired WebApplicationContext wac;
     @Autowired ObjectMapper objectMapper;
@@ -162,7 +111,6 @@ class ManagerTechnicianFlowIT {
 
     @AfterEach
     void tearDown() {
-        // Remove all test data created during this test run
         var testUsers = userRepository.findAll().stream()
             .filter(u -> u.getAuthentikUserId().startsWith("it-uid-"))
             .toList();

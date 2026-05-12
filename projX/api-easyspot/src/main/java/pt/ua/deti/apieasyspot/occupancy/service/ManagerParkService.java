@@ -107,7 +107,7 @@ public class ManagerParkService {
         lot.setLongitude(req.longitude());
         lot.setOpeningHours(req.openingHours());
         lot.setTotalSpaces(req.totalSpaces());
-        lot.setAmenities(List.of());
+        lot.setAmenities(new java.util.ArrayList<>());
         ParkingLot saved = parkingLotRepository.save(lot);
 
         if (req.technicianId() != null) {
