@@ -154,10 +154,10 @@ export function MaintenancePage() {
   const [logsLoading, setLogsLoading]       = useState(false);
   const [newOrderModal, setNewOrderModal]   = useState(false);
   const [updateTarget, setUpdateTarget]     = useState<SensorDevice | null>(null);
-  const [toast, setToast]                   = useState<string | null>(null);
+  const [toast, setToast]                   = useState<{ message: string; kind: 'success' | 'error' } | null>(null);
 
-  const showToast = (msg: string) => {
-    setToast(msg);
+  const showToast = (message: string, kind: 'success' | 'error' = 'success') => {
+    setToast({ message, kind });
     setTimeout(() => setToast(null), 4000);
   };
 
@@ -267,12 +267,12 @@ export function MaintenancePage() {
         await updateAlertState(alert.id, 'IN_PROGRESS', descricao || undefined);
         setOrders((prev) => prev.map((o) => o.id === alert.id ? { ...o, state: 'IN_PROGRESS' } : o));
         setIssues((prev) => prev.map((i) => i.id === alert.id ? { ...i, estado: 'em-progresso' } : i));
-        showToast(`Tarefa "${titulo}" criada — sensor ${sensorId} em progresso.`);
+        showToast(`Tarefa "${titulo}" criada — sensor ${sensorId} em progresso.`, 'success');
       } catch {
-        showToast('Erro ao criar tarefa.');
+        showToast('Erro ao criar tarefa.', 'error');
       }
     } else {
-      showToast(`Não foi possível criar a tarefa "${titulo}": não existe nenhum alerta aberto para o sensor ${sensorId}.`);
+      showToast(`Não foi possível criar a tarefa "${titulo}": não existe nenhum alerta aberto para o sensor ${sensorId}.`, 'error');
     }
     setNewOrderModal(false);
   };
@@ -292,11 +292,13 @@ export function MaintenancePage() {
         <div
           role="status"
           aria-live="polite"
-          className="fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-2xl bg-green-600 text-white shadow-xl"
+          className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-2xl text-white shadow-xl ${
+            toast.kind === 'success' ? 'bg-green-600' : 'bg-red-600'
+          }`}
           style={{ fontSize: '0.85rem', fontWeight: 600 }}
         >
-          <i className="fas fa-circle-check" aria-hidden="true" />
-          {toast}
+          <i className={`fas ${toast.kind === 'success' ? 'fa-circle-check' : 'fa-triangle-exclamation'}`} aria-hidden="true" />
+          {toast.message}
         </div>
       )}
 

@@ -13,6 +13,10 @@ import pt.ua.deti.apieasyspot.sensor.dto.SensorSummaryDto;
 import pt.ua.deti.apieasyspot.sensor.model.SensorRegistry;
 import pt.ua.deti.apieasyspot.sensor.model.SensorStatus;
 import pt.ua.deti.apieasyspot.notification.repository.TimescaleAlertRepository;
+import pt.ua.deti.apieasyspot.notification.model.Alert;
+import pt.ua.deti.apieasyspot.notification.model.AlertType;
+import pt.ua.deti.apieasyspot.notification.model.SeverityAlert;
+import pt.ua.deti.apieasyspot.notification.model.StateAlert;
 import pt.ua.deti.apieasyspot.sensor.repository.SensorLogsRepository;
 import pt.ua.deti.apieasyspot.sensor.repository.SensorRegistryRepository;
 
@@ -174,6 +178,37 @@ class SensorLogsServiceTest {
 
         verify(sensorRegistryRepository).save(sensor);
         assertThat(sensor.getStatus()).isEqualTo(SensorStatus.MAINTENANCE);
+    }
+
+    @Test
+    @DisplayName("updateSensorStatus creates open sensor alert when degraded and none exists")
+    void updateSensorStatus_createsAlertForDegradedSensor() {
+        UUID parkId = UUID.randomUUID();
+        ParkingLot lot = new ParkingLot();
+        lot.setId(parkId);
+        lot.setName("Parque Teste");
+
+        SensorRegistry sensor = new SensorRegistry();
+        sensor.setSensorId("IR-TEST-04");
+        sensor.setParkingLot(lot);
+        sensor.setZone("Zona C");
+        sensor.setStatus(SensorStatus.OPERATIONAL);
+        sensor.setLastSeenAt(LocalDateTime.now());
+        sensor.setCreatedAt(LocalDateTime.now());
+
+        when(sensorRegistryRepository.findById("IR-TEST-04")).thenReturn(Optional.of(sensor));
+        when(alertRepository.findOpenBySensorId("IR-TEST-04")).thenReturn(Optional.empty());
+
+        service.updateSensorStatus("IR-TEST-04", new SensorStatusUpdateRequest("degraded", "Leitura instável."));
+
+        verify(sensorRegistryRepository).save(sensor);
+        verify(alertRepository).save(argThat(alert ->
+            alert.getType() == AlertType.SENSOR
+                && alert.getSeverity() == SeverityAlert.CRITICAL
+                && alert.getState() == StateAlert.OPEN
+                && "IR-TEST-04".equals(alert.getSensorId())
+                && "Leitura instável.".equals(alert.getNotes())
+        ));
     }
 
     @Test

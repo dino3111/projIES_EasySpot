@@ -6,6 +6,9 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.UUID;
 import pt.ua.deti.apieasyspot.notification.model.StateAlert;
+import pt.ua.deti.apieasyspot.notification.model.Alert;
+import pt.ua.deti.apieasyspot.notification.model.AlertType;
+import pt.ua.deti.apieasyspot.notification.model.SeverityAlert;
 import pt.ua.deti.apieasyspot.notification.repository.TimescaleAlertRepository;
 import pt.ua.deti.apieasyspot.sensor.dto.SensorDetailDto;
 import pt.ua.deti.apieasyspot.sensor.dto.SensorLogEntry;
@@ -70,15 +73,50 @@ public class SensorLogsService {
         sensor.setStatus(newStatus);
         sensorRegistryRepository.save(sensor);
 
-        alertRepository.findOpenBySensorId(sensorId).ifPresent(alert -> {
-            if (request.notes() != null && !request.notes().isBlank()) {
-                alert.setNotes(request.notes());
+        alertRepository.findOpenBySensorId(sensorId).ifPresentOrElse(alert -> {
+            applySensorStatusToAlert(alert, newStatus, request.notes());
+            alertRepository.save(alert);
+        }, () -> {
+            if (newStatus == SensorStatus.OPERATIONAL || newStatus == SensorStatus.MAINTENANCE) {
+                return;
             }
-            if (newStatus == SensorStatus.OPERATIONAL) {
-                alert.setState(StateAlert.RESOLVED);
-                alert.setResolvedAt(OffsetDateTime.now(ZoneOffset.UTC));
-            }
+
+            Alert alert = new Alert();
+            alert.setParkingLotId(sensor.getParkingLot().getId());
+            alert.setParkingLotName(sensor.getParkingLot().getName());
+            alert.setType(AlertType.SENSOR);
+            alert.setSeverity(SeverityAlert.CRITICAL);
+            alert.setState(StateAlert.OPEN);
+            alert.setZone(sensor.getZone());
+            alert.setSensorId(sensorId);
+            alert.setDescription(buildSensorFailureDescription(sensorId, newStatus));
+            alert.setReportedBy("system");
+            alert.setAttributedTo(null);
+            alert.setNotes(blankToNull(request.notes()));
+            alert.setCreatedAt(OffsetDateTime.now(ZoneOffset.UTC));
             alertRepository.save(alert);
         });
+    }
+
+    private void applySensorStatusToAlert(Alert alert, SensorStatus newStatus, String notes) {
+        if (notes != null && !notes.isBlank()) {
+            alert.setNotes(notes);
+        }
+        if (newStatus == SensorStatus.OPERATIONAL) {
+            alert.setState(StateAlert.RESOLVED);
+            alert.setResolvedAt(OffsetDateTime.now(ZoneOffset.UTC));
+        }
+    }
+
+    private String buildSensorFailureDescription(String sensorId, SensorStatus status) {
+        return switch (status) {
+            case DEGRADED -> "Falha detetada no sensor " + sensorId + ".";
+            case OFFLINE -> "Sensor " + sensorId + " offline.";
+            default -> "Estado do sensor " + sensorId + " alterado para " + status.name().toLowerCase();
+        };
+    }
+
+    private String blankToNull(String value) {
+        return value != null && !value.isBlank() ? value : null;
     }
 }

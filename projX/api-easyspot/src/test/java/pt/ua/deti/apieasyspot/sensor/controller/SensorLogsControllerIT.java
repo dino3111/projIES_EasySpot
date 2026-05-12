@@ -21,6 +21,7 @@ import pt.ua.deti.apieasyspot.occupancy.repository.ParkingLotRepository;
 import pt.ua.deti.apieasyspot.sensor.model.SensorRegistry;
 import pt.ua.deti.apieasyspot.sensor.model.SensorStatus;
 import pt.ua.deti.apieasyspot.sensor.repository.SensorRegistryRepository;
+import pt.ua.deti.apieasyspot.notification.repository.TimescaleAlertRepository;
 
 import java.time.LocalDateTime;
 import org.springframework.http.MediaType;
@@ -41,6 +42,7 @@ class SensorLogsControllerIT {
     @Autowired WebApplicationContext wac;
     @Autowired ParkingLotRepository parkingLotRepository;
     @Autowired SensorRegistryRepository sensorRegistryRepository;
+    @Autowired TimescaleAlertRepository alertRepository;
     @Autowired @Qualifier("timescaleJdbcTemplate") JdbcTemplate timescaleJdbc;
     @MockitoBean JwtDecoder jwtDecoder;
 
@@ -253,6 +255,20 @@ class SensorLogsControllerIT {
 
         SensorRegistry updated = sensorRegistryRepository.findById("IR-IT-01").orElseThrow();
         assertThat(updated.getStatus()).isEqualTo(SensorStatus.MAINTENANCE);
+    }
+
+    @Test
+    @DisplayName("PATCH /api/technician/sensors/{id}/status - TECHNICAL role - creates alert for degraded sensor when none exists")
+    void updateStatus_technicalRole_toDegraded_createsAlert() throws Exception {
+        timescaleJdbc.update("DELETE FROM alerts WHERE sensor_id = 'IR-IT-02'");
+
+        mockMvc.perform(patch("/api/technician/sensors/IR-IT-02/status")
+                .with(jwtWithRole("sub-tech", "TECHNICAL"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"status\":\"degraded\",\"notes\":\"Sinal intermitente\"}"))
+            .andExpect(status().isNoContent());
+
+        assertThat(alertRepository.findOpenBySensorId("IR-IT-02")).isPresent();
     }
 
     @Test
