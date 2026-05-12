@@ -5,14 +5,20 @@ interface ReservationCardProps {
   reservation: ReservationResponse;
   onEdit: () => void;
   onCancel: () => void;
+  isHighlighted?: boolean;
 }
 
-export function ReservationCard({ reservation, onEdit, onCancel }: Readonly<ReservationCardProps>) {
+export function ReservationCard({ reservation, onEdit, onCancel, isHighlighted = false }: Readonly<ReservationCardProps>) {
   const status = STATUS_META[reservation.status];
   const editable = canEditOrCancel(reservation);
 
   return (
-    <div className="rounded-2xl bg-card border border-border overflow-hidden transition-all hover:border-primary/40">
+    <div
+      id={`reservation-${reservation.reservationId}`}
+      className={`rounded-2xl bg-card border overflow-hidden transition-all hover:border-primary/40 ${
+        isHighlighted ? 'border-primary shadow-lg shadow-primary/10 ring-2 ring-primary/30' : 'border-border'
+      }`}
+    >
       <div className="p-4">
         <div className="flex items-start justify-between mb-3 gap-3">
           <div className="flex items-center gap-3 min-w-0">

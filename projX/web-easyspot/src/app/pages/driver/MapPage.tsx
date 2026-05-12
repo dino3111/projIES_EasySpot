@@ -79,11 +79,12 @@ export function MapPage() {
     const load = async () => {
       try {
         setLoading(true);
+        const shouldUseVehicleCompatibility = activeFilter === 'ev' || activeFilter === 'accessible';
         const data = await fetchParksList({
           page: 1,
           pageSize: 200,
           textQuery: searchQuery || undefined,
-          vehicleId: selectedVehicleId,
+          vehicleId: shouldUseVehicleCompatibility ? selectedVehicleId : null,
           evOnly: activeFilter === 'ev',
           accessibleOnly: activeFilter === 'accessible',
           availableOnly: activeFilter === 'available',

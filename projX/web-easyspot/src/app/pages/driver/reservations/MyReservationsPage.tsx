@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { toast } from 'sonner';
 import {
   cancelReservation,
@@ -38,6 +38,7 @@ function paymentAdjustmentErrorMessage(paymentStatus: string | null, kind: 'char
 }
 
 export function MyReservationsPage() {
+  const [searchParams] = useSearchParams();
   const [reservations, setReservations] = useState<ReservationResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -76,7 +77,21 @@ export function MyReservationsPage() {
     void refresh();
   }, [refresh]);
 
+  const highlightedReservationId = searchParams.get('reservationId');
   const visible = useMemo(() => filterReservations(reservations, filter), [reservations, filter]);
+
+  useEffect(() => {
+    if (!highlightedReservationId || reservations.length === 0) return;
+    const target = reservations.find((reservation) => reservation.reservationId === highlightedReservationId);
+    if (!target) return;
+
+    const timer = window.setTimeout(() => {
+      const element = document.getElementById(`reservation-${highlightedReservationId}`);
+      element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 120);
+
+    return () => window.clearTimeout(timer);
+  }, [highlightedReservationId, reservations]);
 
   const handleSaveEdit = async (values: EditReservationFormValues) => {
     if (!editing) return;
@@ -228,6 +243,7 @@ export function MyReservationsPage() {
             <ReservationCard
               key={reservation.reservationId}
               reservation={reservation}
+              isHighlighted={reservation.reservationId === highlightedReservationId}
               onEdit={() => { setActionError(null); setEditing(reservation); }}
               onCancel={() => setCancelling(reservation)}
             />

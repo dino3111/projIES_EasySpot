@@ -2,6 +2,7 @@ package pt.ua.deti.apieasyspot.booking.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import pt.ua.deti.apieasyspot.billing.model.PaymentRecord;
@@ -24,6 +25,9 @@ public class BookingConfirmationMailService {
 
     private final EmailDeliveryDedupService emailDeliveryDedupService;
     private final PaymentRecordRepository paymentRecordRepository;
+
+    @Value("${app.frontend.url}")
+    private String frontendUrl;
 
     @Async
     public void sendConfirmation(Reservation reservation) {
@@ -59,7 +63,8 @@ public class BookingConfirmationMailService {
             return;
         }
         try {
-            boolean sent = emailDeliveryDedupService.sendOnce(deliveryKey, category, email, subject, body);
+            String htmlBody = "BOOKING_CONFIRMATION".equals(category) ? buildConfirmationHtml(reservation) : null;
+            boolean sent = emailDeliveryDedupService.sendOnce(deliveryKey, category, email, subject, body, htmlBody);
             if (!sent) {
                 log.debug("Skipping duplicate {} email for reservation {}", category, reservation.getBookingCode());
                 return;
@@ -76,12 +81,28 @@ public class BookingConfirmationMailService {
 
             %s
 
+            Gerir reserva     : %s
+
             A reserva é válida por 30 minutos após a hora marcada.
             Se não comparecer dentro desse período, o lugar será libertado.
 
             Boas viagens,
             Equipa EasySpot
-            """.formatted(commonDetails(reservation));
+            """.formatted(commonDetails(reservation), reservationManagementUrl(reservation));
+    }
+
+    private String buildConfirmationHtml(Reservation reservation) {
+        String manageUrl = reservationManagementUrl(reservation);
+        return """
+            <div style="font-family:Arial,sans-serif;line-height:1.6;color:#1f2937;max-width:640px;margin:0 auto;padding:24px;">
+              <h2 style="margin:0 0 16px;color:#0f766e;">Reserva confirmada com sucesso</h2>
+              <p style="margin:0 0 16px;">A sua reserva foi confirmada. Pode consultar os detalhes abaixo ou gerir esta reserva diretamente na EasySpot.</p>
+              <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;padding:20px;margin:0 0 20px;white-space:pre-line;">%s</div>
+              <a href="%s" style="display:inline-block;background:#0f766e;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:999px;font-weight:700;">Gerir esta reserva</a>
+              <p style="margin:20px 0 0;font-size:14px;color:#475569;">A reserva é válida por 30 minutos após a hora marcada. Se não comparecer dentro desse período, o lugar será libertado.</p>
+              <p style="margin:20px 0 0;">Boas viagens,<br/>Equipa EasySpot</p>
+            </div>
+            """.formatted(escapeHtml(commonDetails(reservation)), manageUrl);
     }
 
     private String buildUpdateBody(Reservation reservation, BigDecimal previousCost, BigDecimal newCost, BigDecimal delta) {
@@ -212,5 +233,17 @@ public class BookingConfirmationMailService {
             case REFUNDED -> "reembolsado";
             case PARTIALLY_REFUNDED -> "parcialmente reembolsado";
         };
+    }
+
+    private String reservationManagementUrl(Reservation reservation) {
+        return frontendUrl + "/reservations?reservationId=" + reservation.getId();
+    }
+
+    private String escapeHtml(String value) {
+        return value
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace("\"", "&quot;");
     }
 }

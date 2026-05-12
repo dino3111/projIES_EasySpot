@@ -5,6 +5,7 @@ import type { AppProfile } from './ProfileContext';
 const AUTHENTIK_BASE = (import.meta.env.VITE_AUTHENTIK_URL ?? 'http://localhost/authentik').replaceAll(/\/$/g, '');
 const CLIENT_ID      = import.meta.env.VITE_AUTHENTIK_CLIENT_ID ?? '';
 const REDIRECT_URI   = import.meta.env.VITE_AUTHENTIK_REDIRECT_URI ?? 'http://localhost/callback';
+const LOGOUT_REDIRECT_URI = import.meta.env.VITE_AUTHENTIK_LOGOUT_REDIRECT_URI ?? new URL('/welcome', REDIRECT_URI).toString();
 
 const EXPECTED_ISSUERS = [
   `${AUTHENTIK_BASE}/application/o/easyspot/`,
@@ -336,7 +337,7 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
     setUser(null);
     setAccessToken(null);
 
-    const params = new URLSearchParams({ post_logout_redirect_uri: REDIRECT_URI });
+    const params = new URLSearchParams({ post_logout_redirect_uri: LOGOUT_REDIRECT_URI });
     if (CLIENT_ID) params.set('client_id', CLIENT_ID);
     if (idToken) params.set('id_token_hint', idToken);
     globalThis.location.href = `${LOGOUT_URL}?${params.toString()}`;
