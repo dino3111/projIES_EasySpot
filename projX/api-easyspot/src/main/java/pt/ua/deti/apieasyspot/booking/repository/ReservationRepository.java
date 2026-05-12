@@ -1,6 +1,7 @@
 package pt.ua.deti.apieasyspot.booking.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -15,7 +16,9 @@ import java.util.UUID;
 public interface ReservationRepository extends JpaRepository<Reservation, UUID> {
 
     Optional<Reservation> findByIdempotencyKey(String idempotencyKey);
+    Optional<Reservation> findByUserIdAndIdempotencyKey(UUID userId, String idempotencyKey);
 
+    @EntityGraph(attributePaths = {"parkingLot", "parkingSpot", "vehicle"})
     List<Reservation> findByUserIdOrderByCreatedAtDesc(UUID userId);
 
     // Spot-level overlap: count active reservations for the same spot in the requested window
@@ -28,6 +31,32 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
         """)
     long countSpotConflicts(
         @Param("spotId") UUID spotId,
+        @Param("arrivalTime") OffsetDateTime arrivalTime,
+        @Param("departureTime") OffsetDateTime departureTime
+    );
+
+    @Query("""
+        SELECT COUNT(r) FROM Reservation r
+        WHERE r.parkingLot.id = :parkId
+          AND r.status NOT IN ('CANCELLED', 'EXPIRED', 'COMPLETED')
+          AND r.departureTime > :now
+        """)
+    long countActiveReservationsForLot(
+        @Param("parkId") UUID parkId,
+        @Param("now") OffsetDateTime now
+    );
+
+    @Query("""
+        SELECT COUNT(r) FROM Reservation r
+        WHERE r.parkingSpot.id = :spotId
+          AND r.id <> :reservationId
+          AND r.status NOT IN ('CANCELLED', 'EXPIRED', 'COMPLETED')
+          AND r.arrivalTime < :departureTime
+          AND r.departureTime > :arrivalTime
+        """)
+    long countSpotConflictsExcludingReservation(
+        @Param("spotId") UUID spotId,
+        @Param("reservationId") UUID reservationId,
         @Param("arrivalTime") OffsetDateTime arrivalTime,
         @Param("departureTime") OffsetDateTime departureTime
     );
@@ -46,6 +75,21 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
         @Param("departureTime") OffsetDateTime departureTime
     );
 
+    @Query("""
+        SELECT COUNT(r) FROM Reservation r
+        WHERE r.parkingLot.id = :parkId
+          AND r.id <> :reservationId
+          AND r.status NOT IN ('CANCELLED', 'EXPIRED', 'COMPLETED')
+          AND r.arrivalTime < :departureTime
+          AND r.departureTime > :arrivalTime
+        """)
+    long countLotReservationsExcludingReservation(
+        @Param("parkId") UUID parkId,
+        @Param("reservationId") UUID reservationId,
+        @Param("arrivalTime") OffsetDateTime arrivalTime,
+        @Param("departureTime") OffsetDateTime departureTime
+    );
+
     // Vehicle conflict: same vehicle already reserved at this lot in the same window
     @Query("""
         SELECT COUNT(r) FROM Reservation r
@@ -58,6 +102,23 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
     long countVehicleConflicts(
         @Param("vehicleId") UUID vehicleId,
         @Param("parkId") UUID parkId,
+        @Param("arrivalTime") OffsetDateTime arrivalTime,
+        @Param("departureTime") OffsetDateTime departureTime
+    );
+
+    @Query("""
+        SELECT COUNT(r) FROM Reservation r
+        WHERE r.vehicle.id = :vehicleId
+          AND r.parkingLot.id = :parkId
+          AND r.id <> :reservationId
+          AND r.status NOT IN ('CANCELLED', 'EXPIRED', 'COMPLETED')
+          AND r.arrivalTime < :departureTime
+          AND r.departureTime > :arrivalTime
+        """)
+    long countVehicleConflictsExcludingReservation(
+        @Param("vehicleId") UUID vehicleId,
+        @Param("parkId") UUID parkId,
+        @Param("reservationId") UUID reservationId,
         @Param("arrivalTime") OffsetDateTime arrivalTime,
         @Param("departureTime") OffsetDateTime departureTime
     );

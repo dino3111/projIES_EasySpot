@@ -23,6 +23,9 @@ const SK = {
   pkceState:    'es_pkce_state',
 } as const;
 
+const REFRESH_WINDOW_MS = 2 * 60_000;
+const SESSION_EXPIRY_GRACE_MS = 30_000;
+
 export interface AuthUser {
   sub: string;
   name?: string;
@@ -186,20 +189,30 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
 
   useEffect(() => {
     if (!accessToken) return;
+    let isRefreshing = false;
 
     const tick = async () => {
       const expMs = getTokenExpirationMs(sessionStorage.getItem(SK.accessToken) ?? accessToken);
       if (!expMs) return;
       const nowMs = Date.now();
       const msUntilExpiry = expMs - nowMs;
-      if (msUntilExpiry <= 60_000) {
+      if (msUntilExpiry > REFRESH_WINDOW_MS || isRefreshing) return;
+
+      isRefreshing = true;
+      try {
         const refreshed = await refreshAccessToken();
-        if (!refreshed) {
+        if (refreshed) return;
+
+        // Avoid dropping users on transient failures (network hiccup, slow auth server).
+        // Only force logout when the token has already expired beyond a grace period.
+        if (msUntilExpiry <= -SESSION_EXPIRY_GRACE_MS) {
           clearAuthStorage();
           setUser(null);
           setAccessToken(null);
           globalThis.location.href = '/welcome?session=expired';
         }
+      } finally {
+        isRefreshing = false;
       }
     };
 
@@ -323,7 +336,8 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
     setUser(null);
     setAccessToken(null);
 
-    const params = new URLSearchParams({ post_logout_redirect_uri: `${globalThis.location.origin}/welcome` });
+    const params = new URLSearchParams({ post_logout_redirect_uri: REDIRECT_URI });
+    if (CLIENT_ID) params.set('client_id', CLIENT_ID);
     if (idToken) params.set('id_token_hint', idToken);
     globalThis.location.href = `${LOGOUT_URL}?${params.toString()}`;
   }, []);

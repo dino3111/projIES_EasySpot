@@ -2,6 +2,9 @@ package pt.ua.deti.apieasyspot.booking.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.exception.ConstraintViolationException;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pt.ua.deti.apieasyspot.auth.model.User;
@@ -10,6 +13,7 @@ import pt.ua.deti.apieasyspot.billing.service.BillingService;
 import pt.ua.deti.apieasyspot.billing.exception.PaymentSetupRequiredException;
 import pt.ua.deti.apieasyspot.booking.dto.CreateReservationRequest;
 import pt.ua.deti.apieasyspot.booking.dto.ReservationResponse;
+import pt.ua.deti.apieasyspot.booking.dto.UpdateReservationRequest;
 import pt.ua.deti.apieasyspot.booking.event.ReservationEventPublisher;
 import pt.ua.deti.apieasyspot.booking.model.Reservation;
 import pt.ua.deti.apieasyspot.notification.service.AlertNotificationDispatchService;
@@ -21,6 +25,7 @@ import pt.ua.deti.apieasyspot.common.exception.UnprocessableEntityException;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingSpot;
 import pt.ua.deti.apieasyspot.occupancy.model.Tariff;
+import pt.ua.deti.apieasyspot.occupancy.model.ZoneType;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingLotRepository;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingSpotRepository;
 import pt.ua.deti.apieasyspot.occupancy.repository.TariffRepository;
@@ -31,7 +36,6 @@ import pt.ua.deti.apieasyspot.vehicle.repository.VehicleRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.security.SecureRandom;
-import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
@@ -46,6 +50,9 @@ public class ReservationService {
     private static final int LOCK_MINUTES = 30;
     private static final String BOOKING_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     private static final SecureRandom RANDOM = new SecureRandom();
+
+    @Value("${reservations.billing.enabled:true}")
+    private boolean reservationBillingEnabled;
 
     private final ReservationRepository reservationRepository;
     private final UserRepository userRepository;
@@ -63,14 +70,122 @@ public class ReservationService {
     public ReservationResponse create(String authentikUserId, String idempotencyKey,
                                       CreateReservationRequest request) {
         if (idempotencyKey != null && !idempotencyKey.isBlank()) {
-            return reservationRepository.findByIdempotencyKey(idempotencyKey)
+            User user = findUser(authentikUserId);
+            return reservationRepository.findByUserIdAndIdempotencyKey(user.getId(), idempotencyKey)
                 .map(this::toResponse)
-                .orElseGet(() -> doCreate(authentikUserId, idempotencyKey, request));
+                .orElseGet(() -> doCreate(user, idempotencyKey, request));
         }
-        return doCreate(authentikUserId, null, request);
+        preValidateTimeWindow(request);
+        return doCreate(findUser(authentikUserId), null, request);
     }
 
-    private ReservationResponse doCreate(String authentikUserId, String idempotencyKey,
+    @Transactional(readOnly = true)
+    public List<ReservationResponse> list(String authentikUserId) {
+        User user = findUser(authentikUserId);
+        return reservationRepository.findByUserIdOrderByCreatedAtDesc(user.getId()).stream()
+            .map(this::toResponse)
+            .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public ReservationResponse getById(String authentikUserId, UUID reservationId) {
+        User user = findUser(authentikUserId);
+        Reservation reservation = findReservationOwnedByUser(reservationId, user.getId());
+        return toResponse(reservation);
+    }
+
+    @Transactional
+    public ReservationResponse update(String authentikUserId, UUID reservationId, UpdateReservationRequest request) {
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        reservationRepository.expireTimedOutLocks(now, ReservationStatus.CONFIRMED, ReservationStatus.EXPIRED);
+
+        User user = findUser(authentikUserId);
+        Reservation reservation = findReservationOwnedByUser(reservationId, user.getId());
+        ensureReservationCanBeManaged(reservation, now, "updated");
+
+        OffsetDateTime arrival = parseDateTime(request.arrivalDateTime(), "arrivalDateTime");
+        OffsetDateTime departure = parseDateTime(request.departureDateTime(), "departureDateTime");
+        validateTimeWindow(arrival, departure, now);
+
+        ParkingLot lot = findLot(request.parkId());
+        Vehicle vehicle = findVehicleOwnedByUser(request.vehicleId(), user.getId());
+        validateOpeningHours(lot, arrival, departure);
+
+        int liveFreeSpotsFromSensor = occupancySnapshotRepository.sumFreeSpacesFromLatestSnapshot(lot.getId());
+        long activeReservations = reservationRepository.countLotReservationsExcludingReservation(
+            lot.getId(), reservation.getId(), arrival, departure);
+
+        if (liveFreeSpotsFromSensor >= 0) {
+            long effectiveFree = liveFreeSpotsFromSensor - activeReservations;
+            if (effectiveFree <= 0) {
+                throw new ConflictException("Parking lot is fully booked for the requested time window");
+            }
+        } else if (activeReservations >= lot.getTotalSpaces()) {
+            throw new ConflictException("Parking lot is fully booked for the requested time window");
+        }
+
+        long vehicleConflicts = reservationRepository.countVehicleConflictsExcludingReservation(
+            vehicle.getId(), lot.getId(), reservation.getId(), arrival, departure);
+        if (vehicleConflicts > 0) {
+            throw new ConflictException(
+                "This vehicle already has an active reservation at this parking lot for the requested period");
+        }
+
+        ParkingSpot previousSpot = reservation.getParkingSpot();
+        ParkingSpot nextSpot = resolveSpotForUpdate(reservation, request, lot, arrival, departure);
+        BigDecimal estimatedCost = calculateCost(lot, arrival, departure);
+
+        reservation.setParkingLot(lot);
+        reservation.setParkingSpot(nextSpot);
+        reservation.setVehicle(vehicle);
+        reservation.setArrivalTime(arrival);
+        reservation.setDepartureTime(departure);
+        reservation.setLockedUntil(arrival.plusMinutes(LOCK_MINUTES));
+        reservation.setEstimatedCost(estimatedCost);
+
+        if (!sameSpot(previousSpot, nextSpot)) {
+            if (previousSpot != null) {
+            previousSpot.setStatus(restoreSpotStatus(previousSpot));
+            parkingSpotRepository.save(previousSpot);
+            }
+        }
+
+        if (nextSpot != null) {
+            nextSpot.setStatus("reserved");
+            parkingSpotRepository.save(nextSpot);
+        }
+
+        return toResponse(reservationRepository.save(reservation));
+    }
+
+    @Transactional
+    public ReservationResponse cancel(String authentikUserId, UUID reservationId) {
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        reservationRepository.expireTimedOutLocks(now, ReservationStatus.CONFIRMED, ReservationStatus.EXPIRED);
+
+        User user = findUser(authentikUserId);
+        Reservation reservation = findReservationOwnedByUser(reservationId, user.getId());
+        ensureReservationCanBeManaged(reservation, now, "cancelled");
+
+        reservation.setStatus(ReservationStatus.CANCELLED);
+        reservation.setLockedUntil(null);
+
+        ParkingSpot spot = reservation.getParkingSpot();
+        if (spot != null) {
+            spot.setStatus(restoreSpotStatus(spot));
+            parkingSpotRepository.save(spot);
+        }
+
+        Reservation saved = reservationRepository.save(reservation);
+        try {
+            eventPublisher.publishCancelled(saved);
+        } catch (Exception ex) {
+            log.warn("Kafka cancel event publish failed for reservation {}: {}", saved.getBookingCode(), ex.getMessage());
+        }
+        return toResponse(saved);
+    }
+
+    private ReservationResponse doCreate(User user, String idempotencyKey,
                                          CreateReservationRequest request) {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
 
@@ -81,9 +196,9 @@ public class ReservationService {
 
         // 2. Lazy expiry of timed-out locks before conflict detection
         reservationRepository.expireTimedOutLocks(now, ReservationStatus.CONFIRMED, ReservationStatus.EXPIRED);
+        parkingSpotRepository.releaseExpiredReservedSpots();
 
         // 3. Resolve entities
-        User user       = findUser(authentikUserId);
         ParkingLot lot  = findLot(request.parkId());
         Vehicle vehicle = findVehicleOwnedByUser(request.vehicleId(), user.getId());
 
@@ -141,19 +256,28 @@ public class ReservationService {
             parkingSpotRepository.save(spot);
         }
 
-        Reservation saved = reservationRepository.save(reservation);
+        Reservation saved;
+        try {
+            saved = reservationRepository.save(reservation);
+        } catch (DataIntegrityViolationException ex) {
+            throw mapDataIntegrityViolation(ex);
+        }
 
         // 9. BillingModule: create Stripe PaymentIntent + ParkingSession record
         //    Runs in a separate transaction; transient Stripe failures do not roll back,
         //    but missing payment setup aborts the reservation so the caução stays enforced
-        try {
-            billingService.createPaymentIntentForReservation(saved, user.getEmail());
-        } catch (PaymentSetupRequiredException ex) {
-            log.warn("Billing setup missing for reservation {}: {}", saved.getBookingCode(), ex.getMessage());
-            throw new UnprocessableEntityException(ex.getMessage());
-        } catch (Exception ex) {
-            log.warn("Billing step failed for reservation {} (reservation still confirmed): {}",
-                saved.getBookingCode(), ex.getMessage());
+        if (reservationBillingEnabled) {
+            try {
+                billingService.createPaymentIntentForReservation(saved, user.getEmail());
+            } catch (PaymentSetupRequiredException ex) {
+                log.warn("Billing setup missing for reservation {}: {}", saved.getBookingCode(), ex.getMessage());
+                throw new UnprocessableEntityException(ex.getMessage());
+            } catch (Exception ex) {
+                log.warn("Billing step failed for reservation {} (reservation still confirmed): {}",
+                    saved.getBookingCode(), ex.getMessage());
+            }
+        } else {
+            log.info("Billing disabled for reservation {} by configuration", saved.getBookingCode());
         }
 
         // 10. NotificationModule: send booking confirmation email (SMTP) + WebSocket push
@@ -190,7 +314,7 @@ public class ReservationService {
             ParkingSpot spot = parkingSpotRepository.findByIdWithLock(request.selectedSpotId())
                 .orElseThrow(() -> new ResourceNotFoundException("Spot not found: " + request.selectedSpotId()));
 
-            if ("occupied".equals(spot.getStatus()) || "reserved".equals(spot.getStatus())) {
+            if ("occupied".equals(spot.getStatus())) {
                 throw new ConflictException("Spot " + spot.getSpotNumber() + " is not available");
             }
             long spotConflicts = reservationRepository.countSpotConflicts(spot.getId(), arrival, departure);
@@ -201,10 +325,52 @@ public class ReservationService {
             return spot;
         }
 
-        return parkingSpotRepository.findByParkingLotIdAndStatus(lot.getId(), "free").stream()
-            .filter(s -> reservationRepository.countSpotConflicts(s.getId(), arrival, departure) == 0)
-            .findFirst()
-            .orElse(null);
+        return parkingSpotRepository.findFirstFreeByParkingLotIdForUpdateSkipLocked(
+            lot.getId(), "free", arrival, departure
+        ).orElse(null);
+    }
+
+    private ParkingSpot resolveSpotForUpdate(Reservation reservation, UpdateReservationRequest request, ParkingLot lot,
+                                             OffsetDateTime arrival, OffsetDateTime departure) {
+        if (request.selectedSpotId() != null) {
+            if (!reservationRepository.spotBelongsToPark(request.selectedSpotId(), lot.getId())) {
+                throw new UnprocessableEntityException(
+                    "Spot " + request.selectedSpotId() + " does not belong to park " + lot.getId());
+            }
+            ParkingSpot spot = parkingSpotRepository.findByIdWithLock(request.selectedSpotId())
+                .orElseThrow(() -> new ResourceNotFoundException("Spot not found: " + request.selectedSpotId()));
+
+            boolean isCurrentSpot = reservation.getParkingSpot() != null
+                && reservation.getParkingSpot().getId().equals(spot.getId());
+            if (!isCurrentSpot && ("occupied".equals(spot.getStatus()) || "reserved".equals(spot.getStatus()))) {
+                throw new ConflictException("Spot " + spot.getSpotNumber() + " is not available");
+            }
+
+            long spotConflicts = reservationRepository.countSpotConflictsExcludingReservation(
+                spot.getId(), reservation.getId(), arrival, departure);
+            if (spotConflicts > 0) {
+                throw new ConflictException(
+                    "Spot " + spot.getSpotNumber() + " already has a reservation for this time window");
+            }
+            return spot;
+        }
+
+        ParkingSpot currentSpot = reservation.getParkingSpot();
+        if (currentSpot != null
+            && currentSpot.getParkingLot() != null
+            && currentSpot.getParkingLot().getId().equals(lot.getId())) {
+            ParkingSpot lockedCurrentSpot = parkingSpotRepository.findByIdWithLock(currentSpot.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Spot not found: " + currentSpot.getId()));
+            long currentSpotConflicts = reservationRepository.countSpotConflictsExcludingReservation(
+                lockedCurrentSpot.getId(), reservation.getId(), arrival, departure);
+            if (currentSpotConflicts == 0) {
+                return lockedCurrentSpot;
+            }
+        }
+
+        return parkingSpotRepository.findFirstFreeByParkingLotIdForUpdateSkipLocked(
+            lot.getId(), "free", arrival, departure
+        ).orElse(null);
     }
 
     private BigDecimal calculateCost(ParkingLot lot, OffsetDateTime arrival, OffsetDateTime departure) {
@@ -228,6 +394,13 @@ public class ReservationService {
         return cost;
     }
 
+    private void preValidateTimeWindow(CreateReservationRequest request) {
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        OffsetDateTime arrival = parseDateTime(request.arrivalDateTime(), "arrivalDateTime");
+        OffsetDateTime departure = parseDateTime(request.departureDateTime(), "departureDateTime");
+        validateTimeWindow(arrival, departure, now);
+    }
+
     private void validateTimeWindow(OffsetDateTime arrival, OffsetDateTime departure, OffsetDateTime now) {
         if (!arrival.isAfter(now)) {
             throw new UnprocessableEntityException("A data de chegada tem de ser no futuro.");
@@ -246,23 +419,86 @@ public class ReservationService {
     private void validateOpeningHours(ParkingLot lot, OffsetDateTime arrival, OffsetDateTime departure) {
         String hours = lot.getOpeningHours();
         if (hours == null || hours.isBlank()) return;
-
-        String[] parts = hours.split("-");
-        if (parts.length != 2) return;
-
-        try {
-            LocalTime open  = LocalTime.parse(parts[0].trim());
-            LocalTime close = LocalTime.parse(parts[1].trim());
-            LocalTime arrivalTime   = arrival.toLocalTime();
-            LocalTime departureTime = departure.toLocalTime();
-
-            if (arrivalTime.isBefore(open) || arrivalTime.isAfter(close) || departureTime.isAfter(close)) {
-                throw new UnprocessableEntityException(
-                    "Reservation is outside the parking lot's opening hours (" + hours + ")");
-            }
-        } catch (DateTimeParseException ignored) {
-            // Unparseable format — skip validation
+        if (isAlwaysOpen(hours)) {
+            return;
         }
+        if (!arrival.toLocalDate().isEqual(departure.toLocalDate())) {
+            throw new UnprocessableEntityException(
+                "Reservations spanning multiple dates are only allowed for 24h parking lots");
+        }
+
+        int[] schedule = parseOpeningHoursWindow(hours, lot.getId());
+        if (schedule == null) return;
+
+        int openMinutes = schedule[0];
+        int closeMinutes = schedule[1];
+        int arrivalMinutes = arrival.toLocalTime().getHour() * 60 + arrival.toLocalTime().getMinute();
+        int departureMinutes = departure.toLocalTime().getHour() * 60 + departure.toLocalTime().getMinute();
+
+        boolean arrivalOk = isWithinWindow(arrivalMinutes, openMinutes, closeMinutes);
+        boolean departureOk = isWithinWindow(departureMinutes, openMinutes, closeMinutes);
+        if (!arrivalOk || !departureOk) {
+            throw new UnprocessableEntityException(
+                "Reservation is outside the parking lot's opening hours (" + hours + ")");
+        }
+    }
+
+    private int[] parseOpeningHoursWindow(String openingHours, UUID lotId) {
+        String normalized = openingHours.toLowerCase().replaceAll("\\s+", "");
+        normalized = normalized.replace("aberto", "");
+        normalized = normalized.replace("às", "-");
+        normalized = normalized.replace("a", "-");
+        normalized = normalized.replace('h', ':');
+
+        String[] parts = normalized.split("-");
+        if (parts.length != 2) {
+            log.warn("Unparseable opening hours '{}' for lot {} - skipping reservation opening-hours check", openingHours, lotId);
+            return null;
+        }
+        try {
+            return new int[] { parseClockToMinutes(parts[0]), parseClockToMinutes(parts[1]) };
+        } catch (RuntimeException ex) {
+            log.warn("Failed to parse opening hours '{}' for lot {}: {}", openingHours, lotId, ex.getMessage());
+            return null;
+        }
+    }
+
+    private int parseClockToMinutes(String value) {
+        String[] hm = value.split(":");
+        int hour = Integer.parseInt(hm[0]);
+        int minute = hm.length > 1 && !hm[1].isBlank() ? Integer.parseInt(hm[1]) : 0;
+        if (hour == 24 && minute == 0) return 24 * 60;
+        if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+            throw new IllegalArgumentException("Invalid hour/minute");
+        }
+        return hour * 60 + minute;
+    }
+
+    private boolean isWithinWindow(int minutesOfDay, int openMinutes, int closeMinutes) {
+        if (openMinutes == closeMinutes) {
+            return true;
+        }
+        if (closeMinutes > openMinutes) {
+            return minutesOfDay >= openMinutes && minutesOfDay <= closeMinutes;
+        }
+        return minutesOfDay >= openMinutes || minutesOfDay <= closeMinutes;
+    }
+
+    private boolean isAlwaysOpen(String openingHours) {
+        String normalized = openingHours.trim().toLowerCase();
+        return normalized.contains("24h") || normalized.contains("24/7");
+    }
+
+    private ConflictException mapDataIntegrityViolation(DataIntegrityViolationException ex) {
+        String message = ex.getMostSpecificCause() != null ? ex.getMostSpecificCause().getMessage() : "";
+        String constraint = ex.getCause() instanceof ConstraintViolationException cve ? cve.getConstraintName() : null;
+
+        boolean idempotencyConflict = (constraint != null && constraint.contains("uq_reservations_user_idempotency"))
+            || message.contains("uq_reservations_user_idempotency");
+        if (idempotencyConflict) {
+            return new ConflictException("A reservation with this idempotency key already exists for this user.");
+        }
+        return new ConflictException("The selected spot became unavailable. Please choose another spot.");
     }
 
     private String generateUniqueBookingCode() {
@@ -301,6 +537,21 @@ public class ReservationService {
             .orElseThrow(() -> new ResourceNotFoundException("Authenticated user not found"));
     }
 
+    private Reservation findReservationOwnedByUser(UUID reservationId, UUID userId) {
+        return reservationRepository.findByIdAndUserId(reservationId, userId)
+            .orElseThrow(() -> new ResourceNotFoundException(
+                "Reservation not found or does not belong to this user: " + reservationId));
+    }
+
+    private void ensureReservationCanBeManaged(Reservation reservation, OffsetDateTime now, String action) {
+        if (reservation.getStatus() != ReservationStatus.CONFIRMED) {
+            throw new ConflictException("Only confirmed reservations can be " + action + ".");
+        }
+        if (!reservation.getArrivalTime().isAfter(now)) {
+            throw new ConflictException("Reservation can no longer be " + action + " after arrival time.");
+        }
+    }
+
     private ParkingLot findLot(UUID parkId) {
         return parkingLotRepository.findById(parkId)
             .orElseThrow(() -> new ResourceNotFoundException("Parking lot not found: " + parkId));
@@ -310,6 +561,19 @@ public class ReservationService {
         return vehicleRepository.findByIdAndUserId(vehicleId, userId)
             .orElseThrow(() -> new ResourceNotFoundException(
                 "Vehicle not found or does not belong to this user: " + vehicleId));
+    }
+
+    private String restoreSpotStatus(ParkingSpot spot) {
+        ZoneType zone = spot.getZone();
+        if (zone == ZoneType.EV) return "ev";
+        if (zone == ZoneType.ACCESSIBLE) return "accessible";
+        return "free";
+    }
+
+    private boolean sameSpot(ParkingSpot left, ParkingSpot right) {
+        UUID leftId = left != null ? left.getId() : null;
+        UUID rightId = right != null ? right.getId() : null;
+        return java.util.Objects.equals(leftId, rightId);
     }
 
     private ReservationResponse toResponse(Reservation r) {

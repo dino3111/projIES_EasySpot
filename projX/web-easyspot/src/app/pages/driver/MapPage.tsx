@@ -24,25 +24,55 @@ function getStatusInfo(lot: ParkingLot) {
 }
 
 export function MapPage() {
-  const { vehicles } = useProfile();
+  const { vehicles, driverType } = useProfile();
   const primaryVehicle = vehicles.find((v) => v.isPrimary) ?? vehicles[0] ?? null;
+  const initialFilter: FilterType =
+    driverType === 'ev'
+      ? 'ev'
+      : driverType === 'reduced_mobility'
+        ? 'accessible'
+        : 'all';
 
   const [parkingLots, setParkingLots] = useState<ParkingLot[]>([]);
   const [selectedLotId, setSelectedLotId] = useState<string | null>(null);
   const [selectedLotDetails, setSelectedLotDetails] = useState<ParkingLot | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeFilter, setActiveFilter] = useState<FilterType>('all');
+  const [activeFilter, setActiveFilter] = useState<FilterType>(initialFilter);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(primaryVehicle?.id ?? null);
   const [subscribeMessage, setSubscribeMessage] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+  const userSelectedVehicleRef = useRef(false);
+  const userChangedFilterRef = useRef(false);
 
   useEffect(() => {
     const vehicle = vehicles.find((v) => v.id === selectedVehicleId) ?? null;
+    if (userChangedFilterRef.current) return;
+    if (!userSelectedVehicleRef.current) {
+      if (driverType === 'ev') {
+        setActiveFilter('ev');
+        return;
+      }
+      if (driverType === 'reduced_mobility') {
+        setActiveFilter('accessible');
+        return;
+      }
+    }
     if (vehicle?.isEV) setActiveFilter('ev');
     else if (vehicle?.isAccessible) setActiveFilter('accessible');
     else if (vehicle) setActiveFilter('all');
-  }, [selectedVehicleId, vehicles]);
+  }, [selectedVehicleId, vehicles, driverType]);
+
+  const handleVehicleSelect = useCallback((id: string | null) => {
+    userSelectedVehicleRef.current = true;
+    userChangedFilterRef.current = false;
+    setSelectedVehicleId(id);
+  }, []);
+
+  const handleFilterChange = useCallback((f: FilterType) => {
+    userChangedFilterRef.current = true;
+    setActiveFilter(f);
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -125,9 +155,9 @@ export function MapPage() {
         searchRef={searchRef}
         vehicles={vehicles}
         selectedVehicleId={selectedVehicleId}
-        onVehicleSelect={setSelectedVehicleId}
+        onVehicleSelect={handleVehicleSelect}
         activeFilter={activeFilter}
-        onFilterChange={setActiveFilter}
+        onFilterChange={handleFilterChange}
         filteredCount={loading ? 0 : filteredLots.length}
         onSubscribeSelected={selectedLot ? () => void handleSubscribeSelected() : undefined}
         subscribeMessage={subscribeMessage}

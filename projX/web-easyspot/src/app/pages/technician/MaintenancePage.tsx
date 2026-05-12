@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router';
 import { type SensorDevice, type SensorStatus, computeTechKPIs } from '../../data/technicianData';
 import { STATUS_LABEL, type PageTab, type StatusFil } from './components/maintenanceTypes';
 import { TabBtn } from './components/shared';
@@ -123,8 +124,25 @@ function alertToWorkOrder(a: AlertResponse): WorkOrder {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
+const TAB_PARAM_MAP: Record<string, PageTab> = {
+  tasks: 'tarefas',
+  sensors: 'sensores',
+  incidents: 'ocorrencias',
+};
+
+const TAB_TO_PARAM: Record<PageTab, string | null> = {
+  ocorrencias: null,
+  sensores: 'sensors',
+  tarefas: 'tasks',
+};
+
 export function MaintenancePage() {
-  const [tab, setTab]                       = useState<PageTab>('ocorrencias');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab: PageTab = TAB_PARAM_MAP[searchParams.get('tab') ?? ''] ?? 'ocorrencias';
+  function setTab(t: PageTab) {
+    const param = TAB_TO_PARAM[t];
+    setSearchParams(param ? { tab: param } : {});
+  }
   const [sensors, setSensors]               = useState<SensorDevice[]>([]);
   const [issues, setIssues]                 = useState<IssueReport[]>([]);
   const [orders, setOrders]                 = useState<WorkOrder[]>([]);

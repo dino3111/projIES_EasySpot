@@ -23,6 +23,13 @@ function PaymentForm({ onReady }: Readonly<{ onReady: (confirmed: boolean) => vo
     setSaving(true);
     setError(null);
 
+    const { error: validationError } = await elements.submit();
+    if (validationError) {
+      setError(validationError.message ?? 'Verifique os dados do método de pagamento.');
+      setSaving(false);
+      return;
+    }
+
     const { error: submitError } = await stripe.confirmSetup({
       elements,
       confirmParams: { return_url: globalThis.location.origin + '/welcome?stripe_return=1' },
@@ -78,14 +85,7 @@ export function StepPaymentStripe({
 }>) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => getCurrentTheme());
-
-  useEffect(() => {
-    const root = document.documentElement;
-    const observer = new MutationObserver(() => setTheme(getCurrentTheme()));
-    observer.observe(root, { attributes: true, attributeFilter: ['data-theme', 'class'] });
-    return () => observer.disconnect();
-  }, []);
+  const theme = getCurrentTheme();
 
   const elementOptions = useMemo(() => ({
     clientSecret,

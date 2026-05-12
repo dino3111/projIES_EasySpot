@@ -9,6 +9,7 @@ import pt.ua.deti.apieasyspot.booking.model.Reservation;
 import pt.ua.deti.apieasyspot.booking.model.ReservationStatus;
 import pt.ua.deti.apieasyspot.booking.repository.ReservationRepository;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingSpot;
+import pt.ua.deti.apieasyspot.occupancy.model.ZoneType;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingSpotRepository;
 
 import java.time.OffsetDateTime;
@@ -119,7 +120,7 @@ public class ReservationLifecycleService {
 
     private String deriveSpotStatus(ParkingSpot spot, Reservation reservation, OffsetDateTime now) {
         if (reservation == null || now.isAfter(reservation.getDepartureTime())) {
-            return restoreTypeStatus(spot.getStatus());
+            return restoreTypeStatus(spot);
         }
         if (now.isBefore(reservation.getArrivalTime())) {
             return "reserved";
@@ -127,9 +128,10 @@ public class ReservationLifecycleService {
         return "occupied";
     }
 
-    private String restoreTypeStatus(String currentStatus) {
-        if (currentStatus == null) return "free";
-        String s = currentStatus.trim().toLowerCase();
-        return (s.equals("ev") || s.equals("accessible")) ? s : "free";
+    private String restoreTypeStatus(ParkingSpot spot) {
+        ZoneType zone = spot.getZone();
+        if (zone == ZoneType.EV) return "ev";
+        if (zone == ZoneType.ACCESSIBLE) return "accessible";
+        return "free";
     }
 }

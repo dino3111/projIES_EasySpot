@@ -22,7 +22,7 @@ import { StepPaymentStripe } from '../welcome/StepPaymentStripe';
 export function ReservationPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { vehicles } = useProfile();
+  const { vehicles, driverType } = useProfile();
 
   const [step, setStep] = useState<ReservationStep>(1);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>(
@@ -40,7 +40,12 @@ export function ReservationPage() {
 
   const [selectedFloorId, setSelectedFloorId] = useState<string>('');
   const [selectedSpotId, setSelectedSpotId]   = useState<string>('');
-  const [spotFilter, setSpotFilter]           = useState<SpotFilter>('todos');
+  const [spotFilter, setSpotFilter] = useState<SpotFilter>(() => {
+    if (driverType === 'ev') return 'ev';
+    if (driverType === 'reduced_mobility') return 'accessible';
+    return 'todos';
+  });
+  const didUserSetSpotFilterRef = useRef(false);
 
   useEffect(() => {
     if (didInitVehicleSelection.current) return;
@@ -110,13 +115,15 @@ export function ReservationPage() {
       active = false;
     };
   }, []);
+  const [lotRefreshKey, setLotRefreshKey] = useState(0);
+
   useEffect(() => {
     if (!selectedParkId) {
       setSelectedLot(null);
       return;
     }
     fetchParkDetailsById(selectedParkId).then(setSelectedLot).catch(() => setSelectedLot(null));
-  }, [selectedParkId]);
+  }, [selectedParkId, lotRefreshKey]);
   const selectedFloor = useMemo(
     () => selectedLot?.floors.find(f => f.id === selectedFloorId) || selectedLot?.floors[0] || null,
     [selectedLot, selectedFloorId]
@@ -137,6 +144,37 @@ export function ReservationPage() {
   }, [selectedLot]);
 
   useEffect(() => {
+    if (selectedSpotId) return;
+    if (didUserSetSpotFilterRef.current) return;
+    if (selectedVehicle?.isEV) {
+      setSpotFilter('ev');
+      return;
+    }
+    if (selectedVehicle?.isAccessible) {
+      setSpotFilter('accessible');
+      return;
+    }
+    if (driverType === 'ev') {
+      setSpotFilter('ev');
+      return;
+    }
+    if (driverType === 'reduced_mobility') {
+      setSpotFilter('accessible');
+      return;
+    }
+    setSpotFilter('todos');
+  }, [driverType, selectedSpotId, selectedVehicle?.isEV, selectedVehicle?.isAccessible]);
+
+  useEffect(() => {
+    didUserSetSpotFilterRef.current = false;
+  }, [selectedVehicleId, driverType, selectedParkId]);
+
+  const handleSpotFilterChange = (filter: SpotFilter) => {
+    didUserSetSpotFilterRef.current = true;
+    setSpotFilter(filter);
+  };
+
+  useEffect(() => {
     if (step !== 4) return;
     const interval = setInterval(() => setCountdown(c => (c <= 0 ? 0 : c - 1)), 1000);
     return () => clearInterval(interval);
@@ -149,6 +187,7 @@ export function ReservationPage() {
     setBookingCode('');
     setCountdown(30 * 60);
     setReservationError(null);
+    setLotRefreshKey(k => k + 1);
   }
 
   async function handleConfirm() {
@@ -254,13 +293,13 @@ export function ReservationPage() {
                 exitTime={exitTime} setExitTime={setExitTime}
                 vehicles={vehicles} selectedVehicleId={selectedVehicleId} setSelectedVehicleId={setSelectedVehicleId}
                 parks={parks}
-                onNext={() => setStep(2)}
+                onNext={() => { setLotRefreshKey(k => k + 1); setStep(2); }}
               />
             )}
             {step === 2 && selectedLot && (
               <Step2SpotChoice
                 lot={selectedLot}
-                spotFilter={spotFilter} setSpotFilter={setSpotFilter}
+                spotFilter={spotFilter} onSpotFilterChange={handleSpotFilterChange}
                 selectedFloorId={selectedFloorId} setSelectedFloorId={setSelectedFloorId}
                 selectedSpotId={selectedSpotId} setSelectedSpotId={setSelectedSpotId}
                 onNext={() => setStep(3)} onBack={() => setStep(1)}

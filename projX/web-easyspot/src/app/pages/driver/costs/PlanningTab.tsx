@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { useProfile } from '../../../context/ProfileContext';
@@ -50,15 +50,15 @@ function Chip({ active, icon, label, onClick, ariaLabel }: ChipProps) {
 
 export function PlanningTab() {
   const navigate = useNavigate();
-  const { vehicles } = useProfile();
+  const { vehicles, driverType } = useProfile();
   const primaryVehicle = vehicles.find((v) => v.isPrimary) ?? vehicles[0] ?? null;
 
   const [planVehicleId, setPlanVehicleId]       = useState<string | null>(primaryVehicle?.id ?? null);
   const [destination, setDestination]           = useState<DestinationPoint | null>(null);
   const [durationHours, setDurationHours]       = useState(2);
   const [durationMinutes, setDurationMinutes]   = useState(0);
-  const [filterEV, setFilterEV]                 = useState(primaryVehicle?.isEV ?? false);
-  const [filterAccessible, setFilterAccessible] = useState(primaryVehicle?.isAccessible ?? false);
+  const [filterEV, setFilterEV]                 = useState(driverType === 'ev');
+  const [filterAccessible, setFilterAccessible] = useState(driverType === 'reduced_mobility');
   const [maxDistance, setMaxDistance]           = useState(5);
   const [sortBy, setSortBy]                     = useState<'price' | 'distance' | 'ratio'>('ratio');
   const [expandedPark, setExpandedPark]         = useState<string | null>(null);
@@ -66,14 +66,40 @@ export function PlanningTab() {
   const [recommendations, setRecommendations]   = useState<PlanningRecommendation[]>([]);
   const [loading, setLoading]                   = useState(false);
   const [error, setError]                       = useState<string | null>(null);
+  const userSelectedVehicleRef = useRef(false);
 
   useEffect(() => {
-    const v = vehicles.find((v) => v.id === planVehicleId) ?? null;
-    if (v) {
-      setFilterEV(v.isEV);
-      setFilterAccessible(v.isAccessible);
+    if (userSelectedVehicleRef.current) return;
+    if (driverType === 'ev') {
+      setFilterEV(true);
+      setFilterAccessible(false);
+      return;
     }
+    if (driverType === 'reduced_mobility') {
+      setFilterEV(false);
+      setFilterAccessible(true);
+      return;
+    }
+    setFilterEV(false);
+    setFilterAccessible(false);
+  }, [driverType]);
+
+  useEffect(() => {
+    if (!userSelectedVehicleRef.current) return;
+    const vehicle = vehicles.find((v) => v.id === planVehicleId) ?? null;
+    if (!vehicle) {
+      setFilterEV(false);
+      setFilterAccessible(false);
+      return;
+    }
+    setFilterEV(vehicle.isEV);
+    setFilterAccessible(vehicle.isAccessible);
   }, [planVehicleId, vehicles]);
+
+  const handleVehicleSelect = (id: string | null) => {
+    userSelectedVehicleRef.current = true;
+    setPlanVehicleId(id);
+  };
 
   useEffect(() => {
     if (!destination) {
@@ -87,8 +113,8 @@ export function PlanningTab() {
         setError(null);
         const resp = await fetchParkingPlanning({
           durationMinutes: durationHours * 60 + durationMinutes,
-          isElectric: filterEV,
-          isAccessible: filterAccessible,
+          isElectric: filterEV || undefined,
+          isAccessible: filterAccessible || undefined,
           maxDistanceMeters: maxDistance * 1000,
           lat: destination.lat,
           lng: destination.lng,
@@ -116,14 +142,14 @@ export function PlanningTab() {
           <VehiclePicker
             vehicles={vehicles}
             selectedId={planVehicleId}
-            onSelect={setPlanVehicleId}
+            onSelect={handleVehicleSelect}
             allLabel="Sem veículo selecionado"
             className="w-full"
           />
           {planVehicleId && (
             <p className="text-muted-foreground mt-2" style={{ fontSize: '0.72rem' }}>
               <i className="fas fa-circle-info mr-1" aria-hidden="true" />{' '}
-              Os filtros EV e Acessível foram ajustados automaticamente.
+              O veículo está selecionado. Ativa os filtros EV/Acessível apenas se precisares.
             </p>
           )}
         </div>
