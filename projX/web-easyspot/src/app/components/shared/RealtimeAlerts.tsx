@@ -20,6 +20,9 @@ function alertLabel(alertType?: string): string {
   if (alertType === 'LOT_FULL') return 'Parque lotado';
   if (alertType === 'EV_CHARGER_AVAILABLE') return 'Carregador EV disponível';
   if (alertType === 'SENSOR_FAULT') return 'Falha de sensor';
+  if (alertType === 'RESERVATION_CREATED') return 'Reserva confirmada';
+  if (alertType === 'RESERVATION_UPDATED') return 'Reserva atualizada';
+  if (alertType === 'RESERVATION_CANCELLED') return 'Reserva cancelada';
   return 'Novo alerta';
 }
 

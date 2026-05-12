@@ -38,6 +38,7 @@ export function Header() {
             <button
               onClick={() => navigate(-1)}
               className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-white/15 transition-colors"
+              type="button"
               aria-label="Voltar"
             >
               <i className="fas fa-arrow-left text-white text-base" aria-hidden="true" />
@@ -134,6 +135,7 @@ function UserMenu({ user, meta, onLogout }: UserMenuProps) {
         aria-label="Menu do utilizador"
         aria-expanded={open}
         aria-haspopup="true"
+        type="button"
       >
         {photoUrl ? (
           <img src={photoUrl} alt="Foto de perfil" className="w-9 h-9 rounded-full object-cover" />
@@ -198,6 +200,7 @@ function UserDropdown({
         onClick={onLogout}
         className="w-full flex items-center gap-3 px-4 py-3 hover:bg-destructive/10 transition-colors text-left"
         role="menuitem"
+        type="button"
       >
         <i className="fas fa-arrow-right-from-bracket text-destructive" style={{ width: '16px', fontSize: '0.85rem' }} aria-hidden="true" />
         <span className="text-destructive font-medium" style={{ fontSize: '0.85rem' }}>Terminar sessão</span>

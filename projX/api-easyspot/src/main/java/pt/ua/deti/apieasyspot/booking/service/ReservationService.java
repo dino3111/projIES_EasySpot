@@ -14,6 +14,8 @@ import pt.ua.deti.apieasyspot.billing.exception.PaymentSetupRequiredException;
 import pt.ua.deti.apieasyspot.booking.dto.CreateReservationRequest;
 import pt.ua.deti.apieasyspot.booking.dto.ReservationResponse;
 import pt.ua.deti.apieasyspot.booking.dto.UpdateReservationRequest;
+import pt.ua.deti.apieasyspot.booking.dto.ReservationUpdateResponse;
+import pt.ua.deti.apieasyspot.booking.dto.ReservationUpdatePreviewResponse;
 import pt.ua.deti.apieasyspot.booking.event.ReservationEventPublisher;
 import pt.ua.deti.apieasyspot.booking.model.Reservation;
 import pt.ua.deti.apieasyspot.booking.model.ReservationStatus;
@@ -63,6 +65,7 @@ public class ReservationService {
     private final BillingService billingService;
     private final BookingConfirmationMailService confirmationMailService;
     private final ReservationEventPublisher eventPublisher;
+    private final ReservationRealtimeNotifier realtimeNotifier;
 
     @Transactional
     public ReservationResponse create(String authentikUserId, String idempotencyKey,
@@ -92,8 +95,31 @@ public class ReservationService {
         return toResponse(reservation);
     }
 
+    @Transactional(readOnly = true)
+    public ReservationUpdatePreviewResponse previewUpdate(String authentikUserId, UUID reservationId,
+                                                          UpdateReservationRequest request) {
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        User user = findUser(authentikUserId);
+        Reservation reservation = findReservationOwnedByUser(reservationId, user.getId());
+        ensureReservationCanBeManaged(reservation, now, "previewed");
+
+        OffsetDateTime arrival = parseDateTime(request.arrivalDateTime(), "arrivalDateTime");
+        OffsetDateTime departure = parseDateTime(request.departureDateTime(), "departureDateTime");
+        validateTimeWindow(arrival, departure, now);
+
+        ParkingLot lot = findLot(request.parkId());
+        validateOpeningHours(lot, arrival, departure);
+
+        BigDecimal previousCost = reservation.getEstimatedCost() != null
+            ? reservation.getEstimatedCost()
+            : BigDecimal.ZERO;
+        BigDecimal newCost = calculateCost(lot, arrival, departure);
+        BigDecimal delta = newCost.subtract(previousCost).setScale(2, RoundingMode.HALF_UP);
+        return new ReservationUpdatePreviewResponse(previousCost, newCost, delta);
+    }
+
     @Transactional
-    public ReservationResponse update(String authentikUserId, UUID reservationId, UpdateReservationRequest request) {
+    public ReservationUpdateResponse update(String authentikUserId, UUID reservationId, UpdateReservationRequest request) {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         reservationRepository.expireTimedOutLocks(now, ReservationStatus.CONFIRMED, ReservationStatus.EXPIRED);
 
@@ -131,6 +157,9 @@ public class ReservationService {
 
         ParkingSpot previousSpot = reservation.getParkingSpot();
         ParkingSpot nextSpot = resolveSpotForUpdate(reservation, request, lot, arrival, departure);
+        BigDecimal previousCost = reservation.getEstimatedCost() != null
+            ? reservation.getEstimatedCost()
+            : BigDecimal.ZERO;
         BigDecimal estimatedCost = calculateCost(lot, arrival, departure);
 
         reservation.setParkingLot(lot);
@@ -153,7 +182,75 @@ public class ReservationService {
             parkingSpotRepository.save(nextSpot);
         }
 
-        return toResponse(reservationRepository.save(reservation));
+        Reservation saved = reservationRepository.save(reservation);
+
+        BigDecimal delta = estimatedCost.subtract(previousCost).setScale(2, RoundingMode.HALF_UP);
+        String adjustmentKind = "NO_CHANGE";
+        String paymentStatus = null;
+        String stripeReferenceId = null;
+        if (reservationBillingEnabled && delta.signum() != 0) {
+            try {
+                BillingService.PaymentAdjustmentResult result = billingService.adjustPaymentForReservation(
+                    saved, previousCost, estimatedCost, user.getEmail());
+                adjustmentKind = result.kind();
+                paymentStatus = result.status();
+                stripeReferenceId = result.stripeReferenceId();
+                if (delta.signum() > 0 && "CHARGE_FAILED".equals(adjustmentKind)) {
+                    throw new UnprocessableEntityException(paymentFailureMessage(paymentStatus));
+                }
+            } catch (PaymentSetupRequiredException ex) {
+                log.warn("Payment setup missing while updating reservation {}: {}",
+                    saved.getBookingCode(), ex.getMessage());
+                throw new UnprocessableEntityException(ex.getMessage());
+            } catch (Exception ex) {
+                if (delta.signum() > 0) {
+                    log.warn("Payment adjustment failed for reservation {} (update rolled back): {}",
+                        saved.getBookingCode(), ex.getMessage());
+                    throw new UnprocessableEntityException(paymentFailureMessage(paymentStatus));
+                }
+                log.warn("Payment adjustment failed for reservation {} (update persisted): {}",
+                    saved.getBookingCode(), ex.getMessage());
+                adjustmentKind = "REFUND_FAILED";
+            }
+        }
+
+        try {
+            confirmationMailService.sendUpdate(saved, previousCost, estimatedCost, delta);
+        } catch (Exception ex) {
+            log.warn("Update email failed for reservation {}: {}", saved.getBookingCode(), ex.getMessage());
+        }
+        try {
+            realtimeNotifier.notifyUpdated(saved, delta);
+        } catch (Exception ex) {
+            log.warn("Realtime update notification failed for reservation {}: {}",
+                saved.getBookingCode(), ex.getMessage());
+        }
+
+        return new ReservationUpdateResponse(
+            toResponse(saved),
+            previousCost,
+            estimatedCost,
+            delta,
+            adjustmentKind,
+            paymentStatus,
+            stripeReferenceId
+        );
+    }
+
+    private String paymentFailureMessage(String paymentStatus) {
+        if (paymentStatus == null || paymentStatus.isBlank()) {
+            return "Não foi possível cobrar a diferença desta alteração no Stripe. A reserva não foi atualizada.";
+        }
+        return switch (paymentStatus.toLowerCase()) {
+            case "card_declined" ->
+                "O cartão guardado foi recusado pela Stripe. A reserva não foi atualizada.";
+            case "insufficient_funds" ->
+                "O cartão guardado não tem saldo suficiente para cobrar a diferença. A reserva não foi atualizada.";
+            case "expired_card" ->
+                "O cartão guardado expirou. Atualize o método de pagamento Stripe. A reserva não foi atualizada.";
+            default ->
+                "Não foi possível cobrar a diferença desta alteração no Stripe. A reserva não foi atualizada.";
+        };
     }
 
     @Transactional
@@ -175,11 +272,37 @@ public class ReservationService {
         }
 
         Reservation saved = reservationRepository.save(reservation);
+
+        java.math.BigDecimal refundedAmount = java.math.BigDecimal.ZERO;
+        boolean refundSucceeded = false;
+        if (reservationBillingEnabled) {
+            try {
+                BillingService.RefundResult result = billingService.refundReservation(saved, user.getEmail());
+                refundedAmount = result.amount() != null ? result.amount() : java.math.BigDecimal.ZERO;
+                refundSucceeded = result.succeeded();
+            } catch (Exception ex) {
+                log.warn("Refund failed for cancelled reservation {} (cancel persisted): {}",
+                    saved.getBookingCode(), ex.getMessage());
+            }
+        }
+
         try {
             eventPublisher.publishCancelled(saved);
         } catch (Exception ex) {
             log.warn("Kafka cancel event publish failed for reservation {}: {}", saved.getBookingCode(), ex.getMessage());
         }
+        try {
+            confirmationMailService.sendCancellation(saved, refundedAmount, refundSucceeded);
+        } catch (Exception ex) {
+            log.warn("Cancellation email failed for reservation {}: {}", saved.getBookingCode(), ex.getMessage());
+        }
+        try {
+            realtimeNotifier.notifyCancelled(saved, refundedAmount, refundSucceeded);
+        } catch (Exception ex) {
+            log.warn("Realtime cancel notification failed for reservation {}: {}",
+                saved.getBookingCode(), ex.getMessage());
+        }
+
         return toResponse(saved);
     }
 
@@ -289,6 +412,13 @@ public class ReservationService {
             eventPublisher.publishCreated(saved);
         } catch (Exception ex) {
             log.warn("Kafka event publish failed for reservation {}: {}", saved.getBookingCode(), ex.getMessage());
+        }
+
+        try {
+            realtimeNotifier.notifyCreated(saved);
+        } catch (Exception ex) {
+            log.warn("Realtime create notification failed for reservation {}: {}",
+                saved.getBookingCode(), ex.getMessage());
         }
 
         return toResponse(saved);

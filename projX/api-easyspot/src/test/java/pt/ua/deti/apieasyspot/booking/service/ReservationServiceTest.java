@@ -9,6 +9,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.test.util.ReflectionTestUtils;
 import pt.ua.deti.apieasyspot.auth.model.User;
 import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
 import pt.ua.deti.apieasyspot.booking.dto.CreateReservationRequest;
@@ -60,6 +61,7 @@ class ReservationServiceTest {
     @Mock private BillingService billingService;
     @Mock private BookingConfirmationMailService confirmationMailService;
     @Mock private ReservationEventPublisher eventPublisher;
+    @Mock private ReservationRealtimeNotifier realtimeNotifier;
 
     @InjectMocks private ReservationService reservationService;
 
@@ -415,12 +417,66 @@ class ReservationServiceTest {
         when(tariffRepository.findByParkingLotId(lot.getId())).thenReturn(List.of(tariff));
         when(reservationRepository.save(any(Reservation.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        ReservationResponse response = reservationService.update(AUTH_ID, reservation.getId(), request);
+        pt.ua.deti.apieasyspot.booking.dto.ReservationUpdateResponse updateResponse =
+            reservationService.update(AUTH_ID, reservation.getId(), request);
+        ReservationResponse response = updateResponse.reservation();
 
         assertThat(response.spotId()).isEqualTo(nextSpot.getId());
         assertThat(response.arrivalDateTime()).isEqualTo(ARRIVAL.plusHours(1));
         verify(parkingSpotRepository).save(currentSpot);
         verify(parkingSpotRepository).save(nextSpot);
+    }
+
+    @Test
+    @DisplayName("update - extra charge declined - throws UnprocessableEntityException")
+    void update_chargeDeclined_throwsUnprocessableEntity() {
+        ParkingSpot currentSpot = freeSpot();
+        Reservation reservation = savedReservation();
+        reservation.setUser(user);
+        reservation.setParkingSpot(currentSpot);
+        reservation.setEstimatedCost(new BigDecimal("3.00"));
+        ReflectionTestUtils.setField(reservationService, "reservationBillingEnabled", true);
+
+        UpdateReservationRequest request = new UpdateReservationRequest(
+            lot.getId(),
+            vehicle.getId(),
+            ARRIVAL.plusHours(2).toString(),
+            DEPARTURE.plusHours(3).toString(),
+            currentSpot.getId()
+        );
+
+        when(userRepository.findByAuthentikUserId(AUTH_ID)).thenReturn(Optional.of(user));
+        when(reservationRepository.expireTimedOutLocks(any(), eq(ReservationStatus.CONFIRMED), eq(ReservationStatus.EXPIRED)))
+            .thenReturn(0);
+        when(reservationRepository.findByIdAndUserId(reservation.getId(), user.getId()))
+            .thenReturn(Optional.of(reservation));
+        when(parkingLotRepository.findById(lot.getId())).thenReturn(Optional.of(lot));
+        when(vehicleRepository.findByIdAndUserId(vehicle.getId(), user.getId())).thenReturn(Optional.of(vehicle));
+        when(occupancySnapshotRepository.sumFreeSpacesFromLatestSnapshot(lot.getId())).thenReturn(-1);
+        when(reservationRepository.countLotReservationsExcludingReservation(eq(lot.getId()), eq(reservation.getId()), any(), any()))
+            .thenReturn(0L);
+        when(reservationRepository.countVehicleConflictsExcludingReservation(eq(vehicle.getId()), eq(lot.getId()), eq(reservation.getId()), any(), any()))
+            .thenReturn(0L);
+        when(reservationRepository.spotBelongsToPark(currentSpot.getId(), lot.getId())).thenReturn(true);
+        when(parkingSpotRepository.findByIdWithLock(currentSpot.getId())).thenReturn(Optional.of(currentSpot));
+        when(reservationRepository.countSpotConflictsExcludingReservation(eq(currentSpot.getId()), eq(reservation.getId()), any(), any()))
+            .thenReturn(0L);
+        when(tariffRepository.findByParkingLotId(lot.getId())).thenReturn(List.of(tariff));
+        when(reservationRepository.save(any(Reservation.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(billingService.adjustPaymentForReservation(any(Reservation.class), any(BigDecimal.class), any(BigDecimal.class), anyString()))
+            .thenReturn(new BillingService.PaymentAdjustmentResult(
+                new BigDecimal("1.50"),
+                "CHARGE_FAILED",
+                null,
+                "card_declined"
+            ));
+
+        assertThatThrownBy(() -> reservationService.update(AUTH_ID, reservation.getId(), request))
+            .isInstanceOf(UnprocessableEntityException.class)
+            .hasMessageContaining("cartão guardado foi recusado");
+
+        verify(confirmationMailService, never()).sendUpdate(any(), any(), any(), any());
+        verify(realtimeNotifier, never()).notifyUpdated(any(), any());
     }
 
     @Test

@@ -2,6 +2,12 @@ import { API_BASE } from './apiBase';
 import { withGlobalLoading } from '../app/context/LoadingContext';
 import { getAccessToken } from '../app/services/authToken';
 const AUTH_STORAGE_KEYS = ['es_access_token', 'es_id_token', 'es_refresh_token', 'es_pkce_verifier', 'es_pkce_state'] as const;
+const RETRYABLE_STATUSES = new Set([502, 503, 504]);
+const RETRY_DELAY_MS = 700;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
 
 function clearAuthStorage() {
   for (const key of AUTH_STORAGE_KEYS) sessionStorage.removeItem(key);
@@ -19,8 +25,8 @@ function parseErrorMessage(text: string, status: number): string {
   const isHtmlError = trimmed.startsWith('<!DOCTYPE html') || trimmed.startsWith('<html');
 
   if (isHtmlError) {
-    if (status === 502) {
-      return 'Serviço de pagamentos temporariamente indisponível (502). Tente novamente em alguns segundos.';
+    if (RETRYABLE_STATUSES.has(status)) {
+      return 'Serviço temporariamente indisponível. Tente novamente em alguns segundos.';
     }
     return `Erro de servidor (${status}).`;
   }
@@ -54,6 +60,10 @@ function throwHttpError(status: number, text: string): never {
   throw new Error(errorMessage);
 }
 
+function canRetry(method: string, attempt: number): boolean {
+  return attempt < 2 && (method === 'GET' || method === 'HEAD');
+}
+
 export async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getAccessToken();
   const headers: Record<string, string> = {
@@ -64,7 +74,24 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
 
   const method = options.method ?? 'GET';
   const url = `${API_BASE}${path}`;
-  const res = await withGlobalLoading(() => fetch(url, { ...options, headers }));
+  let res: Response | null = null;
+
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    try {
+      res = await withGlobalLoading(() => fetch(url, { ...options, headers }));
+      if (!RETRYABLE_STATUSES.has(res.status) || !canRetry(method, attempt)) {
+        break;
+      }
+    } catch (error) {
+      if (!canRetry(method, attempt)) throw error;
+    }
+
+    await sleep(RETRY_DELAY_MS);
+  }
+
+  if (!res) {
+    throw new Error('Serviço temporariamente indisponível. Tente novamente em alguns segundos.');
+  }
 
   if (!res.ok) {
     if (res.status === Number(401)) {

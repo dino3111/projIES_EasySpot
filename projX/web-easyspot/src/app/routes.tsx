@@ -11,6 +11,7 @@ import { ParkingDetail } from './pages/driver/parking/ParkingDetail';
 import { VehiclesPage } from './pages/driver/vehicles/VehiclesPage';
 import { CostsPage } from './pages/driver/costs/CostsPage';
 import { ReservationPage } from './pages/driver/reservation/ReservationPage';
+import { MyReservationsPage } from './pages/driver/reservations/MyReservationsPage';
 import { ReportPage } from './pages/driver/report/ReportPage';
 import { DashboardManagerPage } from './pages/manager/DashboardManagerPage';
 import { TariffsIncidentsPage } from './pages/manager/TariffsIncidentsPage';
@@ -40,6 +41,7 @@ export const router = createBrowserRouter([
       { path: 'vehicles', Component: VehiclesPage },
       { path: 'costs', Component: CostsPage },
       { path: 'reservation', Component: ReservationPage },
+      { path: 'reservations', Component: MyReservationsPage },
       { path: 'report', Component: ReportPage },
       { path: 'accessibility', Component: AccessibilityPage },
       {

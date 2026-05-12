@@ -630,6 +630,29 @@ class ReservationControllerIT {
     }
 
     @Test
+    @DisplayName("POST /api/reservations/{id}/preview-update - future reservation - returns cost preview")
+    void previewUpdateReservation_futureReservation_returns200() throws Exception {
+        Reservation reservation = seedReservation(now().plusHours(3), now().plusHours(5), ReservationStatus.CONFIRMED);
+
+        UpdateReservationRequest body = new UpdateReservationRequest(
+            lot.getId(),
+            vehicle.getId(),
+            now().plusHours(6).toString(),
+            now().plusHours(9).toString(),
+            null
+        );
+
+        mockMvc.perform(post("/api/reservations/{reservationId}/preview-update", reservation.getId())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(body))
+                .with(jwtWithRole("auth-sub-123", "DRIVER")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.previousCost").value(3.00))
+            .andExpect(jsonPath("$.newCost").value(4.50))
+            .andExpect(jsonPath("$.costDelta").value(1.50));
+    }
+
+    @Test
     @DisplayName("PUT /api/reservations/{id} - future reservation - updates successfully")
     void updateReservation_futureReservation_returns200() throws Exception {
         Reservation reservation = seedReservation(now().plusHours(3), now().plusHours(5), ReservationStatus.CONFIRMED);
@@ -655,9 +678,10 @@ class ReservationControllerIT {
                 .content(objectMapper.writeValueAsString(body))
                 .with(jwtWithRole("auth-sub-123", "DRIVER")))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.reservationId").value(reservation.getId().toString()))
-            .andExpect(jsonPath("$.spotId").value(secondSpot.getId().toString()))
-            .andExpect(jsonPath("$.status").value("CONFIRMED"));
+            .andExpect(jsonPath("$.reservation.reservationId").value(reservation.getId().toString()))
+            .andExpect(jsonPath("$.reservation.spotId").value(secondSpot.getId().toString()))
+            .andExpect(jsonPath("$.reservation.status").value("CONFIRMED"))
+            .andExpect(jsonPath("$.paymentAdjustmentKind").value("NO_CHANGE"));
     }
 
     @Test
