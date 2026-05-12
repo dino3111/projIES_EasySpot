@@ -69,13 +69,21 @@ public class AnalyticsRepository {
     }
 
     public int[] currentOccupancy() {
-        long[] result = timescaleJdbc.queryForObject(
+        int occupiedNow = timescaleJdbc.queryForObject(
             """
-            select coalesce(sum(occupied_count), 0), coalesce(sum(total_count), 0)
-            from v_latest_occupancy
+            select count(*)
+            from parking_sessions
+            where exit_time is null
             """,
-            (rs, rowNum) -> new long[]{rs.getLong(1), rs.getLong(2)});
-        return new int[]{(int) result[0], (int) result[1]};
+            Integer.class
+        );
+
+        int totalSpaces = jdbc.queryForObject(
+            "select coalesce(sum(total_spaces), 0) from parking_lots",
+            Integer.class
+        );
+
+        return new int[]{occupiedNow, totalSpaces};
     }
 
     public List<DailyMetric> last7DaysMetrics() {
@@ -158,10 +166,14 @@ public class AnalyticsRepository {
 
     public List<ParkSummary> parkPerformance() {
         Map<UUID, String[]> lots = jdbc.query(
-            "select id, name, city from parking_lots",
+            "select id, name, city, total_spaces from parking_lots",
             (rs, rowNum) -> Map.entry(
                 UUID.fromString(rs.getString("id")),
-                new String[]{rs.getString("name"), rs.getString("city")}
+                new String[]{
+                    rs.getString("name"),
+                    rs.getString("city"),
+                    String.valueOf(rs.getInt("total_spaces"))
+                }
             )
         ).stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
@@ -191,28 +203,40 @@ public class AnalyticsRepository {
             .sorted((a, b) -> b.revenue().compareTo(a.revenue()))
             .toList();
 
-        Map<UUID, Integer> occupancyByParkId = timescaleJdbc.query(
+        Map<UUID, Long> occupiedNowByParkId = timescaleJdbc.query(
             """
             select parking_lot_id,
-                   coalesce(round(avg(fn_occupancy_pct(occupied_count::int, total_count::int))), 0) as occ_pct
-            from v_latest_occupancy
+                   count(*) as occupied_now
+            from parking_sessions
+            where exit_time is null
             group by parking_lot_id
             """,
-            (rs, rowNum) -> Map.entry(UUID.fromString(rs.getString("parking_lot_id")), rs.getInt("occ_pct"))
+            (rs, rowNum) -> Map.entry(UUID.fromString(rs.getString("parking_lot_id")), rs.getLong("occupied_now"))
         ).stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
         return revenueRows.stream()
-            .map(row -> new ParkSummary(
-                row.name(),
-                row.city(),
-                row.entries(),
-                occupancyByParkId.getOrDefault(row.parkId(), 0),
-                row.revenue()
-            ))
+            .map(row -> {
+                String[] lotInfo = lots.get(row.parkId());
+                int totalSpaces = lotInfo == null ? 0 : Integer.parseInt(lotInfo[2]);
+                int occupiedNow = occupiedNowByParkId.getOrDefault(row.parkId(), 0L).intValue();
+
+                return new ParkSummary(
+                    row.name(),
+                    row.city(),
+                    row.entries(),
+                    safeRate(occupiedNow, totalSpaces),
+                    row.revenue()
+                );
+            })
             .toList();
     }
 
     private record ParkRevenueRow(UUID parkId, String name, String city, long entries, BigDecimal revenue) {}
+
+    private int safeRate(int part, int total) {
+        if (total <= 0) return 0;
+        return (int) Math.round(part * 100.0 / total);
+    }
 
     private String zoneLabel(String zoneType) {
         return switch (zoneType) {

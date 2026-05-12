@@ -1,6 +1,8 @@
 package pt.ua.deti.apieasyspot.analytics.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import pt.ua.deti.apieasyspot.analytics.model.TechnicianParkAssignment;
 
@@ -16,5 +18,6 @@ public interface TechnicianParkAssignmentRepository extends JpaRepository<Techni
 
     void deleteByTechnicianIdAndParkingLotId(UUID technicianId, UUID parkingLotId);
 
-    List<UUID> findParkingLotIdByTechnicianId(UUID technicianId);
+    @Query("select t.parkingLotId from AnalyticsTechnicianParkAssignment t where t.technicianId = :technicianId")
+    List<UUID> findParkingLotIdByTechnicianId(@Param("technicianId") UUID technicianId);
 }
