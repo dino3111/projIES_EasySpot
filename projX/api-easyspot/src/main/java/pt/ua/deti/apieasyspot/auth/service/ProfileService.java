@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pt.ua.deti.apieasyspot.analytics.repository.AnalyticsRepository;
+import pt.ua.deti.apieasyspot.analytics.repository.TechnicianParkAssignmentRepository;
 import pt.ua.deti.apieasyspot.analytics.repository.TechnicianRepository;
 import pt.ua.deti.apieasyspot.auth.dto.*;
 import pt.ua.deti.apieasyspot.auth.model.User;
@@ -13,7 +14,9 @@ import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
 import pt.ua.deti.apieasyspot.booking.repository.UserFavoriteRepository;
 import pt.ua.deti.apieasyspot.common.exception.ResourceNotFoundException;
 
+import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -26,6 +29,7 @@ public class ProfileService {
     private final ProfileRepository profileRepository;
     private final AnalyticsRepository analyticsRepository;
     private final TechnicianRepository technicianRepository;
+    private final TechnicianParkAssignmentRepository technicianParkAssignmentRepository;
     private final UserFavoriteRepository userFavoriteRepository;
 
     public Object getProfile(String authentikUserId, String email, String jwtRole) {
@@ -42,6 +46,12 @@ public class ProfileService {
         applyUpdates(user, request, jwtRole);
         userRepository.save(user);
         return buildProfileResponse(user, jwtRole, false, authentikUserId);
+    }
+
+    public String resolveAuthentikPk(String authentikUserId) {
+        return userRepository.findByAuthentikUserId(authentikUserId)
+            .map(User::getAuthentikPk)
+            .orElseThrow(() -> new ResourceNotFoundException("User not found: " + authentikUserId));
     }
 
     private void requireValidRole(String jwtRole) {
@@ -141,15 +151,16 @@ public class ProfileService {
                 0L);
         }
         try {
-            int total = technicianRepository.countTotalSensors();
-            int operational = technicianRepository.countOperationalSensors();
+            List<UUID> assignedParkIds = technicianParkAssignmentRepository.findParkingLotIdsByTechnicianId(user.getId());
+            int total = technicianRepository.countTotalSensors(assignedParkIds);
+            int operational = technicianRepository.countOperationalSensors(assignedParkIds);
             double uptimePct = total > 0 ? Math.round(operational * 1000.0 / total) / 10.0 : 0.0;
             return new TechnicianProfileResponse(
                 user.getName(), user.getEmail(), user.getRole(), user.getPhotoUrl(),
                 user.isNotificationsEnabled(),
                 profileRepository.countAssignedTasks(authentikUserId),
                 new SensorSummary(total, operational, uptimePct),
-                technicianRepository.countFailuresToday());
+                technicianRepository.countFailuresToday(assignedParkIds));
         } catch (RuntimeException ex) {
             log.warn("Failed to load TECHNICAL profile stats for userId={} subject={}", user.getId(), authentikUserId, ex);
             return new TechnicianProfileResponse(

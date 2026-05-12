@@ -20,10 +20,11 @@ const SK = {
   accessToken:  'es_access_token',
   idToken:      'es_id_token',
   refreshToken: 'es_refresh_token',
-  pkceVerifier: 'es_pkce_verifier',
-  pkceState:    'es_pkce_state',
 } as const;
 
+// PKCE values must survive redirects — use localStorage, not sessionStorage
+const PKCE_VERIFIER_KEY = 'es_pkce_verifier';
+const PKCE_STATE_KEY    = 'es_pkce_state';
 const REFRESH_WINDOW_MS = 2 * 60_000;
 const SESSION_EXPIRY_GRACE_MS = 30_000;
 

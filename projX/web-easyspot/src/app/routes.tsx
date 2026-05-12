@@ -15,6 +15,7 @@ import { MyReservationsPage } from './pages/driver/reservations/MyReservationsPa
 import { ReportPage } from './pages/driver/report/ReportPage';
 import { DashboardManagerPage } from './pages/manager/DashboardManagerPage';
 import { TariffsIncidentsPage } from './pages/manager/TariffsIncidentsPage';
+import { ManagerParksPage } from './pages/manager/ManagerParksPage';
 import { DashboardTechnicianPage } from './pages/technician/DashboardTechnicianPage';
 import { MaintenancePage } from './pages/technician/MaintenancePage';
 import { TechMapPage } from './pages/technician/TechMapPage';
@@ -55,6 +56,10 @@ export const router = createBrowserRouter([
       {
         path: 'manager/tarifas-ocorrencias',
         element: <ProtectedRoute allowedRoles={['MANAGER']}><TariffsIncidentsPage /></ProtectedRoute>,
+      },
+      {
+        path: 'manager/parks',
+        element: <ProtectedRoute allowedRoles={['MANAGER']}><ManagerParksPage /></ProtectedRoute>,
       },
       {
         path: 'technician/dashboard',

@@ -3,7 +3,7 @@ import type { ParkingLot } from '../../data/parkingTypes';
 import type { SensorDevice } from '../../data/technicianData';
 import { LeafletMap } from '../../components/parking/LeafletMap';
 import { fetchAllParksSummary } from '../../services/parksCatalog';
-import { fetchSensorList } from '../../services/technicianApi';
+import { fetchSensorList, fetchMyAssignedParks } from '../../services/technicianApi';
 
 type FilterType = 'todos' | 'problemas' | 'operacionais';
 
@@ -22,7 +22,12 @@ export function TechMapPage() {
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    fetchAllParksSummary().then(setParkingLots).catch(() => setParkingLots([]));
+    Promise.all([fetchAllParksSummary(), fetchMyAssignedParks()])
+      .then(([allParks, assigned]) => {
+        const assignedIds = new Set(assigned.map(a => a.parkingLotId));
+        setParkingLots(allParks.filter(p => assignedIds.has(p.id)));
+      })
+      .catch(() => setParkingLots([]));
     fetchSensorList().then(setSensors).catch(() => setSensors([]));
   }, []);
 

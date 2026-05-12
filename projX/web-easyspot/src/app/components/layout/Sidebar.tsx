@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'react-router';
+import { useAuth } from '../../context/AuthContext';
 import { useProfile } from '../../context/ProfileContext';
 
 interface NavItem {
@@ -18,9 +19,10 @@ const driverNav: NavItem[] = [
 ];
 
 const managerNav: NavItem[] = [
-  { path: '/manager/dashboard',          icon: 'fa-chart-line',         label: 'Painel de Desempenho',    exact: true },
+  { path: '/manager/dashboard',          icon: 'fa-chart-line',          label: 'Painel de Desempenho',   exact: true },
   { path: '/manager/tariffs-incidents',  icon: 'fa-file-invoice-dollar', label: 'Tarifas & Ocorrências',  exact: false },
-  { path: '/profile',                    icon: 'fa-gear',               label: 'Definições',              exact: false },
+  { path: '/manager/parks',              icon: 'fa-parking',             label: 'Parques',                exact: false },
+  { path: '/profile',                    icon: 'fa-gear',                label: 'Definições',             exact: false },
 ];
 
 const technicianNav: NavItem[] = [
@@ -139,6 +141,7 @@ function SidebarRoleBadge({
   readonly isCollapsed: boolean;
 }) {
   const isManager = profile === 'MANAGER';
+  const { user } = useAuth();
   return (
     <div>
       <div
@@ -156,11 +159,9 @@ function SidebarRoleBadge({
           <p className="text-primary" style={{ fontSize: '0.72rem', fontWeight: 700 }}>
             {isManager ? 'Modo Gestor' : 'Modo Técnico'}
           </p>
-          {!isCollapsed && (
-            <p className="text-muted-foreground" style={{ fontSize: '0.62rem' }}>
-              {isManager ? 'António Videira' : 'Laura Farias'}
-            </p>
-          )}
+          <p className="text-muted-foreground" style={{ fontSize: '0.62rem' }}>
+            {user?.name ?? user?.email ?? '—'}
+          </p>
         </div>
       </div>
     </div>

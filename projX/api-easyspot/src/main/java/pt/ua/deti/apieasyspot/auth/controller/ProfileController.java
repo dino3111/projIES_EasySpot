@@ -5,11 +5,13 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.*;
 import pt.ua.deti.apieasyspot.auth.dto.ProfileUpdateRequest;
+import pt.ua.deti.apieasyspot.auth.service.AuthentikClient;
 import pt.ua.deti.apieasyspot.auth.service.ProfilePhotoService;
 import pt.ua.deti.apieasyspot.auth.service.ProfileService;
 
@@ -24,6 +26,7 @@ public class ProfileController {
     private static final String CLAIM_EMAIL = "email";
     private final ProfileService profileService;
     private final ProfilePhotoService profilePhotoService;
+    private final AuthentikClient authentikClient;
 
     @Operation(summary = "Get authenticated user profile (role-aware)")
     @ApiResponse(responseCode = "200", description = "Authenticated profile retrieved successfully")
@@ -62,6 +65,16 @@ public class ProfileController {
             new ProfileUpdateRequest(null, null, null, null, photoUrl),
             extractRole(jwt)
         ));
+    }
+
+    @Operation(summary = "Clear the must-change-password flag after technician changes password")
+    @ApiResponse(responseCode = "204", description = "Flag cleared")
+    @PostMapping("/password-changed")
+    @PreAuthorize("hasRole('TECHNICAL')")
+    public ResponseEntity<Void> passwordChanged(@AuthenticationPrincipal Jwt jwt) {
+        String authentikPk = profileService.resolveAuthentikPk(jwt.getSubject());
+        authentikClient.clearPasswordChangeFlag(authentikPk);
+        return ResponseEntity.noContent().build();
     }
 
     private String extractRole(Jwt jwt) {

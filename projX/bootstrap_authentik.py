@@ -41,6 +41,7 @@ import os
 import struct
 import sys
 import time
+import urllib.parse
 import zlib
 
 try:
@@ -171,6 +172,15 @@ TEST_USERS = [
         "name": "Test Technical",
         "password": os.environ.get(
             "EASYSPOT_TEST_TECHNICAL_PASSWORD", "change-me-technical"
+        ),
+        "role": "TECHNICAL",
+    },
+    {
+        "username": "test_technical2",
+        "email": "technical2@easyspot.local",
+        "name": "Rui Ferreira",
+        "password": os.environ.get(
+            "EASYSPOT_TEST_TECHNICAL2_PASSWORD", "change-me-technical2"
         ),
         "role": "TECHNICAL",
     },
@@ -329,19 +339,20 @@ def get_or_create(
     match_key: str,
     match_val: str,
     payload: dict,
-) -> dict:
+) -> tuple[dict, bool]:
+    """Returns (object, created) where created=True if the object was just created."""
     existing = api("GET", f"{list_path}?{match_key}={match_val}")
     results = existing.get("results", [])
     if results:
-        return results[0]
-    return api("POST", create_path, json=payload)
+        return results[0], False
+    return api("POST", create_path, json=payload), True
 
 
 def create_groups() -> dict[str, str]:
     print("Creating groups...")
     group_ids: dict[str, str] = {}
     for role in ROLES:
-        group = get_or_create(
+        group, _ = get_or_create(
             "/core/groups/",
             "/core/groups/",
             "name",
@@ -358,7 +369,7 @@ def create_groups() -> dict[str, str]:
 
 def create_groups_property_mapping() -> str:
     print("Creating 'groups' property mapping...")
-    mapping = get_or_create(
+    mapping, _ = get_or_create(
         "/propertymappings/provider/scope/",
         "/propertymappings/provider/scope/",
         "scope_name",
@@ -501,7 +512,7 @@ def create_application(provider_pk: str) -> dict:
 def create_test_users(group_ids: dict[str, str]) -> None:
     print("Creating test users...")
     for u in TEST_USERS:
-        user = get_or_create(
+        user, created = get_or_create(
             "/core/users/",
             "/core/users/",
             "username",
@@ -516,12 +527,14 @@ def create_test_users(group_ids: dict[str, str]) -> None:
             },
         )
         uid = user["pk"]
-        api(
-            "POST",
-            f"/core/users/{uid}/set_password/",
-            json={"password": u["password"]},
-        )
-        print(f"  User '{u['username']}' (role={u['role']}) → pk={uid}")
+        if created:
+            api(
+                "POST",
+                f"/core/users/{uid}/set_password/",
+                json={"password": u["password"]},
+            )
+        status = "(created)" if created else "(exists)"
+        print(f"  User '{u['username']}' (role={u['role']}) → pk={uid} {status}")
 
 
 def apply_branding(app_slug: str) -> None:
@@ -652,7 +665,7 @@ def create_enrollment_flow() -> None:
     write_pk = _get_or_create_enrollment_write_stage()
     login_pk = _get_or_create_enrollment_login_stage()
 
-    flow = get_or_create(
+    flow, _ = get_or_create(
         "/flows/instances/",
         "/flows/instances/",
         "slug",
@@ -827,6 +840,204 @@ def _bind_stage(flow_pk: str, stage_pk: str, order: int) -> None:
     )
 
 
+def _setup_clear_password_change_flag() -> None:
+    clear_expression = (
+        'settings = request.user.attributes.get("settings", {})\n'
+        'settings.pop("password_change_on_login", None)\n'
+        'request.user.attributes["settings"] = settings\n'
+        "request.user.save()\n"
+        "return True"
+    )
+    existing = api(
+        "GET", "/policies/expression/?name=easyspot-clear-password-change-flag"
+    )
+    if existing.get("results"):
+        clear_pk = existing["results"][0]["pk"]
+        api(
+            "PATCH",
+            f"/policies/expression/{clear_pk}/",
+            json={"expression": clear_expression},
+        )
+    else:
+        clear_pk = api(
+            "POST",
+            "/policies/expression/",
+            json={
+                "name": "easyspot-clear-password-change-flag",
+                "expression": clear_expression,
+            },
+        )["pk"]
+    print(f"  Clear-flag policy ready: {clear_pk}")
+
+    prompt_resp = api(
+        "GET", "/stages/prompt/stages/?name=default-password-change-prompt"
+    )
+    if not prompt_resp.get("results"):
+        print(
+            "  WARNING: default-password-change-prompt stage not found, "
+            "skipping clear-flag wiring."
+        )
+        return
+    prompt_stage = prompt_resp["results"][0]
+    current = prompt_stage.get("validation_policies", [])
+    if clear_pk not in current:
+        api(
+            "PATCH",
+            f"/stages/prompt/stages/{prompt_stage['pk']}/",
+            json={"validation_policies": current + [clear_pk]},
+        )
+        print("  Clear-flag policy added to password-change prompt stage.")
+    else:
+        print("  Clear-flag policy already in prompt stage.")
+
+
+def setup_password_change_redirect(client_id: str) -> None:
+    """Wire the default-authentication-flow to redirect technicians to
+    change their password on first login.
+
+    Flow order after this runs:
+      10  Identification
+      20  Password
+      30  MFA
+     100  UserLogin
+     110  Redirect (static URL) → default-password-change  (only if flag set)
+
+    Uses mode=static rather than mode=flow because default-password-change
+    requires an authenticated session (authentication=require_authenticated).
+    At order 110 the UserLogin stage has already created the Django session,
+    so the browser redirect lands on an authenticated user.
+    """
+    print("Configuring password-change-on-first-login redirect...")
+
+    # 1. Locate the auth flow (password-change flow PK not needed for static mode)
+    auth_flow_resp = api("GET", "/flows/instances/?slug=default-authentication-flow")
+    auth_results = auth_flow_resp.get("results", [])
+    if not auth_results:
+        print("  WARNING: default-authentication-flow not found, skipping.")
+        return
+    auth_flow_pk = auth_results[0]["pk"]
+
+    # Verify the target flow exists (just a sanity check)
+    pw_flow_resp = api("GET", "/flows/instances/?slug=default-password-change")
+    if not pw_flow_resp.get("results"):
+        print("  WARNING: default-password-change flow not found, skipping.")
+        return
+
+    # 2. Get or create expression policy
+    policy_name = "easyspot-check-password-change"
+    expression = (
+        "return request.user.attributes"
+        '.get("settings", {}).get("password_change_on_login", False)'
+    )
+    existing_policy = api("GET", f"/policies/expression/?name={policy_name}")
+    if existing_policy.get("results"):
+        policy_pk = existing_policy["results"][0]["pk"]
+        api(
+            "PATCH",
+            f"/policies/expression/{policy_pk}/",
+            json={"expression": expression},
+        )
+    else:
+        created = api(
+            "POST",
+            "/policies/expression/",
+            json={"name": policy_name, "expression": expression},
+        )
+        policy_pk = created["pk"]
+    print(f"  Expression policy ready: {policy_pk}")
+
+    # 3. Get or create redirect stage (static URL, no keep_context)
+    # mode=flow fails because default-password-change requires an authenticated
+    # session; at order 110 UserLogin has already created it.
+    # ?next= sends the browser back to the authorize endpoint after the password
+    # change completes, so Authentik issues a new auth code and the frontend
+    # callback receives it — landing the user on their role dashboard.
+    authorize_next = urllib.parse.quote(
+        f"/authentik/application/o/authorize/"
+        f"?response_type=code&client_id={client_id}"
+        f"&redirect_uri={urllib.parse.quote(REDIRECT_URI, safe='')}"
+        f"&scope=openid+profile+email+groups+offline_access",
+        safe="",
+    )
+    stage_name = "easyspot-password-change-redirect"
+    stage_payload = {
+        "name": stage_name,
+        "mode": "static",
+        "target_static": (
+            f"/authentik/if/flow/default-password-change/?next={authorize_next}"
+        ),
+        "keep_context": False,
+    }
+    existing_stage = api("GET", f"/stages/redirect/?name={stage_name}")
+    if existing_stage.get("results"):
+        redirect_stage_pk = existing_stage["results"][0]["pk"]
+        api("PATCH", f"/stages/redirect/{redirect_stage_pk}/", json=stage_payload)
+    else:
+        created = api("POST", "/stages/redirect/", json=stage_payload)
+        redirect_stage_pk = created["pk"]
+    print(f"  Redirect stage ready: {redirect_stage_pk}")
+
+    # 4. Bind redirect stage to auth flow at order 110 (after UserLogin at 100)
+    existing_binding = api(
+        "GET", f"/flows/bindings/?target={auth_flow_pk}&stage={redirect_stage_pk}"
+    )
+    if existing_binding.get("results"):
+        binding_pk = existing_binding["results"][0]["pk"]
+        api(
+            "PATCH",
+            f"/flows/bindings/{binding_pk}/",
+            json={
+                "order": 110,
+                "evaluate_on_plan": False,
+                "re_evaluate_policies": True,
+            },
+        )
+        print(f"  Stage binding already exists: {binding_pk}")
+    else:
+        binding = api(
+            "POST",
+            "/flows/bindings/",
+            json={
+                "target": auth_flow_pk,
+                "stage": redirect_stage_pk,
+                "order": 110,
+                "enabled": True,
+                "evaluate_on_plan": False,
+                "re_evaluate_policies": True,
+            },
+        )
+        binding_pk = binding["pk"]
+        print(f"  Stage binding created: {binding_pk}")
+
+    # 5. Attach expression policy to the stage binding
+    existing_policy_binding = api("GET", f"/policies/bindings/?policy={policy_pk}")
+    already_bound = any(
+        b.get("target") == binding_pk
+        for b in existing_policy_binding.get("results", [])
+    )
+    if not already_bound:
+        api(
+            "POST",
+            "/policies/bindings/",
+            json={
+                "policy": policy_pk,
+                "target": binding_pk,
+                "enabled": True,
+                "order": 0,
+                "timeout": 30,
+                "negate": False,
+            },
+        )
+        print("  Policy binding created.")
+    else:
+        print("  Policy binding already exists.")
+
+    # 6. Wire the clear-flag policy into the password-change prompt stage
+    _setup_clear_password_change_flag()
+
+    print("  Password-change redirect configured.")
+
+
 def main() -> None:
     _load_bootstrap_env()
     _refresh_runtime_config()
@@ -855,6 +1066,9 @@ def main() -> None:
     provider_pk = create_provider(groups_mapping_pk)
     create_application(provider_pk)
     create_enrollment_flow()
+    provider_resp = api("GET", f"/providers/oauth2/{provider_pk}/")
+    client_id = provider_resp.get("client_id", "")
+    setup_password_change_redirect(client_id)
     create_test_users(group_ids)
     apply_branding(APP_SLUG)
     print_summary(provider_pk)

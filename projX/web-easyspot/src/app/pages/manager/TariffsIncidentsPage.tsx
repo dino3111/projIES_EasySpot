@@ -10,7 +10,15 @@ import { BillingTab } from './components/BillingTab';
 import { IssueModal }   from './components/IssueModal';
 import { TariffModal }  from './components/TariffModal';
 import { TabBtn }       from './components/shared';
-import { fetchManagerTariffs, fetchManagerAlerts, updateTariff, type TariffResponse, type AlertResponse } from '../../services/managerApi';
+import {
+  fetchManagerTariffs,
+  fetchManagerAlerts,
+  fetchManagerBilling,
+  updateTariff,
+  type TariffResponse,
+  type AlertResponse,
+  type BillingSessionResponse,
+} from '../../services/managerApi';
 
 type PageTab    = 'tarifas' | 'ocorrencias' | 'faturacao';
 type IssueFilter = 'todos' | 'aberto' | 'em-progresso' | 'resolvido';
@@ -74,6 +82,30 @@ function mapAlert(a: AlertResponse): IssueReport {
   };
 }
 
+function mapBilling(b: BillingSessionResponse): BillingRecord {
+  const durationH = Math.floor(b.durationMinutes / 60);
+  const durationM = b.durationMinutes % 60;
+  const entryDate = new Date(b.entryTime);
+  const dateStr = entryDate.toLocaleString('pt-PT', {
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit',
+  }).replace(',', '');
+  const method: BillingRecord['metodo'] =
+    b.zoneType === 'RFID' ? 'RFID' : b.licensePlate ? 'OCR' : 'Manual';
+  return {
+    id: b.id,
+    parqueNome: b.parkName,
+    data: dateStr,
+    matricula: b.licensePlate ?? '—',
+    metodo: method,
+    duracao: `${durationH}h ${String(durationM).padStart(2, '0')}m`,
+    valorEstacionamento: Number(b.parkingRevenue),
+    valorEV: Number(b.evRevenue) > 0 ? Number(b.evRevenue) : undefined,
+    total: Number(b.total),
+    estado: 'pago',
+  };
+}
+
 
 export function TariffsIncidentsPage() {
   const billingEnabled = false;
@@ -84,30 +116,22 @@ export function TariffsIncidentsPage() {
   const [editTariff, setEditTariff] = useState<TariffEntry | null>(null);
   const [tariffs, setTariffs] = useState<TariffEntry[]>([]);
   const [issues, setIssues] = useState<IssueReport[]>([]);
+  const [billingRecords, setBillingRecords] = useState<BillingRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
-    Promise.allSettled([
+    Promise.all([
       fetchManagerTariffs(),
       fetchManagerAlerts(),
-    ])
-      .then(([tariffsResult, alertsResult]) => {
-        if (tariffsResult.status === 'fulfilled') {
-          setTariffs(tariffsResult.value.map(mapTariff));
-        } else {
-          console.error('Error fetching manager tariffs:', tariffsResult.reason);
-          setTariffs([]);
-        }
-
-        if (alertsResult.status === 'fulfilled') {
-          setIssues(alertsResult.value.map(mapAlert));
-        } else {
-          console.error('Error fetching manager alerts:', alertsResult.reason);
-          setIssues([]);
-        }
-      })
-      .finally(() => setLoading(false));
+      fetchManagerBilling(),
+    ]).then(([tariffsData, alertsData, billingData]) => {
+      setTariffs(tariffsData.map(mapTariff));
+      setIssues(alertsData.map(mapAlert));
+      setBillingRecords(billingData.content.map(mapBilling));
+    }).catch(err => {
+      console.error('Error fetching manager data:', err);
+    }).finally(() => setLoading(false));
   }, []);
 
   const handleSaveTariff = async (updated: Partial<TariffEntry>) => {
@@ -115,8 +139,6 @@ export function TariffsIncidentsPage() {
     const tariffsData = await fetchManagerTariffs();
     setTariffs(tariffsData.map(mapTariff));
   };
-
-  const billingRecords: BillingRecord[] = [];
 
   const filteredIssues = useMemo(() => {
     return issues.filter((i) => {

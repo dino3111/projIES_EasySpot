@@ -1,6 +1,5 @@
 package pt.ua.deti.apieasyspot.analytics.repository;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -18,92 +17,125 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Repository
-@RequiredArgsConstructor
 public class TechnicianRepository {
 
-    private final @Qualifier("jdbcTemplate") JdbcTemplate jdbc;
-    private final @Qualifier("timescaleJdbcTemplate") JdbcTemplate timescaleJdbc;
+    private final JdbcTemplate jdbc;
+    private final JdbcTemplate timescaleJdbc;
 
-    public int countTotalSensors() {
-        Long result = jdbc.queryForObject("select count(*) from sensor_registry", Long.class);
+    public TechnicianRepository(
+            @Qualifier("jdbcTemplate") JdbcTemplate jdbc,
+            @Qualifier("timescaleJdbcTemplate") JdbcTemplate timescaleJdbc) {
+        this.jdbc = jdbc;
+        this.timescaleJdbc = timescaleJdbc;
+    }
+
+    // ── helpers ──────────────────────────────────────────────────────────────
+
+    /** Builds "AND col IN (?::uuid, ?::uuid, ...)" or an empty string. */
+    private String parkFilter(List<UUID> parkIds, String col) {
+        if (parkIds == null || parkIds.isEmpty()) return "";
+        String placeholders = parkIds.stream().map(id -> "?::uuid").collect(Collectors.joining(","));
+        return " AND " + col + " IN (" + placeholders + ")";
+    }
+
+    private Object[] parkParams(List<UUID> parkIds) {
+        if (parkIds == null || parkIds.isEmpty()) return new Object[0];
+        return parkIds.stream().map(UUID::toString).toArray();
+    }
+
+    // ── sensor counts ────────────────────────────────────────────────────────
+
+    public int countTotalSensors(List<UUID> parkIds) {
+        String sql = "SELECT count(*) FROM sensor_registry WHERE 1=1" + parkFilter(parkIds, "parking_lot_id");
+        Long result = jdbc.queryForObject(sql, Long.class, parkParams(parkIds));
         return result != null ? result.intValue() : 0;
     }
 
-    public int countOperationalSensors() {
-        Long result = jdbc.queryForObject(
-            "select count(*) from sensor_registry where status = 'OPERATIONAL'", Long.class);
+    public int countOperationalSensors(List<UUID> parkIds) {
+        String sql = "SELECT count(*) FROM sensor_registry WHERE status = 'OPERATIONAL'" + parkFilter(parkIds, "parking_lot_id");
+        Long result = jdbc.queryForObject(sql, Long.class, parkParams(parkIds));
         return result != null ? result.intValue() : 0;
     }
 
-    public long countFailuresToday() {
-        Long result = timescaleJdbc.queryForObject(
-            """
-            select count(*) from alerts
-            where type in ('SENSOR', 'SYSTEM')
-              and created_at >= current_date
-              and created_at < current_date + interval '1 day'
-              and state != 'RESOLVED'
-            """, Long.class);
+    // ── failure counts ────────────────────────────────────────────────────────
+
+    public long countFailuresToday(List<UUID> parkIds) {
+        String sql = """
+            SELECT count(*) FROM alerts
+            WHERE type IN ('SENSOR', 'SYSTEM')
+              AND created_at >= current_date
+              AND created_at < current_date + interval '1 day'
+              AND state != 'RESOLVED'
+            """ + parkFilter(parkIds, "parking_lot_id");
+        Long result = timescaleJdbc.queryForObject(sql, Long.class, parkParams(parkIds));
         return result != null ? result : 0L;
     }
 
-    public long countFailuresYesterday() {
-        Long result = timescaleJdbc.queryForObject(
-            """
-            select count(*) from alerts
-            where type in ('SENSOR', 'SYSTEM')
-              and created_at >= current_date - interval '1 day'
-              and created_at < current_date
-              and state != 'RESOLVED'
-            """, Long.class);
+    public long countFailuresYesterday(List<UUID> parkIds) {
+        String sql = """
+            SELECT count(*) FROM alerts
+            WHERE type IN ('SENSOR', 'SYSTEM')
+              AND created_at >= current_date - interval '1 day'
+              AND created_at < current_date
+              AND state != 'RESOLVED'
+            """ + parkFilter(parkIds, "parking_lot_id");
+        Long result = timescaleJdbc.queryForObject(sql, Long.class, parkParams(parkIds));
         return result != null ? result : 0L;
     }
 
-    public Double avgMttrCurrentWeekMinutes() {
-        return timescaleJdbc.queryForObject(
-            """
-            select avg(extract(epoch from (resolved_at - created_at)) / 60)
-            from alerts
-            where type in ('SENSOR', 'SYSTEM')
-              and resolved_at is not null
-              and resolved_at >= current_date - 7
-            """, Double.class);
+    // ── MTTR ──────────────────────────────────────────────────────────────────
+
+    public Double avgMttrCurrentWeekMinutes(List<UUID> parkIds) {
+        String sql = """
+            SELECT avg(extract(epoch from (resolved_at - created_at)) / 60)
+            FROM alerts
+            WHERE type IN ('SENSOR', 'SYSTEM')
+              AND resolved_at IS NOT NULL
+              AND resolved_at >= current_date - 7
+            """ + parkFilter(parkIds, "parking_lot_id");
+        return timescaleJdbc.queryForObject(sql, Double.class, parkParams(parkIds));
     }
 
-    public Double avgMttrHistoricalMinutes() {
-        return timescaleJdbc.queryForObject(
-            """
-            select avg(extract(epoch from (resolved_at - created_at)) / 60)
-            from alerts
-            where type in ('SENSOR', 'SYSTEM')
-              and resolved_at is not null
-              and resolved_at < current_date - 7
-            """, Double.class);
+    public Double avgMttrHistoricalMinutes(List<UUID> parkIds) {
+        String sql = """
+            SELECT avg(extract(epoch from (resolved_at - created_at)) / 60)
+            FROM alerts
+            WHERE type IN ('SENSOR', 'SYSTEM')
+              AND resolved_at IS NOT NULL
+              AND resolved_at < current_date - 7
+            """ + parkFilter(parkIds, "parking_lot_id");
+        return timescaleJdbc.queryForObject(sql, Double.class, parkParams(parkIds));
     }
 
-    public List<DailyUptimeDto> uptimeLast7Days() {
-        Map<String, Long> failedByDay = timescaleJdbc.query(
-            """
-            select cast(created_at as date) as day,
+    // ── uptime chart ──────────────────────────────────────────────────────────
+
+    public List<DailyUptimeDto> uptimeLast7Days(List<UUID> parkIds) {
+        String failSql = """
+            SELECT cast(created_at as date) as day,
                    count(distinct sensor_id) as failed
-            from alerts
-            where type = 'SENSOR'
-              and sensor_id is not null
-              and created_at >= current_date - 6
-            group by cast(created_at as date)
-            """,
+            FROM alerts
+            WHERE type = 'SENSOR'
+              AND sensor_id IS NOT NULL
+              AND created_at >= current_date - 6
+            """ + parkFilter(parkIds, "parking_lot_id") + """
+             GROUP BY cast(created_at as date)
+            """;
+
+        Map<String, Long> failedByDay = timescaleJdbc.query(
+            failSql,
+            parkParams(parkIds),
             (rs, rowNum) -> Map.entry(rs.getString("day"), rs.getLong("failed"))
         ).stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
-        int total = countTotalSensors();
+        int total = countTotalSensors(parkIds);
 
-        return jdbc.query(
+        return timescaleJdbc.query(
             """
-            select generate_series(
+            SELECT generate_series(
                 (current_date - 6)::timestamp,
                 current_date::timestamp,
                 '1 day'::interval
-            )::date as day
+            )::date AS day
             """,
             (rs, rowNum) -> {
                 LocalDate date = rs.getDate("day").toLocalDate();
@@ -118,10 +150,15 @@ public class TechnicianRepository {
             });
     }
 
-    public List<SensorStatusDto> sensorDistribution() {
-        int total = countTotalSensors();
+    // ── sensor distribution ───────────────────────────────────────────────────
+
+    public List<SensorStatusDto> sensorDistribution(List<UUID> parkIds) {
+        int total = countTotalSensors(parkIds);
+        String sql = "SELECT status, count(*) AS cnt FROM sensor_registry WHERE 1=1"
+            + parkFilter(parkIds, "parking_lot_id") + " GROUP BY status";
         return jdbc.query(
-            "select status, count(*) as cnt from sensor_registry group by status",
+            sql,
+            parkParams(parkIds),
             (rs, rowNum) -> {
                 int count = rs.getInt("cnt");
                 String status = rs.getString("status");
@@ -130,34 +167,51 @@ public class TechnicianRepository {
             });
     }
 
-    public List<WorkOrderSummary> urgentWorkOrders() {
+    // ── urgent work orders ────────────────────────────────────────────────────
+
+    public List<WorkOrderSummary> urgentWorkOrders(List<UUID> parkIds) {
         Map<UUID, String> parkNames = jdbc.query(
-            "select id, name from parking_lots",
+            "SELECT id, name FROM parking_lots",
             (rs, rowNum) -> Map.entry(UUID.fromString(rs.getString("id")), rs.getString("name"))
         ).stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
-        return timescaleJdbc.query(
-            """
-            select a.id, a.type, a.parking_lot_id, a.zone, a.sensor_id,
+        String sql = """
+            SELECT a.id, a.type, a.parking_lot_id, a.zone, a.sensor_id,
                    a.description, a.severity, a.state, a.created_at, a.attributed_to
-            from alerts a
-            where a.severity = 'CRITICAL'
-              and a.type in ('SENSOR', 'SYSTEM')
-              and a.state in ('OPEN', 'IN_PROGRESS')
-            order by a.created_at desc
-            limit 10
-            """,
-            (rs, rowNum) -> new WorkOrderSummary(
-                UUID.fromString(rs.getString("id")),
-                rs.getString("type").toLowerCase(Locale.ROOT),
-                parkNames.getOrDefault(UUID.fromString(rs.getString("parking_lot_id")), "Unknown"),
-                rs.getString("zone"),
-                rs.getString("sensor_id"),
-                rs.getString("description"),
-                rs.getString("severity").toLowerCase(Locale.ROOT),
-                rs.getString("state").toLowerCase(Locale.ROOT).replace("_", "-"),
-                rs.getTimestamp("created_at").toInstant().atOffset(ZoneOffset.UTC),
-                rs.getString("attributed_to")));
+            FROM alerts a
+            WHERE a.severity = 'CRITICAL'
+              AND a.type IN ('SENSOR', 'SYSTEM')
+              AND a.state IN ('OPEN', 'IN_PROGRESS')
+            """ + parkFilter(parkIds, "a.parking_lot_id") + """
+             ORDER BY a.created_at DESC
+            LIMIT 10
+            """;
+
+        return timescaleJdbc.query(
+            sql,
+            parkParams(parkIds),
+            (rs, rowNum) -> {
+                String parkingLotIdStr = rs.getString("parking_lot_id");
+                String parkName = "Unknown";
+                if (parkingLotIdStr != null) {
+                    try {
+                        parkName = parkNames.getOrDefault(UUID.fromString(parkingLotIdStr), "Unknown");
+                    } catch (IllegalArgumentException ignored) {
+                        // malformed UUID in DB - fall back to "Unknown"
+                    }
+                }
+                return new WorkOrderSummary(
+                    UUID.fromString(rs.getString("id")),
+                    rs.getString("type").toLowerCase(Locale.ROOT),
+                    parkName,
+                    rs.getString("zone"),
+                    rs.getString("sensor_id"),
+                    rs.getString("description"),
+                    rs.getString("severity").toLowerCase(Locale.ROOT),
+                    rs.getString("state").toLowerCase(Locale.ROOT).replace("_", "-"),
+                    rs.getTimestamp("created_at").toInstant().atOffset(ZoneOffset.UTC),
+                    rs.getString("attributed_to"));
+            });
     }
 
     private String statusLabel(String status) {

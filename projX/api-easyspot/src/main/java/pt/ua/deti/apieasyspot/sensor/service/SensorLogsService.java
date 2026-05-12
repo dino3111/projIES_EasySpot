@@ -2,6 +2,9 @@ package pt.ua.deti.apieasyspot.sensor.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.UUID;
 import pt.ua.deti.apieasyspot.notification.model.StateAlert;
 import pt.ua.deti.apieasyspot.notification.repository.TimescaleAlertRepository;
 import pt.ua.deti.apieasyspot.sensor.dto.SensorDetailDto;
@@ -27,6 +30,11 @@ public class SensorLogsService {
 
     public List<SensorSummaryDto> listAllSensors() {
         return sensorLogsRepository.findAllSensors();
+    }
+
+    public List<SensorSummaryDto> listSensorsByParks(List<UUID> parkIds) {
+        if (parkIds.isEmpty()) return List.of();
+        return sensorLogsRepository.findSensorsByParkIds(parkIds);
     }
 
     public SensorDetailDto getSensorDetail(String sensorId) {

@@ -17,6 +17,33 @@ public class SensorLogsRepository {
 
     private final @Qualifier("jdbcTemplate") JdbcTemplate jdbc;
 
+    public List<SensorSummaryDto> findSensorsByParkIds(List<UUID> parkIds) {
+        String placeholders = parkIds.stream().map(id -> "?::uuid").collect(java.util.stream.Collectors.joining(","));
+        Object[] params = parkIds.stream().map(UUID::toString).toArray();
+        return jdbc.query(
+            """
+            select sr.sensor_id, sr.parking_lot_id, pl.name as park_name, pl.city as park_city,
+                   sr.zone, sr.status, sr.last_seen_at, sr.created_at
+            from sensor_registry sr
+            join parking_lots pl on pl.id = sr.parking_lot_id
+            where sr.parking_lot_id in (
+            """ + placeholders + """
+            )
+            order by sr.status, sr.sensor_id
+            """,
+            params,
+            (rs, rowNum) -> new SensorSummaryDto(
+                rs.getString("sensor_id"),
+                UUID.fromString(rs.getString("parking_lot_id")),
+                rs.getString("park_name"),
+                rs.getString("park_city"),
+                rs.getString("zone"),
+                rs.getString("status").toLowerCase(),
+                rs.getTimestamp("last_seen_at").toInstant().atOffset(ZoneOffset.UTC),
+                rs.getTimestamp("created_at").toInstant().atOffset(ZoneOffset.UTC)
+            ));
+    }
+
     public List<SensorSummaryDto> findAllSensors() {
         return jdbc.query(
             """
