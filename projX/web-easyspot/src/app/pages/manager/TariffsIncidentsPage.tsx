@@ -76,8 +76,10 @@ function mapAlert(a: AlertResponse): IssueReport {
     severidade: severityMap[a.severity.toUpperCase()] || 'info',
     estado: stateMap[a.state.toUpperCase().replace('-', '_')] || 'aberto',
     criadoEm: a.createdAt,
+    reportadoPor: a.reportedBy ?? undefined,
     atribuidoA: a.attributedTo,
     notas: a.notes,
+    fotoUrl: a.photoUrl ?? undefined,
   };
 }
 
@@ -120,7 +122,7 @@ export function TariffsIncidentsPage() {
 
   useEffect(() => {
     setLoading(true);
-    Promise.all([
+    Promise.allSettled([
       fetchManagerTariffs(),
       fetchManagerAlerts(),
       fetchManagerBilling(),

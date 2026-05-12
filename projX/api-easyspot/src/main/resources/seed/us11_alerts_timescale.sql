@@ -20,6 +20,7 @@ create table if not exists public.alerts (
     plate text,
     description text not null,
     photo_url text,
+    reported_by text,
     attributed_to text,
     notes text,
     resolved_at timestamptz,
@@ -33,7 +34,7 @@ insert into public.alerts (
     id, parking_lot_id, parking_lot_name,
     type, severity, state,
     zone, spot_number, sensor_id, plate, description,
-    photo_url, attributed_to, notes, resolved_at, created_at
+    photo_url, reported_by, attributed_to, notes, resolved_at, created_at
 )
 values
 (
@@ -43,7 +44,7 @@ values
     'SENSOR', 'CRITICAL', 'OPEN',
     'Piso 0 – Zona B', 'B07', 'IR-AV1-B07', null,
     'Sensor infravermelho sem leituras há mais de 2 horas.',
-    null, 'Laura Farias',
+    null, 'Laura Farias', 'Laura Farias',
     'A aguardar substituição de sensor.',
     null,
     '2026-05-08T08:14:00Z'
@@ -55,7 +56,7 @@ values
     'CLIENT', 'WARNING', 'IN_PROGRESS',
     'Piso -1', null, null, '55-AB-23',
     'Condutor reporta cobrança incorreta para estadia curta.',
-    null, 'Suporte EasySpot',
+    null, 'Suporte EasySpot', 'Suporte EasySpot',
     'A verificar logs OCR de entrada e saída.',
     null,
     '2026-05-08T16:30:00Z'
@@ -67,7 +68,7 @@ values
     'SYSTEM', 'CRITICAL', 'OPEN',
     'Entrada Principal', null, null, null,
     'Leitor OCR da entrada principal sem comunicação.',
-    null, 'Laura Farias',
+    null, 'Laura Farias', 'Laura Farias',
     'Técnico destacado para intervenção no local.',
     null,
     '2026-05-08T06:50:00Z'
@@ -79,7 +80,7 @@ values
     'SENSOR', 'WARNING', 'IN_PROGRESS',
     'Piso -2', 'C14', 'IR-CO2-C14', null,
     'Sensor C14 com leituras intermitentes e falsos positivos.',
-    null, 'Nuno Almeida',
+    null, 'Nuno Almeida', 'Nuno Almeida',
     'Monitorização ativa iniciada.',
     null,
     '2026-05-09T07:30:00Z'
@@ -91,7 +92,7 @@ values
     'CLIENT', 'INFO', 'RESOLVED',
     'Piso 0', null, null, '41-EF-77',
     'Cliente reportou inconsistência de lugares livres na app.',
-    null, 'Suporte EasySpot',
+    null, 'Suporte EasySpot', 'Suporte EasySpot',
     'Sincronização restabelecida; utilizador notificado.',
     '2026-05-09T10:05:00Z',
     '2026-05-09T09:10:00Z'
@@ -108,6 +109,7 @@ on conflict (id, created_at) do update set
     plate = excluded.plate,
     description = excluded.description,
     photo_url = excluded.photo_url,
+    reported_by = excluded.reported_by,
     attributed_to = excluded.attributed_to,
     notes = excluded.notes,
     resolved_at = excluded.resolved_at;

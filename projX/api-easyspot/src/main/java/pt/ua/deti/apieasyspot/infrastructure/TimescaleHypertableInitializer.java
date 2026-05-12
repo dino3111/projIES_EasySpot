@@ -104,6 +104,7 @@ public class TimescaleHypertableInitializer implements ApplicationRunner {
                 plate text,
                 description text not null,
                 photo_url text,
+                reported_by text,
                 attributed_to text,
                 notes text,
                 resolved_at timestamptz,
@@ -113,6 +114,7 @@ public class TimescaleHypertableInitializer implements ApplicationRunner {
             """);
         try {
             jdbc.execute("alter table alerts add column if not exists parking_lot_name text");
+            jdbc.execute("alter table alerts add column if not exists reported_by text");
         } catch (Exception e) {
             log.debug("alerts.parking_lot_name column already exists: {}", e.getMessage());
         }

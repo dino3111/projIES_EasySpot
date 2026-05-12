@@ -34,7 +34,7 @@ public class TechnicianParkAssignmentService {
 
     @Transactional
     public TechnicianParkAssignment assign(UUID technicianId, UUID parkingLotId) {
-        if (assignmentRepository.existsByTechnicianIdAndParkingLotId(technicianId, parkingLotId)) {
+        if (assignmentRepository.existsByTechnicianIdAndParkingLot_Id(technicianId, parkingLotId)) {
             return assignmentRepository.findByTechnicianId(technicianId).stream()
                 .filter(a -> a.getParkingLot().getId().equals(parkingLotId))
                 .findFirst()
@@ -47,7 +47,7 @@ public class TechnicianParkAssignmentService {
 
     @Transactional
     public void unassign(UUID technicianId, UUID parkingLotId) {
-        assignmentRepository.deleteByTechnicianIdAndParkingLotId(technicianId, parkingLotId);
+        assignmentRepository.deleteByTechnicianIdAndParkingLot_Id(technicianId, parkingLotId);
     }
 
     public UUID resolveDbId(String authentikUserId) {
