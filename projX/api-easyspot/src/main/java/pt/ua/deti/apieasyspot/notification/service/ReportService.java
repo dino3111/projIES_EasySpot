@@ -19,7 +19,9 @@ import pt.ua.deti.apieasyspot.notification.model.SeverityAlert;
 import pt.ua.deti.apieasyspot.notification.model.StateAlert;
 import pt.ua.deti.apieasyspot.notification.repository.TimescaleAlertRepository;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
+import pt.ua.deti.apieasyspot.occupancy.model.TechnicianParkAssignment;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingLotRepository;
+import pt.ua.deti.apieasyspot.occupancy.repository.TechnicianParkAssignmentRepository;
 
 import java.io.IOException;
 import java.time.OffsetDateTime;
@@ -40,6 +42,7 @@ public class ReportService {
     private final TimescaleAlertRepository alertRepository;
     private final UserRepository userRepository;
     private final ParkingLotRepository parkingLotRepository;
+    private final TechnicianParkAssignmentRepository technicianParkAssignmentRepository;
     private final R2StorageService r2StorageService;
     private final SimpMessagingTemplate messagingTemplate;
 
@@ -110,14 +113,27 @@ public class ReportService {
     }
 
     private User findTechnician(ParkingLot parkingLot) {
+        for (TechnicianParkAssignment assignment : technicianParkAssignmentRepository.findByParkingLotId(parkingLot.getId())) {
+            User technician = userRepository.findById(assignment.getTechnicianId()).orElse(null);
+            if (technician == null) {
+                continue;
+            }
+            validateTechnicianRole(technician);
+            return technician;
+        }
+
         User technician = parkingLot.getTechnician();
         if (technician == null) {
             return null;
         }
+        validateTechnicianRole(technician);
+        return technician;
+    }
+
+    private void validateTechnicianRole(User technician) {
         if (!"TECHNICAL".equalsIgnoreCase(technician.getRole())) {
             throw new IllegalStateException("Assigned park user is not a technician: " + technician.getAuthentikUserId());
         }
-        return technician;
     }
 
     private SeverityAlert toSeverity(String violationType) {

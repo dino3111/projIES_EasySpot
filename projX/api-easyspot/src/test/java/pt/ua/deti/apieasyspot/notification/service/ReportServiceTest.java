@@ -20,8 +20,11 @@ import pt.ua.deti.apieasyspot.notification.dto.ReportResponse;
 import pt.ua.deti.apieasyspot.notification.model.Alert;
 import pt.ua.deti.apieasyspot.notification.repository.TimescaleAlertRepository;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
+import pt.ua.deti.apieasyspot.occupancy.model.TechnicianParkAssignment;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingLotRepository;
+import pt.ua.deti.apieasyspot.occupancy.repository.TechnicianParkAssignmentRepository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -41,6 +44,7 @@ class ReportServiceTest {
     @Mock private TimescaleAlertRepository alertRepository;
     @Mock private UserRepository userRepository;
     @Mock private ParkingLotRepository parkingLotRepository;
+    @Mock private TechnicianParkAssignmentRepository technicianParkAssignmentRepository;
     @Mock private R2StorageService r2StorageService;
     @Mock private SimpMessagingTemplate messagingTemplate;
 
@@ -71,7 +75,9 @@ class ReportServiceTest {
         parkingLot.setTechnician(technician);
 
         lenient().when(userRepository.findByAuthentikUserId("driver-sub-001")).thenReturn(Optional.of(driver));
+        lenient().when(userRepository.findById(technician.getId())).thenReturn(Optional.of(technician));
         lenient().when(parkingLotRepository.findById(parkingLot.getId())).thenReturn(Optional.of(parkingLot));
+        lenient().when(technicianParkAssignmentRepository.findByParkingLotId(parkingLot.getId())).thenReturn(List.of());
         lenient().when(alertRepository.save(any())).thenAnswer(inv -> {
             Alert a = inv.getArgument(0);
             a.setId(UUID.randomUUID());
@@ -243,8 +249,13 @@ class ReportServiceTest {
     }
 
     @Test
-    @DisplayName("create - attributedTo is set from park technician name")
-    void create_attributedToIsTechnicianName() {
+    @DisplayName("create - attributedTo is set from assigned technician name")
+    void create_attributedToIsAssignedTechnicianName() {
+        TechnicianParkAssignment assignment = new TechnicianParkAssignment();
+        assignment.setParkingLotId(parkingLot.getId());
+        assignment.setTechnicianId(technician.getId());
+        when(technicianParkAssignmentRepository.findByParkingLotId(parkingLot.getId())).thenReturn(List.of(assignment));
+
         CreateReportRequest req = new CreateReportRequest(
             parkingLot.getId(), "A", "A12", "accessible", null, "desc"
         );
@@ -257,8 +268,22 @@ class ReportServiceTest {
     }
 
     @Test
-    @DisplayName("create - park without technician - still creates report without attribution")
-    void create_parkWithoutTechnician_createsWithoutAttribution() {
+    @DisplayName("create - falls back to legacy parking lot technician when no assignment exists")
+    void create_withoutAssignment_fallsBackToParkingLotTechnician() {
+        CreateReportRequest req = new CreateReportRequest(
+            parkingLot.getId(), "A", "A12", "accessible", null, "desc"
+        );
+
+        reportService.create("driver-sub-001", req, null);
+
+        verify(alertRepository).save(argThat(alert ->
+            "Laura Farias".equals(alert.getAttributedTo())
+        ));
+    }
+
+    @Test
+    @DisplayName("create - park without assignment or technician - still creates report without attribution")
+    void create_parkWithoutAssignmentOrTechnician_createsWithoutAttribution() {
         parkingLot.setTechnician(null);
         CreateReportRequest req = new CreateReportRequest(
             parkingLot.getId(), "A", "A12", "accessible", null, "desc"
