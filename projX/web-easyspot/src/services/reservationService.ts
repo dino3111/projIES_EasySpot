@@ -1,6 +1,7 @@
 import { withGlobalLoading } from '../app/context/LoadingContext';
+import { API_BASE as APP_API_BASE } from './apiBase';
 
-const API_BASE = '/api/reservations';
+const API_BASE = `${APP_API_BASE}/api/reservations`;
 const RETRYABLE_STATUSES = new Set([502, 503, 504]);
 const RETRY_DELAY_MS = 700;
 
