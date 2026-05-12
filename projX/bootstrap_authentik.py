@@ -490,7 +490,8 @@ def create_application(provider_pk: str) -> dict:
     existing = api("GET", f"/core/applications/?slug={APP_SLUG}")
     results = existing.get("results", [])
     if results:
-        app = api("PATCH", f"/core/applications/{results[0]['pk']}/", json=payload)
+        # Authentik updates applications by slug in this API version.
+        app = api("PUT", f"/core/applications/{APP_SLUG}/", json=payload)
     else:
         app = api("POST", "/core/applications/", json=payload)
     print(f"  Application slug='{app['slug']}'")
