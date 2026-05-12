@@ -157,6 +157,8 @@ export function Step1ParkHorario({
 
           {selectedLot && (() => {
             const lot = selectedLot;
+            const totalSpots = Math.max(0, lot.totalSpots);
+            const availableSpots = Math.min(totalSpots, Math.max(0, lot.availableSpots));
             return (
               <div className="flex items-center gap-4 bg-base-100 border border-primary/20 rounded-2xl p-4">
                 <div className="shrink-0 w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center">
@@ -174,9 +176,9 @@ export function Step1ParkHorario({
                     {lot.address}
                   </p>
                   <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                    <span className={`text-xs font-medium ${availabilityClass(lot.availableSpots)}`}>
+                    <span className={`text-xs font-medium ${availabilityClass(availableSpots)}`}>
                       <i className="fa-solid fa-car-side mr-1" />
-                      {lot.availableSpots} livres
+                      {availableSpots} livres
                     </span>
                     <span className="text-xs text-base-content/30">·</span>
                     <span className="text-xs text-base-content/50"><i className="fa-solid fa-person-walking mr-1" /> {lot.walkingTime}</span>
@@ -224,7 +226,9 @@ export function Step1ParkHorario({
                   <p className="text-center text-base-content/40 py-6 text-sm italic">Nenhum parque encontrado.</p>
                 )}
                 {filtered.map(lot => {
-                  const pct = Math.round(((lot.totalSpots - lot.availableSpots) / lot.totalSpots) * 100);
+                  const totalSpots = Math.max(0, lot.totalSpots);
+                  const availableSpots = Math.min(totalSpots, Math.max(0, lot.availableSpots));
+                  const pct = totalSpots > 0 ? Math.round(((totalSpots - availableSpots) / totalSpots) * 100) : 0;
                   return (
                     <button
                       key={lot.id}
@@ -245,9 +249,9 @@ export function Step1ParkHorario({
                             {lot.address}
                           </p>
                           <div className="flex items-center gap-3 mt-1.5">
-                            <span className={`text-xs font-semibold ${availabilityClass(lot.availableSpots)}`}>
+                            <span className={`text-xs font-semibold ${availabilityClass(availableSpots)}`}>
                               <i className="fa-solid fa-circle text-[6px] mr-1 align-middle" />
-                              {lot.availableSpots} livres
+                              {availableSpots} livres
                             </span>
                             <span className="text-xs text-base-content/50">{lot.distance}</span>
                             <span className="text-xs text-base-content/50"><i className="fa-solid fa-person-walking mr-0.5" /> {lot.walkingTime}</span>

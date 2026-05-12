@@ -29,7 +29,7 @@ public class TimescaleParkingSessionRepository {
         jdbc.update("""
             insert into parking_sessions (id, user_id, parking_lot_id, vehicle_id, zone_type, entry_time, exit_time, revenue_euros)
             values (?::uuid, ?::uuid, ?::uuid, ?::uuid, ?, ?, ?, ?)
-            on conflict (id) do update set
+            on conflict (id, entry_time) do update set
                 exit_time = excluded.exit_time,
                 revenue_euros = excluded.revenue_euros,
                 zone_type = excluded.zone_type

@@ -78,6 +78,11 @@ export function CompactParkRow({ lot, filterMode }: Readonly<CompactParkRowProps
         <div className="text-right flex-shrink-0">
           <span className="block font-extrabold text-foreground" style={{ fontSize: '0.875rem' }}>€{lot.hourlyRate.toFixed(2)}</span>
           <span className="text-muted-foreground uppercase" style={{ fontSize: '0.6rem' }}>/hora</span>
+          {lot.distance && lot.distance !== 'N/D' && (
+            <span className="flex items-center gap-1 text-muted-foreground justify-end mt-1" style={{ fontSize: '0.7rem' }}>
+              <i className="fas fa-car text-[0.6rem]" /> {lot.distance}
+            </span>
+          )}
           <span className="flex items-center gap-1 text-muted-foreground justify-end mt-1" style={{ fontSize: '0.7rem' }}>
             <i className="fas fa-person-walking text-[0.6rem]" /> {lot.walkingTime}
           </span>
@@ -132,17 +137,19 @@ function buildContext({ lot, filterMode, evAvail, evTotal, accAvail, accTotal }:
     };
   }
 
-  const isFull = lot.availableSpots === 0;
-  const isAlmost = !isFull && lot.availableSpots <= Math.ceil(lot.totalSpots * 0.2);
+  const totalSpots = Math.max(0, lot.totalSpots);
+  const availableSpots = Math.min(totalSpots, Math.max(0, lot.availableSpots));
+  const isFull = availableSpots === 0;
+  const isAlmost = !isFull && availableSpots <= Math.ceil(totalSpots * 0.2);
   
   let label = 'Disponível';
   if (isFull) label = 'Lotado';
   else if (isAlmost) label = 'Quase cheio';
 
   return {
-    avail: lot.availableSpots,
-    total: lot.totalSpots,
-    color: getStatusColor(lot.availableSpots, lot.totalSpots, isAlmost, '#22c55e'),
+    avail: availableSpots,
+    total: totalSpots,
+    color: getStatusColor(availableSpots, totalSpots, isAlmost, '#22c55e'),
     label,
     icon: null,
     borderCls: 'border-border',

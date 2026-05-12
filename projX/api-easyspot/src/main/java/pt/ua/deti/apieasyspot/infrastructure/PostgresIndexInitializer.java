@@ -22,6 +22,7 @@ public class PostgresIndexInitializer implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         try {
             createPaymentIndexes();
+            createReservationConstraints();
             log.info("PostgreSQL index initialization complete.");
         } catch (Exception e) {
             log.warn("PostgreSQL index initialization skipped: {}", e.getMessage());
@@ -35,6 +36,21 @@ public class PostgresIndexInitializer implements ApplicationRunner {
         exec("create index if not exists idx_payment_records_status on payment_records (status, created_at desc) where status in ('PENDING', 'COMPLETED')");
         exec("create index if not exists idx_stripe_events_processed_at on processed_stripe_events (processed_at desc)");
         log.info("Payment indexes ready.");
+    }
+
+    private void createReservationConstraints() {
+        exec("create extension if not exists btree_gist");
+        exec("""
+            alter table reservations
+            add constraint reservations_no_spot_overlap
+            exclude using gist (
+                parking_spot_id with =,
+                tstzrange(arrival_time, departure_time, '[)') with &&
+            )
+            where (parking_spot_id is not null and status in ('CONFIRMED', 'PENDING'))
+            """);
+        exec("create unique index if not exists uq_reservations_user_idempotency on reservations (user_id, idempotency_key) where idempotency_key is not null");
+        log.info("Reservation overlap/idempotency constraints ready.");
     }
 
     private void exec(String sql) {

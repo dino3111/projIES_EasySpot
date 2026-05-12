@@ -26,6 +26,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.ToIntFunction;
 import java.util.stream.Collectors;
@@ -56,16 +57,37 @@ public class ParkService {
             .filter(lot -> matchesText(lot, textQuery))
             .filter(lot -> matchesCity(lot, city))
             .toList();
+        List<UUID> lotIds = allLots.stream().map(ParkingLot::getId).toList();
 
         Map<UUID, List<ZoneSnapshot>> snapshotsByLot = timescaleOccupancySnapshotRepository.latestByLotIds(
-            allLots.stream().map(ParkingLot::getId).toList()
+            lotIds
         );
+        Map<UUID, List<ParkingSpot>> spotsByLot = parkingSpotRepository.findByParkingLotIdIn(lotIds).stream()
+            .collect(Collectors.groupingBy(spot -> spot.getParkingLot().getId()));
+        Map<UUID, List<Reservation>> reservationsByLot = lotIds.isEmpty()
+            ? Map.of()
+            : reservationRepository.findActiveWithSpotByParkIds(lotIds).stream()
+                .collect(Collectors.groupingBy(reservation -> reservation.getParkingLot().getId()));
+        OffsetDateTime now = OffsetDateTime.now();
+
+        Set<UUID> lotsWithEV = filterEV
+            ? evChargerRepository.findAll().stream().map(c -> c.getParkingLot().getId()).collect(java.util.stream.Collectors.toSet())
+            : Set.of();
+        Set<UUID> lotsWithAcc = filterAcc
+            ? accessibleSpotRepository.findAll().stream().map(a -> a.getParkingLot().getId()).collect(java.util.stream.Collectors.toSet())
+            : Set.of();
 
         List<ParkingLotSummaryResponse.ParkingLotSummary> filtered = allLots.stream()
-            .map(lot -> toSummary(lot, snapshotsByLot.getOrDefault(lot.getId(), List.of())))
+            .filter(lot -> !filterEV || lotsWithEV.contains(lot.getId()))
+            .filter(lot -> !filterAcc || lotsWithAcc.contains(lot.getId()))
+            .map(lot -> toSummary(
+                lot,
+                snapshotsByLot.getOrDefault(lot.getId(), List.of()),
+                spotsByLot.getOrDefault(lot.getId(), List.of()),
+                reservationsByLot.getOrDefault(lot.getId(), List.of()),
+                now
+            ))
             .filter(summary -> minAvailableSpaces == null || summary.freeSpaces() >= minAvailableSpaces)
-            .filter(summary -> !filterEV || summary.evChargers().total() > 0)
-            .filter(summary -> !filterAcc || summary.accessibleSpaces().total() > 0)
             .sorted(Comparator.comparing(ParkingLotSummaryResponse.ParkingLotSummary::name))
             .toList();
 
@@ -89,8 +111,14 @@ public class ParkService {
         );
     }
 
-    private ParkingLotSummaryResponse.ParkingLotSummary toSummary(ParkingLot lot, List<ZoneSnapshot> snapshots) {
-        Availability availability = availabilityFor(lot, snapshots);
+    private ParkingLotSummaryResponse.ParkingLotSummary toSummary(
+        ParkingLot lot,
+        List<ZoneSnapshot> snapshots,
+        List<ParkingSpot> spots,
+        List<Reservation> reservations,
+        OffsetDateTime now
+    ) {
+        Availability availability = availabilityFor(lot, snapshots, spots, reservations, now);
         return new ParkingLotSummaryResponse.ParkingLotSummary(
             lot.getId(),
             lot.getName(),
@@ -116,9 +144,26 @@ public class ParkService {
             .orElse(null);
     }
 
-    private Availability availabilityFor(ParkingLot lot, List<ZoneSnapshot> snapshots) {
-        OffsetDateTime now = OffsetDateTime.now();
-        long activeRes = reservationRepository.countLotReservations(lot.getId(), now, now.plusMinutes(30));
+    private Availability availabilityFor(
+        ParkingLot lot,
+        List<ZoneSnapshot> snapshots,
+        List<ParkingSpot> spots,
+        List<Reservation> reservations,
+        OffsetDateTime now
+    ) {
+        if (!spots.isEmpty()) {
+            Map<UUID, String> statusBySpot = buildStatusBySpot(spots, reservations, snapshots, now);
+            List<ParkingLotDetailsResponse.ZoneResponse> zones = buildZonesFromSpotStatuses(spots, statusBySpot);
+            int totalSpaces = zones.stream().mapToInt(ParkingLotDetailsResponse.ZoneResponse::total).sum();
+            int freeSpaces = zones.stream().mapToInt(ParkingLotDetailsResponse.ZoneResponse::free).sum();
+            int evTotal = zoneTotal(zones, ZoneType.EV);
+            int evFree = zoneFree(zones, ZoneType.EV);
+            int accTotal = zoneTotal(zones, ZoneType.ACCESSIBLE);
+            int accFree = zoneFree(zones, ZoneType.ACCESSIBLE);
+            return new Availability(totalSpaces, freeSpaces, evTotal, evFree, accTotal, accFree);
+        }
+
+        long activeRes = reservationRepository.countActiveReservationsForLot(lot.getId(), now);
 
         if (snapshots.isEmpty()) {
             int free = Math.max(0, lot.getTotalSpaces() - (int) activeRes);
@@ -172,52 +217,12 @@ public class ParkService {
         OffsetDateTime now = OffsetDateTime.now();
 
         List<ParkingSpot> spots = parkingSpotRepository.findByParkingLotId(id);
-        Map<UUID, Reservation> activeReservationsBySpot = reservationRepository.findActiveWithSpotByParkId(id).stream()
-            .collect(Collectors.toMap(
-                r -> r.getParkingSpot().getId(),
-                r -> r,
-                (left, right) -> left.getArrivalTime().isBefore(right.getArrivalTime()) ? left : right
-            ));
+        List<Reservation> activeReservations = reservationRepository.findActiveWithSpotByParkId(id);
+        List<ZoneSnapshot> snapshots = timescaleOccupancySnapshotRepository.latestByLot(id);
+        Map<UUID, String> statusBySpot = buildStatusBySpot(spots, activeReservations, snapshots, now);
 
-        // First pass: derive reservation-based status for each spot
-        Map<UUID, String> statusBySpot = new java.util.HashMap<>();
-        Map<ZoneType, Long> reservedCountByZone = new java.util.EnumMap<>(ZoneType.class);
-        for (ParkingSpot spot : spots) {
-            String status = deriveSpotStatus(spot, activeReservationsBySpot.get(spot.getId()), now);
-            statusBySpot.put(spot.getId(), status);
-            if (STATUS_RESERVED.equalsIgnoreCase(status)) {
-                reservedCountByZone.merge(spot.getZone(), 1L, Long::sum);
-            }
-        }
-
-        // Second pass: distribute sensor-detected occupancy across non-reserved spots per zone
-        Map<ZoneType, ZoneSnapshot> snapshotByZone = timescaleOccupancySnapshotRepository.latestByLot(id).stream()
-            .collect(Collectors.toMap(ZoneSnapshot::zoneType, s -> s, (a, b) -> a));
-
-        Map<ZoneType, List<ParkingSpot>> freeSpotsByZone = spots.stream()
-            .filter(s -> STATUS_FREE.equalsIgnoreCase(statusBySpot.get(s.getId())))
-            .collect(Collectors.groupingBy(ParkingSpot::getZone));
-
-        for (Map.Entry<ZoneType, ZoneSnapshot> entry : snapshotByZone.entrySet()) {
-            ZoneType zone = entry.getKey();
-            ZoneSnapshot snapshot = entry.getValue();
-            int reservedInZone = reservedCountByZone.getOrDefault(zone, 0L).intValue();
-            // sensor occupied = total physically occupied (including reserved)
-            int sensorOccupied = snapshot.occupiedCount();
-            // subtract reserved spots already accounted for
-            int unaccountedOccupied = Math.max(0, sensorOccupied - reservedInZone);
-
-            List<ParkingSpot> freeSpots = freeSpotsByZone.getOrDefault(zone, List.of()).stream()
-                .sorted(Comparator.comparing(ParkingSpot::getId))
-                .toList();
-
-            int toMark = Math.min(unaccountedOccupied, freeSpots.size());
-            for (int i = 0; i < toMark; i++) {
-                statusBySpot.put(freeSpots.get(i).getId(), STATUS_OCCUPIED);
-            }
-        }
-
-        List<ParkingLotDetailsResponse.ZoneResponse> zones = fetchZones(id, reservedCountByZone);
+        List<ParkingLotDetailsResponse.ZoneResponse> zones = buildZonesFromSpotStatuses(spots, statusBySpot);
+        int totalSpaces = zones.stream().mapToInt(ParkingLotDetailsResponse.ZoneResponse::total).sum();
         int freeSpaces = zones.stream().mapToInt(ParkingLotDetailsResponse.ZoneResponse::free).sum();
 
         List<ParkingLotDetailsResponse.SpotResponse> spotResponses = spots.stream()
@@ -234,7 +239,7 @@ public class ParkService {
             lot.getAddress(),
             new ParkingLotDetailsResponse.CoordinatesResponse(lot.getLatitude(), lot.getLongitude()),
             lot.getOpeningHours(),
-            lot.getTotalSpaces(),
+            totalSpaces > 0 ? totalSpaces : lot.getTotalSpaces(),
             freeSpaces,
             zones,
             spotResponses,
@@ -245,30 +250,110 @@ public class ParkService {
         );
     }
 
-    private List<ParkingLotDetailsResponse.ZoneResponse> fetchZones(UUID lotId, Map<ZoneType, Long> reservedCountByZone) {
-        return timescaleOccupancySnapshotRepository.latestByLot(lotId).stream()
-            .map(snapshot -> {
-                int sensorFree = Math.max(0, snapshot.totalCount() - snapshot.occupiedCount());
-                int reserved = reservedCountByZone.getOrDefault(snapshot.zoneType(), 0L).intValue();
-                int free = Math.max(0, sensorFree - reserved);
-                int effectiveOccupied = snapshot.totalCount() - free;
-                int pct = snapshot.totalCount() > 0
-                    ? (int) Math.round((double) effectiveOccupied / snapshot.totalCount() * 100)
+    private List<ParkingLotDetailsResponse.ZoneResponse> buildZonesFromSpotStatuses(
+        List<ParkingSpot> spots,
+        Map<UUID, String> statusBySpot
+    ) {
+        return spots.stream()
+            .collect(Collectors.groupingBy(ParkingSpot::getZone))
+            .entrySet().stream()
+            .sorted(Map.Entry.comparingByKey())
+            .map(entry -> {
+                int total = entry.getValue().size();
+                int free = (int) entry.getValue().stream()
+                    .map(spot -> statusBySpot.getOrDefault(spot.getId(), restoreSpotBaseStatus(spot)))
+                    .filter(this::countsAsFree)
+                    .count();
+                int occupied = total - free;
+                int pct = total > 0
+                    ? (int) Math.round((double) occupied / total * 100)
                     : 0;
-                return new ParkingLotDetailsResponse.ZoneResponse(
-                    snapshot.zoneType().name(), snapshot.totalCount(), free, pct
-                );
+                return new ParkingLotDetailsResponse.ZoneResponse(entry.getKey().name(), total, free, pct);
             })
             .toList();
     }
 
+    private Map<UUID, String> buildStatusBySpot(
+        List<ParkingSpot> spots,
+        List<Reservation> activeReservations,
+        List<ZoneSnapshot> snapshots,
+        OffsetDateTime now
+    ) {
+        Map<UUID, Reservation> activeReservationsBySpot = activeReservations.stream()
+            .collect(Collectors.toMap(
+                r -> r.getParkingSpot().getId(),
+                r -> r,
+                (left, right) -> left.getArrivalTime().isBefore(right.getArrivalTime()) ? left : right
+            ));
+
+        Map<UUID, String> statusBySpot = new java.util.HashMap<>();
+        for (ParkingSpot spot : spots) {
+            String status = deriveSpotStatus(spot, activeReservationsBySpot.get(spot.getId()), now);
+            statusBySpot.put(spot.getId(), status);
+        }
+
+        Map<ZoneType, ZoneSnapshot> snapshotByZone = snapshots.stream()
+            .collect(Collectors.toMap(ZoneSnapshot::zoneType, s -> s, (a, b) -> a));
+
+        Map<ZoneType, List<ParkingSpot>> freeSpotsByZone = spots.stream()
+            .filter(s -> isCandidateForSensorProjection(statusBySpot.get(s.getId())))
+            .collect(Collectors.groupingBy(ParkingSpot::getZone));
+
+        for (Map.Entry<ZoneType, ZoneSnapshot> entry : snapshotByZone.entrySet()) {
+            ZoneType zone = entry.getKey();
+            ZoneSnapshot snapshot = entry.getValue();
+            int alreadyUnavailableInZone = countUnavailableSpotsForZone(statusBySpot, zone, spots);
+            int sensorOccupied = snapshot.occupiedCount();
+            int unaccountedOccupied = Math.max(0, sensorOccupied - alreadyUnavailableInZone);
+
+            List<ParkingSpot> freeSpots = freeSpotsByZone.getOrDefault(zone, List.of()).stream()
+                .sorted(Comparator.comparing(ParkingSpot::getId))
+                .toList();
+
+            int toMark = Math.min(unaccountedOccupied, freeSpots.size());
+            for (int i = 0; i < toMark; i++) {
+                statusBySpot.put(freeSpots.get(i).getId(), STATUS_OCCUPIED);
+            }
+        }
+
+        return statusBySpot;
+    }
+
+    private int zoneTotal(List<ParkingLotDetailsResponse.ZoneResponse> zones, ZoneType zoneType) {
+        return zones.stream()
+            .filter(zone -> zone.zoneName().equalsIgnoreCase(zoneType.name()))
+            .mapToInt(ParkingLotDetailsResponse.ZoneResponse::total)
+            .sum();
+    }
+
+    private int zoneFree(List<ParkingLotDetailsResponse.ZoneResponse> zones, ZoneType zoneType) {
+        return zones.stream()
+            .filter(zone -> zone.zoneName().equalsIgnoreCase(zoneType.name()))
+            .mapToInt(ParkingLotDetailsResponse.ZoneResponse::free)
+            .sum();
+    }
+
+    private int countUnavailableSpotsForZone(Map<UUID, String> statusBySpot, ZoneType zone, List<ParkingSpot> spots) {
+        return (int) spots.stream()
+            .filter(spot -> spot.getZone() == zone)
+            .map(spot -> statusBySpot.getOrDefault(spot.getId(), restoreSpotBaseStatus(spot)))
+            .filter(status -> !countsAsFree(status))
+            .count();
+    }
+
+    private boolean countsAsFree(String status) {
+        return STATUS_FREE.equalsIgnoreCase(status)
+            || "ev".equalsIgnoreCase(status)
+            || "accessible".equalsIgnoreCase(status);
+    }
+
     private String deriveSpotStatus(ParkingSpot spot, Reservation reservation, OffsetDateTime now) {
         if (reservation == null) {
-            return normalizeSpotStatus(spot.getStatus());
+            return restoreSpotBaseStatus(spot);
         }
 
         if (now.isAfter(reservation.getDepartureTime())) {
-            return STATUS_FREE;
+            return restoreSpotBaseStatus(spot);
         }
 
         if (now.isBefore(reservation.getArrivalTime())) {
@@ -287,6 +372,19 @@ public class ParkService {
             case STATUS_FREE, STATUS_RESERVED, STATUS_OCCUPIED, "ev", "accessible" -> normalized;
             default -> STATUS_FREE;
         };
+    }
+
+    private String restoreSpotBaseStatus(ParkingSpot spot) {
+        if (spot.getZone() == ZoneType.EV) return "ev";
+        if (spot.getZone() == ZoneType.ACCESSIBLE) return "accessible";
+        return normalizeSpotStatus(spot.getStatus());
+    }
+
+    private boolean isCandidateForSensorProjection(String status) {
+        if (!StringUtils.hasText(status)) {
+            return true;
+        }
+        return !STATUS_RESERVED.equalsIgnoreCase(status) && !STATUS_OCCUPIED.equalsIgnoreCase(status);
     }
 
     private List<ParkingLotDetailsResponse.EVChargerResponse> fetchEVChargers(UUID lotId) {

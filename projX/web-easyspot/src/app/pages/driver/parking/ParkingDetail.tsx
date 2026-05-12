@@ -14,8 +14,10 @@ import { fetchParkDetails, fetchParkFavoriteStatus, toggleParkFavorite } from '.
 type Tab = 'general' | 'map' | 'ev' | 'accessibility' | 'tariffs';
 
 function getOccupancyStatus(availableSpots: number, totalSpots: number) {
-  const isFull = availableSpots === 0;
-  const isAlmostFull = !isFull && availableSpots <= Math.ceil(totalSpots * 0.2);
+  const safeTotal = Math.max(0, totalSpots);
+  const safeAvailable = Math.min(safeTotal, Math.max(0, availableSpots));
+  const isFull = safeAvailable === 0;
+  const isAlmostFull = !isFull && safeAvailable <= Math.ceil(safeTotal * 0.2);
 
   let statusHex = '#22c55e';
   let statusLabel = 'Disponível';
@@ -98,9 +100,11 @@ export function ParkingDetail() {
     );
   }
 
-  const occupied = lot.totalSpots - lot.availableSpots;
-  const occupancyPct = lot.totalSpots > 0 ? Math.round((occupied / lot.totalSpots) * 100) : 0;
-  const { isFull, isAlmostFull, statusHex, statusLabel } = getOccupancyStatus(lot.availableSpots, lot.totalSpots);
+  const totalSpots = Math.max(0, lot.totalSpots);
+  const availableSpots = Math.min(totalSpots, Math.max(0, lot.availableSpots));
+  const occupied = Math.max(0, totalSpots - availableSpots);
+  const occupancyPct = totalSpots > 0 ? Math.round((occupied / totalSpots) * 100) : 0;
+  const { isFull, isAlmostFull, statusHex, statusLabel } = getOccupancyStatus(availableSpots, totalSpots);
   const availableEV  = lot.evChargers?.filter((c) => c.available).length ?? 0;
   const availableAcc = lot.accessibleSpots?.filter((s) => s.available).length ?? 0;
 
@@ -167,10 +171,10 @@ export function ParkingDetail() {
               <div className="flex justify-between items-end mb-1">
                 <div>
                   <p className="text-white/60 text-xs uppercase font-bold mb-0.5">Livres</p>
-                  <p className="text-3xl font-black text-white leading-none">{lot.availableSpots}</p>
+                  <p className="text-3xl font-black text-white leading-none">{availableSpots}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-white/80 text-xs font-semibold mb-0.5">de {lot.totalSpots}</p>
+                  <p className="text-white/80 text-xs font-semibold mb-0.5">de {totalSpots}</p>
                   <p className="text-white text-lg font-bold" style={{ color: statusHex }}>{occupancyPct}%</p>
                 </div>
               </div>

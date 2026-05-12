@@ -40,23 +40,22 @@ async function reverseGeocode(lat: number, lng: number): Promise<string> {
 }
 
 function createDestinationIcon(isDark: boolean) {
-  const color = isDark ? '#a78bfa' : '#7357ec';
+  const color = isDark ? '#38bdf8' : '#0ea5e9';
   const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="44" viewBox="0 0 36 44">
+    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 44 44">
       <defs>
         <filter id="dshadow" x="-50%" y="-50%" width="200%" height="200%">
           <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="rgba(0,0,0,0.4)"/>
         </filter>
       </defs>
-      <path d="M18 2C10.268 2 4 8.268 4 16c0 10 14 26 14 26S32 26 32 16C32 8.268 25.732 2 18 2z"
-        fill="${color}" stroke="white" stroke-width="2.5" filter="url(#dshadow)"/>
-      <circle cx="18" cy="16" r="5" fill="white"/>
+      <circle cx="22" cy="22" r="15" fill="${color}" stroke="white" stroke-width="3" filter="url(#dshadow)"/>
+      <circle cx="22" cy="22" r="4.5" fill="white"/>
     </svg>`;
   return L.divIcon({
     html: svg,
-    iconSize: [36, 44],
-    iconAnchor: [18, 44],
-    popupAnchor: [0, -44],
+    iconSize: [36, 36],
+    iconAnchor: [18, 18],
+    popupAnchor: [0, -18],
     className: 'leaflet-destination-icon',
   });
 }

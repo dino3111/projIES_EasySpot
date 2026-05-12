@@ -23,8 +23,12 @@ Usage (Manual - if automatic setup fails):
 Optional env vars:
     AUTHENTIK_URL       Base URL of Authentik (default: http://localhost:9000)
     AUTHENTIK_TOKEN     API token (optional if auto-setup works)
+    APP_FRONTEND_URL    Public frontend URL used by Authentik launch links
+                        (default: http://localhost/)
     REDIRECT_URI        Frontend OAuth2 callback
-                        (default: http://localhost:5173/callback)
+                        (default: http://localhost/callback)
+    LOGOUT_REDIRECT_URI Frontend post-logout destination
+                        (default: http://localhost/welcome)
     BOOTSTRAP_ENV_FILE  Optional explicit .env file path to load first
     BOOTSTRAP_LOAD_PARENT_ENV
                         Set to 1/true to also load ../.env
@@ -40,7 +44,14 @@ import time
 import urllib.parse
 import zlib
 
-import requests  # type: ignore[import]
+try:
+    import requests  # type: ignore[import]
+except ModuleNotFoundError:
+    sys.exit(
+        "Missing Python dependency: requests\n"
+        "Install it with `python3 -m pip install requests`\n"
+        "or run the bootstrap through Docker Compose."
+    )
 
 
 def _load_env_file(env_path: str) -> None:
@@ -96,6 +107,8 @@ def _load_bootstrap_env() -> None:
 BASE_URL = ""
 TOKEN = ""
 REDIRECT_URI = ""
+LOGOUT_REDIRECT_URI = ""
+APP_FRONTEND_URL = ""
 _AUTHENTIK_HOST = ""
 ISSUER_URI = ""
 
@@ -104,6 +117,8 @@ def _refresh_runtime_config() -> None:
     global BASE_URL
     global TOKEN
     global REDIRECT_URI
+    global LOGOUT_REDIRECT_URI
+    global APP_FRONTEND_URL
     global _AUTHENTIK_HOST
     global ISSUER_URI
 
@@ -116,6 +131,10 @@ def _refresh_runtime_config() -> None:
         or ""
     )
     REDIRECT_URI = os.environ.get("REDIRECT_URI", "http://localhost/callback")
+    LOGOUT_REDIRECT_URI = os.environ.get(
+        "LOGOUT_REDIRECT_URI", "http://localhost/welcome"
+    )
+    APP_FRONTEND_URL = os.environ.get("APP_FRONTEND_URL", "http://localhost/")
     _AUTHENTIK_HOST = (
         os.environ.get("AUTHENTIK_URL", "http://localhost:9000")
         .rstrip("/")
@@ -382,13 +401,16 @@ def get_default_scope_mappings() -> list[str]:
     return pks
 
 
-def _build_redirect_uris(primary: str) -> list[dict]:
+def _build_redirect_uris(*candidates: str) -> list[dict]:
     uris = {
-        primary,
-        primary.replace(":5173", ""),
         "http://localhost",
         "http://localhost:5173",
     }
+    for candidate in candidates:
+        if not candidate:
+            continue
+        uris.add(candidate)
+        uris.add(candidate.replace(":5173", ""))
     return [{"matching_mode": "strict", "url": u} for u in uris if u]
 
 
@@ -439,7 +461,7 @@ def create_provider(groups_mapping_pk: str) -> str:
         "authorization_flow": authz_flow,
         "invalidation_flow": invalidation_flow,
         "client_type": "public",
-        "redirect_uris": _build_redirect_uris(REDIRECT_URI),
+        "redirect_uris": _build_redirect_uris(REDIRECT_URI, LOGOUT_REDIRECT_URI),
         "signing_key": signing_key_pk,
         "access_code_validity": "minutes=1",
         "access_token_validity": "hours=1",
@@ -454,7 +476,7 @@ def create_provider(groups_mapping_pk: str) -> str:
     results = existing.get("results", [])
     if results:
         pk_str = str(results[0]["pk"])
-        provider = api("PUT", f"/providers/oauth2/{pk_str}/", json=payload)
+        provider = api("PATCH", f"/providers/oauth2/{pk_str}/", json=payload)
     else:
         provider = api("POST", "/providers/oauth2/", json=payload)
 
@@ -469,19 +491,20 @@ def create_provider(groups_mapping_pk: str) -> str:
 
 def create_application(provider_pk: str) -> dict:
     print("Creating application...")
-    app, _ = get_or_create(
-        "/core/applications/",
-        "/core/applications/",
-        "slug",
-        APP_SLUG,
-        {
-            "name": APP_NAME,
-            "slug": APP_SLUG,
-            "provider": provider_pk,
-            "meta_launch_url": "http://localhost:5173",
-            "policy_engine_mode": "any",
-        },
-    )
+    payload = {
+        "name": APP_NAME,
+        "slug": APP_SLUG,
+        "provider": provider_pk,
+        "meta_launch_url": APP_FRONTEND_URL,
+        "policy_engine_mode": "any",
+    }
+    existing = api("GET", f"/core/applications/?slug={APP_SLUG}")
+    results = existing.get("results", [])
+    if results:
+        # Authentik updates applications by slug in this API version.
+        app = api("PUT", f"/core/applications/{APP_SLUG}/", json=payload)
+    else:
+        app = api("POST", "/core/applications/", json=payload)
     print(f"  Application slug='{app['slug']}'")
     return app
 
@@ -615,6 +638,7 @@ def print_summary(provider_pk: str) -> None:
     print(f"  Client ID:    {client_id}")
     print("  Client type:  public (PKCE)")
     print(f"  Redirect URI: {REDIRECT_URI}")
+    print(f"  Launch URL:   {APP_FRONTEND_URL}")
     print()
     print("Test users (all at http://localhost:9000):")
     for u in TEST_USERS:

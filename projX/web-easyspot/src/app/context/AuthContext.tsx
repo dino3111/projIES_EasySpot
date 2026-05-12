@@ -5,6 +5,7 @@ import type { AppProfile } from './ProfileContext';
 const AUTHENTIK_BASE = (import.meta.env.VITE_AUTHENTIK_URL ?? 'http://localhost/authentik').replaceAll(/\/$/g, '');
 const CLIENT_ID      = import.meta.env.VITE_AUTHENTIK_CLIENT_ID ?? '';
 const REDIRECT_URI   = import.meta.env.VITE_AUTHENTIK_REDIRECT_URI ?? 'http://localhost/callback';
+const LOGOUT_REDIRECT_URI = import.meta.env.VITE_AUTHENTIK_LOGOUT_REDIRECT_URI ?? new URL('/welcome', REDIRECT_URI).toString();
 
 const EXPECTED_ISSUERS = [
   `${AUTHENTIK_BASE}/application/o/easyspot/`,
@@ -24,6 +25,8 @@ const SK = {
 // PKCE values must survive redirects — use localStorage, not sessionStorage
 const PKCE_VERIFIER_KEY = 'es_pkce_verifier';
 const PKCE_STATE_KEY    = 'es_pkce_state';
+const REFRESH_WINDOW_MS = 2 * 60_000;
+const SESSION_EXPIRY_GRACE_MS = 30_000;
 
 export interface AuthUser {
   sub: string;
@@ -188,20 +191,30 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
 
   useEffect(() => {
     if (!accessToken) return;
+    let isRefreshing = false;
 
     const tick = async () => {
       const expMs = getTokenExpirationMs(sessionStorage.getItem(SK.accessToken) ?? accessToken);
       if (!expMs) return;
       const nowMs = Date.now();
       const msUntilExpiry = expMs - nowMs;
-      if (msUntilExpiry <= 60_000) {
+      if (msUntilExpiry > REFRESH_WINDOW_MS || isRefreshing) return;
+
+      isRefreshing = true;
+      try {
         const refreshed = await refreshAccessToken();
-        if (!refreshed) {
+        if (refreshed) return;
+
+        // Avoid dropping users on transient failures (network hiccup, slow auth server).
+        // Only force logout when the token has already expired beyond a grace period.
+        if (msUntilExpiry <= -SESSION_EXPIRY_GRACE_MS) {
           clearAuthStorage();
           setUser(null);
           setAccessToken(null);
           globalThis.location.href = '/welcome?session=expired';
         }
+      } finally {
+        isRefreshing = false;
       }
     };
 
@@ -217,8 +230,8 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
     const stateVal  = base64urlEncode(randomBytes(16));
     const challenge = base64urlEncode(await sha256(verifier));
 
-    localStorage.setItem(PKCE_VERIFIER_KEY, verifier);
-    localStorage.setItem(PKCE_STATE_KEY,    stateVal);
+    localStorage.setItem(SK.pkceVerifier, verifier);
+    localStorage.setItem(SK.pkceState,    stateVal);
 
     const params = new URLSearchParams({
       response_type:         'code',
@@ -238,8 +251,8 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
     const stateVal  = base64urlEncode(randomBytes(16));
     const challenge = base64urlEncode(await sha256(verifier));
 
-    localStorage.setItem(PKCE_VERIFIER_KEY, verifier);
-    localStorage.setItem(PKCE_STATE_KEY,    stateVal);
+    localStorage.setItem(SK.pkceVerifier, verifier);
+    localStorage.setItem(SK.pkceState,    stateVal);
 
     const authorizeParams = new URLSearchParams({
       response_type:         'code',
@@ -256,14 +269,14 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
   }, []);
 
   const handleCallback = useCallback(async (code: string, state: string) => {
-    const savedState   = localStorage.getItem(PKCE_STATE_KEY);
-    const codeVerifier = localStorage.getItem(PKCE_VERIFIER_KEY);
+    const savedState   = localStorage.getItem(SK.pkceState);
+    const codeVerifier = localStorage.getItem(SK.pkceVerifier);
 
     if (state !== savedState) throw new Error('State mismatch — possible CSRF');
     if (!codeVerifier)        throw new Error('Missing PKCE verifier');
 
-    localStorage.removeItem(PKCE_STATE_KEY);
-    localStorage.removeItem(PKCE_VERIFIER_KEY);
+    localStorage.removeItem(SK.pkceState);
+    localStorage.removeItem(SK.pkceVerifier);
 
     const body = new URLSearchParams({
       grant_type:    'authorization_code',
@@ -325,7 +338,8 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
     setUser(null);
     setAccessToken(null);
 
-    const params = new URLSearchParams({ post_logout_redirect_uri: `${globalThis.location.origin}/welcome` });
+    const params = new URLSearchParams({ post_logout_redirect_uri: LOGOUT_REDIRECT_URI });
+    if (CLIENT_ID) params.set('client_id', CLIENT_ID);
     if (idToken) params.set('id_token_hint', idToken);
     globalThis.location.href = `${LOGOUT_URL}?${params.toString()}`;
   }, []);

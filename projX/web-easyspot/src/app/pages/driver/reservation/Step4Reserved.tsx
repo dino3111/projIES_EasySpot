@@ -1,3 +1,4 @@
+import { Link } from 'react-router';
 import type { ParkingLot, ParkingSpot } from '../../../data/parkingTypes';
 import type { Vehicle } from '../../../context/ProfileContext';
 import { calcHours, fmtDateTime, fmtDuration, fmtCountdown } from './reservationHelpers';
@@ -228,10 +229,13 @@ export function Step4Reserved({
       )}
 
       <div className="flex flex-col sm:flex-row gap-3 w-full max-w-md">
-        <button onClick={onNavigate} className="btn btn-primary rounded-full flex-1 shadow-lg shadow-primary/30">
+        <Link to="/reservations" className="btn btn-primary rounded-full flex-1 shadow-lg shadow-primary/30">
+          <i className="fa-solid fa-bookmark mr-2" /> Minhas Reservas
+        </Link>
+        <button onClick={onNavigate} className="btn btn-outline btn-primary rounded-full flex-1">
           <i className="fa-solid fa-map-location-dot mr-2" /> Ver no Mapa
         </button>
-        <button onClick={onNewBooking} className="btn btn-outline btn-primary rounded-full flex-1">
+        <button onClick={onNewBooking} className="btn btn-ghost rounded-full flex-1">
           <i className="fa-solid fa-plus mr-2" /> Nova Reserva
         </button>
       </div>

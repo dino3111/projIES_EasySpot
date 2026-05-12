@@ -3,8 +3,10 @@ package pt.ua.deti.apieasyspot.notification.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,8 +25,16 @@ public class EmailDeliveryDedupService {
     private final NotificationEmailDeliveryRepository deliveryRepository;
     private final JavaMailSender mailSender;
 
+    @Value("${spring.mail.from:noreply@easyspot.pt}")
+    private String fromAddress;
+
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public boolean sendOnce(String deliveryKey, String category, String recipient, String subject, String body) {
+        return sendOnce(deliveryKey, category, recipient, subject, body, null);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public boolean sendOnce(String deliveryKey, String category, String recipient, String subject, String body, String htmlBody) {
         NotificationEmailDelivery delivery = deliveryRepository.findByDeliveryKey(deliveryKey)
             .orElseGet(() -> new NotificationEmailDelivery());
 
@@ -54,11 +64,22 @@ public class EmailDeliveryDedupService {
         }
 
         try {
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setTo(recipient);
-            message.setSubject(subject);
-            message.setText(body);
-            mailSender.send(message);
+            if (htmlBody != null && !htmlBody.isBlank()) {
+                var message = mailSender.createMimeMessage();
+                var helper = new MimeMessageHelper(message, true, "UTF-8");
+                helper.setFrom(fromAddress);
+                helper.setTo(recipient);
+                helper.setSubject(subject);
+                helper.setText(body, htmlBody);
+                mailSender.send(message);
+            } else {
+                SimpleMailMessage message = new SimpleMailMessage();
+                message.setFrom(fromAddress);
+                message.setTo(recipient);
+                message.setSubject(subject);
+                message.setText(body);
+                mailSender.send(message);
+            }
 
             delivery.setStatus(NotificationEmailDeliveryStatus.SENT);
             delivery.setSentAt(OffsetDateTime.now(ZoneOffset.UTC));

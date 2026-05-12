@@ -1,15 +1,15 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import type { ParkingLot, ParkingSpot } from '../../../data/parkingTypes';
 import { SPOT_FILTER_OPTIONS, isSpotSelectable, spotColorClasses, type SpotFilter } from './reservationHelpers';
 
 export function Step2SpotChoice({
-  lot, spotFilter, setSpotFilter,
+  lot, spotFilter, onSpotFilterChange,
   selectedFloorId, setSelectedFloorId,
   selectedSpotId, setSelectedSpotId,
   onNext, onBack,
 }: Readonly<{
   lot: ParkingLot;
-  spotFilter: SpotFilter; setSpotFilter: (f: SpotFilter) => void;
+  spotFilter: SpotFilter; onSpotFilterChange: (f: SpotFilter) => void;
   selectedFloorId: string; setSelectedFloorId: (id: string) => void;
   selectedSpotId: string; setSelectedSpotId: (id: string) => void;
   onNext: () => void; onBack: () => void;
@@ -25,11 +25,15 @@ export function Step2SpotChoice({
 
   const spotsByRow = useMemo(() => {
     if (!floor) return {};
-    return floor.spots.reduce((acc, spot) => {
+    const grouped = floor.spots.reduce((acc, spot) => {
       if (!acc[spot.row]) acc[spot.row] = [];
       acc[spot.row].push(spot);
       return acc;
     }, {} as Record<number, ParkingSpot[]>);
+    for (const row of Object.keys(grouped)) {
+      grouped[Number(row)].sort((a, b) => a.col - b.col);
+    }
+    return grouped;
   }, [floor]);
 
   const freeCounts = useMemo(() => {
@@ -39,6 +43,33 @@ export function Step2SpotChoice({
       return acc;
     }, {} as Record<string, number>);
   }, [floor]);
+  const selectableSpots = useMemo(
+    () => (floor?.spots ?? []).filter((spot) => isSpotSelectable(spot, spotFilter)),
+    [floor?.spots, spotFilter]
+  );
+
+  useEffect(() => {
+    if (!selectedSpotId && selectableSpots.length === 1) {
+      setSelectedSpotId(selectableSpots[0].id);
+    }
+  }, [selectableSpots, selectedSpotId, setSelectedSpotId]);
+
+  const pickBestSpot = () => {
+    if (!floor) return;
+    const byPriority = floor.spots.filter((spot) => isSpotSelectable(spot, spotFilter))
+      .sort((a, b) => {
+        if (a.row !== b.row) return a.row - b.row;
+        return a.col - b.col;
+      });
+    if (byPriority[0]) setSelectedSpotId(byPriority[0].id);
+  };
+  const isSpotMatchingFilter = (spot: ParkingSpot) => {
+    if (spotFilter === 'todos') return true;
+    if (spotFilter === 'ev') return spot.status === 'ev';
+    if (spotFilter === 'accessible') return spot.status === 'accessible';
+    if (spotFilter === 'standard') return spot.status === 'free' || spot.status === 'occupied' || spot.status === 'reserved';
+    return true;
+  };
 
   const rowLabel = (row: number) => String.fromCharCode(65 + row);
 
@@ -67,7 +98,7 @@ export function Step2SpotChoice({
               {SPOT_FILTER_OPTIONS.map(opt => (
                 <button
                   key={opt.key}
-                  onClick={() => { setSpotFilter(opt.key); setSelectedSpotId(''); }}
+                  onClick={() => { onSpotFilterChange(opt.key); setSelectedSpotId(''); }}
                   className={`btn btn-xs rounded-full gap-1 ${spotFilter === opt.key ? 'btn-primary' : 'btn-ghost text-base-content/60 hover:bg-base-300'}`}
                   aria-pressed={spotFilter === opt.key}
                 >
@@ -76,12 +107,27 @@ export function Step2SpotChoice({
               ))}
             </div>
             <div className="flex gap-3 text-xs text-base-content/60 flex-wrap">
-              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-success/80 inline-block" /> Livre ({freeCounts.free || 0})</span>
-              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-error/80 inline-block" /> Ocupado ({freeCounts.occupied || 0})</span>
-              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-warning inline-block" /> EV ({freeCounts.ev || 0})</span>
-              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-info inline-block" /> Acessível ({freeCounts.accessible || 0})</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-success border border-success-content/30 inline-block" /> Livre ({freeCounts.free || 0})</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-error border border-error-content/30 inline-block" /> Ocupado ({freeCounts.occupied || 0})</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm inline-block" style={{background:'#d97706'}} /> Reservado ({freeCounts.reserved || 0})</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-warning border border-warning-content/30 inline-block" /> EV ({freeCounts.ev || 0})</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-info border border-info-content/30 inline-block" /> Acessível ({freeCounts.accessible || 0})</span>
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-primary inline-block" /> Selecionado</span>
             </div>
+          </div>
+          <div className="mt-2 flex items-center justify-between gap-2 flex-wrap">
+            <span className="text-xs text-base-content/70">
+              {selectableSpots.length} lugar(es) disponível(is) para o filtro atual
+            </span>
+            <button
+              type="button"
+              onClick={pickBestSpot}
+              disabled={selectableSpots.length === 0}
+              className="btn btn-xs btn-outline btn-primary rounded-full"
+            >
+              <i className="fa-solid fa-wand-magic-sparkles mr-1" />
+              Escolher melhor disponível
+            </button>
           </div>
         </div>
       </div>
@@ -109,17 +155,24 @@ export function Step2SpotChoice({
                       const selectable = isSpotSelectable(spot, spotFilter);
                       const selected = spot.id === selectedSpotId;
                       const classes = spotColorClasses(spot, selected, selectable);
+                      const matchesFilter = isSpotMatchingFilter(spot);
                       const needsAisle = colIdx === Math.floor(spots.length / 2);
                       return (
                         <div key={spot.id} className="flex gap-0 items-center">
                           {needsAisle && <div className="w-4 shrink-0" aria-hidden="true" />}
                           <button
-                            onClick={() => selectable && setSelectedSpotId(selected ? '' : spot.id)}
-                            disabled={!selectable}
+                            onClick={() => {
+                              if (selected) {
+                                setSelectedSpotId('');
+                                return;
+                              }
+                              if (selectable) setSelectedSpotId(spot.id);
+                            }}
+                            disabled={!selectable && !selected}
                             title={`${spot.label} — ${spot.status}`}
                             aria-label={`Lugar ${spot.label}`}
                             aria-pressed={selected}
-                            className={`w-7 h-7 md:w-8 md:h-8 shrink-0 rounded border flex items-center justify-center text-[9px] md:text-[10px] font-bold transition-all duration-150 select-none focus:outline-none focus:ring-2 focus:ring-primary/50 ${classes}`}
+                            className={`w-7 h-7 md:w-8 md:h-8 shrink-0 rounded border flex items-center justify-center text-[9px] md:text-[10px] font-bold transition-all duration-150 select-none focus:outline-none focus:ring-2 focus:ring-primary/50 ${classes} ${!matchesFilter && !selected ? 'opacity-35 saturate-50' : ''}`}
                           >
                             {spotContent(spot, selected)}
                           </button>
@@ -131,6 +184,11 @@ export function Step2SpotChoice({
               })}
             </div>
           </div>
+          {spotFilter !== 'todos' && selectableSpots.length === 0 && (
+            <div className="mt-3 text-center text-xs text-base-content/65">
+              Não há lugares disponíveis para este filtro neste piso.
+            </div>
+          )}
 
           {selectedSpot && (
             <div className="mt-3 p-3 bg-primary/10 rounded-xl border border-primary/20 flex items-center gap-3">

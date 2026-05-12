@@ -36,13 +36,20 @@ export function TabMap({
             <div className="flex gap-2">
               <MapLegend hex="#22c55e" label="Livre" />
               <MapLegend hex="#ef4444" label="Ocup." />
+              <MapLegend hex="#d97706" label="Reserv." />
               <MapLegend hex="#7357ec" label="EV" />
               <MapLegend hex="#0ea5e9" label="Acess." />
             </div>
           </div>
           <div className="p-4 overflow-x-auto scrollbar-none flex justify-center bg-muted/10 overscroll-x-contain">
-            <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${activeFloor.cols}, 35px)` }}>
-              {activeFloor.spots.map((spot) => <SpotCell key={spot.id} spot={spot} />)}
+            <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${activeFloor.cols}, 35px)`, gridTemplateRows: `repeat(${activeFloor.rows}, 45px)` }}>
+              {[...activeFloor.spots]
+                .sort((a, b) => a.row !== b.row ? a.row - b.row : a.col - b.col)
+                .map((spot) => (
+                  <div key={spot.id} style={{ gridRow: spot.row + 1, gridColumn: spot.col + 1 }}>
+                    <SpotCell spot={spot} />
+                  </div>
+                ))}
             </div>
           </div>
         </div>
