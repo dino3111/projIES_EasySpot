@@ -19,6 +19,9 @@ import java.util.UUID;
 @Entity
 @Table(
     name = "reservations",
+    uniqueConstraints = {
+        @UniqueConstraint(name = "uq_reservations_user_idempotency", columnNames = {"user_id", "idempotency_key"})
+    },
     indexes = {
         @Index(name = "idx_res_user_id", columnList = "user_id"),
         @Index(name = "idx_res_parking_lot_id", columnList = "parking_lot_id"),
@@ -71,7 +74,7 @@ public class Reservation {
     private String bookingCode;
 
     // Optional idempotency support: same key → return existing reservation
-    @Column(unique = true, length = 255)
+    @Column(length = 255)
     private String idempotencyKey;
 
     @CreationTimestamp

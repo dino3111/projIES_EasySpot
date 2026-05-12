@@ -124,8 +124,8 @@ export async function fetchParkingPlanning(query: PlanningQuery): Promise<Planni
   });
   if (query.city) params.set('city', query.city);
 
-  if (query.isElectric !== undefined) params.set('isElectric', String(query.isElectric));
-  if (query.isAccessible !== undefined) params.set('isAccessible', String(query.isAccessible));
+  if (query.isElectric === true) params.set('isElectric', 'true');
+  if (query.isAccessible === true) params.set('isAccessible', 'true');
   if (query.maxDistanceMeters !== undefined) params.set('maxDistanceMeters', String(query.maxDistanceMeters));
   if (query.orderBy) {
     const orderByMap: Record<string, string> = { ratio: 'BEST', price: 'LOWEST_PRICE', distance: 'NEAREST' };

@@ -17,43 +17,76 @@ const FILTERS: { id: FilterType; icon: string; label: string }[] = [
 ];
 
 function getStatusInfo(lot: ParkingLot) {
-  const pct = lot.availableSpots / Math.max(1, lot.totalSpots);
-  if (lot.availableSpots === 0) return { label: 'Lotado',     hex: '#ef4444', iconCls: 'fa-circle-xmark',          labelColor: 'text-destructive' };
+  const total = Math.max(0, lot.totalSpots);
+  const available = Math.min(total, Math.max(0, lot.availableSpots));
+  const pct = available / Math.max(1, total);
+  if (available === 0) return { label: 'Lotado',     hex: '#ef4444', iconCls: 'fa-circle-xmark',          labelColor: 'text-destructive' };
   if (pct < 0.2)               return { label: 'Quase cheio', hex: '#f59e0b', iconCls: 'fa-triangle-exclamation', labelColor: 'text-warning' };
   return                              { label: 'Disponível', hex: '#22c55e', iconCls: 'fa-circle-check',          labelColor: 'text-success' };
 }
 
 export function MapPage() {
-  const { vehicles } = useProfile();
+  const { vehicles, driverType } = useProfile();
   const primaryVehicle = vehicles.find((v) => v.isPrimary) ?? vehicles[0] ?? null;
+  const initialFilter: FilterType =
+    driverType === 'ev'
+      ? 'ev'
+      : driverType === 'reduced_mobility'
+        ? 'accessible'
+        : 'all';
 
   const [parkingLots, setParkingLots] = useState<ParkingLot[]>([]);
   const [selectedLotId, setSelectedLotId] = useState<string | null>(null);
   const [selectedLotDetails, setSelectedLotDetails] = useState<ParkingLot | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeFilter, setActiveFilter] = useState<FilterType>('all');
+  const [activeFilter, setActiveFilter] = useState<FilterType>(initialFilter);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(primaryVehicle?.id ?? null);
   const [subscribeMessage, setSubscribeMessage] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+  const userSelectedVehicleRef = useRef(false);
+  const userChangedFilterRef = useRef(false);
 
   useEffect(() => {
     const vehicle = vehicles.find((v) => v.id === selectedVehicleId) ?? null;
+    if (userChangedFilterRef.current) return;
+    if (!userSelectedVehicleRef.current) {
+      if (driverType === 'ev') {
+        setActiveFilter('ev');
+        return;
+      }
+      if (driverType === 'reduced_mobility') {
+        setActiveFilter('accessible');
+        return;
+      }
+    }
     if (vehicle?.isEV) setActiveFilter('ev');
     else if (vehicle?.isAccessible) setActiveFilter('accessible');
     else if (vehicle) setActiveFilter('all');
-  }, [selectedVehicleId, vehicles]);
+  }, [selectedVehicleId, vehicles, driverType]);
+
+  const handleVehicleSelect = useCallback((id: string | null) => {
+    userSelectedVehicleRef.current = true;
+    userChangedFilterRef.current = false;
+    setSelectedVehicleId(id);
+  }, []);
+
+  const handleFilterChange = useCallback((f: FilterType) => {
+    userChangedFilterRef.current = true;
+    setActiveFilter(f);
+  }, []);
 
   useEffect(() => {
     let mounted = true;
     const load = async () => {
       try {
         setLoading(true);
+        const shouldUseVehicleCompatibility = activeFilter === 'ev' || activeFilter === 'accessible';
         const data = await fetchParksList({
           page: 1,
           pageSize: 200,
           textQuery: searchQuery || undefined,
-          vehicleId: selectedVehicleId,
+          vehicleId: shouldUseVehicleCompatibility ? selectedVehicleId : null,
           evOnly: activeFilter === 'ev',
           accessibleOnly: activeFilter === 'accessible',
           availableOnly: activeFilter === 'available',
@@ -125,9 +158,9 @@ export function MapPage() {
         searchRef={searchRef}
         vehicles={vehicles}
         selectedVehicleId={selectedVehicleId}
-        onVehicleSelect={setSelectedVehicleId}
+        onVehicleSelect={handleVehicleSelect}
         activeFilter={activeFilter}
-        onFilterChange={setActiveFilter}
+        onFilterChange={handleFilterChange}
         filteredCount={loading ? 0 : filteredLots.length}
         onSubscribeSelected={selectedLot ? () => void handleSubscribeSelected() : undefined}
         subscribeMessage={subscribeMessage}

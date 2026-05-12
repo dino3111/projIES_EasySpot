@@ -48,6 +48,26 @@ describe('Driver pages', () => {
     expect(screen.getByText(/1 parque encontrado/i)).toBeInTheDocument();
   });
 
+  it('ParkingListPage removes vehicle compatibility when EV filter is cleared', async () => {
+    parksApiMock.fetchParkCities.mockResolvedValue(['Coimbra']);
+    parksApiMock.fetchParksList.mockResolvedValue({ items: [baseLot], pagination: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 } });
+    render(<MemoryRouter><ParkingListPage /></MemoryRouter>);
+
+    await screen.findAllByText(/Parque Central/i);
+    fireEvent.click(screen.getByRole('button', { name: /Remover filtro: apenas com carregadores EV/i }));
+
+    await waitFor(() => expect(parksApiMock.fetchParksList).toHaveBeenLastCalledWith({
+      page: 1,
+      pageSize: 20,
+      textQuery: undefined,
+      city: undefined,
+      vehicleId: null,
+      evOnly: false,
+      accessibleOnly: false,
+      availableOnly: false,
+    }));
+  });
+
   it('ParkingDetail toggles favorite', async () => {
     parksApiMock.fetchParkDetails.mockResolvedValue(baseLot);
     parksApiMock.fetchParkFavoriteStatus.mockResolvedValue({ parkId: 'park-1', isFavorite: false });
@@ -66,6 +86,24 @@ describe('Driver pages', () => {
     expect(await screen.findByLabelText(/Detalhes de Parque Central/i)).toBeInTheDocument();
   });
 
+  it('MapPage all filter fetches all parks without vehicle compatibility', async () => {
+    parksApiMock.fetchParksList.mockResolvedValue({ items: [baseLot], pagination: { page: 1, pageSize: 200, totalItems: 1, totalPages: 1 } });
+    render(<MemoryRouter><MapPage /></MemoryRouter>);
+
+    await screen.findByText(/Leaflet Map Mock/i);
+    fireEvent.click(screen.getByRole('button', { name: /Todos/i }));
+
+    await waitFor(() => expect(parksApiMock.fetchParksList).toHaveBeenLastCalledWith({
+      page: 1,
+      pageSize: 200,
+      textQuery: undefined,
+      vehicleId: null,
+      evOnly: false,
+      accessibleOnly: false,
+      availableOnly: false,
+    }));
+  });
+
   it('FavoritesPage shows empty state', async () => {
     parksApiMock.fetchFavoriteParks.mockResolvedValue([]);
     render(<MemoryRouter><FavoritesPage /></MemoryRouter>);
@@ -77,5 +115,6 @@ describe('Driver pages', () => {
     render(<MemoryRouter><ProfilePage /></MemoryRouter>);
     expect(await screen.findByText(/Perfil/i)).toBeInTheDocument();
     expect(screen.getByText(/Ana Silva/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Reportar Problema/i })).toHaveAttribute('href', '/report');
   });
 });

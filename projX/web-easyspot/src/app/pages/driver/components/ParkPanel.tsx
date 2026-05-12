@@ -17,8 +17,10 @@ interface ParkPanelProps {
 
 export function ParkPanel({ lot, onClose, getStatusInfo, desktop = false }: ParkPanelProps) {
   const status = getStatusInfo(lot);
-  const occupied = lot.totalSpots - lot.availableSpots;
-  const occupancyPct = lot.totalSpots > 0 ? Math.round((occupied / lot.totalSpots) * 100) : 0;
+  const totalSpots = Math.max(0, lot.totalSpots);
+  const availableSpots = Math.min(totalSpots, Math.max(0, lot.availableSpots));
+  const occupied = Math.max(0, totalSpots - availableSpots);
+  const occupancyPct = totalSpots > 0 ? Math.round((occupied / totalSpots) * 100) : 0;
   const availableEV  = lot.evChargers?.filter((c) => c.available).length ?? 0;
   const totalEV      = lot.evChargers?.length ?? 0;
   const availableAcc = lot.accessibleSpots?.filter((s) => s.available).length ?? 0;
@@ -67,23 +69,20 @@ export function ParkPanel({ lot, onClose, getStatusInfo, desktop = false }: Park
         </div>
 
         <div className="grid grid-cols-3 gap-2">
-          <HeaderStat label="livres"      value={String(lot.availableSpots)} large />
+          <HeaderStat label="livres"      value={String(availableSpots)} large />
           <HeaderStat label="hora"        value={`€${lot.hourlyRate.toFixed(2)}`} />
           <HeaderStat label="máx diário"  value={`€${lot.dailyMax.toFixed(2)}`} />
         </div>
       </div>
 
       <div className={`px-4 py-4 flex-1 space-y-4 ${desktop ? '' : 'pb-8'}`}>
-        <OccupancyBar occupied={occupied} availableSpots={lot.availableSpots} totalSpots={lot.totalSpots} occupancyPct={occupancyPct} statusHex={status.hex} />
+        <OccupancyBar occupied={occupied} availableSpots={availableSpots} totalSpots={totalSpots} occupancyPct={occupancyPct} statusHex={status.hex} />
 
         <div className="grid grid-cols-2 gap-2">
           <InfoTile icon="fa-person-walking" label="A pé"     value={lot.walkingTime} />
           <InfoTile icon="fa-route"          label="Distância" value={lot.distance} />
           <InfoTile icon="fa-clock"          label="Horário"   value={lot.is24h ? '24h' : lot.openingHours} />
-          <InfoTile icon="fa-phone"          label="Contacto"  value={lot.phone} />
         </div>
-
-        <RatingRow rating={lot.rating} reviewCount={lot.reviewCount} />
 
         {(totalEV > 0 || totalAcc > 0) && (
           <EVAccessRow availableEV={availableEV} totalEV={totalEV} availableAcc={availableAcc} totalAcc={totalAcc} />
@@ -155,20 +154,6 @@ function InfoTile({ icon, label, value }: { icon: string; label: string; value: 
         <p className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold">{label}</p>
         <p className="font-black text-foreground text-xs truncate">{value}</p>
       </div>
-    </div>
-  );
-}
-
-function RatingRow({ rating, reviewCount }: { readonly rating: number; readonly reviewCount: number }) {
-  return (
-    <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-warning/5 border border-warning/20">
-      <div className="flex gap-0.5">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <i key={`star-${i}`} className={`fas fa-star text-[10px] ${i < Math.round(rating) ? 'text-warning' : 'text-muted'}`} aria-hidden="true" />
-        ))}
-      </div>
-      <span className="font-bold text-foreground text-xs">{rating}</span>
-      <span className="text-muted-foreground text-[10px] font-medium">({reviewCount} avaliações)</span>
     </div>
   );
 }

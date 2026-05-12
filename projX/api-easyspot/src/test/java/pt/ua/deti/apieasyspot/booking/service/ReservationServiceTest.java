@@ -9,10 +9,12 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.test.util.ReflectionTestUtils;
 import pt.ua.deti.apieasyspot.auth.model.User;
 import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
 import pt.ua.deti.apieasyspot.booking.dto.CreateReservationRequest;
 import pt.ua.deti.apieasyspot.booking.dto.ReservationResponse;
+import pt.ua.deti.apieasyspot.booking.dto.UpdateReservationRequest;
 import pt.ua.deti.apieasyspot.billing.service.BillingService;
 import pt.ua.deti.apieasyspot.booking.event.ReservationEventPublisher;
 import pt.ua.deti.apieasyspot.booking.model.Reservation;
@@ -59,6 +61,7 @@ class ReservationServiceTest {
     @Mock private BillingService billingService;
     @Mock private BookingConfirmationMailService confirmationMailService;
     @Mock private ReservationEventPublisher eventPublisher;
+    @Mock private ReservationRealtimeNotifier realtimeNotifier;
 
     @InjectMocks private ReservationService reservationService;
 
@@ -77,6 +80,7 @@ class ReservationServiceTest {
         user = new User();
         user.setId(UUID.randomUUID());
         user.setAuthentikUserId(AUTH_ID);
+        user.setEmail("driver@easyspot.test");
 
         lot = new ParkingLot();
         lot.setId(UUID.randomUUID());
@@ -135,7 +139,9 @@ class ReservationServiceTest {
     @DisplayName("create - idempotency key already used - returns existing reservation")
     void create_sameIdempotencyKey_returnsExisting() {
         Reservation existing = savedReservation();
-        when(reservationRepository.findByIdempotencyKey("idem-key-1")).thenReturn(Optional.of(existing));
+        when(userRepository.findByAuthentikUserId(AUTH_ID)).thenReturn(Optional.of(user));
+        when(reservationRepository.findByUserIdAndIdempotencyKey(user.getId(), "idem-key-1"))
+            .thenReturn(Optional.of(existing));
 
         ReservationResponse resp = reservationService.create(AUTH_ID, "idem-key-1", request(null));
 
@@ -194,6 +200,36 @@ class ReservationServiceTest {
             reservationService.create(AUTH_ID, null, req))
             .isInstanceOf(UnprocessableEntityException.class)
             .hasMessageContaining("opening hours");
+    }
+
+    @Test
+    @DisplayName("create - opening hours in 08h00-22h00 format are validated")
+    void create_hFormatOpeningHours_isValidated() {
+        stubUserAndLotAndVehicle();
+        lot.setOpeningHours("08h00-22h00");
+        OffsetDateTime lateArrival = ARRIVAL.withHour(23);
+        OffsetDateTime lateDeparture = lateArrival.plusMinutes(30);
+        CreateReservationRequest req = new CreateReservationRequest(
+            lot.getId(), vehicle.getId(), lateArrival.toString(), lateDeparture.toString(), null);
+
+        assertThatThrownBy(() -> reservationService.create(AUTH_ID, null, req))
+            .isInstanceOf(UnprocessableEntityException.class)
+            .hasMessageContaining("opening hours");
+    }
+
+    @Test
+    @DisplayName("create - non-24h reservation spanning multiple dates is rejected")
+    void create_multiDayNon24h_throwsUnprocessable() {
+        stubUserAndLotAndVehicle();
+        lot.setOpeningHours("20:00-06:00");
+        OffsetDateTime arrival = ARRIVAL.withHour(21);
+        OffsetDateTime departure = arrival.plusDays(1);
+        CreateReservationRequest req = new CreateReservationRequest(
+            lot.getId(), vehicle.getId(), arrival.toString(), departure.toString(), null);
+
+        assertThatThrownBy(() -> reservationService.create(AUTH_ID, null, req))
+            .isInstanceOf(UnprocessableEntityException.class)
+            .hasMessageContaining("spanning multiple dates");
     }
 
     // ── Conflict errors ─────────────────────────────────────────────────────
@@ -315,6 +351,198 @@ class ReservationServiceTest {
         assertThat(resp.estimatedCost()).isEqualByComparingTo("12.00");
     }
 
+    @Test
+    @DisplayName("list - returns reservations belonging to authenticated user")
+    void list_returnsUserReservations() {
+        Reservation reservation = savedReservation();
+        when(userRepository.findByAuthentikUserId(AUTH_ID)).thenReturn(Optional.of(user));
+        when(reservationRepository.findByUserIdOrderByCreatedAtDesc(user.getId()))
+            .thenReturn(List.of(reservation));
+
+        List<ReservationResponse> responses = reservationService.list(AUTH_ID);
+
+        assertThat(responses).hasSize(1);
+        assertThat(responses.getFirst().reservationId()).isEqualTo(reservation.getId());
+    }
+
+    @Test
+    @DisplayName("getById - owned reservation - returns details")
+    void getById_ownedReservation_returnsDetails() {
+        Reservation reservation = savedReservation();
+        when(userRepository.findByAuthentikUserId(AUTH_ID)).thenReturn(Optional.of(user));
+        when(reservationRepository.findByIdAndUserId(reservation.getId(), user.getId()))
+            .thenReturn(Optional.of(reservation));
+
+        ReservationResponse response = reservationService.getById(AUTH_ID, reservation.getId());
+
+        assertThat(response.reservationId()).isEqualTo(reservation.getId());
+        assertThat(response.bookingCode()).isEqualTo(reservation.getBookingCode());
+    }
+
+    @Test
+    @DisplayName("update - future confirmed reservation - updates times and spot")
+    void update_futureReservation_updatesReservation() {
+        ParkingSpot currentSpot = freeSpot();
+        ParkingSpot nextSpot = freeSpot();
+        nextSpot.setId(UUID.randomUUID());
+        nextSpot.setSpotNumber("A2");
+
+        Reservation reservation = savedReservation();
+        reservation.setUser(user);
+        reservation.setParkingSpot(currentSpot);
+
+        UpdateReservationRequest request = new UpdateReservationRequest(
+            lot.getId(),
+            vehicle.getId(),
+            ARRIVAL.plusHours(1).toString(),
+            DEPARTURE.plusHours(1).toString(),
+            nextSpot.getId()
+        );
+
+        when(userRepository.findByAuthentikUserId(AUTH_ID)).thenReturn(Optional.of(user));
+        when(reservationRepository.expireTimedOutLocks(any(), eq(ReservationStatus.CONFIRMED), eq(ReservationStatus.EXPIRED)))
+            .thenReturn(0);
+        when(reservationRepository.findByIdAndUserId(reservation.getId(), user.getId()))
+            .thenReturn(Optional.of(reservation));
+        when(parkingLotRepository.findById(lot.getId())).thenReturn(Optional.of(lot));
+        when(vehicleRepository.findByIdAndUserId(vehicle.getId(), user.getId())).thenReturn(Optional.of(vehicle));
+        when(occupancySnapshotRepository.sumFreeSpacesFromLatestSnapshot(lot.getId())).thenReturn(-1);
+        when(reservationRepository.countLotReservationsExcludingReservation(eq(lot.getId()), eq(reservation.getId()), any(), any()))
+            .thenReturn(0L);
+        when(reservationRepository.countVehicleConflictsExcludingReservation(eq(vehicle.getId()), eq(lot.getId()), eq(reservation.getId()), any(), any()))
+            .thenReturn(0L);
+        when(reservationRepository.spotBelongsToPark(nextSpot.getId(), lot.getId())).thenReturn(true);
+        when(parkingSpotRepository.findByIdWithLock(nextSpot.getId())).thenReturn(Optional.of(nextSpot));
+        when(reservationRepository.countSpotConflictsExcludingReservation(eq(nextSpot.getId()), eq(reservation.getId()), any(), any()))
+            .thenReturn(0L);
+        when(tariffRepository.findByParkingLotId(lot.getId())).thenReturn(List.of(tariff));
+        when(reservationRepository.save(any(Reservation.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        pt.ua.deti.apieasyspot.booking.dto.ReservationUpdateResponse updateResponse =
+            reservationService.update(AUTH_ID, reservation.getId(), request);
+        ReservationResponse response = updateResponse.reservation();
+
+        assertThat(response.spotId()).isEqualTo(nextSpot.getId());
+        assertThat(response.arrivalDateTime()).isEqualTo(ARRIVAL.plusHours(1));
+        verify(parkingSpotRepository).save(currentSpot);
+        verify(parkingSpotRepository).save(nextSpot);
+    }
+
+    @Test
+    @DisplayName("update - extra charge declined - throws UnprocessableEntityException")
+    void update_chargeDeclined_throwsUnprocessableEntity() {
+        ParkingSpot currentSpot = freeSpot();
+        Reservation reservation = savedReservation();
+        reservation.setUser(user);
+        reservation.setParkingSpot(currentSpot);
+        reservation.setEstimatedCost(new BigDecimal("3.00"));
+        ReflectionTestUtils.setField(reservationService, "reservationBillingEnabled", true);
+
+        UpdateReservationRequest request = new UpdateReservationRequest(
+            lot.getId(),
+            vehicle.getId(),
+            ARRIVAL.plusHours(2).toString(),
+            DEPARTURE.plusHours(3).toString(),
+            currentSpot.getId()
+        );
+
+        when(userRepository.findByAuthentikUserId(AUTH_ID)).thenReturn(Optional.of(user));
+        when(reservationRepository.expireTimedOutLocks(any(), eq(ReservationStatus.CONFIRMED), eq(ReservationStatus.EXPIRED)))
+            .thenReturn(0);
+        when(reservationRepository.findByIdAndUserId(reservation.getId(), user.getId()))
+            .thenReturn(Optional.of(reservation));
+        when(parkingLotRepository.findById(lot.getId())).thenReturn(Optional.of(lot));
+        when(vehicleRepository.findByIdAndUserId(vehicle.getId(), user.getId())).thenReturn(Optional.of(vehicle));
+        when(occupancySnapshotRepository.sumFreeSpacesFromLatestSnapshot(lot.getId())).thenReturn(-1);
+        when(reservationRepository.countLotReservationsExcludingReservation(eq(lot.getId()), eq(reservation.getId()), any(), any()))
+            .thenReturn(0L);
+        when(reservationRepository.countVehicleConflictsExcludingReservation(eq(vehicle.getId()), eq(lot.getId()), eq(reservation.getId()), any(), any()))
+            .thenReturn(0L);
+        when(reservationRepository.spotBelongsToPark(currentSpot.getId(), lot.getId())).thenReturn(true);
+        when(parkingSpotRepository.findByIdWithLock(currentSpot.getId())).thenReturn(Optional.of(currentSpot));
+        when(reservationRepository.countSpotConflictsExcludingReservation(eq(currentSpot.getId()), eq(reservation.getId()), any(), any()))
+            .thenReturn(0L);
+        when(tariffRepository.findByParkingLotId(lot.getId())).thenReturn(List.of(tariff));
+        when(reservationRepository.save(any(Reservation.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(billingService.adjustPaymentForReservation(any(Reservation.class), any(BigDecimal.class), any(BigDecimal.class), anyString()))
+            .thenReturn(new BillingService.PaymentAdjustmentResult(
+                new BigDecimal("1.50"),
+                "CHARGE_FAILED",
+                null,
+                "card_declined"
+            ));
+
+        assertThatThrownBy(() -> reservationService.update(AUTH_ID, reservation.getId(), request))
+            .isInstanceOf(UnprocessableEntityException.class)
+            .hasMessageContaining("cartão guardado foi recusado");
+
+        verify(confirmationMailService, never()).sendUpdate(any(), any(), any(), any(), any(), any());
+        verify(realtimeNotifier, never()).notifyUpdated(any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("update - reservation after arrival - throws ConflictException")
+    void update_startedReservation_throwsConflict() {
+        Reservation reservation = savedReservation();
+        reservation.setUser(user);
+        reservation.setArrivalTime(OffsetDateTime.now(ZoneOffset.UTC).minusMinutes(5));
+        reservation.setDepartureTime(OffsetDateTime.now(ZoneOffset.UTC).plusHours(1));
+
+        when(userRepository.findByAuthentikUserId(AUTH_ID)).thenReturn(Optional.of(user));
+        when(reservationRepository.expireTimedOutLocks(any(), eq(ReservationStatus.CONFIRMED), eq(ReservationStatus.EXPIRED)))
+            .thenReturn(0);
+        when(reservationRepository.findByIdAndUserId(reservation.getId(), user.getId()))
+            .thenReturn(Optional.of(reservation));
+
+        UpdateReservationRequest request = new UpdateReservationRequest(
+            lot.getId(), vehicle.getId(), ARRIVAL.toString(), DEPARTURE.toString(), null);
+
+        assertThatThrownBy(() -> reservationService.update(AUTH_ID, reservation.getId(), request))
+            .isInstanceOf(ConflictException.class)
+            .hasMessageContaining("can no longer be updated");
+    }
+
+    @Test
+    @DisplayName("cancel - future confirmed reservation - marks reservation cancelled")
+    void cancel_futureReservation_marksCancelled() {
+        ParkingSpot currentSpot = freeSpot();
+        Reservation reservation = savedReservation();
+        reservation.setUser(user);
+        reservation.setParkingSpot(currentSpot);
+
+        when(userRepository.findByAuthentikUserId(AUTH_ID)).thenReturn(Optional.of(user));
+        when(reservationRepository.expireTimedOutLocks(any(), eq(ReservationStatus.CONFIRMED), eq(ReservationStatus.EXPIRED)))
+            .thenReturn(0);
+        when(reservationRepository.findByIdAndUserId(reservation.getId(), user.getId()))
+            .thenReturn(Optional.of(reservation));
+        when(reservationRepository.save(any(Reservation.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        ReservationResponse response = reservationService.cancel(AUTH_ID, reservation.getId());
+
+        assertThat(response.status()).isEqualTo(ReservationStatus.CANCELLED.name());
+        assertThat(reservation.getLockedUntil()).isNull();
+        verify(parkingSpotRepository).save(currentSpot);
+        verify(eventPublisher).publishCancelled(reservation);
+    }
+
+    @Test
+    @DisplayName("cancel - already cancelled reservation - throws ConflictException")
+    void cancel_terminalReservation_throwsConflict() {
+        Reservation reservation = savedReservation();
+        reservation.setUser(user);
+        reservation.setStatus(ReservationStatus.CANCELLED);
+
+        when(userRepository.findByAuthentikUserId(AUTH_ID)).thenReturn(Optional.of(user));
+        when(reservationRepository.expireTimedOutLocks(any(), eq(ReservationStatus.CONFIRMED), eq(ReservationStatus.EXPIRED)))
+            .thenReturn(0);
+        when(reservationRepository.findByIdAndUserId(reservation.getId(), user.getId()))
+            .thenReturn(Optional.of(reservation));
+
+        assertThatThrownBy(() -> reservationService.cancel(AUTH_ID, reservation.getId()))
+            .isInstanceOf(ConflictException.class)
+            .hasMessageContaining("Only confirmed reservations");
+    }
+
     // ── Lock expiry ──────────────────────────────────────────────────────────
 
     @Test
@@ -353,11 +581,9 @@ class ReservationServiceTest {
             .thenReturn(vehicleConflicts);
         when(occupancySnapshotRepository.sumFreeSpacesFromLatestSnapshot(lot.getId())).thenReturn(-1);
         when(tariffRepository.findByParkingLotId(lot.getId())).thenReturn(List.of(tariff));
-        when(parkingSpotRepository.findByParkingLotIdAndStatus(eq(lot.getId()), eq("free")))
-            .thenReturn(freeSpots);
-        if (!freeSpots.isEmpty()) {
-            when(reservationRepository.countSpotConflicts(any(), any(), any())).thenReturn(spotConflicts);
-        }
+        Optional<ParkingSpot> first = freeSpots.isEmpty() ? Optional.empty() : Optional.of(freeSpots.get(0));
+        when(parkingSpotRepository.findFirstFreeByParkingLotIdForUpdateSkipLocked(
+            eq(lot.getId()), eq("free"), any(), any())).thenReturn(first);
     }
 
     private void stubSave() {

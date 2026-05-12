@@ -42,8 +42,10 @@ function createParkingIcon(color: string, isSelected: boolean) {
 }
 
 function getPinColor(lot: ParkingLot): string {
-  const pct = lot.availableSpots / lot.totalSpots;
-  if (lot.availableSpots === 0) return '#ef4444';
+  const total = Math.max(0, lot.totalSpots);
+  const available = Math.min(total, Math.max(0, lot.availableSpots));
+  const pct = available / Math.max(1, total);
+  if (available === 0) return '#ef4444';
   if (pct < 0.2) return '#f59e0b';
   return '#22c55e';
 }

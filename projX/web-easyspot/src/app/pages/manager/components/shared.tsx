@@ -92,21 +92,26 @@ export function OccBar({ pct }: { readonly pct: number }) {
 }
 
 export function TabBtn({
-  active, onClick, icon, label, badge,
+  active, onClick, icon, label, badge, disabled = false,
 }: {
   readonly active: boolean;
   readonly onClick: () => void;
   readonly icon: string;
   readonly label: string;
   readonly badge?: number;
+  readonly disabled?: boolean;
 }) {
   return (
     <button
       role="tab"
       aria-selected={active}
+      aria-disabled={disabled}
       onClick={onClick}
+      disabled={disabled}
       className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg transition-colors relative ${
-        active ? 'bg-primary text-white shadow-sm' : 'text-muted-foreground hover:text-foreground'
+        disabled
+          ? 'text-muted-foreground/50 cursor-not-allowed'
+          : active ? 'bg-primary text-white shadow-sm' : 'text-muted-foreground hover:text-foreground'
       }`}
       style={{ fontSize: '0.8rem', fontWeight: 600 }}
     >
