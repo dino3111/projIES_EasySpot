@@ -17,9 +17,10 @@ const driverNav: NavItem[] = [
 ];
 
 const managerNav: NavItem[] = [
-  { path: '/manager/dashboard',          icon: 'fa-chart-line',         label: 'Painel de Desempenho',    exact: true },
+  { path: '/manager/dashboard',          icon: 'fa-chart-line',          label: 'Painel de Desempenho',   exact: true },
   { path: '/manager/tariffs-incidents',  icon: 'fa-file-invoice-dollar', label: 'Tarifas & Ocorrências',  exact: false },
-  { path: '/profile',                    icon: 'fa-gear',               label: 'Definições',              exact: false },
+  { path: '/manager/parks',              icon: 'fa-parking',             label: 'Parques',                exact: false },
+  { path: '/profile',                    icon: 'fa-gear',                label: 'Definições',             exact: false },
 ];
 
 const technicianNav: NavItem[] = [

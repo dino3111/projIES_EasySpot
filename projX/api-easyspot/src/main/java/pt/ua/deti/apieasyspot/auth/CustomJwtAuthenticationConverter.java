@@ -49,6 +49,9 @@ public class CustomJwtAuthenticationConverter implements Converter<Jwt, Abstract
             : "DRIVER";
 
         var existing = userRepository.findByAuthentikUserId(subject);
+        if (existing.isEmpty() && email != null) {
+            existing = userRepository.findByEmail(email);
+        }
         if (existing.isEmpty() && (email == null || name == null)) {
             return;
         }

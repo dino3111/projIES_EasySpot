@@ -19,9 +19,11 @@ const SK = {
   accessToken:  'es_access_token',
   idToken:      'es_id_token',
   refreshToken: 'es_refresh_token',
-  pkceVerifier: 'es_pkce_verifier',
-  pkceState:    'es_pkce_state',
 } as const;
+
+// PKCE values must survive redirects — use localStorage, not sessionStorage
+const PKCE_VERIFIER_KEY = 'es_pkce_verifier';
+const PKCE_STATE_KEY    = 'es_pkce_state';
 
 export interface AuthUser {
   sub: string;
@@ -215,8 +217,8 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
     const stateVal  = base64urlEncode(randomBytes(16));
     const challenge = base64urlEncode(await sha256(verifier));
 
-    sessionStorage.setItem(SK.pkceVerifier, verifier);
-    sessionStorage.setItem(SK.pkceState,    stateVal);
+    localStorage.setItem(PKCE_VERIFIER_KEY, verifier);
+    localStorage.setItem(PKCE_STATE_KEY,    stateVal);
 
     const params = new URLSearchParams({
       response_type:         'code',
@@ -236,8 +238,8 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
     const stateVal  = base64urlEncode(randomBytes(16));
     const challenge = base64urlEncode(await sha256(verifier));
 
-    sessionStorage.setItem(SK.pkceVerifier, verifier);
-    sessionStorage.setItem(SK.pkceState,    stateVal);
+    localStorage.setItem(PKCE_VERIFIER_KEY, verifier);
+    localStorage.setItem(PKCE_STATE_KEY,    stateVal);
 
     const authorizeParams = new URLSearchParams({
       response_type:         'code',
@@ -254,14 +256,14 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
   }, []);
 
   const handleCallback = useCallback(async (code: string, state: string) => {
-    const savedState   = sessionStorage.getItem(SK.pkceState);
-    const codeVerifier = sessionStorage.getItem(SK.pkceVerifier);
+    const savedState   = localStorage.getItem(PKCE_STATE_KEY);
+    const codeVerifier = localStorage.getItem(PKCE_VERIFIER_KEY);
 
     if (state !== savedState) throw new Error('State mismatch — possible CSRF');
     if (!codeVerifier)        throw new Error('Missing PKCE verifier');
 
-    sessionStorage.removeItem(SK.pkceState);
-    sessionStorage.removeItem(SK.pkceVerifier);
+    localStorage.removeItem(PKCE_STATE_KEY);
+    localStorage.removeItem(PKCE_VERIFIER_KEY);
 
     const body = new URLSearchParams({
       grant_type:    'authorization_code',

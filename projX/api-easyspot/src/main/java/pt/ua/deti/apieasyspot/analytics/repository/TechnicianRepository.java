@@ -1,6 +1,5 @@
 package pt.ua.deti.apieasyspot.analytics.repository;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -18,15 +17,21 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Repository
-@RequiredArgsConstructor
 public class TechnicianRepository {
 
-    private final @Qualifier("jdbcTemplate") JdbcTemplate jdbc;
-    private final @Qualifier("timescaleJdbcTemplate") JdbcTemplate timescaleJdbc;
+    private final JdbcTemplate jdbc;
+    private final JdbcTemplate timescaleJdbc;
+
+    public TechnicianRepository(
+            @Qualifier("jdbcTemplate") JdbcTemplate jdbc,
+            @Qualifier("timescaleJdbcTemplate") JdbcTemplate timescaleJdbc) {
+        this.jdbc = jdbc;
+        this.timescaleJdbc = timescaleJdbc;
+    }
 
     // ── helpers ──────────────────────────────────────────────────────────────
 
-    /** Builds "AND sr.parking_lot_id IN (?::uuid, ?::uuid, ...)" or empty string. */
+    /** Builds "AND col IN (?::uuid, ?::uuid, ...)" or an empty string. */
     private String parkFilter(List<UUID> parkIds, String col) {
         if (parkIds == null || parkIds.isEmpty()) return "";
         String placeholders = parkIds.stream().map(id -> "?::uuid").collect(Collectors.joining(","));
@@ -34,10 +39,11 @@ public class TechnicianRepository {
     }
 
     private Object[] parkParams(List<UUID> parkIds) {
+        if (parkIds == null || parkIds.isEmpty()) return new Object[0];
         return parkIds.stream().map(UUID::toString).toArray();
     }
 
-    // ── sensor counts ─────────────────────────────────────────────────────────
+    // ── sensor counts ────────────────────────────────────────────────────────
 
     public int countTotalSensors(List<UUID> parkIds) {
         String sql = "SELECT count(*) FROM sensor_registry WHERE 1=1" + parkFilter(parkIds, "parking_lot_id");
@@ -123,7 +129,7 @@ public class TechnicianRepository {
 
         int total = countTotalSensors(parkIds);
 
-        return jdbc.query(
+        return timescaleJdbc.query(
             """
             SELECT generate_series(
                 (current_date - 6)::timestamp,
@@ -184,17 +190,28 @@ public class TechnicianRepository {
         return timescaleJdbc.query(
             sql,
             parkParams(parkIds),
-            (rs, rowNum) -> new WorkOrderSummary(
-                UUID.fromString(rs.getString("id")),
-                rs.getString("type").toLowerCase(Locale.ROOT),
-                parkNames.getOrDefault(UUID.fromString(rs.getString("parking_lot_id")), "Unknown"),
-                rs.getString("zone"),
-                rs.getString("sensor_id"),
-                rs.getString("description"),
-                rs.getString("severity").toLowerCase(Locale.ROOT),
-                rs.getString("state").toLowerCase(Locale.ROOT).replace("_", "-"),
-                rs.getTimestamp("created_at").toInstant().atOffset(ZoneOffset.UTC),
-                rs.getString("attributed_to")));
+            (rs, rowNum) -> {
+                String parkingLotIdStr = rs.getString("parking_lot_id");
+                String parkName = "Unknown";
+                if (parkingLotIdStr != null) {
+                    try {
+                        parkName = parkNames.getOrDefault(UUID.fromString(parkingLotIdStr), "Unknown");
+                    } catch (IllegalArgumentException ignored) {
+                        // malformed UUID in DB - fall back to "Unknown"
+                    }
+                }
+                return new WorkOrderSummary(
+                    UUID.fromString(rs.getString("id")),
+                    rs.getString("type").toLowerCase(Locale.ROOT),
+                    parkName,
+                    rs.getString("zone"),
+                    rs.getString("sensor_id"),
+                    rs.getString("description"),
+                    rs.getString("severity").toLowerCase(Locale.ROOT),
+                    rs.getString("state").toLowerCase(Locale.ROOT).replace("_", "-"),
+                    rs.getTimestamp("created_at").toInstant().atOffset(ZoneOffset.UTC),
+                    rs.getString("attributed_to"));
+            });
     }
 
     private String statusLabel(String status) {

@@ -1,6 +1,5 @@
 package pt.ua.deti.apieasyspot.auth.repository;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.dao.DataAccessException;
@@ -13,15 +12,19 @@ import java.math.RoundingMode;
 import java.util.UUID;
 
 @Repository
-@RequiredArgsConstructor
 @Slf4j
 public class ProfileRepository {
 
-    private final @Qualifier("timescaleJdbcTemplate") JdbcTemplate jdbc;
+    private final JdbcTemplate timescaleJdbc;
+
+    public ProfileRepository(
+            @Qualifier("timescaleJdbcTemplate") JdbcTemplate timescaleJdbc) {
+        this.timescaleJdbc = timescaleJdbc;
+    }
 
     public SpendingSummary spendingSummary(UUID userId) {
         try {
-            return jdbc.queryForObject(
+            return timescaleJdbc.queryForObject(
                 """
                 select coalesce(sum(revenue_euros), 0) as total,
                        count(*) as sessions
@@ -46,7 +49,7 @@ public class ProfileRepository {
     }
 
     public long countAssignedTasks(String authentikUserId) {
-        Long result = jdbc.queryForObject(
+        Long result = timescaleJdbc.queryForObject(
             """
             select count(*) from alerts
             where attributed_to = ?
