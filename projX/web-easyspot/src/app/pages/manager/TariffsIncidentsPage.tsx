@@ -121,7 +121,7 @@ export function TariffsIncidentsPage() {
 
   useEffect(() => {
     setLoading(true);
-    Promise.allSettled([
+    Promise.all([
       fetchManagerTariffs(),
       fetchManagerAlerts(),
       fetchManagerBilling(),
