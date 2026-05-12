@@ -44,7 +44,7 @@ values
     null,
     'Lugar detetado como livre após 3h de ocupação'
     ' (falso-negativo). Recalibrado.',
-    null, 'Laura Farias', 'Recalibração automática bem-sucedida.',
+    null, 'Rui Ferreira', 'Recalibração automática bem-sucedida.',
     now() - interval '2 days',
     now() - interval '1 day 20 hours'
 ),
@@ -58,7 +58,7 @@ values
     'Piso -1 – Mobilidade Reduzida', 'MR-02', 'IR-CO1-MR02',
     null,
     'Potência IR reduzida a 25% da nominal.',
-    null, 'Laura Farias', null,
+    null, 'Rui Ferreira', null,
     now() - interval '4 days',
     now() - interval '3 days 22 hours'
 ),
@@ -86,7 +86,7 @@ values
     'Sala Técnica', null, 'GW-CO1-01',
     null,
     'Atualização de firmware GW v5.0.1→v5.0.2 concluída com sucesso.',
-    null, 'Laura Farias', null,
+    null, 'Rui Ferreira', null,
     now() - interval '10 days',
     now() - interval '10 days' + interval '30 minutes'
 ),
@@ -117,7 +117,7 @@ values
     null,
     'Taxa de leitura de matrículas caiu para 60%'
     ' (normal >95%). Lente com sujidade.',
-    null, 'Laura Farias', 'Lente limpa. Taxa regressou a 97%.',
+    null, 'Rui Ferreira', 'Lente limpa. Taxa regressou a 97%.',
     now() - interval '5 days',
     now() - interval '5 days' + interval '3 hours'
 ),
@@ -131,7 +131,7 @@ values
     'Sala Técnica', null, 'GW-CO2-01',
     null,
     'Latência de rede >500ms detetada. Gateway reiniciado.',
-    null, 'Laura Farias', null,
+    null, 'Rui Ferreira', null,
     now() - interval '12 days',
     now() - interval '12 days' + interval '15 minutes'
 ),
@@ -161,7 +161,7 @@ values
     'Piso 0 – Zona B', 'B7', 'IR-AV1-B07',
     null,
     'Sinal IR abaixo do limiar mínimo (18% vs 40% esperado).',
-    null, 'Laura Farias', 'Emissor IR substituído.',
+    null, 'Test Technical', 'Emissor IR substituído.',
     now() - interval '2 days',
     now() - interval '1 day 18 hours'
 ),
@@ -204,7 +204,7 @@ values
     'Sala Técnica', null, 'GW-AV1-01',
     null,
     'Atualização de firmware GW v5.0.1→v5.0.2 concluída com sucesso.',
-    null, 'Laura Farias', null,
+    null, 'Test Technical', null,
     now() - interval '14 days',
     now() - interval '14 days' + interval '20 minutes'
 ),
@@ -280,7 +280,7 @@ values
     null,
     'Falso-positivo: lugar A02 reportado como ocupado'
     ' durante 40 min sem veículo.',
-    null, 'Laura Farias', 'Recalibração do limiar de deteção.',
+    null, 'Rui Ferreira', 'Recalibração do limiar de deteção.',
     now() - interval '10 days',
     now() - interval '10 days' + interval '1 hour'
 ),
@@ -294,7 +294,7 @@ values
     'Sala Técnica', null, 'GW-LE1-01',
     null,
     'Atualização de firmware GW v4.9.0→v5.0.2 aplicada.',
-    null, 'Laura Farias', null,
+    null, 'Rui Ferreira', null,
     now() - interval '20 days',
     now() - interval '20 days' + interval '45 minutes'
 ),
@@ -311,7 +311,7 @@ values
     null,
     'Gateway em modo de manutenção'
     ' para atualização de firmware v5.0.1→v5.0.2.',
-    null, 'Laura Farias', 'Atualização em curso.',
+    null, 'Test Technical', 'Atualização em curso.',
     now() - interval '45 minutes', null
 ),
 

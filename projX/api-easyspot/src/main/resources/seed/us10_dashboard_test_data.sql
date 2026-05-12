@@ -334,7 +334,7 @@ VALUES
     'CRITICAL',
     'IN_PROGRESS',
     now() - interval '12 hours',
-    'Laura Farias',
+    'Test Technical',
     'Técnico a caminho.'
 ),
 (

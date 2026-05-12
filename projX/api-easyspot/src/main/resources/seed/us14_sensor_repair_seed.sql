@@ -48,7 +48,7 @@ values
     'Piso 0 – Zona B', 'B9', 'IR-AV1-B09',
     null,
     'Sensor IR-AV1-B09 em manutenção programada. Substituição de emissor IR.',
-    null, 'Laura Farias', 'Peça encomendada. ETA: 24h.',
+    null, 'Test Technical', 'Peça encomendada. ETA: 24h.',
     now() - interval '1 hour', null
 ),
 -- Historical alert: previous failure that triggered the repair
@@ -60,7 +60,7 @@ values
     'Piso 0 – Zona B', 'B9', 'IR-AV1-B09',
     null,
     'Sensor IR-AV1-B09 sem leituras há >3h. Emissor IR queimado.',
-    null, 'Laura Farias', 'Colocado em manutenção. Substituição agendada.',
+    null, 'Test Technical', 'Colocado em manutenção. Substituição agendada.',
     now() - interval '2 days',
     now() - interval '1 hour'
 );

@@ -44,7 +44,7 @@ values
     'SENSOR', 'CRITICAL', 'OPEN',
     'Piso 0 – Zona B', 'B07', 'IR-AV1-B07', null,
     'Sensor infravermelho sem leituras há mais de 2 horas.',
-    null, 'Laura Farias', 'Laura Farias',
+    null, 'Test Technical', 'Test Technical',
     'A aguardar substituição de sensor.',
     null,
     '2026-05-08T08:14:00Z'
@@ -68,7 +68,7 @@ values
     'SYSTEM', 'CRITICAL', 'OPEN',
     'Entrada Principal', null, null, null,
     'Leitor OCR da entrada principal sem comunicação.',
-    null, 'Laura Farias', 'Laura Farias',
+    null, 'Test Technical', 'Test Technical',
     'Técnico destacado para intervenção no local.',
     null,
     '2026-05-08T06:50:00Z'

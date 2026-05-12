@@ -47,8 +47,10 @@ public class AlertController {
         @RequestParam(required = false) SeverityAlert severity,
         @AuthenticationPrincipal Jwt jwt
     ) {
-        boolean isTechnical = jwt.getClaimAsStringList("groups") != null
-            && jwt.getClaimAsStringList("groups").contains("TECHNICAL");
+        List<String> groups = jwt.getClaimAsStringList("groups");
+        boolean isTechnical = groups != null && groups.stream()
+            .map(g -> g.replaceAll("^/+", "").toUpperCase())
+            .anyMatch("TECHNICAL"::equals);
 
         if (isTechnical) {
             List<UUID> assignedParkIds = assignmentService.getAssignedParkIds(jwt.getSubject());
