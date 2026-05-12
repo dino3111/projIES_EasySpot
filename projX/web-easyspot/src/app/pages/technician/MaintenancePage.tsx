@@ -282,10 +282,9 @@ export function MaintenancePage() {
 
       try {
         const created = await createSensorTaskAlert(sensorId, descricao || undefined);
-        await updateAlertState(created.id, 'IN_PROGRESS', descricao || undefined);
-        setOrders((prev) => [ { ...alertToWorkOrder(created), state: 'IN_PROGRESS' }, ...prev ]);
-        setIssues((prev) => [ { ...alertToIssue(created), estado: 'em-progresso' }, ...prev ]);
-        showToast(`Tarefa "${titulo}" criada — sensor ${sensorId} em progresso.`, 'success');
+        setOrders((prev) => [alertToWorkOrder(created), ...prev]);
+        setIssues((prev) => [alertToIssue(created), ...prev]);
+        showToast(`Tarefa "${titulo}" criada — sensor ${sensorId} com alerta aberto.`, 'success');
       } catch {
         showToast(`Não foi possível criar a tarefa "${titulo}": não existe nenhum alerta aberto para o sensor ${sensorId}.`, 'error');
       }
