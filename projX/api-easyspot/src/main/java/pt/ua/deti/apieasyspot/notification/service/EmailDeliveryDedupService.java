@@ -3,6 +3,7 @@ package pt.ua.deti.apieasyspot.notification.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -23,6 +24,9 @@ public class EmailDeliveryDedupService {
 
     private final NotificationEmailDeliveryRepository deliveryRepository;
     private final JavaMailSender mailSender;
+
+    @Value("${spring.mail.from:noreply@easyspot.pt}")
+    private String fromAddress;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public boolean sendOnce(String deliveryKey, String category, String recipient, String subject, String body) {
@@ -62,13 +66,15 @@ public class EmailDeliveryDedupService {
         try {
             if (htmlBody != null && !htmlBody.isBlank()) {
                 var message = mailSender.createMimeMessage();
-                var helper = new MimeMessageHelper(message, "UTF-8");
+                var helper = new MimeMessageHelper(message, true, "UTF-8");
+                helper.setFrom(fromAddress);
                 helper.setTo(recipient);
                 helper.setSubject(subject);
                 helper.setText(body, htmlBody);
                 mailSender.send(message);
             } else {
                 SimpleMailMessage message = new SimpleMailMessage();
+                message.setFrom(fromAddress);
                 message.setTo(recipient);
                 message.setSubject(subject);
                 message.setText(body);

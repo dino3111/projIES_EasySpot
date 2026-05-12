@@ -16,7 +16,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
-import jakarta.annotation.PostConstruct;
 import pt.ua.deti.apieasyspot.billing.exception.PaymentSetupRequiredException;
 import pt.ua.deti.apieasyspot.billing.model.PaymentRecord;
 import pt.ua.deti.apieasyspot.billing.model.PaymentStatus;
@@ -401,6 +400,27 @@ public class BillingService {
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public RefundResult refundReservation(Reservation reservation, String customerEmail) {
+        Optional<PaymentRecord> existingRefund = paymentRecordRepository
+            .findTopByReservationIdAndAmountLessThanAndStatusInOrderByCreatedAtDesc(
+                reservation.getId(),
+                BigDecimal.ZERO,
+                List.of(PaymentStatus.REFUNDED, PaymentStatus.PARTIALLY_REFUNDED, PaymentStatus.PENDING)
+            );
+
+        if (existingRefund.isPresent()) {
+            BigDecimal amount = existingRefund.get().getAmount().abs();
+            boolean succeeded = existingRefund.get().getStatus() == PaymentStatus.REFUNDED
+                || existingRefund.get().getStatus() == PaymentStatus.PARTIALLY_REFUNDED;
+            log.info("Skipping duplicate cancellation refund for reservation {} (already recorded as {})",
+                reservation.getBookingCode(), existingRefund.get().getStatus());
+            return new RefundResult(
+                amount,
+                succeeded,
+                succeeded ? "ALREADY_REFUNDED" : "REFUND_PENDING",
+                existingRefund.get().getPaymentIntentId()
+            );
+        }
+
         Optional<PaymentRecord> chargeableRecord = paymentRecordRepository
             .findTopByReservationIdAndPaymentIntentIdIsNotNullAndAmountGreaterThanAndStatusInOrderByCreatedAtDesc(
                 reservation.getId(),
@@ -441,6 +461,10 @@ public class BillingService {
         } catch (StripeException ex) {
             log.warn("Stripe refund failed for cancellation of reservation {}: {}",
                 reservation.getBookingCode(), ex.getMessage());
+            if ("charge_already_refunded".equalsIgnoreCase(ex.getCode())) {
+                persistDeltaPaymentRecord(reservation, customerEmail, null, amount.negate(), PaymentStatus.REFUNDED);
+                return new RefundResult(amount, true, "ALREADY_REFUNDED", null);
+            }
             persistDeltaPaymentRecord(reservation, customerEmail, null, amount.negate(), PaymentStatus.FAILED);
             return new RefundResult(amount, false, "REFUND_FAILED", null);
         }

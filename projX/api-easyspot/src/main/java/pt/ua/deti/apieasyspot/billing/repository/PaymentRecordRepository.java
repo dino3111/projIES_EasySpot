@@ -20,4 +20,9 @@ public interface PaymentRecordRepository extends JpaRepository<PaymentRecord, UU
         BigDecimal amount,
         Collection<PaymentStatus> statuses
     );
+    Optional<PaymentRecord> findTopByReservationIdAndAmountLessThanAndStatusInOrderByCreatedAtDesc(
+        UUID reservationId,
+        BigDecimal amount,
+        Collection<PaymentStatus> statuses
+    );
 }
