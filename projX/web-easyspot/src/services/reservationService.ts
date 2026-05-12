@@ -128,7 +128,15 @@ export interface ReservationUpdateResponse {
   previousCost: number;
   newCost: number;
   costDelta: number;
-  paymentAdjustmentKind: 'NO_CHANGE' | 'CHARGED' | 'CHARGE_FAILED' | 'REFUNDED' | 'REFUND_FAILED';
+  paymentAdjustmentKind:
+    | 'NO_CHANGE'
+    | 'CHARGED'
+    | 'CHARGE_PENDING'
+    | 'CHARGE_FAILED'
+    | 'REFUNDED'
+    | 'REFUND_PENDING'
+    | 'REFUND_FAILED'
+    | 'ALREADY_REFUNDED';
   paymentStatus: string | null;
   stripeReferenceId: string | null;
 }
@@ -140,8 +148,6 @@ export interface UpdateReservationRequest {
   departureDateTime: string;
   selectedSpotId?: string | null;
 }
-
-let previewUpdateRouteAvailable = true;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
@@ -251,8 +257,6 @@ export async function previewReservationUpdate(
   request: UpdateReservationRequest,
   token: string,
 ): Promise<ReservationUpdatePreviewResponse | null> {
-  if (!previewUpdateRouteAvailable) return null;
-
   const res = await fetchReservation(`${API_BASE}/${reservationId}/preview-update`, {
     method: 'POST',
     headers: authHeaders(token),
@@ -265,8 +269,12 @@ export async function previewReservationUpdate(
     }),
   }, true);
   if (res.status === 404) {
-    previewUpdateRouteAvailable = false;
-    return null;
+    const rawBody = await res.text().catch(() => '');
+    const trimmed = rawBody.trim();
+    const isHtml404 = trimmed.startsWith('<!DOCTYPE html') || trimmed.startsWith('<html');
+    if (!trimmed || isHtml404) return null;
+    const message = buildReservationErrorMessage(res.status, rawBody);
+    throw Object.assign(new Error(message), { status: res.status });
   }
   return handleJsonResponse<ReservationUpdatePreviewResponse>(res);
 }

@@ -37,6 +37,13 @@ function paymentAdjustmentErrorMessage(paymentStatus: string | null, kind: 'char
   return 'Reserva atualizada, mas o reembolso falhou. Tenta novamente dentro de instantes ou contacta o suporte.';
 }
 
+function paymentAdjustmentPendingMessage(kind: 'charge' | 'refund'): string {
+  if (kind === 'charge') {
+    return 'Reserva atualizada, mas a cobrança adicional está pendente de confirmação.';
+  }
+  return 'Reserva atualizada, mas o reembolso ainda está pendente de confirmação.';
+}
+
 export function MyReservationsPage() {
   const [searchParams] = useSearchParams();
   const [reservations, setReservations] = useState<ReservationResponse[]>([]);
@@ -119,8 +126,14 @@ export function MyReservationsPage() {
       const delta = Number(result.costDelta);
       if (result.paymentAdjustmentKind === 'CHARGED') {
         toast.success(`Reserva atualizada · cobrados ${delta.toFixed(2)} €`);
+      } else if (result.paymentAdjustmentKind === 'CHARGE_PENDING') {
+        toast.info(paymentAdjustmentPendingMessage('charge'));
       } else if (result.paymentAdjustmentKind === 'REFUNDED') {
         toast.success(`Reserva atualizada · reembolsados ${Math.abs(delta).toFixed(2)} €`);
+      } else if (result.paymentAdjustmentKind === 'REFUND_PENDING') {
+        toast.info(paymentAdjustmentPendingMessage('refund'));
+      } else if (result.paymentAdjustmentKind === 'ALREADY_REFUNDED') {
+        toast.success('Reserva atualizada · reembolso já processado');
       } else if (result.paymentAdjustmentKind === 'CHARGE_FAILED') {
         toast.error(paymentAdjustmentErrorMessage(result.paymentStatus, 'charge'));
       } else if (result.paymentAdjustmentKind === 'REFUND_FAILED') {

@@ -42,14 +42,19 @@ public class BookingConfirmationMailService {
     }
 
     @Async
-    public void sendUpdate(Reservation reservation, BigDecimal previousCost, BigDecimal newCost, BigDecimal delta) {
+    public void sendUpdate(Reservation reservation,
+                           BigDecimal previousCost,
+                           BigDecimal newCost,
+                           BigDecimal delta,
+                           String adjustmentKind,
+                           String paymentStatus) {
         send(
             reservation,
             "booking-update:" + reservation.getId() + ":" + reservation.getArrivalTime() + ":" + reservation.getEstimatedCost(),
             "BOOKING_UPDATE",
             "EasySpot — Reserva atualizada " + reservation.getBookingCode(),
-            buildUpdateBody(reservation, previousCost, newCost, delta),
-            buildUpdateHtml(reservation, previousCost, newCost, delta)
+            buildUpdateBody(reservation, previousCost, newCost, delta, adjustmentKind, paymentStatus),
+            buildUpdateHtml(reservation, previousCost, newCost, delta, adjustmentKind, paymentStatus)
         );
     }
 
@@ -99,7 +104,12 @@ public class BookingConfirmationMailService {
             """.formatted(commonDetails(reservation), reservationManagementUrl(reservation));
     }
 
-    private String buildUpdateBody(Reservation reservation, BigDecimal previousCost, BigDecimal newCost, BigDecimal delta) {
+    private String buildUpdateBody(Reservation reservation,
+                                   BigDecimal previousCost,
+                                   BigDecimal newCost,
+                                   BigDecimal delta,
+                                   String adjustmentKind,
+                                   String paymentStatus) {
         BigDecimal prev = safeAmount(previousCost);
         BigDecimal next = safeAmount(newCost);
         BigDecimal diff = delta != null ? delta : next.subtract(prev);
@@ -120,7 +130,7 @@ public class BookingConfirmationMailService {
             commonDetails(reservation),
             formatMoney(prev),
             formatMoney(next),
-            paymentAdjustmentText(diff),
+            paymentAdjustmentText(diff, adjustmentKind, paymentStatus),
             reservationManagementUrl(reservation)
         );
     }
@@ -163,7 +173,12 @@ public class BookingConfirmationMailService {
         );
     }
 
-    private String buildUpdateHtml(Reservation reservation, BigDecimal previousCost, BigDecimal newCost, BigDecimal delta) {
+    private String buildUpdateHtml(Reservation reservation,
+                                   BigDecimal previousCost,
+                                   BigDecimal newCost,
+                                   BigDecimal delta,
+                                   String adjustmentKind,
+                                   String paymentStatus) {
         BigDecimal prev = safeAmount(previousCost);
         BigDecimal next = safeAmount(newCost);
         BigDecimal diff = delta != null ? delta : next.subtract(prev);
@@ -175,7 +190,7 @@ public class BookingConfirmationMailService {
             "Código de Reserva",
             reservation.getBookingCode(),
             reservationRows(reservation, prev, next, diff, false),
-            escapeHtml(paymentAdjustmentText(diff)),
+            escapeHtml(paymentAdjustmentText(diff, adjustmentKind, paymentStatus)),
             reservationManagementUrl(reservation),
             "Ver reserva"
         );
@@ -405,13 +420,28 @@ public class BookingConfirmationMailService {
         };
     }
 
-    private String paymentAdjustmentText(BigDecimal delta) {
+    private String paymentAdjustmentText(BigDecimal delta, String adjustmentKind, String paymentStatus) {
         BigDecimal diff = safeAmount(delta);
-        if (diff.signum() > 0) {
+        if ("CHARGED".equals(adjustmentKind) && diff.signum() > 0) {
             return "Foi cobrada a diferença de %s no seu método de pagamento Stripe.".formatted(formatMoney(diff));
         }
-        if (diff.signum() < 0) {
+        if ("CHARGE_PENDING".equals(adjustmentKind)) {
+            return "A cobrança adicional de %s está pendente de confirmação no Stripe.".formatted(formatMoney(diff.abs()));
+        }
+        if ("CHARGE_FAILED".equals(adjustmentKind)) {
+            return "A cobrança adicional de %s falhou no Stripe.".formatted(formatMoney(diff.abs()));
+        }
+        if ("REFUNDED".equals(adjustmentKind) && diff.signum() < 0) {
             return "Foi reembolsada a diferença de %s no seu método de pagamento Stripe.".formatted(formatMoney(diff.abs()));
+        }
+        if ("REFUND_PENDING".equals(adjustmentKind)) {
+            return "O reembolso de %s está pendente de confirmação no Stripe.".formatted(formatMoney(diff.abs()));
+        }
+        if ("REFUND_FAILED".equals(adjustmentKind)) {
+            return "O reembolso de %s falhou no Stripe.".formatted(formatMoney(diff.abs()));
+        }
+        if ("ALREADY_REFUNDED".equals(adjustmentKind)) {
+            return "O reembolso correspondente a esta alteração já tinha sido processado.";
         }
         return "Não houve alteração no valor da reserva.";
     }

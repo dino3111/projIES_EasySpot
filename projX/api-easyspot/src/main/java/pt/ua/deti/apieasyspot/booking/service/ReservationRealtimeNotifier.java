@@ -27,12 +27,20 @@ public class ReservationRealtimeNotifier {
             "Reserva " + reservation.getBookingCode() + " confirmada");
     }
 
-    public void notifyUpdated(Reservation reservation, java.math.BigDecimal costDelta) {
+    public void notifyUpdated(Reservation reservation, java.math.BigDecimal costDelta, String adjustmentKind, String paymentStatus) {
         String detail;
-        if (costDelta != null && costDelta.signum() > 0) {
+        if ("CHARGED".equals(adjustmentKind) && costDelta != null && costDelta.signum() > 0) {
             detail = " · cobrados +€%.2f".formatted(costDelta);
-        } else if (costDelta != null && costDelta.signum() < 0) {
+        } else if ("REFUNDED".equals(adjustmentKind) && costDelta != null && costDelta.signum() < 0) {
             detail = " · reembolsados €%.2f".formatted(costDelta.abs());
+        } else if ("CHARGE_PENDING".equals(adjustmentKind)) {
+            detail = " · cobrança pendente";
+        } else if ("REFUND_PENDING".equals(adjustmentKind)) {
+            detail = " · reembolso pendente";
+        } else if ("CHARGE_FAILED".equals(adjustmentKind)) {
+            detail = " · cobrança falhou";
+        } else if ("REFUND_FAILED".equals(adjustmentKind)) {
+            detail = " · reembolso falhou";
         } else {
             detail = "";
         }

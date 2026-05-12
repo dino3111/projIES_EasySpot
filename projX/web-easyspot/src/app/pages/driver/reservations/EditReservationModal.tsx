@@ -89,16 +89,30 @@ export function EditReservationModal({
   }, [floor]);
 
   useEffect(() => {
-    if (!arrival || !departure) return;
+    if (!arrival || !departure) {
+      previewSeq.current += 1;
+      setPreview(null);
+      setPreviewError(null);
+      setPreviewLoading(false);
+      return;
+    }
     const start = new Date(arrival).getTime();
     const end = new Date(departure).getTime();
     if (Number.isNaN(start) || Number.isNaN(end) || end <= start || start < Date.now() + MIN_LEAD_MS) {
+      previewSeq.current += 1;
       setPreview(null);
       setPreviewError(null);
+      setPreviewLoading(false);
       return;
     }
     const token = getAccessToken();
-    if (!token) return;
+    if (!token) {
+      previewSeq.current += 1;
+      setPreview(null);
+      setPreviewError(null);
+      setPreviewLoading(false);
+      return;
+    }
 
     const seq = ++previewSeq.current;
     setPreviewLoading(true);
@@ -130,7 +144,12 @@ export function EditReservationModal({
         });
     }, 350);
 
-    return () => window.clearTimeout(handle);
+    return () => {
+      window.clearTimeout(handle);
+      if (seq === previewSeq.current) {
+        setPreviewLoading(false);
+      }
+    };
   }, [arrival, departure, spotId, reservation.reservationId, reservation.parkId, reservation.vehicleId]);
 
   const validation = useMemo(() => {

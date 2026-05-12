@@ -301,9 +301,10 @@ public class BillingService {
             };
 
             persistDeltaPaymentRecord(reservation, customerEmail, intent.getId(), delta, status);
+            String kind = status == PaymentStatus.COMPLETED ? "CHARGED" : "CHARGE_PENDING";
             log.info("Stripe delta charge {} for reservation {} amount {} ({})",
                 intent.getId(), reservation.getBookingCode(), delta, intentStatus);
-            return new PaymentAdjustmentResult(delta, "CHARGED", intent.getId(), status.name());
+            return new PaymentAdjustmentResult(delta, kind, intent.getId(), status.name());
 
         } catch (StripeException ex) {
             log.warn("Stripe delta charge failed for reservation {} amount {}: {}",
@@ -342,11 +343,12 @@ public class BillingService {
             PaymentStatus newStatus = "succeeded".equals(refund.getStatus())
                 ? PaymentStatus.PARTIALLY_REFUNDED
                 : PaymentStatus.PENDING;
+            String kind = "succeeded".equals(refund.getStatus()) ? "REFUNDED" : "REFUND_PENDING";
 
             persistDeltaPaymentRecord(reservation, customerEmail, null, amount.negate(), newStatus);
             log.info("Stripe refund {} for reservation {} amount {} ({})",
                 refund.getId(), reservation.getBookingCode(), amount, refund.getStatus());
-            return new PaymentAdjustmentResult(amount.negate(), "REFUNDED", refund.getId(), newStatus.name());
+            return new PaymentAdjustmentResult(amount.negate(), kind, refund.getId(), newStatus.name());
 
         } catch (StripeException ex) {
             log.warn("Stripe refund failed for reservation {} amount {}: {}",

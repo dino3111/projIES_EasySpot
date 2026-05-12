@@ -215,12 +215,12 @@ public class ReservationService {
         }
 
         try {
-            confirmationMailService.sendUpdate(saved, previousCost, estimatedCost, delta);
+            confirmationMailService.sendUpdate(saved, previousCost, estimatedCost, delta, adjustmentKind, paymentStatus);
         } catch (Exception ex) {
             log.warn("Update email failed for reservation {}: {}", saved.getBookingCode(), ex.getMessage());
         }
         try {
-            realtimeNotifier.notifyUpdated(saved, delta);
+            realtimeNotifier.notifyUpdated(saved, delta, adjustmentKind, paymentStatus);
         } catch (Exception ex) {
             log.warn("Realtime update notification failed for reservation {}: {}",
                 saved.getBookingCode(), ex.getMessage());

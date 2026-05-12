@@ -80,6 +80,7 @@ class ReservationServiceTest {
         user = new User();
         user.setId(UUID.randomUUID());
         user.setAuthentikUserId(AUTH_ID);
+        user.setEmail("driver@easyspot.test");
 
         lot = new ParkingLot();
         lot.setId(UUID.randomUUID());
@@ -475,8 +476,8 @@ class ReservationServiceTest {
             .isInstanceOf(UnprocessableEntityException.class)
             .hasMessageContaining("cartão guardado foi recusado");
 
-        verify(confirmationMailService, never()).sendUpdate(any(), any(), any(), any());
-        verify(realtimeNotifier, never()).notifyUpdated(any(), any());
+        verify(confirmationMailService, never()).sendUpdate(any(), any(), any(), any(), any(), any());
+        verify(realtimeNotifier, never()).notifyUpdated(any(), any(), any(), any());
     }
 
     @Test
