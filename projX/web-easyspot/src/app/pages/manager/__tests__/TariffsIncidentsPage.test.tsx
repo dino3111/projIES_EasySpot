@@ -1,13 +1,11 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import '@testing-library/jest-dom/vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { TariffsIncidentsPage } from '../TariffsIncidentsPage';
 import { ProfileProvider } from '../../../context/ProfileContext';
 import { AuthProvider } from '../../../context/AuthContext';
 import { fetchManagerTariffs, fetchManagerAlerts, fetchManagerBilling } from '../../../services/managerApi';
-
-import { fetchVehicles } from '../../../services/vehiclesApi';
 
 // Mock services
 vi.mock('../../../services/managerApi', () => ({
@@ -81,9 +79,20 @@ describe('TariffsIncidentsPage', () => {
       }
     ]);
     (fetchManagerBilling as any).mockResolvedValue({
-      content: [],
-      totalElements: 0,
-      totalPages: 0,
+      content: [{
+        id: 'bill-1',
+        parkName: 'Test Park',
+        entryTime: '2026-05-10T10:00:00Z',
+        exitTime: '2026-05-10T12:00:00Z',
+        durationMinutes: 120,
+        licensePlate: '11-AA-22',
+        zoneType: 'STANDARD',
+        parkingRevenue: 4.5,
+        evRevenue: 0,
+        total: 4.5,
+      }],
+      totalElements: 1,
+      totalPages: 1,
     });
 
     renderPage();
@@ -93,5 +102,38 @@ describe('TariffsIncidentsPage', () => {
     });
 
     expect(screen.getByText('Test Park')).toBeTruthy();
+  });
+
+  it('enables billing tab and shows billing table', async () => {
+    (fetchManagerTariffs as any).mockResolvedValue([]);
+    (fetchManagerAlerts as any).mockResolvedValue([]);
+    (fetchManagerBilling as any).mockResolvedValue({
+      content: [{
+        id: 'bill-1',
+        parkName: 'Billing Park',
+        entryTime: '2026-05-10T10:00:00Z',
+        exitTime: '2026-05-10T12:00:00Z',
+        durationMinutes: 120,
+        licensePlate: '11-AA-22',
+        zoneType: 'STANDARD',
+        parkingRevenue: 4.5,
+        evRevenue: 0,
+        total: 4.5,
+      }],
+      totalElements: 1,
+      totalPages: 1,
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Tarifas & Ocorrências')).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole('tab', { name: /faturação/i }));
+
+    expect(screen.getByRole('tab', { name: /faturação/i })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByText('Billing Park')).toBeTruthy();
+    expect(screen.getByText('11-AA-22')).toBeTruthy();
   });
 });

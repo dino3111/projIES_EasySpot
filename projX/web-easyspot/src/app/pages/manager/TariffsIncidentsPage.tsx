@@ -107,7 +107,6 @@ function mapBilling(b: BillingSessionResponse): BillingRecord {
 
 
 export function TariffsIncidentsPage() {
-  const billingEnabled = false;
   const [tab, setTab]               = useState<PageTab>('tarifas');
   const [issueFilter, setIssueFilter] = useState<IssueFilter>('todos');
   const [sevFilter, setSevFilter]   = useState<SevFilter>('todos');
@@ -158,10 +157,6 @@ export function TariffsIncidentsPage() {
       data = tariffs;
       filename = `tarifas-${new Date().toISOString().split('T')[0]}.json`;
     } else {
-      if (!billingEnabled) {
-        window.alert('A exportação de faturação será disponibilizada quando a integração do backend estiver concluída.');
-        return;
-      }
       data = billingRecords;
       filename = `faturacao-${new Date().toISOString().split('T')[0]}.json`;
     }
@@ -220,18 +215,11 @@ export function TariffsIncidentsPage() {
         <TabBtn active={tab === 'ocorrencias'} onClick={() => setTab('ocorrencias')} icon="fa-triangle-exclamation" label="Ocorrências" badge={openIssuesCount} />
         <TabBtn
           active={tab === 'faturacao'}
-          onClick={() => billingEnabled && setTab('faturacao')}
+          onClick={() => setTab('faturacao')}
           icon="fa-receipt"
           label="Faturação"
-          disabled={!billingEnabled}
         />
       </div>
-
-      {!billingEnabled && (
-        <div className="rounded-xl border border-border bg-muted/30 px-3 py-2 text-muted-foreground" style={{ fontSize: '0.8rem' }}>
-          A secção de faturação está temporariamente desativada até à integração do backend.
-        </div>
-      )}
 
       {tab === 'tarifas'     && <TariffsTab    onEdit={setEditTariff}   tariffs={tariffs} />}
       {tab === 'ocorrencias' && (
@@ -244,7 +232,7 @@ export function TariffsIncidentsPage() {
           onSelect={setSelectedIssue}
         />
       )}
-      {tab === 'faturacao' && billingEnabled && <BillingTab billingRecords={billingRecords} />}
+      {tab === 'faturacao' && <BillingTab billingRecords={billingRecords} />}
 
       {selectedIssue && <IssueModal  issue={selectedIssue} onClose={() => setSelectedIssue(null)} />}
       {editTariff    && <TariffModal tariff={editTariff}   onClose={() => setEditTariff(null)} onSave={handleSaveTariff} />}
