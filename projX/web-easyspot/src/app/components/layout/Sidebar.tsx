@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'react-router';
+import { useAuth } from '../../context/AuthContext';
 import { useProfile } from '../../context/ProfileContext';
 
 interface NavItem {
@@ -99,6 +100,7 @@ export function Sidebar() {
 
 function SidebarRoleBadge({ profile }: { readonly profile: 'MANAGER' | 'TECHNICAL' }) {
   const isManager = profile === 'MANAGER';
+  const { user } = useAuth();
   return (
     <div className="mt-auto p-3">
       <div className="flex items-center gap-2 rounded-xl p-2.5 bg-primary/10 border border-primary/20">
@@ -113,7 +115,7 @@ function SidebarRoleBadge({ profile }: { readonly profile: 'MANAGER' | 'TECHNICA
             {isManager ? 'Modo Gestor' : 'Modo Técnico'}
           </p>
           <p className="text-muted-foreground" style={{ fontSize: '0.62rem' }}>
-            {isManager ? 'António Videira' : 'Laura Farias'}
+            {user?.name ?? user?.email ?? '—'}
           </p>
         </div>
       </div>

@@ -31,6 +31,7 @@ public class ParkingSeedInitializer implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args) {
         execute(relationalDataSource, "seed/parking_seed_postgres.sql", "Postgres relational parking seed");
+        execute(relationalDataSource, "seed/test_users_seed.sql", "Test users and park assignments seed");
         execute(relationalDataSource, "seed/spending_test_data.sql", "Spending test data seed (postgres)");
         execute(relationalDataSource, "seed/test_driver_spending.sql", "Test driver vehicles seed (postgres)");
         execute(relationalDataSource, "seed/us11_test_data.sql", "US11 tariff and audit seed");
