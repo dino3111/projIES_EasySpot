@@ -2,6 +2,7 @@ package pt.ua.deti.apieasyspot;
 
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Profile;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -14,11 +15,13 @@ import javax.sql.DataSource;
 public class TestTimescaleDataSourceConfig {
 
     @Bean(name = "timescaleJdbcTemplate")
+    @ConditionalOnMissingBean(name = "timescaleJdbcTemplate")
     public JdbcTemplate timescaleJdbcTemplate(DataSource dataSource) {
         return new JdbcTemplate(dataSource);
     }
 
     @Bean(name = "timescaleNamedJdbcTemplate")
+    @ConditionalOnMissingBean(name = "timescaleNamedJdbcTemplate")
     public NamedParameterJdbcTemplate timescaleNamedJdbcTemplate(DataSource dataSource) {
         return new NamedParameterJdbcTemplate(dataSource);
     }

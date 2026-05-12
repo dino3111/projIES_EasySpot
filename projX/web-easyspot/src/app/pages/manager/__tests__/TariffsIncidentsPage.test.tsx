@@ -75,9 +75,11 @@ describe('TariffsIncidentsPage', () => {
         sensorId: 'S1',
         plate: '',
         description: 'Sensor failure',
+        photoUrl: null,
         severity: 'CRITICAL',
         state: 'OPEN',
         createdAt: new Date().toISOString(),
+        reportedBy: 'Driver 1',
         attributedTo: 'Tech 1',
         notes: ''
       }

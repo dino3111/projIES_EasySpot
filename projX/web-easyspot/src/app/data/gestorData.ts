@@ -31,8 +31,10 @@ export interface IssueReport {
   severidade: 'critica' | 'aviso' | 'info';
   estado: 'aberto' | 'em-progresso' | 'resolvido';
   criadoEm: string;
+  reportadoPor?: string;
   atribuidoA?: string;
   notas?: string;
+  fotoUrl?: string;
 }
 
 export interface TariffEntry {

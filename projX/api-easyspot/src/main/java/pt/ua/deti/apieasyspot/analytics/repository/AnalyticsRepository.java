@@ -135,7 +135,7 @@ public class AnalyticsRepository {
         return timescaleJdbc.query(
             """
             select id, type, parking_lot_name as park, zone, sensor_id, plate,
-                   description, severity, state, created_at, attributed_to, notes
+                   description, photo_url, severity, state, created_at, attributed_to, notes
             from alerts
             order by created_at desc
             limit 5
@@ -148,6 +148,7 @@ public class AnalyticsRepository {
                 rs.getString("sensor_id"),
                 rs.getString("plate"),
                 rs.getString("description"),
+                rs.getString("photo_url"),
                 rs.getString("severity").toLowerCase(Locale.ROOT),
                 rs.getString("state").toLowerCase(Locale.ROOT).replace("_", "-"),
                 rs.getTimestamp("created_at").toInstant().atOffset(ZoneOffset.UTC),

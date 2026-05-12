@@ -31,6 +31,7 @@ create table if not exists public.alerts (
     plate text,
     description text,
     photo_url text,
+    reported_by text,
     attributed_to text,
     notes text,
     resolved_at timestamptz,
@@ -51,6 +52,7 @@ insert into public.alerts (
     plate,
     description,
     photo_url,
+    reported_by,
     attributed_to,
     notes,
     resolved_at,
@@ -67,7 +69,7 @@ values
     'Piso 0', 'MR-03', null, '22-AB-44',
     'Veículo sem dístico de mobilidade reduzida estacionado no lugar MR-03'
     ' desde as 10h30.',
-    null, 'Filipe Teixeira',
+    null, 'Filipe Teixeira', 'Filipe Teixeira',
     null, null,
     '2026-05-09T10:35:00Z'
 ),
@@ -81,7 +83,7 @@ values
     'Piso -1', 'EV-07', null, '55-CD-11',
     'Veículo a gasóleo estacionado no lugar de carregamento EV-07'
     ' há mais de 2 horas.',
-    null, 'Maria Silva',
+    null, 'Maria Silva', 'Maria Silva',
     'Assistente do parque verificou no local — contacto com proprietário.',
     null,
     '2026-05-08T14:20:00Z'
@@ -95,7 +97,7 @@ values
     'CLIENT', 'CRITICAL', 'OPEN',
     'Piso -2', 'E-01', null, null,
     'Veículo a bloquear completamente a saída de emergência do Piso -2.',
-    null, 'Luís Pedro',
+    null, 'Luís Pedro', 'Luís Pedro',
     null, null,
     '2026-05-10T08:05:00Z'
 ),
@@ -108,7 +110,7 @@ values
     'CLIENT', 'WARNING', 'RESOLVED',
     'Zona B', 'B-12', null, '33-EF-55',
     'Veículo particular no lugar reservado para autocarro de equipa visitante.',
-    null, 'Filipe Teixeira',
+    null, 'Filipe Teixeira', 'Filipe Teixeira',
     'Proprietário notificado e veículo removeu-se voluntariamente.',
     '2026-05-07T19:45:00Z',
     '2026-05-07T17:30:00Z'
@@ -123,7 +125,7 @@ values
     'Piso 1', 'A-04', null, '77-GH-99',
     'Veículo em dupla fila junto ao lugar A-04 a bloquear saída de '
     || 'dois veículos.',
-    null, 'Maria Silva',
+    null, 'Maria Silva', 'Maria Silva',
     'Segurança do parque a tentar localizar o condutor.',
     null,
     '2026-05-10T13:05:00Z'
@@ -137,7 +139,7 @@ values
     'CLIENT', 'WARNING', 'OPEN',
     'Piso 0', 'MR-01', null, null,
     'Lugar reservado para mobilidade reduzida ocupado por veículo sem dístico.',
-    null, 'Luís Pedro',
+    null, 'Luís Pedro', 'Luís Pedro',
     null, null,
     '2026-05-10T09:15:00Z'
 ),
@@ -151,6 +153,7 @@ values
     'Piso -1', 'C-22', null, '10-IJ-32',
     'Veículo estacionado fora dos limites, ocupando parte do corredor.',
     'https://cdn.easyspot.example/reports/mock-photo-c22.jpg',
+    'Ana Costa',
     'Ana Costa',
     'Veículo reposicionado pelo próprio condutor após aviso.',
     '2026-05-06T11:30:00Z',
@@ -169,6 +172,7 @@ on conflict (id, created_at) do update set
     plate = excluded.plate,
     description = excluded.description,
     photo_url = excluded.photo_url,
+    reported_by = excluded.reported_by,
     attributed_to = excluded.attributed_to,
     notes = excluded.notes,
     resolved_at = excluded.resolved_at;

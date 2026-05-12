@@ -64,6 +64,9 @@ class PostmanDataInitializer implements ApplicationRunner {
     @Getter
     private UUID userId;
 
+    @Getter
+    private UUID technicianId;
+
     PostmanDataInitializer(
         UserRepository userRepository,
         VehicleRepository vehicleRepository,
@@ -91,8 +94,9 @@ class PostmanDataInitializer implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args) {
         User driver = seedUser();
+        User technician = seedTechnician();
         List<ParkingLot> lots = seedLots();
-        seedDetails(lots);
+        seedDetails(lots, technician);
         runBestEffort("timeseries parking sessions", () -> seedSessions(lots, driver));
         runBestEffort("timeseries alerts", () -> seedAlerts(lots));
         runBestEffort("timeseries occupancy snapshots", () -> seedHourlySnapshots(lots));
@@ -136,6 +140,17 @@ class PostmanDataInitializer implements ApplicationRunner {
         return user;
     }
 
+    private User seedTechnician() {
+        User technician = new User();
+        technician.setAuthentikUserId("auth-sub-postman-tech");
+        technician.setEmail("postman-tech@easyspot.test");
+        technician.setName("Laura Farias");
+        technician.setRole("TECHNICAL");
+        technician = userRepository.save(technician);
+        technicianId = technician.getId();
+        return technician;
+    }
+
     private List<ParkingLot> seedLots() {
         List<ParkingLot> lots = parkingLotRepository.saveAll(List.of(
             lot("Fórum Aveiro", "Aveiro", "R. do Batalhão de Caçadores 10, 3810-064 Aveiro", 40.6405, -8.6531, "08h00-00h00", 500, List.of("CCTV", "WC", "Elevador", "Acessível")),
@@ -147,8 +162,11 @@ class PostmanDataInitializer implements ApplicationRunner {
         return lots;
     }
 
-    private void seedDetails(List<ParkingLot> lots) {
+    private void seedDetails(List<ParkingLot> lots, User technician) {
         for (ParkingLot lot : lots) {
+            lot.setTechnician(technician);
+            parkingLotRepository.save(lot);
+
             Tariff standard = new Tariff();
             standard.setParkingLot(lot);
             standard.setName("Standard");

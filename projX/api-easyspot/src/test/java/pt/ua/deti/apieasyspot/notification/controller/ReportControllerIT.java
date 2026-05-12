@@ -67,6 +67,13 @@ class ReportControllerIT {
         driver.setRole("DRIVER");
         driver = userRepository.save(driver);
 
+        User technician = new User();
+        technician.setAuthentikUserId("tech-sub-001");
+        technician.setEmail("laura@test.com");
+        technician.setName("Laura Farias");
+        technician.setRole("TECHNICAL");
+        technician = userRepository.save(technician);
+
         parkingLot = new ParkingLot();
         parkingLot.setName("Parque Central");
         parkingLot.setCity("Aveiro");
@@ -74,6 +81,7 @@ class ReportControllerIT {
         parkingLot.setLatitude(40.6405);
         parkingLot.setLongitude(-8.6531);
         parkingLot.setTotalSpaces(100);
+        parkingLot.setTechnician(technician);
         parkingLot = parkingLotRepository.save(parkingLot);
 
         when(r2StorageService.upload(any(), any(), any()))
@@ -198,6 +206,7 @@ class ReportControllerIT {
         assertThat(saved.getType()).isEqualTo(AlertType.CLIENT);
         assertThat(saved.getState()).isEqualTo(StateAlert.OPEN);
         assertThat(saved.getSpotNumber()).isEqualTo("A12");
+        assertThat(saved.getAttributedTo()).isEqualTo("Laura Farias");
     }
 
     @Test
