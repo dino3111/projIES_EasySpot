@@ -61,11 +61,9 @@ class ParkServiceTest {
     void searchParks_returnsItemsFromJdbc() {
         lot.setCity("Aveiro");
         when(parkingLotRepository.findAll()).thenReturn(List.of(lot));
-        when(timescaleOccupancySnapshotRepository.latestByLotIds(anyCollection())).thenReturn(Map.of(
-            lotId, List.of(
-                new ZoneSnapshot(ZoneType.STANDARD, 80, 100, Instant.now()),
-                new ZoneSnapshot(ZoneType.EV, 5, 10, Instant.now())
-            )
+        when(timescaleOccupancySnapshotRepository.latestByLot(lotId)).thenReturn(List.of(
+            new ZoneSnapshot(ZoneType.STANDARD, 80, 100, Instant.now()),
+            new ZoneSnapshot(ZoneType.EV, 5, 10, Instant.now())
         ));
         Tariff tariff = new Tariff();
         tariff.setPricePerHour(BigDecimal.valueOf(1.5));
@@ -90,8 +88,8 @@ class ParkServiceTest {
     void searchParks_futureReservedSpotIsNotReportedAsFree() {
         lot.setCity("Coimbra");
         when(parkingLotRepository.findAll()).thenReturn(List.of(lot));
-        when(timescaleOccupancySnapshotRepository.latestByLotIds(anyCollection())).thenReturn(Map.of(
-            lotId, List.of(new ZoneSnapshot(ZoneType.STANDARD, 0, 2, Instant.now()))
+        when(timescaleOccupancySnapshotRepository.latestByLot(lotId)).thenReturn(List.of(
+            new ZoneSnapshot(ZoneType.STANDARD, 0, 2, Instant.now())
         ));
 
         ParkingSpot reservedSpot = new ParkingSpot();
@@ -127,8 +125,6 @@ class ParkServiceTest {
     @Test
     void searchParks_noFilters_callsJdbc() {
         when(parkingLotRepository.findAll()).thenReturn(List.of());
-        when(timescaleOccupancySnapshotRepository.latestByLotIds(anyCollection())).thenReturn(Map.of());
-
         ParkingLotSummaryResponse response = parkService.searchParks(null, null, null, null, 1, 20);
 
         assertThat(response.items()).isEmpty();
@@ -139,8 +135,6 @@ class ParkServiceTest {
     @Test
     void searchParks_page2_usesCorrectOffset() {
         when(parkingLotRepository.findAll()).thenReturn(List.of());
-        when(timescaleOccupancySnapshotRepository.latestByLotIds(anyCollection())).thenReturn(Map.of());
-
         ParkingLotSummaryResponse response = parkService.searchParks(null, null, null, null, 2, 10);
 
         assertThat(response.pagination().page()).isEqualTo(2);

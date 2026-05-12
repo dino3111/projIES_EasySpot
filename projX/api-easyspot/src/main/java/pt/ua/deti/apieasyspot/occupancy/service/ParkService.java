@@ -59,9 +59,6 @@ public class ParkService {
             .toList();
         List<UUID> lotIds = allLots.stream().map(ParkingLot::getId).toList();
 
-        Map<UUID, List<ZoneSnapshot>> snapshotsByLot = timescaleOccupancySnapshotRepository.latestByLotIds(
-            lotIds
-        );
         Map<UUID, List<ParkingSpot>> spotsByLot = parkingSpotRepository.findByParkingLotIdIn(lotIds).stream()
             .collect(Collectors.groupingBy(spot -> spot.getParkingLot().getId()));
         Map<UUID, List<Reservation>> reservationsByLot = lotIds.isEmpty()
@@ -82,7 +79,7 @@ public class ParkService {
             .filter(lot -> !filterAcc || lotsWithAcc.contains(lot.getId()))
             .map(lot -> toSummary(
                 lot,
-                snapshotsByLot.getOrDefault(lot.getId(), List.of()),
+                timescaleOccupancySnapshotRepository.latestByLot(lot.getId()),
                 spotsByLot.getOrDefault(lot.getId(), List.of()),
                 reservationsByLot.getOrDefault(lot.getId(), List.of()),
                 now
