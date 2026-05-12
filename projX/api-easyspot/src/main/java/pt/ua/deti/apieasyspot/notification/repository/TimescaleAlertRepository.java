@@ -22,7 +22,7 @@ public class TimescaleAlertRepository {
 
     private final JdbcTemplate jdbc;
 
-    public TimescaleAlertRepository(@Qualifier("timescaleJdbcTemplate") JdbcTemplate jdbc) {
+    public TimescaleAlertRepository(@Qualifier("jdbcTemplate") JdbcTemplate jdbc) {
         this.jdbc = jdbc;
         ensureReportedByColumn();
     }

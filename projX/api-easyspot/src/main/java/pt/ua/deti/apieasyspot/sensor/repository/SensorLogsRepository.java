@@ -16,7 +16,6 @@ import java.util.UUID;
 public class SensorLogsRepository {
 
     private final @Qualifier("jdbcTemplate") JdbcTemplate jdbc;
-    private final @Qualifier("timescaleJdbcTemplate") JdbcTemplate timescaleJdbc;
 
     public List<SensorSummaryDto> findAllSensors() {
         return jdbc.query(
@@ -40,7 +39,7 @@ public class SensorLogsRepository {
     }
 
     public List<SensorLogEntry> findLogsBySensorId(String sensorId) {
-        return timescaleJdbc.query(
+        return jdbc.query(
             """
             select id, type, severity, state, description, created_at, resolved_at
             from alerts
