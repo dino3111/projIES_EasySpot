@@ -3,7 +3,6 @@ import {
   type IssueReport,
   type BillingRecord,
   type TariffEntry,
-  type BillingRecord,
 } from '../../data/gestorData';
 import { TariffsTab } from './components/TariffsTab';
 import { IncidentsTab } from './components/IncidentsTab';
@@ -140,8 +139,6 @@ export function TariffsIncidentsPage() {
     const tariffsData = await fetchManagerTariffs();
     setTariffs(tariffsData.map(mapTariff));
   };
-
-  const billingRecords: BillingRecord[] = [];
 
   const filteredIssues = useMemo(() => {
     return issues.filter((i) => {

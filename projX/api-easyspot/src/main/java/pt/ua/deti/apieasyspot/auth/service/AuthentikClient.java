@@ -25,8 +25,8 @@ public class AuthentikClient {
     private final ObjectMapper mapper = new ObjectMapper();
 
     public AuthentikClient(
-        @Value("${authentik.api.url}") String apiUrl,
-        @Value("${authentik.api.token}") String token
+        @Value("${authentik.api.url:http://authentik-server:9000/authentik}") String apiUrl,
+        @Value("${authentik.api.token:}") String token
     ) {
         this.apiUrl = apiUrl.replaceAll("/$", "");
         this.token = token;
