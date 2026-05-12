@@ -84,6 +84,12 @@ function toLocalidade(address: string): string {
   return parts.length > 1 ? (parts.at(-1) ?? 'N/D') : (parts.at(0) ?? 'N/D');
 }
 
+function normalizeAvailabilityCounts(totalSpots: number, availableSpots: number) {
+  const safeTotal = Math.max(0, Number.isFinite(totalSpots) ? totalSpots : 0);
+  const safeAvailable = Math.min(safeTotal, Math.max(0, Number.isFinite(availableSpots) ? availableSpots : 0));
+  return { totalSpots: safeTotal, availableSpots: safeAvailable };
+}
+
 function normalizeZone(zone: string): ParkingZone['type'] {
   if (zone === 'EV') return 'ev';
   if (zone === 'ACCESSIBLE') return 'accessible';
@@ -208,12 +214,11 @@ export async function fetchParksList(query: FetchParksQuery = {}): Promise<Paged
 
   return {
     items: data.items.map((item) => ({
+    ...normalizeAvailabilityCounts(item.totalSpaces, item.freeSpaces),
     id: item.id,
     name: item.name,
     address: item.address,
     localidade: item.city || toLocalidade(item.address),
-    availableSpots: item.freeSpaces,
-    totalSpots: item.totalSpaces,
     hourlyRate: item.pricePerHour ?? 0,
     dailyMax: 0,
     monthlyRate: 0,
@@ -256,6 +261,7 @@ export async function fetchParkDetails(parkId: string): Promise<ParkingLot> {
   }));
   if (!resp.ok) throw new Error(`Failed to fetch park details (${resp.status})`);
   const data = (await resp.json()) as ParkDetailsResponse;
+  const lotCounts = normalizeAvailabilityCounts(data.totalSpaces, data.freeSpaces);
 
   const primaryTariff = data.tariffs?.[0];
   const availableCharger = data.evChargers.find((c) => c.availability) ?? data.evChargers[0];
@@ -279,10 +285,9 @@ export async function fetchParkDetails(parkId: string): Promise<ParkingLot> {
     ledStatus: (a.ledStatus ?? (a.availability ? 'green' : 'red')) as 'green' | 'red' | 'blue' | 'yellow',
   }));
   const zones: ParkingZone[] = data.zones.map((z, idx) => ({
+    ...normalizeAvailabilityCounts(z.total, z.free),
     id: `${data.id}-zone-${idx + 1}`,
     name: z.zoneName,
-    totalSpots: z.total,
-    availableSpots: z.free,
     type: normalizeZone(z.zoneName),
     floor: 'N/D',
   }));
@@ -292,8 +297,8 @@ export async function fetchParkDetails(parkId: string): Promise<ParkingLot> {
     name: data.name,
     address: data.address,
     localidade: toLocalidade(data.address),
-    availableSpots: data.freeSpaces,
-    totalSpots: data.totalSpaces,
+    availableSpots: lotCounts.availableSpots,
+    totalSpots: lotCounts.totalSpots,
     hourlyRate: primaryTariff?.pricePerHour ?? 0,
     dailyMax: primaryTariff?.maxDaily ?? 0,
     monthlyRate: primaryTariff?.monthly ?? 0,

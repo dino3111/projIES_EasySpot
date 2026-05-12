@@ -87,6 +87,44 @@ class ParkServiceTest {
     }
 
     @Test
+    void searchParks_futureReservedSpotIsNotReportedAsFree() {
+        lot.setCity("Coimbra");
+        when(parkingLotRepository.findAll()).thenReturn(List.of(lot));
+        when(timescaleOccupancySnapshotRepository.latestByLotIds(anyCollection())).thenReturn(Map.of(
+            lotId, List.of(new ZoneSnapshot(ZoneType.STANDARD, 0, 2, Instant.now()))
+        ));
+
+        ParkingSpot reservedSpot = new ParkingSpot();
+        reservedSpot.setId(UUID.randomUUID());
+        reservedSpot.setZone(ZoneType.STANDARD);
+        reservedSpot.setStatus("reserved");
+        reservedSpot.setParkingLot(lot);
+
+        ParkingSpot freeSpot = new ParkingSpot();
+        freeSpot.setId(UUID.randomUUID());
+        freeSpot.setZone(ZoneType.STANDARD);
+        freeSpot.setStatus("free");
+        freeSpot.setParkingLot(lot);
+
+        Reservation reservation = new Reservation();
+        reservation.setParkingLot(lot);
+        reservation.setParkingSpot(reservedSpot);
+        reservation.setArrivalTime(OffsetDateTime.now().plusMinutes(45));
+        reservation.setDepartureTime(OffsetDateTime.now().plusHours(2));
+
+        when(parkingSpotRepository.findByParkingLotIdIn(anyCollection())).thenReturn(List.of(reservedSpot, freeSpot));
+        when(reservationRepository.findActiveWithSpotByParkIds(anyList())).thenReturn(List.of(reservation));
+        when(tariffRepository.findByParkingLotId(lotId)).thenReturn(List.of());
+
+        ParkingLotSummaryResponse response = parkService.searchParks(null, null, null, null, 1, 10);
+
+        assertThat(response.items()).singleElement().satisfies(item -> {
+            assertThat(item.totalSpaces()).isEqualTo(2);
+            assertThat(item.freeSpaces()).isEqualTo(1);
+        });
+    }
+
+    @Test
     void searchParks_noFilters_callsJdbc() {
         when(parkingLotRepository.findAll()).thenReturn(List.of());
         when(timescaleOccupancySnapshotRepository.latestByLotIds(anyCollection())).thenReturn(Map.of());

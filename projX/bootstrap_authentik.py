@@ -460,7 +460,7 @@ def create_provider(groups_mapping_pk: str) -> str:
     results = existing.get("results", [])
     if results:
         pk_str = str(results[0]["pk"])
-        provider = api("PUT", f"/providers/oauth2/{pk_str}/", json=payload)
+        provider = api("PATCH", f"/providers/oauth2/{pk_str}/", json=payload)
     else:
         provider = api("POST", "/providers/oauth2/", json=payload)
 
