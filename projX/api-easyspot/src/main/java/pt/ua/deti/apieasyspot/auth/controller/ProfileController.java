@@ -70,10 +70,8 @@ public class ProfileController {
     @Operation(summary = "Clear the must-change-password flag after technician changes password")
     @ApiResponse(responseCode = "204", description = "Flag cleared")
     @PostMapping("/password-changed")
-    @PreAuthorize("hasRole('TECHNICAL')")
     public ResponseEntity<Void> passwordChanged(@AuthenticationPrincipal Jwt jwt) {
-        String authentikPk = profileService.resolveAuthentikPk(jwt.getSubject());
-        authentikClient.clearPasswordChangeFlag(authentikPk);
+        authentikClient.clearPasswordChangeFlag(jwt.getSubject());
         return ResponseEntity.noContent().build();
     }
 
