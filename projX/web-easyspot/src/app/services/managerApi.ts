@@ -161,3 +161,62 @@ export const fetchManagerBilling = async (parkId?: string, days = 2, page = 0, p
   const response = await request<Page<BillingSessionResponse>>(`/api/manager/billing?${params.toString()}`);
   return response;
 };
+
+export interface TechnicianSummary {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export interface CreateParkPayload {
+  name: string;
+  city: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  openingHours: string;
+  totalSpaces: number;
+  technicianId: string | null;
+}
+
+export interface CreateTechnicianPayload {
+  username: string;
+  name: string;
+  email: string;
+  temporaryPassword: string;
+  parkIds: string[];
+}
+
+export interface TechnicianDetail extends TechnicianSummary {
+  username: string;
+  parkIds: string[];
+}
+
+export const fetchTechnicians = () =>
+  request<TechnicianSummary[]>('/api/manager/technicians');
+
+export const createTechnician = (payload: CreateTechnicianPayload) =>
+  request<TechnicianDetail>('/api/manager/technicians', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+
+export const createPark = (payload: CreateParkPayload) =>
+  request<{ id: string }>('/api/manager/parks', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+
+export interface ParkAssignment {
+  parkId: string;
+  technicians: TechnicianSummary[];
+}
+
+export const fetchParkAssignments = () =>
+  request<ParkAssignment[]>('/api/manager/parks/assignments');
+
+export const assignTechnicianToPark = (parkId: string, technicianId: string) =>
+  request<void>(`/api/manager/parks/${parkId}/technician/${technicianId}`, { method: 'PUT' });
+
+export const removeTechnicianFromPark = (parkId: string, technicianId: string) =>
+  request<void>(`/api/manager/parks/${parkId}/technician/${technicianId}`, { method: 'DELETE' });

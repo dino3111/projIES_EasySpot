@@ -4,8 +4,9 @@ import { useProfile } from '../../../context/ProfileContext';
 import { paymentApi, profileApi, type DriverProfileResponse, type ManagerProfileResponse, type PaymentMethodSummaryResponse, type ProfileResponse, type TechnicianProfileResponse } from '../../../../services/apiService';
 import { SectionHeader, UserTypeOption, ToggleRow, StatCard, AccountRow, AccountRowWithBadge } from './ProfilePrimitives';
 import { StepPaymentStripe } from '../welcome/StepPaymentStripe';
-import { fetchManagerTariffs, fetchManagerDashboard } from '../../../services/managerApi';
+import { fetchManagerTariffs, fetchManagerDashboard, fetchTechnicians, type TechnicianSummary } from '../../../services/managerApi';
 import { fetchParksList } from '../../../services/parksApi';
+import { CreateTechnicianModal } from '../../manager/components/CreateTechnicianModal';
 
 const DRIVER_LOCATION_ENABLED_KEY = 'easyspot_driver_location_enabled';
 
@@ -726,6 +727,19 @@ function ExportReportsModal({ onClose }: Readonly<{ onClose: () => void }>) {
 
 export function ManagerProfile({ profileData }: Readonly<{ profileData: ManagerProfileResponse | null }>) {
   const [showExport, setShowExport] = useState(false);
+  const [showCreateTech, setShowCreateTech] = useState(false);
+  const [technicians, setTechnicians] = useState<TechnicianSummary[]>([]);
+  const [techLoading, setTechLoading] = useState(true);
+
+  const loadTechnicians = () => {
+    setTechLoading(true);
+    fetchTechnicians()
+      .then(setTechnicians)
+      .catch(() => setTechnicians([]))
+      .finally(() => setTechLoading(false));
+  };
+
+  useEffect(() => { loadTechnicians(); }, []);
 
   return (
     <>
@@ -736,7 +750,47 @@ export function ManagerProfile({ profileData }: Readonly<{ profileData: ManagerP
         <StatCard icon="fa-circle-exclamation" value={String(profileData?.openAlerts ?? 0)}    label="Alertas"       color="#f59e0b" />
       </div>
 
-      <ManagedParksSection />
+      <SectionHeader icon="fa-user-gear" title="Tecnicos" />
+      <div className="rounded-2xl overflow-hidden mb-5 bg-card border border-border">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+          <span className="text-muted-foreground" style={{ fontSize: '0.8rem' }}>
+            {techLoading ? '...' : `${technicians.length} técnico${technicians.length !== 1 ? 's' : ''}`}
+          </span>
+          <button
+            type="button"
+            onClick={() => setShowCreateTech(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-white font-semibold"
+            style={{ fontSize: '0.78rem' }}
+          >
+            <i className="fas fa-user-plus" style={{ fontSize: '0.75rem' }} aria-hidden="true" />
+            Novo Técnico
+          </button>
+        </div>
+        {techLoading ? (
+          <div className="flex justify-center py-4">
+            <i className="fas fa-circle-notch fa-spin text-primary" aria-hidden="true" />
+          </div>
+        ) : technicians.length === 0 ? (
+          <p className="text-center text-muted-foreground py-4" style={{ fontSize: '0.82rem' }}>
+            Nenhum técnico registado
+          </p>
+        ) : (
+          technicians.map((t, i) => (
+            <div key={t.id}>
+              {i > 0 && <div className="h-px bg-border mx-4" />}
+              <div className="flex items-center gap-3 px-4 py-3">
+                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <i className="fas fa-user-gear text-primary" style={{ fontSize: '0.75rem' }} aria-hidden="true" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-foreground font-semibold truncate" style={{ fontSize: '0.85rem' }}>{t.name}</p>
+                  <p className="text-muted-foreground truncate" style={{ fontSize: '0.72rem' }}>{t.email}</p>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
 
       <SectionHeader icon="fa-gear" title="Gestao" />
       <div className="rounded-2xl overflow-hidden mb-5 bg-card border border-border">
@@ -750,6 +804,12 @@ export function ManagerProfile({ profileData }: Readonly<{ profileData: ManagerP
       </div>
 
       {showExport && <ExportReportsModal onClose={() => setShowExport(false)} />}
+      {showCreateTech && (
+        <CreateTechnicianModal
+          onClose={() => setShowCreateTech(false)}
+          onCreated={loadTechnicians}
+        />
+      )}
     </>
   );
 }

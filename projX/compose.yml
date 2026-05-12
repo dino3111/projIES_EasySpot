@@ -193,6 +193,8 @@ services:
       APP_FRONTEND_URL: ${APP_FRONTEND_URL:-http://localhost:5173}
       STRIPE_API_KEY: ${STRIPE_API_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      AUTHENTIK_API_URL: http://authentik-server:9000/authentik
+      AUTHENTIK_TOKEN: ${AUTHENTIK_TOKEN:-}
     depends_on:
       postgres:
         condition: service_healthy
