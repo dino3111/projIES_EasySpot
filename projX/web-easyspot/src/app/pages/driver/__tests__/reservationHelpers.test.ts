@@ -33,7 +33,7 @@ function makeLot(overrides: Partial<ParkingLot> = {}): ParkingLot {
     zones: [],
     floors: [],
     phone: 'N/D',
-    techFeatures: { hasOCR: false, hasRFID: false, hasIRSensors: false, hasLEDs: false },
+    techFeatures: { hasOCR: false, hasEntrySensor: false, hasIRSensors: false, hasLEDs: false },
     ...overrides,
   };
 }

@@ -4,7 +4,7 @@ import { lookupVehicleData, lookupInsuranceData, type VehicleData, type Insuranc
 import { vehicleApi } from '../../../../services/apiService';
 import { isEVFuelType, detectChargerTypes } from '../../../utils/brandLogo';
 import type { Vehicle } from '../../../context/ProfileContext';
-import { PT_PLATE_REGEX, NicknameInput, RfidInput, VehicleDataCard, EVOptions } from './vehiclesShared';
+import { PT_PLATE_REGEX, NicknameInput, VehicleDataCard, EVOptions } from './vehiclesShared';
 
 function PlateInput({
   plate, setPlate, loading, inputRef,
@@ -52,7 +52,6 @@ export function AddVehicleModal({ onClose, onAdd }: Readonly<{ onClose: () => vo
     year: '',
   });
   const [nickname, setNickname] = useState('');
-  const [rfid, setRfid] = useState('');
   const [isEV, setIsEV] = useState(false);
   const [isAccessible, setIsAccessible] = useState(false);
   const [chargerTypes, setChargerTypes] = useState<string[]>([]);
@@ -128,7 +127,6 @@ export function AddVehicleModal({ onClose, onAdd }: Readonly<{ onClose: () => vo
     try {
       const created = await vehicleApi.create({
         licensePlate: plate,
-        externalIdentifier: rfid.trim() || undefined,
         nickname: nickname.trim() || undefined,
         isAccessible,
         isPrimary: false,
@@ -151,7 +149,6 @@ export function AddVehicleModal({ onClose, onAdd }: Readonly<{ onClose: () => vo
         isEV: created.isEv,
         isAccessible,
         isPrimary: created.isPrimary,
-        rfid: rfid.trim() || undefined,
       });
       toast.success('Veículo adicionado com sucesso');
       onClose();
@@ -179,7 +176,6 @@ export function AddVehicleModal({ onClose, onAdd }: Readonly<{ onClose: () => vo
             </div>
           )}
           <NicknameInput nickname={nickname} setNickname={setNickname} />
-          <RfidInput rfid={rfid} setRfid={setRfid} />
           {vehicleData && <VehicleDataCard vehicleData={vehicleData} insuranceData={insuranceData} />}
           {showManualForm && (
             <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-2">

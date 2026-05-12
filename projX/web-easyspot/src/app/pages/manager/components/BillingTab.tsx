@@ -41,7 +41,7 @@ export function BillingTab({ billingRecords }: { readonly billingRecords: Billin
 
       <p className="text-muted-foreground" style={{ fontSize: '0.72rem' }}>
         <i className="fas fa-info-circle mr-1" aria-hidden="true"></i>
-        A cobrança é realizada automaticamente via leitura de matrícula OCR ou identificador RFID (Via Verde).
+        A cobrança é realizada automaticamente via leitura de matrícula (OCR).
         Registos dos últimos 2 dias.
       </p>
     </div>
@@ -55,7 +55,6 @@ function BillingRow({ record }: { readonly record: BillingRecord }) {
     contestado: { color: '#d4183d', label: 'Contestado' },
   };
   const metodoIconMap = {
-    RFID: 'fa-wifi',
     OCR: 'fa-camera',
     Manual: 'fa-user',
   };

@@ -44,7 +44,7 @@ values
     '2024-04-12 00:00:00'
 ),
 (
-    'RFID-CO1-ENT1',
+    'ENT-CO1-ENT1',
     'b231a846-7d40-5100-ba29-b9c0ca0ef9aa',
     'Entrada Principal',
     'OPERATIONAL',
@@ -78,7 +78,7 @@ values
     '2024-05-01 00:00:00'
 ),
 (
-    'RFID-CO2-ENT1',
+    'ENT-CO2-ENT1',
     '452ed8eb-d0a3-5d61-8428-572e946614a5',
     'Entrada Principal',
     'OPERATIONAL',
@@ -128,7 +128,7 @@ values
     '2024-07-01 00:00:00'
 ),
 (
-    'RFID-AV1-ENT1',
+    'ENT-AV1-ENT1',
     '4731819f-a806-5c1f-be8c-a478d4276840',
     'Entrada Principal',
     'OPERATIONAL',
@@ -170,7 +170,7 @@ values
     '2024-07-10 00:00:00'
 ),
 (
-    'RFID-AV2-ENT1',
+    'ENT-AV2-ENT1',
     'd8085d8f-7aaa-5eb4-b47d-2e2fe79bfe43',
     'Entrada Principal',
     'OPERATIONAL',
@@ -204,7 +204,7 @@ values
     '2024-08-01 00:00:00'
 ),
 (
-    'RFID-LE1-ENT1',
+    'ENT-LE1-ENT1',
     '070b4f4d-9a9e-5c4a-92bd-eae711ecb6b3',
     'Entrada Principal',
     'OPERATIONAL',
@@ -230,7 +230,7 @@ values
     '2024-09-01 00:00:00'
 ),
 (
-    'RFID-FI2-ENT1',
+    'ENT-FI2-ENT1',
     '62feaf63-aa20-5070-b89f-e81bfd5f47cd',
     'Entrada Principal',
     'OPERATIONAL',

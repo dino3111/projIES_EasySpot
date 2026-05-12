@@ -3,13 +3,13 @@ begin;
 delete from alerts
 where sensor_id in (
     'IR-CO1-MR02', 'IR-CO1-MR01', 'IR-CO1-A01',
-    'RFID-CO1-ENT1', 'GW-CO1-01',
-    'OCR-CO2-SAI1', 'IR-CO2-B01', 'RFID-CO2-ENT1', 'GW-CO2-01',
+    'ENT-CO1-ENT1', 'GW-CO1-01',
+    'OCR-CO2-SAI1', 'IR-CO2-B01', 'ENT-CO2-ENT1', 'GW-CO2-01',
     'IR-AV1-B07', 'IR-AV1-B08', 'IR-AV1-A01', 'IR-AV1-EV01',
-    'RFID-AV1-ENT1', 'OCR-AV1-SAI1', 'GW-AV1-01',
-    'IR-AV2-P1-01', 'IR-AV2-P1-02', 'RFID-AV2-ENT1', 'GW-AV2-01',
-    'IR-LE1-A01', 'IR-LE1-A02', 'RFID-LE1-ENT1', 'GW-LE1-01',
-    'IR-FI2-A01', 'RFID-FI2-ENT1', 'GW-FI2-01'
+    'ENT-AV1-ENT1', 'OCR-AV1-SAI1', 'GW-AV1-01',
+    'IR-AV2-P1-01', 'IR-AV2-P1-02', 'ENT-AV2-ENT1', 'GW-AV2-01',
+    'IR-LE1-A01', 'IR-LE1-A02', 'ENT-LE1-ENT1', 'GW-LE1-01',
+    'IR-FI2-A01', 'ENT-FI2-ENT1', 'GW-FI2-01'
 );
 
 insert into alerts (
@@ -63,13 +63,13 @@ values
     now() - interval '3 days 22 hours'
 ),
 
--- RFID-CO1-ENT1: reinício watchdog
+-- ENT-CO1-ENT1: reinício watchdog
 (
     gen_random_uuid(),
     'b231a846-7d40-5100-ba29-b9c0ca0ef9aa',
     'Estádio Cidade de Coimbra',
     'SYSTEM', 'WARNING', 'RESOLVED',
-    'Entrada Principal', null, 'RFID-CO1-ENT1',
+    'Entrada Principal', null, 'ENT-CO1-ENT1',
     null,
     'Reinício automático por watchdog. Serviço restaurado após 45s.',
     null, null, null,

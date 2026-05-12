@@ -48,7 +48,6 @@ public class VehicleService {
         Vehicle vehicle = new Vehicle();
         vehicle.setUser(user);
         vehicle.setPlate(plate);
-        vehicle.setRfid(request.externalIdentifier());
         vehicle.setNickname(request.nickname());
         vehicle.setAccessible(Boolean.TRUE.equals(request.isAccessible()));
         vehicle.setPrimary(resolvePrimaryFlag(user.getId(), request.isPrimary()));

@@ -85,8 +85,6 @@ export function StepAccountType({ accountType, onSet }: Readonly<{
 export function StepVehicle(props: Readonly<{
   plate: string;
   setPlate: (v: string) => void;
-  rfid: string;
-  setRfid: (v: string) => void;
   plateLoading: boolean;
   vehicleData: Partial<VehicleData> | null;
   insuranceData: InsuranceData | null;
@@ -98,7 +96,7 @@ export function StepVehicle(props: Readonly<{
   onSaveManual?: () => void;
   savingManual?: boolean;
 }>) {
-  const { plate, setPlate, rfid, setRfid, plateLoading, vehicleData, insuranceData, plateError, manualVehicleData, setManualVehicleData, showManualVehicleForm, setShowManualVehicleForm, onSaveManual, savingManual } = props;
+  const { plate, setPlate, plateLoading, vehicleData, insuranceData, plateError, manualVehicleData, setManualVehicleData, showManualVehicleForm, setShowManualVehicleForm, onSaveManual, savingManual } = props;
   return (
     <div className="space-y-4">
       <div>
@@ -188,14 +186,6 @@ export function StepVehicle(props: Readonly<{
         </div>
       )}
 
-      <div>
-        <label htmlFor="vehicle-rfid" className="block text-foreground font-semibold mb-1.5" style={{ fontSize: '0.8rem' }}>
-          <i className="fas fa-wifi text-primary mr-1.5" />
-          {'Identificador RFID '}
-          <span className="ml-1.5 text-muted-foreground font-normal" style={{ fontSize: '0.72rem' }}>(Opcional)</span>
-        </label>
-        <input id="vehicle-rfid" type="text" placeholder="Ex: A3:F2:9C:B1" value={rfid} onChange={(e) => setRfid(e.target.value)} className={`${INPUT_CLS} font-mono`} style={{ fontSize: '0.875rem' }} />
-      </div>
     </div>
   );
 }

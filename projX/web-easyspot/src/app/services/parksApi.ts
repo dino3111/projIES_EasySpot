@@ -238,7 +238,7 @@ export async function fetchParksList(query: FetchParksQuery = {}): Promise<Paged
     zones: [],
     floors: [],
     phone: 'N/D',
-    techFeatures: { hasOCR: false, hasRFID: false, hasIRSensors: false, hasLEDs: false },
+    techFeatures: { hasOCR: false, hasEntrySensor: false, hasIRSensors: false, hasLEDs: false },
     })),
     pagination: data.pagination,
   };
@@ -319,7 +319,7 @@ export async function fetchParkDetails(parkId: string): Promise<ParkingLot> {
     zones,
     floors: mapFloors(data.spotMap ?? []),
     phone: 'N/D',
-    techFeatures: { hasOCR: false, hasRFID: false, hasIRSensors: false, hasLEDs: false },
+    techFeatures: { hasOCR: false, hasEntrySensor: false, hasIRSensors: false, hasLEDs: false },
   };
 }
 

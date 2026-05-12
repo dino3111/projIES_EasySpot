@@ -1,4 +1,4 @@
-export type SensorTipo = 'IR' | 'RFID' | 'OCR' | 'EV' | 'Gateway';
+export type SensorTipo = 'IR' | 'Entrada' | 'OCR' | 'EV' | 'Gateway';
 export type SensorStatus = 'operacional' | 'falha' | 'offline' | 'manutencao';
 
 export interface ErrorLog {

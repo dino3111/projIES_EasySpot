@@ -236,7 +236,7 @@ class PostmanDataInitializer implements ApplicationRunner {
                 "A verificar logs de entrada/saída.", OffsetDateTime.now(ZoneOffset.UTC).minusHours(1)),
             alert(lots.get(2), AlertType.SYSTEM, SeverityAlert.CRITICAL, StateAlert.IN_PROGRESS,
                 null, null, null,
-                "Leitor RFID sem comunicação desde as 06h45", "Laura Farias",
+                "Leitor de entrada sem comunicação desde as 06h45", "Laura Farias",
                 "Técnico a caminho.", OffsetDateTime.now(ZoneOffset.UTC).minusHours(5)),
             alert(lots.get(0), AlertType.SENSOR, SeverityAlert.WARNING, StateAlert.OPEN,
                 "Piso 0 – Zona A", "IR-AV1-A12", null,

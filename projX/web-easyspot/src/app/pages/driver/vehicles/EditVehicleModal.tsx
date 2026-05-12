@@ -1,13 +1,12 @@
 import { useState } from 'react';
 import { detectChargerTypes } from '../../../utils/brandLogo';
 import type { Vehicle } from '../../../context/ProfileContext';
-import { BrandLogo, NicknameInput, RfidInput, EVOptions } from './vehiclesShared';
+import { BrandLogo, NicknameInput, EVOptions } from './vehiclesShared';
 
 export function EditVehicleModal({
   vehicle, onClose, onUpdate,
 }: Readonly<{ vehicle: Vehicle; onClose: () => void; onUpdate: (updates: Partial<Vehicle>) => void }>) {
   const [nickname, setNickname] = useState(vehicle.nickname || '');
-  const [rfid, setRfid] = useState(vehicle.rfid || '');
   const [isEV, setIsEV] = useState(vehicle.isEV);
   const [isAccessible, setIsAccessible] = useState(vehicle.isAccessible);
   const [chargerTypes, setChargerTypes] = useState<string[]>(vehicle.chargerTypes || []);
@@ -21,7 +20,6 @@ export function EditVehicleModal({
   const handleSave = () =>
     onUpdate({
       nickname: nickname.trim() || undefined,
-      rfid: rfid.trim() || undefined,
       isEV,
       chargerTypes: isEV ? chargerTypes : undefined,
       isAccessible,
@@ -79,7 +77,6 @@ export function EditVehicleModal({
             </div>
           )}
           <NicknameInput nickname={nickname} setNickname={setNickname} />
-          <RfidInput rfid={rfid} setRfid={setRfid} />
           <EVOptions
             isEV={isEV} setIsEV={handleIsEVChange}
             chargerTypes={chargerTypes} setChargerTypes={setChargerTypes}

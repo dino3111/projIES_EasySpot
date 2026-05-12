@@ -56,7 +56,7 @@ export interface BillingRecord {
   parqueNome: string;
   data: string;
   matricula: string;
-  metodo: 'OCR' | 'RFID' | 'Manual';
+  metodo: 'OCR' | 'Manual';
   duracao: string;
   valorEstacionamento: number;
   valorEV?: number;

@@ -75,7 +75,7 @@ export interface ParkingLot {
   phone: string;
   techFeatures: {
     hasOCR: boolean;
-    hasRFID: boolean;
+    hasEntrySensor: boolean;
     hasIRSensors: boolean;
     hasLEDs: boolean;
   };
@@ -113,4 +113,3 @@ export function getDistanceColor(meters: number): { bg: string; label: string } 
   if (meters <= 40) return { bg: '#f59e0b', label: `${meters}m` };
   return { bg: '#ef4444', label: `${meters}m` };
 }
-

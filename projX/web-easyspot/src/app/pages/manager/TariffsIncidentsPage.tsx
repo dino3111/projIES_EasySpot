@@ -90,8 +90,7 @@ function mapBilling(b: BillingSessionResponse): BillingRecord {
     year: 'numeric', month: '2-digit', day: '2-digit',
     hour: '2-digit', minute: '2-digit',
   }).replace(',', '');
-  const method: BillingRecord['metodo'] =
-    b.zoneType === 'RFID' ? 'RFID' : b.licensePlate ? 'OCR' : 'Manual';
+  const method: BillingRecord['metodo'] = b.licensePlate ? 'OCR' : 'Manual';
   return {
     id: b.id,
     parqueNome: b.parkName,

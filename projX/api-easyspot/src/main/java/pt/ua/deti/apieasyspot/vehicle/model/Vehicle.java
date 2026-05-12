@@ -95,9 +95,6 @@ public class Vehicle {
     @Column(length = 50)
     private String nickname;
 
-    @Column(length = 50)
-    private String rfid;
-
     @Column(nullable = false, columnDefinition="BOOLEAN DEFAULT false")
     private boolean isEv;
 

@@ -61,12 +61,6 @@ export function VehicleCard({
             <span>{vehicle.color}</span>
           </div>
         )}
-        {vehicle.rfid && (
-          <div className="flex items-center gap-1.5">
-            <i className="fas fa-id-card" style={{ fontSize: '0.72rem', color: '#7357ec' }} />
-            <span className="font-mono" style={{ fontSize: '0.72rem' }}>{vehicle.rfid}</span>
-          </div>
-        )}
       </div>
 
       {vehicle.isEV && vehicle.chargerTypes && vehicle.chargerTypes.length > 0 && (

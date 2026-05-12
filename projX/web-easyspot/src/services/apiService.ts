@@ -223,7 +223,6 @@ export interface InsuranceLookupResponse {
 
 export interface VehicleCreateRequest {
   licensePlate: string;
-  externalIdentifier?: string;
   nickname?: string;
   isAccessible?: boolean;
   isPrimary?: boolean;
