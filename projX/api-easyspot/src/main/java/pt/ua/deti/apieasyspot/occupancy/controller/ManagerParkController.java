@@ -62,6 +62,19 @@ public class ManagerParkController {
         return ResponseEntity.ok(managerParkService.createPark(request));
     }
 
+    @Operation(summary = "Create or replace full park layout")
+    @ApiResponse(responseCode = "200", description = "Layout saved")
+    @ApiResponse(responseCode = "400", description = "Invalid request")
+    @ApiResponse(responseCode = "404", description = "Park not found")
+    @ApiResponse(responseCode = "403", description = "Not a manager")
+    @PutMapping("/parks/{parkId}/layout")
+    @PreAuthorize("hasRole('MANAGER')")
+    public ResponseEntity<ParkingLot> configureParkLayout(
+            @PathVariable UUID parkId,
+            @Valid @RequestBody ConfigureParkLayoutRequest request) {
+        return ResponseEntity.ok(managerParkService.configureParkLayout(parkId, request));
+    }
+
     @Operation(summary = "Assign a technician to a park")
     @ApiResponse(responseCode = "204", description = "Assigned")
     @ApiResponse(responseCode = "404", description = "Park or technician not found")

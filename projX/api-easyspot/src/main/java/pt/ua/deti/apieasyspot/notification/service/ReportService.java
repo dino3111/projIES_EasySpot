@@ -104,7 +104,7 @@ public class ReportService {
         alert.setDescription(request.description());
         alert.setPhotoUrl(photoUrl);
         alert.setReportedBy(driver.getName());
-        alert.setAttributedTo(technician.getName());
+        alert.setAttributedTo(technician != null ? technician.getName() : null);
         alert.setCreatedAt(OffsetDateTime.now(ZoneOffset.UTC));
         return alert;
     }
@@ -112,7 +112,7 @@ public class ReportService {
     private User findTechnician(ParkingLot parkingLot) {
         User technician = parkingLot.getTechnician();
         if (technician == null) {
-            throw new ResourceNotFoundException("Parking lot has no assigned technician: " + parkingLot.getId());
+            return null;
         }
         if (!"TECHNICAL".equalsIgnoreCase(technician.getRole())) {
             throw new IllegalStateException("Assigned park user is not a technician: " + technician.getAuthentikUserId());

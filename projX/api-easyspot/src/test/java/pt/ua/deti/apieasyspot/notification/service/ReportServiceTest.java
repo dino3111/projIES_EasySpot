@@ -257,17 +257,17 @@ class ReportServiceTest {
     }
 
     @Test
-    @DisplayName("create - park without technician - throws ResourceNotFoundException")
-    void create_parkWithoutTechnician_throws() {
+    @DisplayName("create - park without technician - still creates report without attribution")
+    void create_parkWithoutTechnician_createsWithoutAttribution() {
         parkingLot.setTechnician(null);
         CreateReportRequest req = new CreateReportRequest(
             parkingLot.getId(), "A", "A12", "accessible", null, "desc"
         );
 
-        assertThatThrownBy(() -> reportService.create("driver-sub-001", req, null))
-            .isInstanceOf(ResourceNotFoundException.class)
-            .hasMessageContaining("no assigned technician");
+        ReportResponse response = reportService.create("driver-sub-001", req, null);
 
-        verifyNoInteractions(alertRepository, messagingTemplate);
+        assertThat(response.id()).isNotNull();
+        verify(alertRepository).save(argThat(alert -> alert.getAttributedTo() == null));
+        verify(messagingTemplate).convertAndSend(eq("/topic/reports"), any(ReportResponse.class));
     }
 }

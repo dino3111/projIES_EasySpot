@@ -207,6 +207,25 @@ class ParkServiceTest {
     }
 
     @Test
+    void getDetails_withoutSpots_fallsBackToLotCapacity() {
+        when(parkingLotRepository.findById(lotId)).thenReturn(Optional.of(lot));
+        when(parkingSpotRepository.findByParkingLotId(lotId)).thenReturn(List.of());
+        when(reservationRepository.findActiveWithSpotByParkId(lotId)).thenReturn(List.of());
+        when(reservationRepository.countActiveReservationsForLot(any(UUID.class), any(OffsetDateTime.class))).thenReturn(0L);
+        when(timescaleOccupancySnapshotRepository.latestByLot(lotId)).thenReturn(List.of());
+        when(tariffRepository.findByParkingLotId(lotId)).thenReturn(List.of());
+        when(evChargerRepository.findByParkingLotId(lotId)).thenReturn(List.of());
+        when(accessibleSpotRepository.findByParkingLotId(lotId)).thenReturn(List.of());
+
+        ParkingLotDetailsResponse response = parkService.getDetails(lotId);
+
+        assertThat(response.totalSpaces()).isEqualTo(100);
+        assertThat(response.freeSpaces()).isEqualTo(100);
+        assertThat(response.zones()).isEmpty();
+        assertThat(response.spotMap()).isEmpty();
+    }
+
+    @Test
     void getDetails_sensorOccupancyMarksEvAsOccupied() {
         when(parkingLotRepository.findById(lotId)).thenReturn(Optional.of(lot));
         when(reservationRepository.findActiveWithSpotByParkId(lotId)).thenReturn(List.of());

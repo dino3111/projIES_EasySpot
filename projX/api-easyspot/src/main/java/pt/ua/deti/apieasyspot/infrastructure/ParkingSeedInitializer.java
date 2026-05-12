@@ -36,10 +36,17 @@ public class ParkingSeedInitializer implements ApplicationRunner {
         execute(relationalDataSource, "seed/test_driver_spending.sql", "Test driver vehicles seed (postgres)");
         execute(relationalDataSource, "seed/us11_test_data.sql", "US11 tariff and audit seed");
         execute(relationalDataSource, "seed/us_missing_tables_seed.sql", "Sensor registry, reservations, favorites and alert subscriptions seed");
+        execute(relationalDataSource, "seed/us13_infrastructure_test_data.sql", "US13 infrastructure mapping seed (postgres)");
+        execute(relationalDataSource, "seed/sensor_logs_postgres.sql", "Sensor registry seed (postgres)");
+        execute(relationalDataSource, "seed/us14_sensor_repair_postgres.sql", "US14 sensor repair seed (postgres)");
         execute(timescaleDataSource, "seed/parking_seed_timescale.sql", "Timescale occupancy seed");
         execute(timescaleDataSource, "seed/spending_sessions_timescale.sql", "Spending sessions seed (timescale)");
         execute(timescaleDataSource, "seed/test_driver_sessions_timescale.sql", "Test driver sessions seed (timescale)");
+        execute(timescaleDataSource, "seed/us05_reports_timescale.sql", "US5 client reports seed (timescale)");
+        execute(timescaleDataSource, "seed/us10_dashboard_test_data.sql", "US10 dashboard seed (timescale)");
         execute(timescaleDataSource, "seed/us11_alerts_timescale.sql", "US11 alerts issue log seed");
+        execute(timescaleDataSource, "seed/sensor_logs_timescale.sql", "Sensor alerts seed (timescale)");
+        execute(timescaleDataSource, "seed/us14_sensor_repair_timescale.sql", "US14 sensor repair seed (timescale)");
     }
 
     private void execute(DataSource dataSource, String classpathFile, String label) {

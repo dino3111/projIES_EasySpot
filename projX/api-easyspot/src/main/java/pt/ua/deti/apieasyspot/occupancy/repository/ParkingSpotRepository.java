@@ -18,6 +18,8 @@ public interface ParkingSpotRepository extends JpaRepository<ParkingSpot, UUID> 
 
     List<ParkingSpot> findByParkingLotId(UUID parkingLotId);
 
+    void deleteByParkingLotId(UUID parkingLotId);
+
     List<ParkingSpot> findByParkingLotIdIn(Collection<UUID> parkingLotIds);
 
     // Acquires a row-level write lock to prevent concurrent reservation of the same spot

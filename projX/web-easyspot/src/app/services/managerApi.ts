@@ -181,6 +181,39 @@ export interface CreateParkPayload {
   technicianId: string | null;
 }
 
+export interface ParkLayoutSpotPayload {
+  spotNumber: string;
+  zone: 'STANDARD' | 'EV' | 'ACCESSIBLE' | 'RESERVED';
+  row: number;
+  col: number;
+  status?: string;
+}
+
+export interface ParkLayoutEvChargerPayload {
+  type: string;
+  speed: string;
+  pricePerKwh: number;
+  available?: boolean;
+}
+
+export interface ParkLayoutAccessiblePayload {
+  location: string;
+  available?: boolean;
+  distanceToEntranceMeters?: number;
+  baySize?: string;
+  monitored?: boolean;
+  hasRampSpace?: boolean;
+  sensorStatus?: string;
+  ledStatus?: string;
+}
+
+export interface ConfigureParkLayoutPayload {
+  amenities: string[];
+  spots: ParkLayoutSpotPayload[];
+  evChargers: ParkLayoutEvChargerPayload[];
+  accessibleSpots: ParkLayoutAccessiblePayload[];
+}
+
 export interface CreateTechnicianPayload {
   username: string;
   name: string;
@@ -206,6 +239,12 @@ export const createTechnician = (payload: CreateTechnicianPayload) =>
 export const createPark = (payload: CreateParkPayload) =>
   request<{ id: string }>('/api/manager/parks', {
     method: 'POST',
+    body: JSON.stringify(payload),
+  });
+
+export const configureParkLayout = (parkId: string, payload: ConfigureParkLayoutPayload) =>
+  request<{ id: string }>(`/api/manager/parks/${parkId}/layout`, {
+    method: 'PUT',
     body: JSON.stringify(payload),
   });
 

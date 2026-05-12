@@ -8,11 +8,19 @@ import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
 import pt.ua.deti.apieasyspot.auth.service.AuthentikClient;
 import pt.ua.deti.apieasyspot.common.exception.ResourceNotFoundException;
 import pt.ua.deti.apieasyspot.occupancy.dto.*;
+import pt.ua.deti.apieasyspot.occupancy.model.AccessibleSpot;
+import pt.ua.deti.apieasyspot.occupancy.model.EVCharger;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
+import pt.ua.deti.apieasyspot.occupancy.model.ParkingSpot;
+import pt.ua.deti.apieasyspot.occupancy.model.ZoneType;
+import pt.ua.deti.apieasyspot.occupancy.repository.AccessibleSpotRepository;
+import pt.ua.deti.apieasyspot.occupancy.repository.EVChargerRepository;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingLotRepository;
+import pt.ua.deti.apieasyspot.occupancy.repository.ParkingSpotRepository;
 import pt.ua.deti.apieasyspot.occupancy.model.TechnicianParkAssignment;
 import pt.ua.deti.apieasyspot.occupancy.repository.TechnicianParkAssignmentRepository;
 
+import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -22,6 +30,9 @@ public class ManagerParkService {
 
     private final UserRepository userRepository;
     private final ParkingLotRepository parkingLotRepository;
+    private final ParkingSpotRepository parkingSpotRepository;
+    private final EVChargerRepository evChargerRepository;
+    private final AccessibleSpotRepository accessibleSpotRepository;
     private final TechnicianParkAssignmentRepository assignmentRepository;
     private final AuthentikClient authentikClient;
 
@@ -124,5 +135,101 @@ public class ManagerParkService {
         }
 
         return saved;
+    }
+
+    @Transactional
+    public ParkingLot configureParkLayout(UUID parkId, ConfigureParkLayoutRequest req) {
+        ParkingLot lot = parkingLotRepository.findById(parkId)
+            .orElseThrow(() -> new ResourceNotFoundException("Park not found: " + parkId));
+
+        parkingSpotRepository.deleteByParkingLotId(parkId);
+        evChargerRepository.deleteByParkingLotId(parkId);
+        accessibleSpotRepository.deleteByParkingLotId(parkId);
+
+        List<String> normalizedAmenities = normalizeAmenities(req.amenities());
+        lot.setAmenities(normalizedAmenities);
+
+        List<ConfigureParkLayoutRequest.ParkingSpotSeedRequest> spotSeeds =
+            req.spots() != null ? req.spots() : List.of();
+        if (!spotSeeds.isEmpty()) {
+            lot.setTotalSpaces(spotSeeds.size());
+        }
+        ParkingLot savedLot = parkingLotRepository.save(lot);
+
+        if (!spotSeeds.isEmpty()) {
+            List<ParkingSpot> spots = spotSeeds.stream().map(seed -> {
+                ParkingSpot spot = new ParkingSpot();
+                spot.setParkingLot(savedLot);
+                spot.setSpotNumber(seed.spotNumber().trim());
+                ZoneType zone = parseZone(seed.zone());
+                spot.setZone(zone);
+                spot.setSpotRow(seed.row());
+                spot.setSpotCol(seed.col());
+                spot.setStatus(resolveStatus(seed.status(), zone));
+                return spot;
+            }).toList();
+            parkingSpotRepository.saveAll(spots);
+        }
+
+        List<ConfigureParkLayoutRequest.EvChargerSeedRequest> chargerSeeds =
+            req.evChargers() != null ? req.evChargers() : List.of();
+        if (!chargerSeeds.isEmpty()) {
+            List<EVCharger> chargers = chargerSeeds.stream().map(seed -> {
+                EVCharger charger = new EVCharger();
+                charger.setParkingLot(savedLot);
+                charger.setType(seed.type().trim());
+                charger.setSpeed(seed.speed().trim());
+                charger.setPricePerKwh(seed.pricePerKwh() != null ? seed.pricePerKwh() : BigDecimal.ZERO);
+                charger.setAvailable(seed.available() == null || seed.available());
+                return charger;
+            }).toList();
+            evChargerRepository.saveAll(chargers);
+        }
+
+        List<ConfigureParkLayoutRequest.AccessibleSpotSeedRequest> accSeeds =
+            req.accessibleSpots() != null ? req.accessibleSpots() : List.of();
+        if (!accSeeds.isEmpty()) {
+            List<AccessibleSpot> accessibleSpots = accSeeds.stream().map(seed -> {
+                AccessibleSpot spot = new AccessibleSpot();
+                spot.setParkingLot(savedLot);
+                spot.setLocation(seed.location().trim());
+                spot.setAvailable(seed.available() == null || seed.available());
+                spot.setDistanceToEntranceMeters(seed.distanceToEntranceMeters() != null ? seed.distanceToEntranceMeters() : 0);
+                spot.setBaySize(seed.baySize() != null && !seed.baySize().isBlank() ? seed.baySize().trim() : "3.5m x 5.0m");
+                spot.setMonitored(seed.monitored() != null && seed.monitored());
+                spot.setHasRampSpace(seed.hasRampSpace() != null && seed.hasRampSpace());
+                spot.setSensorStatus(seed.sensorStatus() != null && !seed.sensorStatus().isBlank() ? seed.sensorStatus().trim() : "online");
+                spot.setLedStatus(seed.ledStatus() != null && !seed.ledStatus().isBlank() ? seed.ledStatus().trim() : "green");
+                return spot;
+            }).toList();
+            accessibleSpotRepository.saveAll(accessibleSpots);
+        }
+
+        return savedLot;
+    }
+
+    private List<String> normalizeAmenities(List<String> amenities) {
+        if (amenities == null || amenities.isEmpty()) return List.of();
+        return amenities.stream()
+            .filter(Objects::nonNull)
+            .map(String::trim)
+            .filter(s -> !s.isBlank())
+            .distinct()
+            .toList();
+    }
+
+    private ZoneType parseZone(String zoneRaw) {
+        try {
+            return ZoneType.valueOf(zoneRaw.trim().toUpperCase(Locale.ROOT));
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Invalid zone type: " + zoneRaw);
+        }
+    }
+
+    private String resolveStatus(String statusRaw, ZoneType zone) {
+        if (statusRaw != null && !statusRaw.isBlank()) return statusRaw.trim().toLowerCase(Locale.ROOT);
+        if (zone == ZoneType.EV) return "ev";
+        if (zone == ZoneType.ACCESSIBLE) return "accessible";
+        return "free";
     }
 }

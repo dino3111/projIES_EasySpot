@@ -216,11 +216,10 @@ public class ParkService {
         List<ParkingSpot> spots = parkingSpotRepository.findByParkingLotId(id);
         List<Reservation> activeReservations = reservationRepository.findActiveWithSpotByParkId(id);
         List<ZoneSnapshot> snapshots = timescaleOccupancySnapshotRepository.latestByLot(id);
+        Availability availability = availabilityFor(lot, snapshots, spots, activeReservations, now);
         Map<UUID, String> statusBySpot = buildStatusBySpot(spots, activeReservations, snapshots, now);
 
         List<ParkingLotDetailsResponse.ZoneResponse> zones = buildZonesFromSpotStatuses(spots, statusBySpot);
-        int totalSpaces = zones.stream().mapToInt(ParkingLotDetailsResponse.ZoneResponse::total).sum();
-        int freeSpaces = zones.stream().mapToInt(ParkingLotDetailsResponse.ZoneResponse::free).sum();
 
         List<ParkingLotDetailsResponse.SpotResponse> spotResponses = spots.stream()
             .map(s -> {
@@ -236,8 +235,8 @@ public class ParkService {
             lot.getAddress(),
             new ParkingLotDetailsResponse.CoordinatesResponse(lot.getLatitude(), lot.getLongitude()),
             lot.getOpeningHours(),
-            totalSpaces > 0 ? totalSpaces : lot.getTotalSpaces(),
-            freeSpaces,
+            availability.totalSpaces(),
+            availability.freeSpaces(),
             zones,
             spotResponses,
             fetchEVChargers(id),

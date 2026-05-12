@@ -8,4 +8,5 @@ import java.util.UUID;
 
 public interface EVChargerRepository extends JpaRepository<EVCharger, UUID> {
     List<EVCharger> findByParkingLotId(UUID parkingLotId);
+    void deleteByParkingLotId(UUID parkingLotId);
 }
