@@ -15,6 +15,7 @@ services:
       - VITE_AUTHENTIK_URL=${VITE_AUTHENTIK_URL:-http://localhost/authentik}
       - VITE_AUTHENTIK_CLIENT_ID=${VITE_AUTHENTIK_CLIENT_ID:-}
       - VITE_AUTHENTIK_REDIRECT_URI=${VITE_AUTHENTIK_REDIRECT_URI:-http://localhost/callback}
+      - VITE_AUTHENTIK_LOGOUT_REDIRECT_URI=${VITE_AUTHENTIK_LOGOUT_REDIRECT_URI:-http://localhost/welcome}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:5173"]
@@ -101,6 +102,7 @@ services:
       AUTHENTIK_URL: http://authentik-server:9000/authentik
       AUTHENTIK_TOKEN: ${AUTHENTIK_BOOTSTRAP_TOKEN:-}
       REDIRECT_URI: ${VITE_AUTHENTIK_REDIRECT_URI:-http://localhost/callback}
+      LOGOUT_REDIRECT_URI: ${VITE_AUTHENTIK_LOGOUT_REDIRECT_URI:-http://localhost/welcome}
       EASYSPOT_AKADMIN_PASSWORD: ${AUTHENTIK_BOOTSTRAP_PASSWORD:-akadmin}
       EASYSPOT_TEST_DRIVER_PASSWORD: ${EASYSPOT_TEST_DRIVER_PASSWORD:-change-me-driver}
       EASYSPOT_TEST_MANAGER_PASSWORD: ${EASYSPOT_TEST_MANAGER_PASSWORD:-change-me-manager}

@@ -119,12 +119,13 @@ export function ParkingListPage() {
       try {
         setLoading(true);
         setLoadError(null);
+        const shouldUseVehicleCompatibility = query.showEVOnly || query.showAccessibleOnly;
         const data = await fetchParksList({
           page: query.page,
           pageSize: 20,
           textQuery: query.searchQuery || undefined,
           city: query.selectedDistrict || undefined,
-          vehicleId: query.selectedVehicleId,
+          vehicleId: shouldUseVehicleCompatibility ? query.selectedVehicleId : null,
           evOnly: query.showEVOnly,
           accessibleOnly: query.showAccessibleOnly,
           availableOnly: query.showAvailableOnly,

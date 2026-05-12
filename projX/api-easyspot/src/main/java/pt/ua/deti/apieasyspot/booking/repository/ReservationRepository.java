@@ -139,6 +139,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
     @Query("""
         SELECT r FROM Reservation r
         LEFT JOIN FETCH r.parkingSpot
+        LEFT JOIN FETCH r.parkingLot
         WHERE r.status NOT IN ('CANCELLED', 'EXPIRED', 'COMPLETED')
           AND r.parkingSpot IS NOT NULL
         ORDER BY r.arrivalTime ASC
@@ -148,12 +149,24 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
     @Query("""
         SELECT r FROM Reservation r
         LEFT JOIN FETCH r.parkingSpot
+        LEFT JOIN FETCH r.parkingLot
         WHERE r.parkingLot.id = :parkId
           AND r.status NOT IN ('CANCELLED', 'EXPIRED', 'COMPLETED')
           AND r.parkingSpot IS NOT NULL
         ORDER BY r.arrivalTime ASC
         """)
     List<Reservation> findActiveWithSpotByParkId(@Param("parkId") UUID parkId);
+
+    @Query("""
+        SELECT r FROM Reservation r
+        LEFT JOIN FETCH r.parkingSpot
+        LEFT JOIN FETCH r.parkingLot
+        WHERE r.parkingLot.id IN :parkIds
+          AND r.status NOT IN ('CANCELLED', 'EXPIRED', 'COMPLETED')
+          AND r.parkingSpot IS NOT NULL
+        ORDER BY r.arrivalTime ASC
+        """)
+    List<Reservation> findActiveWithSpotByParkIds(@Param("parkIds") List<UUID> parkIds);
 
     @Query("""
         SELECT r FROM Reservation r

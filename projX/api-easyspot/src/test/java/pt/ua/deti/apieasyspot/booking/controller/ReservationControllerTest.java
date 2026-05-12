@@ -12,6 +12,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.jwt.Jwt;
 import pt.ua.deti.apieasyspot.booking.dto.CreateReservationRequest;
 import pt.ua.deti.apieasyspot.booking.dto.ReservationResponse;
+import pt.ua.deti.apieasyspot.booking.dto.ReservationUpdatePreviewResponse;
+import pt.ua.deti.apieasyspot.booking.dto.ReservationUpdateResponse;
 import pt.ua.deti.apieasyspot.booking.dto.UpdateReservationRequest;
 import pt.ua.deti.apieasyspot.booking.service.ReservationService;
 import pt.ua.deti.apieasyspot.common.exception.ConflictException;
@@ -156,15 +158,44 @@ class ReservationControllerTest {
     }
 
     @Test
+    @DisplayName("previewUpdateReservation - valid request - returns 200 OK")
+    void previewUpdateReservation_validRequest_returns200() {
+        ReservationUpdatePreviewResponse previewResponse =
+            new ReservationUpdatePreviewResponse(
+                new BigDecimal("3.00"),
+                new BigDecimal("4.50"),
+                new BigDecimal("1.50")
+            );
+        when(reservationService.previewUpdate(AUTH_ID, reservationId, updateRequest)).thenReturn(previewResponse);
+
+        ResponseEntity<ReservationUpdatePreviewResponse> response =
+            reservationController.previewUpdateReservation(reservationId, updateRequest, jwt);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isEqualTo(previewResponse);
+        verify(reservationService).previewUpdate(AUTH_ID, reservationId, updateRequest);
+    }
+
+    @Test
     @DisplayName("updateReservation - valid request - returns 200 OK")
     void updateReservation_validRequest_returns200() {
-        when(reservationService.update(AUTH_ID, reservationId, updateRequest)).thenReturn(confirmedResponse);
+        ReservationUpdateResponse updateResponse =
+            new ReservationUpdateResponse(
+                confirmedResponse,
+                java.math.BigDecimal.ZERO,
+                java.math.BigDecimal.ZERO,
+                java.math.BigDecimal.ZERO,
+                "NO_CHANGE",
+                null,
+                null
+            );
+        when(reservationService.update(AUTH_ID, reservationId, updateRequest)).thenReturn(updateResponse);
 
-        ResponseEntity<ReservationResponse> response =
+        ResponseEntity<ReservationUpdateResponse> response =
             reservationController.updateReservation(reservationId, updateRequest, jwt);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).isEqualTo(confirmedResponse);
+        assertThat(response.getBody()).isEqualTo(updateResponse);
         verify(reservationService).update(AUTH_ID, reservationId, updateRequest);
     }
 

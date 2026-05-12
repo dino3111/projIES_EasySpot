@@ -5,8 +5,10 @@ import com.stripe.model.Customer;
 import com.stripe.model.PaymentIntent;
 import com.stripe.model.PaymentMethod;
 import com.stripe.model.PaymentMethodCollection;
+import com.stripe.model.Refund;
 import com.stripe.net.RequestOptions;
 import com.stripe.param.PaymentIntentCreateParams;
+import com.stripe.param.RefundCreateParams;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -14,7 +16,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
-import jakarta.annotation.PostConstruct;
 import pt.ua.deti.apieasyspot.billing.exception.PaymentSetupRequiredException;
 import pt.ua.deti.apieasyspot.billing.model.PaymentRecord;
 import pt.ua.deti.apieasyspot.billing.model.PaymentStatus;
@@ -28,6 +29,8 @@ import pt.ua.deti.apieasyspot.occupancy.model.ZoneType;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.math.BigDecimal;
+import java.util.Objects;
 import java.util.List;
 import java.util.Optional;
 
@@ -231,6 +234,247 @@ public class BillingService {
 
         parkingSessionRepository.save(session);
     }
+
+    /**
+     * Adjusts the Stripe payment for an existing reservation after its cost changed.
+     * Charges the positive delta, or refunds the negative delta against the latest intent.
+     * Runs in REQUIRES_NEW so a transient Stripe failure does not roll back the reservation update.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public PaymentAdjustmentResult adjustPaymentForReservation(Reservation reservation,
+                                                               java.math.BigDecimal previousCost,
+                                                               java.math.BigDecimal newCost,
+                                                               String customerEmail) {
+        java.math.BigDecimal previous = previousCost != null ? previousCost : java.math.BigDecimal.ZERO;
+        java.math.BigDecimal next     = newCost != null     ? newCost     : java.math.BigDecimal.ZERO;
+        java.math.BigDecimal delta    = next.subtract(previous).setScale(2, java.math.RoundingMode.HALF_UP);
+
+        if (delta.signum() == 0) {
+            return new PaymentAdjustmentResult(delta, "NO_CHANGE", null, null);
+        }
+
+        if (stripeSecretKey == null || stripeSecretKey.isBlank()) {
+            throw new PaymentSetupRequiredException(
+                "O Stripe não está configurado para ajustar a reserva " + reservation.getBookingCode() + ".");
+        }
+
+        if (delta.signum() > 0) {
+            return chargeDelta(reservation, delta, customerEmail);
+        }
+        return refundDelta(reservation, delta.abs(), customerEmail);
+    }
+
+    private PaymentAdjustmentResult chargeDelta(Reservation reservation, java.math.BigDecimal delta, String customerEmail) {
+        try {
+            long amountCents = delta.multiply(java.math.BigDecimal.valueOf(100)).longValueExact();
+
+            StripeCustomerContext customerContext = resolveCustomerContext(reservation, customerEmail);
+            if (customerContext == null || !StringUtils.hasText(customerContext.paymentMethodId())) {
+                throw new PaymentSetupRequiredException(
+                    "Não foi encontrado um método de pagamento Stripe para cobrar a diferença da reserva "
+                        + reservation.getBookingCode() + ".");
+            }
+
+            PaymentIntentCreateParams params = PaymentIntentCreateParams.builder()
+                .setAmount(amountCents)
+                .setCurrency("eur")
+                .setCustomer(customerContext.customerId())
+                .setPaymentMethod(customerContext.paymentMethodId())
+                .setConfirm(true)
+                .setOffSession(true)
+                .putMetadata("reservationId", reservation.getId().toString())
+                .putMetadata("bookingCode", reservation.getBookingCode())
+                .putMetadata("kind", "update-delta")
+                .build();
+
+            RequestOptions options = RequestOptions.builder()
+                .setIdempotencyKey(buildUpdateIdempotencyKey(reservation, delta, customerContext))
+                .setApiKey(stripeSecretKey)
+                .build();
+
+            PaymentIntent intent = PaymentIntent.create(params, options);
+            String intentStatus = String.valueOf(intent.getStatus());
+            PaymentStatus status = switch (intentStatus) {
+                case "succeeded" -> PaymentStatus.COMPLETED;
+                case "requires_payment_method", "canceled" -> PaymentStatus.FAILED;
+                default -> PaymentStatus.PENDING;
+            };
+
+            persistDeltaPaymentRecord(reservation, customerEmail, intent.getId(), delta, status);
+            String kind = status == PaymentStatus.COMPLETED ? "CHARGED" : "CHARGE_PENDING";
+            log.info("Stripe delta charge {} for reservation {} amount {} ({})",
+                intent.getId(), reservation.getBookingCode(), delta, intentStatus);
+            return new PaymentAdjustmentResult(delta, kind, intent.getId(), status.name());
+
+        } catch (StripeException ex) {
+            log.warn("Stripe delta charge failed for reservation {} amount {}: {}",
+                reservation.getBookingCode(), delta, ex.getMessage());
+            persistDeltaPaymentRecord(reservation, customerEmail, null, delta, PaymentStatus.FAILED);
+            return new PaymentAdjustmentResult(delta, "CHARGE_FAILED", null, describeStripeFailure(ex));
+        }
+    }
+
+    private PaymentAdjustmentResult refundDelta(Reservation reservation, java.math.BigDecimal amount, String customerEmail) {
+        Optional<PaymentRecord> latestSuccessful = paymentRecordRepository
+            .findTopByReservationIdAndPaymentIntentIdIsNotNullAndAmountGreaterThanAndStatusInOrderByCreatedAtDesc(
+                reservation.getId(),
+                BigDecimal.ZERO,
+                List.of(PaymentStatus.COMPLETED, PaymentStatus.PENDING)
+            );
+
+        if (latestSuccessful.isEmpty()) {
+            log.warn("Cannot refund reservation {}: no prior PaymentIntent found", reservation.getBookingCode());
+            persistDeltaPaymentRecord(reservation, customerEmail, null, amount.negate(), PaymentStatus.FAILED);
+            return new PaymentAdjustmentResult(amount.negate(), "REFUND_FAILED", null, PaymentStatus.FAILED.name());
+        }
+
+        PaymentRecord previousRecord = latestSuccessful.get();
+        try {
+            long amountCents = amount.multiply(java.math.BigDecimal.valueOf(100)).longValueExact();
+            RefundCreateParams params = RefundCreateParams.builder()
+                .setPaymentIntent(previousRecord.getPaymentIntentId())
+                .setAmount(amountCents)
+                .putMetadata("reservationId", reservation.getId().toString())
+                .putMetadata("bookingCode", reservation.getBookingCode())
+                .putMetadata("kind", "update-delta")
+                .build();
+            Refund refund = Refund.create(params, getRequestOptions());
+
+            PaymentStatus newStatus = "succeeded".equals(refund.getStatus())
+                ? PaymentStatus.PARTIALLY_REFUNDED
+                : PaymentStatus.PENDING;
+            String kind = "succeeded".equals(refund.getStatus()) ? "REFUNDED" : "REFUND_PENDING";
+
+            persistDeltaPaymentRecord(reservation, customerEmail, null, amount.negate(), newStatus);
+            log.info("Stripe refund {} for reservation {} amount {} ({})",
+                refund.getId(), reservation.getBookingCode(), amount, refund.getStatus());
+            return new PaymentAdjustmentResult(amount.negate(), kind, refund.getId(), newStatus.name());
+
+        } catch (StripeException ex) {
+            log.warn("Stripe refund failed for reservation {} amount {}: {}",
+                reservation.getBookingCode(), amount, ex.getMessage());
+            persistDeltaPaymentRecord(reservation, customerEmail, null, amount.negate(), PaymentStatus.FAILED);
+            return new PaymentAdjustmentResult(amount.negate(), "REFUND_FAILED", null, describeStripeFailure(ex));
+        }
+    }
+
+    private String describeStripeFailure(StripeException ex) {
+        if (ex == null) {
+            return PaymentStatus.FAILED.name();
+        }
+        if (StringUtils.hasText(ex.getCode())) {
+            return ex.getCode();
+        }
+        return PaymentStatus.FAILED.name();
+    }
+
+    private String buildUpdateIdempotencyKey(Reservation reservation,
+                                             java.math.BigDecimal delta,
+                                             StripeCustomerContext customerContext) {
+        String fingerprint = String.join("|",
+            reservation.getId().toString(),
+            delta.setScale(2, java.math.RoundingMode.HALF_UP).toPlainString(),
+            reservation.getArrivalTime() != null ? reservation.getArrivalTime().toString() : "",
+            reservation.getDepartureTime() != null ? reservation.getDepartureTime().toString() : "",
+            reservation.getParkingSpot() != null ? reservation.getParkingSpot().getId().toString() : "auto",
+            customerContext != null ? Objects.toString(customerContext.customerId(), "") : "",
+            customerContext != null ? Objects.toString(customerContext.paymentMethodId(), "") : ""
+        );
+        return "reservation-update-" + Integer.toHexString(fingerprint.hashCode());
+    }
+
+    private void persistDeltaPaymentRecord(Reservation reservation, String customerEmail, String paymentIntentId,
+                                           java.math.BigDecimal amount, PaymentStatus status) {
+        PaymentRecord record = new PaymentRecord();
+        record.setReservationId(reservation.getId());
+        record.setPaymentIntentId(paymentIntentId);
+        record.setAmount(amount);
+        record.setCurrency("eur");
+        record.setStatus(status);
+        record.setCustomerEmail(customerEmail);
+        paymentRecordRepository.save(record);
+    }
+
+    /**
+     * Refunds the most recent successful PaymentIntent for a reservation.
+     * Returns the actually refunded amount (always non-negative) and a status flag.
+     * Runs in REQUIRES_NEW so a transient Stripe failure does not roll back the reservation cancel.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public RefundResult refundReservation(Reservation reservation, String customerEmail) {
+        Optional<PaymentRecord> existingRefund = paymentRecordRepository
+            .findTopByReservationIdAndAmountLessThanAndStatusInOrderByCreatedAtDesc(
+                reservation.getId(),
+                BigDecimal.ZERO,
+                List.of(PaymentStatus.REFUNDED, PaymentStatus.PARTIALLY_REFUNDED, PaymentStatus.PENDING)
+            );
+
+        if (existingRefund.isPresent()) {
+            BigDecimal amount = existingRefund.get().getAmount().abs();
+            boolean succeeded = existingRefund.get().getStatus() == PaymentStatus.REFUNDED
+                || existingRefund.get().getStatus() == PaymentStatus.PARTIALLY_REFUNDED;
+            log.info("Skipping duplicate cancellation refund for reservation {} (already recorded as {})",
+                reservation.getBookingCode(), existingRefund.get().getStatus());
+            return new RefundResult(
+                amount,
+                succeeded,
+                succeeded ? "ALREADY_REFUNDED" : "REFUND_PENDING",
+                existingRefund.get().getPaymentIntentId()
+            );
+        }
+
+        Optional<PaymentRecord> chargeableRecord = paymentRecordRepository
+            .findTopByReservationIdAndPaymentIntentIdIsNotNullAndAmountGreaterThanAndStatusInOrderByCreatedAtDesc(
+                reservation.getId(),
+                BigDecimal.ZERO,
+                List.of(PaymentStatus.COMPLETED, PaymentStatus.PENDING)
+            );
+
+        if (chargeableRecord.isEmpty()) {
+            log.info("No refundable PaymentIntent for reservation {}", reservation.getBookingCode());
+            return new RefundResult(java.math.BigDecimal.ZERO, false, "NO_CHARGE", null);
+        }
+
+        if (stripeSecretKey == null || stripeSecretKey.isBlank()) {
+            log.warn("Cannot refund reservation {}: Stripe not configured", reservation.getBookingCode());
+            return new RefundResult(chargeableRecord.get().getAmount(), false, "STRIPE_NOT_CONFIGURED", null);
+        }
+
+        PaymentRecord record = chargeableRecord.get();
+        java.math.BigDecimal amount = record.getAmount();
+        try {
+            long amountCents = amount.multiply(java.math.BigDecimal.valueOf(100)).longValueExact();
+            RefundCreateParams params = RefundCreateParams.builder()
+                .setPaymentIntent(record.getPaymentIntentId())
+                .setAmount(amountCents)
+                .putMetadata("reservationId", reservation.getId().toString())
+                .putMetadata("bookingCode", reservation.getBookingCode())
+                .putMetadata("kind", "cancellation")
+                .build();
+            Refund refund = Refund.create(params, getRequestOptions());
+
+            boolean succeeded = "succeeded".equals(refund.getStatus());
+            PaymentStatus status = succeeded ? PaymentStatus.REFUNDED : PaymentStatus.PENDING;
+            persistDeltaPaymentRecord(reservation, customerEmail, null, amount.negate(), status);
+            log.info("Stripe cancellation refund {} for reservation {} amount {} ({})",
+                refund.getId(), reservation.getBookingCode(), amount, refund.getStatus());
+            return new RefundResult(amount, succeeded, succeeded ? "REFUNDED" : "REFUND_PENDING", refund.getId());
+
+        } catch (StripeException ex) {
+            log.warn("Stripe refund failed for cancellation of reservation {}: {}",
+                reservation.getBookingCode(), ex.getMessage());
+            if ("charge_already_refunded".equalsIgnoreCase(ex.getCode())) {
+                persistDeltaPaymentRecord(reservation, customerEmail, null, amount.negate(), PaymentStatus.REFUNDED);
+                return new RefundResult(amount, true, "ALREADY_REFUNDED", null);
+            }
+            persistDeltaPaymentRecord(reservation, customerEmail, null, amount.negate(), PaymentStatus.FAILED);
+            return new RefundResult(amount, false, "REFUND_FAILED", null);
+        }
+    }
+
+    public record RefundResult(java.math.BigDecimal amount, boolean succeeded, String kind, String stripeReferenceId) {}
+
+    public record PaymentAdjustmentResult(java.math.BigDecimal delta, String kind, String stripeReferenceId, String status) {}
 
     private record StripeCustomerContext(String customerId, String paymentMethodId) {}
 }

@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingSpot;
 
 import java.time.OffsetDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -16,6 +17,8 @@ import java.util.UUID;
 public interface ParkingSpotRepository extends JpaRepository<ParkingSpot, UUID> {
 
     List<ParkingSpot> findByParkingLotId(UUID parkingLotId);
+
+    List<ParkingSpot> findByParkingLotIdIn(Collection<UUID> parkingLotIds);
 
     // Acquires a row-level write lock to prevent concurrent reservation of the same spot
     @Lock(LockModeType.PESSIMISTIC_WRITE)

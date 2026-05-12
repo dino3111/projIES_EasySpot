@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.*;
 import pt.ua.deti.apieasyspot.booking.dto.CreateReservationRequest;
 import pt.ua.deti.apieasyspot.booking.dto.ReservationResponse;
 import pt.ua.deti.apieasyspot.booking.dto.UpdateReservationRequest;
+import pt.ua.deti.apieasyspot.booking.dto.ReservationUpdateResponse;
+import pt.ua.deti.apieasyspot.booking.dto.ReservationUpdatePreviewResponse;
 import pt.ua.deti.apieasyspot.booking.service.ReservationService;
 
 import java.util.List;
@@ -85,6 +87,30 @@ public class ReservationController {
     }
 
     @Operation(
+        summary = "Preview a reservation update",
+        description = """
+            Re-runs the validation and cost calculation for a proposed reservation update without
+            persisting any change or contacting Stripe. Use it to show the user the new cost and the
+            delta against the current cost before confirming.
+            """
+    )
+    @ApiResponse(responseCode = "200", description = "Preview computed successfully")
+    @ApiResponse(responseCode = "401", description = "Missing or invalid JWT")
+    @ApiResponse(responseCode = "403", description = "Caller is not a DRIVER")
+    @ApiResponse(responseCode = "404", description = "Reservation or park not found")
+    @ApiResponse(responseCode = "409", description = "Reservation can no longer be updated")
+    @ApiResponse(responseCode = "422", description = "Invalid date range or off-hours booking")
+    @PostMapping("/{reservationId}/preview-update")
+    @PreAuthorize("hasRole('DRIVER')")
+    public ResponseEntity<ReservationUpdatePreviewResponse> previewUpdateReservation(
+        @PathVariable UUID reservationId,
+        @Valid @RequestBody UpdateReservationRequest request,
+        @AuthenticationPrincipal Jwt jwt
+    ) {
+        return ResponseEntity.ok(reservationService.previewUpdate(jwt.getSubject(), reservationId, request));
+    }
+
+    @Operation(
         summary = "Update a reservation",
         description = """
             Updates a future confirmed reservation owned by the authenticated driver.
@@ -100,7 +126,7 @@ public class ReservationController {
     @ApiResponse(responseCode = "422", description = "Invalid date range or off-hours booking")
     @PutMapping("/{reservationId}")
     @PreAuthorize("hasRole('DRIVER')")
-    public ResponseEntity<ReservationResponse> updateReservation(
+    public ResponseEntity<ReservationUpdateResponse> updateReservation(
         @PathVariable UUID reservationId,
         @Valid @RequestBody UpdateReservationRequest request,
         @AuthenticationPrincipal Jwt jwt
