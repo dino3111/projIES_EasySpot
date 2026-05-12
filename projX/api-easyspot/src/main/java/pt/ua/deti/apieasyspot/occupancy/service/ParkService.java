@@ -118,7 +118,7 @@ public class ParkService {
 
     private Availability availabilityFor(ParkingLot lot, List<ZoneSnapshot> snapshots) {
         OffsetDateTime now = OffsetDateTime.now();
-        long activeRes = reservationRepository.countLotReservations(lot.getId(), now, now.plusMinutes(30));
+        long activeRes = reservationRepository.countActiveReservationsForLot(lot.getId(), now);
 
         if (snapshots.isEmpty()) {
             int free = Math.max(0, lot.getTotalSpaces() - (int) activeRes);

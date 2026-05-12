@@ -37,6 +37,17 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
 
     @Query("""
         SELECT COUNT(r) FROM Reservation r
+        WHERE r.parkingLot.id = :parkId
+          AND r.status NOT IN ('CANCELLED', 'EXPIRED', 'COMPLETED')
+          AND r.departureTime > :now
+        """)
+    long countActiveReservationsForLot(
+        @Param("parkId") UUID parkId,
+        @Param("now") OffsetDateTime now
+    );
+
+    @Query("""
+        SELECT COUNT(r) FROM Reservation r
         WHERE r.parkingSpot.id = :spotId
           AND r.id <> :reservationId
           AND r.status NOT IN ('CANCELLED', 'EXPIRED', 'COMPLETED')

@@ -101,6 +101,7 @@ export function spotColorClasses(spot: ParkingSpot, selected: boolean, selectabl
   if (selected) return 'bg-[#1d4ed8] text-white border-[#1e40af] ring-2 ring-[#93c5fd] shadow-lg scale-110';
   if (!selectable) {
     if (spot.status === 'occupied') return 'bg-[#b91c1c] text-white border-[#7f1d1d] cursor-not-allowed opacity-90';
+    if (spot.status === 'reserved') return 'bg-[#d97706] text-white border-[#92400e] cursor-not-allowed opacity-90';
     return 'bg-[#6b7280] text-white border-[#4b5563] cursor-not-allowed opacity-65';
   }
   if (spot.status === 'ev') return 'bg-[#f59e0b] text-black border-[#b45309] ring-1 ring-[#fcd34d] hover:scale-105 hover:shadow-md cursor-pointer';
