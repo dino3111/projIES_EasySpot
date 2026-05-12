@@ -88,15 +88,26 @@ export function TariffsIncidentsPage() {
 
   useEffect(() => {
     setLoading(true);
-    Promise.all([
+    Promise.allSettled([
       fetchManagerTariffs(),
-      fetchManagerAlerts()
-    ]).then(([tariffsData, alertsData]) => {
-      setTariffs(tariffsData.map(mapTariff));
-      setIssues(alertsData.map(mapAlert));
-    }).catch(err => {
-      console.error('Error fetching manager data:', err);
-    }).finally(() => setLoading(false));
+      fetchManagerAlerts(),
+    ])
+      .then(([tariffsResult, alertsResult]) => {
+        if (tariffsResult.status === 'fulfilled') {
+          setTariffs(tariffsResult.value.map(mapTariff));
+        } else {
+          console.error('Error fetching manager tariffs:', tariffsResult.reason);
+          setTariffs([]);
+        }
+
+        if (alertsResult.status === 'fulfilled') {
+          setIssues(alertsResult.value.map(mapAlert));
+        } else {
+          console.error('Error fetching manager alerts:', alertsResult.reason);
+          setIssues([]);
+        }
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   const handleSaveTariff = async (updated: Partial<TariffEntry>) => {

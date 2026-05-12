@@ -24,6 +24,11 @@ public class TimescaleAlertRepository {
 
     public TimescaleAlertRepository(@Qualifier("timescaleJdbcTemplate") JdbcTemplate jdbc) {
         this.jdbc = jdbc;
+        ensureReportedByColumn();
+    }
+
+    private void ensureReportedByColumn() {
+        jdbc.execute("alter table if exists alerts add column if not exists reported_by text");
     }
 
     public Alert save(Alert alert) {
