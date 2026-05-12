@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'react-router';
+import { useAuth } from '../../context/AuthContext';
 import { useProfile } from '../../context/ProfileContext';
 
 interface NavItem {
@@ -140,6 +141,7 @@ function SidebarRoleBadge({
   readonly isCollapsed: boolean;
 }) {
   const isManager = profile === 'MANAGER';
+  const { user } = useAuth();
   return (
     <div>
       <div
@@ -157,11 +159,9 @@ function SidebarRoleBadge({
           <p className="text-primary" style={{ fontSize: '0.72rem', fontWeight: 700 }}>
             {isManager ? 'Modo Gestor' : 'Modo Técnico'}
           </p>
-          {!isCollapsed && (
-            <p className="text-muted-foreground" style={{ fontSize: '0.62rem' }}>
-              {isManager ? 'António Videira' : 'Laura Farias'}
-            </p>
-          )}
+          <p className="text-muted-foreground" style={{ fontSize: '0.62rem' }}>
+            {user?.name ?? user?.email ?? '—'}
+          </p>
         </div>
       </div>
     </div>

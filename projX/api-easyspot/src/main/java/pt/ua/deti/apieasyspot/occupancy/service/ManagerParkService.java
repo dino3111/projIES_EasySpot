@@ -5,17 +5,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pt.ua.deti.apieasyspot.auth.model.User;
 import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
-import java.util.Map;
 import pt.ua.deti.apieasyspot.auth.service.AuthentikClient;
 import pt.ua.deti.apieasyspot.common.exception.ResourceNotFoundException;
 import pt.ua.deti.apieasyspot.occupancy.dto.*;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
-import pt.ua.deti.apieasyspot.occupancy.model.TechnicianParkAssignment;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingLotRepository;
+import pt.ua.deti.apieasyspot.occupancy.model.TechnicianParkAssignment;
 import pt.ua.deti.apieasyspot.occupancy.repository.TechnicianParkAssignmentRepository;
 
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -34,12 +33,12 @@ public class ManagerParkService {
 
     public List<ParkAssignmentsResponse> listParkAssignments() {
         List<TechnicianParkAssignment> all = assignmentRepository.findAll();
-        Map<UUID, List<UUID>> byPark = new java.util.HashMap<>();
+        Map<UUID, List<UUID>> byPark = new HashMap<>();
         for (TechnicianParkAssignment a : all) {
-            byPark.computeIfAbsent(a.getParkingLotId(), k -> new java.util.ArrayList<>()).add(a.getTechnicianId());
+            byPark.computeIfAbsent(a.getParkingLotId(), k -> new ArrayList<>()).add(a.getTechnicianId());
         }
         Map<UUID, User> techById = userRepository.findByRole("TECHNICAL").stream()
-            .collect(java.util.stream.Collectors.toMap(User::getId, u -> u));
+            .collect(Collectors.toMap(User::getId, u -> u));
 
         return byPark.entrySet().stream().map(e -> new ParkAssignmentsResponse(
             e.getKey(),
@@ -59,7 +58,8 @@ public class ManagerParkService {
         authentikClient.setPassword(akUser.pk(), req.temporaryPassword(), true);
 
         User user = new User();
-        user.setAuthentikUserId(akUser.pk());
+        user.setAuthentikUserId(akUser.uid());
+        user.setAuthentikPk(akUser.pk());
         user.setEmail(req.email());
         user.setName(req.name());
         user.setRole("TECHNICAL");
@@ -67,13 +67,13 @@ public class ManagerParkService {
 
         List<UUID> parkIds = req.parkIds() != null ? req.parkIds() : List.of();
         for (UUID parkId : parkIds) {
-            parkingLotRepository.findById(parkId)
+            ParkingLot lot = parkingLotRepository.findById(parkId)
                 .orElseThrow(() -> new ResourceNotFoundException("Park not found: " + parkId));
             assignmentRepository.deleteByParkingLotId(parkId);
-            TechnicianParkAssignment a = new TechnicianParkAssignment();
-            a.setTechnicianId(saved.getId());
-            a.setParkingLotId(parkId);
-            assignmentRepository.save(a);
+            TechnicianParkAssignment assignment = new TechnicianParkAssignment();
+            assignment.setTechnicianId(saved.getId());
+            assignment.setParkingLotId(lot.getId());
+            assignmentRepository.save(assignment);
         }
 
         return new TechnicianDetailResponse(saved.getId(), saved.getName(), saved.getEmail(), req.username(), parkIds);
@@ -81,18 +81,16 @@ public class ManagerParkService {
 
     @Transactional
     public void assignTechnicianToPark(UUID parkId, UUID technicianId) {
-        parkingLotRepository.findById(parkId)
+        ParkingLot lot = parkingLotRepository.findById(parkId)
             .orElseThrow(() -> new ResourceNotFoundException("Park not found: " + parkId));
         userRepository.findById(technicianId)
             .orElseThrow(() -> new ResourceNotFoundException("Technician not found: " + technicianId));
 
-        // Enforce one technician per park — remove any existing assignment first
         assignmentRepository.deleteByParkingLotId(parkId);
-
-        TechnicianParkAssignment a = new TechnicianParkAssignment();
-        a.setTechnicianId(technicianId);
-        a.setParkingLotId(parkId);
-        assignmentRepository.save(a);
+        TechnicianParkAssignment assignment = new TechnicianParkAssignment();
+        assignment.setTechnicianId(technicianId);
+        assignment.setParkingLotId(lot.getId());
+        assignmentRepository.save(assignment);
     }
 
     @Transactional
@@ -115,14 +113,14 @@ public class ManagerParkService {
         lot.setLongitude(req.longitude());
         lot.setOpeningHours(req.openingHours());
         lot.setTotalSpaces(req.totalSpaces());
-        lot.setAmenities(List.of());
+        lot.setAmenities(new java.util.ArrayList<>());
         ParkingLot saved = parkingLotRepository.save(lot);
 
         if (req.technicianId() != null) {
-            TechnicianParkAssignment a = new TechnicianParkAssignment();
-            a.setTechnicianId(req.technicianId());
-            a.setParkingLotId(saved.getId());
-            assignmentRepository.save(a);
+            TechnicianParkAssignment assignment = new TechnicianParkAssignment();
+            assignment.setTechnicianId(req.technicianId());
+            assignment.setParkingLotId(saved.getId());
+            assignmentRepository.save(assignment);
         }
 
         return saved;

@@ -5,7 +5,7 @@ import {
   type TechnicianSummary,
   type ParkAssignment,
 } from '../../services/managerApi';
-import type { ParkingLot } from '../data/parkingTypes';
+import type { ParkingLot } from '../../data/parkingTypes';
 import { CreateParkModal } from './components/CreateParkModal';
 import { AssignTechnicianModal } from './components/AssignTechnicianModal';
 

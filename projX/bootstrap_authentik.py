@@ -175,6 +175,15 @@ TEST_USERS = [
         ),
         "role": "TECHNICAL",
     },
+    {
+        "username": "test_technical2",
+        "email": "technical2@easyspot.local",
+        "name": "Rui Ferreira",
+        "password": os.environ.get(
+            "EASYSPOT_TEST_TECHNICAL2_PASSWORD", "change-me-technical2"
+        ),
+        "role": "TECHNICAL",
+    },
 ]
 
 # Logo with dark/light mode support via SVG CSS media query.

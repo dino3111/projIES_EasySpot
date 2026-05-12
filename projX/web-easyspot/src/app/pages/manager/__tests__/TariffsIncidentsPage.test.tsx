@@ -5,8 +5,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { TariffsIncidentsPage } from '../TariffsIncidentsPage';
 import { ProfileProvider } from '../../../context/ProfileContext';
 import { AuthProvider } from '../../../context/AuthContext';
-import { fetchManagerTariffs, fetchManagerAlerts } from '../../../services/managerApi';
-import { fetchAllParksSummary } from '../../../services/parksCatalog';
+import { fetchManagerTariffs, fetchManagerAlerts, fetchManagerBilling } from '../../../services/managerApi';
 
 import { fetchVehicles } from '../../../services/vehiclesApi';
 
@@ -14,12 +13,9 @@ import { fetchVehicles } from '../../../services/vehiclesApi';
 vi.mock('../../../services/managerApi', () => ({
   fetchManagerTariffs: vi.fn(),
   fetchManagerAlerts: vi.fn(),
+  fetchManagerBilling: vi.fn(),
   updateTariff: vi.fn(),
   updateAlertState: vi.fn(),
-}));
-
-vi.mock('../../../services/parksCatalog', () => ({
-  fetchAllParksSummary: vi.fn(),
 }));
 
 vi.mock('../../../services/vehiclesApi', () => ({
@@ -44,7 +40,7 @@ describe('TariffsIncidentsPage', () => {
   it('renders loading state initially', async () => {
     (fetchManagerTariffs as any).mockReturnValue(new Promise(() => {}));
     (fetchManagerAlerts as any).mockReturnValue(new Promise(() => {}));
-    (fetchAllParksSummary as any).mockReturnValue(new Promise(() => {}));
+    (fetchManagerBilling as any).mockReturnValue(new Promise(() => {}));
 
     renderPage();
 
@@ -84,9 +80,11 @@ describe('TariffsIncidentsPage', () => {
         notes: ''
       }
     ]);
-    (fetchAllParksSummary as any).mockResolvedValue([
-      { id: 'park-1', name: 'Test Park', city: 'Aveiro' }
-    ]);
+    (fetchManagerBilling as any).mockResolvedValue({
+      content: [],
+      totalElements: 0,
+      totalPages: 0,
+    });
 
     renderPage();
 
