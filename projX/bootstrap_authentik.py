@@ -377,8 +377,8 @@ def _build_redirect_uris(primary: str) -> list[dict]:
     uris = {
         primary,
         primary.replace(":5173", ""),
-        "http://localhost",
-        "http://localhost:5173",
+        "http://localhost/callback",
+        "http://localhost:5173/callback",
     }
     return [{"matching_mode": "strict", "url": u} for u in uris if u]
 
