@@ -413,11 +413,7 @@ export function DriverProfile({ profileData, onProfileUpdate }: Readonly<{ profi
         </SimpleModal>
       )}
 
-      {showPrivacyModal && (
-        <SimpleModal title="Privacidade e Segurança" onClose={() => setShowPrivacyModal(false)}>
-          <p className="text-muted-foreground" style={{ fontSize: '0.82rem' }}>Esta secção será expandida com opções de privacidade. Para já, os dados sensíveis são geridos no backend autenticado.</p>
-        </SimpleModal>
-      )}
+      {showPrivacyModal && <PrivacySecurityModal onClose={() => setShowPrivacyModal(false)} />}
     </>
   );
 }
@@ -735,6 +731,7 @@ function ExportReportsModal({ onClose }: Readonly<{ onClose: () => void }>) {
 export function ManagerProfile({ profileData }: Readonly<{ profileData: ManagerProfileResponse | null }>) {
   const [showExport, setShowExport] = useState(false);
   const [showCreateTech, setShowCreateTech] = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
   const [technicians, setTechnicians] = useState<TechnicianSummary[]>([]);
   const [techLoading, setTechLoading] = useState(true);
 
@@ -807,10 +804,11 @@ export function ManagerProfile({ profileData }: Readonly<{ profileData: ManagerP
         <div className="h-px bg-border mx-4" />
         <AccountRow onClick={() => setShowExport(true)} icon="fa-file-export" label="Exportar Relatorios" />
         <div className="h-px bg-border mx-4" />
-        <AccountRow icon="fa-shield-halved" label="Privacidade e Seguranca" />
+        <AccountRow icon="fa-shield-halved" label="Privacidade e Segurança" onClick={() => setShowPrivacy(true)} />
       </div>
 
       {showExport && <ExportReportsModal onClose={() => setShowExport(false)} />}
+      {showPrivacy && <PrivacySecurityModal onClose={() => setShowPrivacy(false)} />}
       {showCreateTech && (
         <CreateTechnicianModal
           onClose={() => setShowCreateTech(false)}
@@ -824,6 +822,7 @@ export function ManagerProfile({ profileData }: Readonly<{ profileData: ManagerP
 export function TechnicianProfile({ profileData }: Readonly<{ profileData: TechnicianProfileResponse | null }>) {
   const [parks, setParks] = useState<{ id: string; name: string; city: string }[]>([]);
   const [loadingParks, setLoadingParks] = useState(true);
+  const [showPrivacy, setShowPrivacy] = useState(false);
 
   useEffect(() => {
     fetchMyAssignedParks()
@@ -865,9 +864,73 @@ export function TechnicianProfile({ profileData }: Readonly<{ profileData: Techn
         <div className="h-px bg-border mx-4" />
         <AccountRow to="/technician/maintenance?tab=incidents" icon="fa-file-lines"         label="Historico de Intervencoes" />
         <div className="h-px bg-border mx-4" />
-        <AccountRow icon="fa-shield-halved"      label="Privacidade e Seguranca" />
+        <AccountRow icon="fa-shield-halved" label="Privacidade e Segurança" onClick={() => setShowPrivacy(true)} />
       </div>
+      {showPrivacy && <PrivacySecurityModal onClose={() => setShowPrivacy(false)} />}
     </>
+  );
+}
+
+function PrivacySecurityModal({ onClose }: Readonly<{ onClose: () => void }>) {
+  return (
+    <SimpleModal title="Privacidade e Segurança" onClose={onClose}>
+      <div className="space-y-4" style={{ fontSize: '0.82rem' }}>
+
+        <div>
+          <p className="text-foreground font-semibold mb-2" style={{ fontSize: '0.85rem' }}>
+            <i className="fas fa-lock text-primary mr-2" />Autenticação
+          </p>
+          <div className="space-y-2 text-muted-foreground">
+            <p><i className="fas fa-check-circle text-green-500 mr-2" />A sua conta é protegida por OAuth2 via Authentik.</p>
+            <p><i className="fas fa-check-circle text-green-500 mr-2" />As sessões expiram automaticamente por inatividade.</p>
+            <p><i className="fas fa-check-circle text-green-500 mr-2" />Todas as comunicações são cifradas via HTTPS.</p>
+          </div>
+        </div>
+
+        <div className="h-px bg-border" />
+
+        <div>
+          <p className="text-foreground font-semibold mb-2" style={{ fontSize: '0.85rem' }}>
+            <i className="fas fa-database text-primary mr-2" />Dados Pessoais
+          </p>
+          <div className="space-y-2 text-muted-foreground">
+            <p><i className="fas fa-check-circle text-green-500 mr-2" />Os seus dados são armazenados de forma segura e não são partilhados com terceiros.</p>
+            <p><i className="fas fa-check-circle text-green-500 mr-2" />O acesso aos dados é restrito por roles (condutor, técnico, gestor).</p>
+            <p><i className="fas fa-check-circle text-green-500 mr-2" />Dados de localização apenas são usados quando ativa a funcionalidade.</p>
+          </div>
+        </div>
+
+        <div className="h-px bg-border" />
+
+        <div>
+          <p className="text-foreground font-semibold mb-2" style={{ fontSize: '0.85rem' }}>
+            <i className="fas fa-bell text-primary mr-2" />Notificações
+          </p>
+          <div className="space-y-2 text-muted-foreground">
+            <p><i className="fas fa-check-circle text-green-500 mr-2" />Pode gerir as suas preferências de notificação no perfil.</p>
+            <p><i className="fas fa-check-circle text-green-500 mr-2" />Notificações por email são opcionais e podem ser desativadas.</p>
+          </div>
+        </div>
+
+        <div className="h-px bg-border" />
+
+        <div>
+          <p className="text-foreground font-semibold mb-2" style={{ fontSize: '0.85rem' }}>
+            <i className="fas fa-right-from-bracket text-primary mr-2" />Terminar Sessão
+          </p>
+          <p className="text-muted-foreground mb-3">Para terminar a sua sessão em todos os dispositivos, utilize o botão abaixo.</p>
+          <button
+            type="button"
+            onClick={() => { onClose(); window.location.href = '/logout'; }}
+            className="w-full py-2 rounded-xl border border-destructive text-destructive font-semibold hover:bg-destructive/10 transition-colors"
+            style={{ fontSize: '0.85rem' }}
+          >
+            <i className="fas fa-right-from-bracket mr-2" />Terminar Sessão
+          </button>
+        </div>
+
+      </div>
+    </SimpleModal>
   );
 }
 
