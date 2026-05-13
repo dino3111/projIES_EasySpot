@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.*;
 import pt.ua.deti.apieasyspot.notification.dto.AlertResponse;
 import pt.ua.deti.apieasyspot.notification.dto.AlertSubscriptionResponse;
@@ -29,6 +30,7 @@ import pt.ua.deti.apieasyspot.sensor.repository.SensorRegistryRepository;
 
 import java.util.List;
 import java.util.UUID;
+import org.springframework.http.HttpStatus;
 
 @Tag(name = "Alerts", description = "Alert state management")
 @RestController
@@ -117,10 +119,17 @@ public class AlertController {
     @PreAuthorize("hasAnyRole('TECHNICAL', 'MANAGER')")
     public ResponseEntity<AlertResponse> createSensorTask(
         @PathVariable String sensorId,
-        @RequestBody(required = false) AlertStateUpdate body
+        @RequestBody(required = false) AlertStateUpdate body,
+        @AuthenticationPrincipal Jwt jwt
     ) {
         SensorRegistry sensor = sensorRegistryRepository.findById(sensorId)
             .orElseThrow(() -> new ResourceNotFoundException("Sensor not found: " + sensorId));
+
+        List<UUID> assignedParkIds = assignmentService.getAssignedParkIds(jwt.getSubject());
+        UUID sensorParkId = sensor.getParkingLot().getId();
+        if (!assignedParkIds.contains(sensorParkId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Sensor is not in an assigned park");
+        }
 
         if (sensor.getStatus() == SensorStatus.OPERATIONAL) {
             throw new IllegalStateException("Sensor is operational: " + sensorId);
@@ -131,7 +140,9 @@ public class AlertController {
             sensor.getParkingLot().getName(),
             sensor.getZone(),
             sensorId,
-            "Falha detetada no sensor " + sensorId + ".",
+            (body != null && body.notes() != null && !body.notes().isBlank())
+                ? body.notes()
+                : "Falha detetada no sensor " + sensorId + ".",
             body != null ? body.notes() : null
         );
         return ResponseEntity.status(201).body(AlertResponse.from(saved));

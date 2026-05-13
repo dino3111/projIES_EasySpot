@@ -262,11 +262,12 @@ export function MaintenancePage() {
   };
 
   const handleCreateOrder = async (sensorId: string, titulo: string, descricao: string, _prioridade: string) => {
+    const details = [titulo.trim(), descricao.trim()].filter(Boolean).join(' — ');
     const alert = orders.find((o) => o.sensorId === sensorId && o.state === 'OPEN');
     if (alert) {
       try {
-        await updateAlertState(alert.id, 'IN_PROGRESS', descricao || undefined);
-        setOrders((prev) => prev.map((o) => o.id === alert.id ? { ...o, state: 'IN_PROGRESS' } : o));
+        await updateAlertState(alert.id, 'IN_PROGRESS', details || undefined);
+        setOrders((prev) => prev.map((o) => o.id === alert.id ? { ...o, state: 'IN_PROGRESS', description: details || o.description } : o));
         setIssues((prev) => prev.map((i) => i.id === alert.id ? { ...i, estado: 'em-progresso' } : i));
         showToast(`Tarefa "${titulo}" criada — sensor ${sensorId} em progresso.`, 'success');
       } catch {
@@ -281,7 +282,7 @@ export function MaintenancePage() {
       }
 
       try {
-        const created = await createSensorTaskAlert(sensorId, descricao || undefined);
+        const created = await createSensorTaskAlert(sensorId, details || undefined);
         setOrders((prev) => [alertToWorkOrder(created), ...prev]);
         setIssues((prev) => [alertToIssue(created), ...prev]);
         showToast(`Tarefa "${titulo}" criada — sensor ${sensorId} com alerta aberto.`, 'success');
