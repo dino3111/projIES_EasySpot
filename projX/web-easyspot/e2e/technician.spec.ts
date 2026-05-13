@@ -193,7 +193,7 @@ test('Painel técnico mostra KPIs da API', async ({ page }) => {
 test('Painel técnico mostra ordens urgentes', async ({ page }) => {
   await page.goto('/technician/dashboard');
 
-  await expect(page.getByText(/ordens urgentes/i).first()).toBeVisible();
+  await expect(page.getByRole('heading', { name: /ocorrências urgentes/i })).toBeVisible();
   await expect(page.getByText('Falha de leitura IR sem sinal')).toBeVisible();
   await expect(page.getByText('Fórum Aveiro')).toBeVisible();
 });
