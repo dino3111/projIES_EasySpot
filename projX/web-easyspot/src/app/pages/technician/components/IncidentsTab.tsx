@@ -257,7 +257,9 @@ function ParkOcorrenciasView({
                   sensor={sensor}
                   onClick={() => onSelectIssue(issue)}
                   onUpdate={sensor ? () => onUpdateSensor(sensor) : undefined}
-                  onCreateTask={issue.tipo === 'sensor' ? () => onCreateTaskFromIssue(issue) : undefined}
+                onCreateTask={issue.tipo === 'sensor' && issue.estado === 'aberto'
+                  ? () => onCreateTaskFromIssue(issue)
+                  : undefined}
                 />
               );
             })}
