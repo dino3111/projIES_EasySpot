@@ -40,6 +40,19 @@ const orders: WorkOrder[] = [
     attributedTo: null,
     notes: 'PRIORITY:HIGH',
   },
+  {
+    id: 'order-3',
+    type: 'SENSOR',
+    park: 'Fórum Aveiro',
+    zone: 'Zona C',
+    sensorId: 'sensor-3',
+    description: 'Substituir sensor em curso',
+    severity: 'INFO',
+    state: 'IN_PROGRESS',
+    createdAt: '2026-05-12T12:00:00Z',
+    attributedTo: null,
+    notes: 'PRIORITY:MEDIUM',
+  },
 ];
 
 describe('TasksTab', () => {
@@ -54,7 +67,7 @@ describe('TasksTab', () => {
     );
 
     expect(screen.getByText('Urgentes: 1')).toBeInTheDocument();
-    expect(screen.getByText('Pendentes: 2')).toBeInTheDocument();
+    expect(screen.getByText('Pendentes: 3')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /urgentes/i }));
 
@@ -65,5 +78,6 @@ describe('TasksTab', () => {
 
     expect(screen.getByText('Substituir sensor crítico')).toBeInTheDocument();
     expect(screen.getByText('Substituir sensor alto')).toBeInTheDocument();
+    expect(screen.getByText('Substituir sensor em curso')).toBeInTheDocument();
   });
 });

@@ -50,7 +50,7 @@ export function TasksTab({
     return p === 'critica' && toUiEstado(o.state) === 'pendente';
   });
   const emCurso    = orders.filter(o => toUiEstado(o.state) === 'em-progresso');
-  const pendentes  = orders.filter(o => toUiEstado(o.state) === 'pendente');
+  const pendentes  = orders.filter(o => toUiEstado(o.state) !== 'concluida');
   const concluidas = orders.filter(o => toUiEstado(o.state) === 'concluida');
 
   let visibleOrders: ReadonlyArray<WorkOrder>;
