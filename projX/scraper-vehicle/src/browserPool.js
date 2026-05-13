@@ -20,8 +20,6 @@ const launchBrowser = async () => chromium.launch({
   ],
 });
 
-const isCookiePopupGone = (page) => page.evaluate(() => !document.querySelector('[data-target-popup="data-popup-cookies"]'));
-
 const dismissOverlays = async (page) => {
   await page.evaluate(() => {
     document.querySelectorAll('.overlay, [data-target-popup="data-popup-cookies"], [class*="cookies-popup"], #loader').forEach(el => el.remove());

@@ -46,15 +46,14 @@ public class BookingConfirmationMailService {
                            BigDecimal previousCost,
                            BigDecimal newCost,
                            BigDecimal delta,
-                           String adjustmentKind,
-                           String paymentStatus) {
+                           String adjustmentKind) {
         send(
             reservation,
             "booking-update:" + reservation.getId() + ":" + reservation.getArrivalTime() + ":" + reservation.getEstimatedCost(),
             "BOOKING_UPDATE",
             "EasySpot — Reserva atualizada " + reservation.getBookingCode(),
-            buildUpdateBody(reservation, previousCost, newCost, delta, adjustmentKind, paymentStatus),
-            buildUpdateHtml(reservation, previousCost, newCost, delta, adjustmentKind, paymentStatus)
+            buildUpdateBody(reservation, previousCost, newCost, delta, adjustmentKind),
+            buildUpdateHtml(reservation, previousCost, newCost, delta, adjustmentKind)
         );
     }
 
@@ -108,8 +107,7 @@ public class BookingConfirmationMailService {
                                    BigDecimal previousCost,
                                    BigDecimal newCost,
                                    BigDecimal delta,
-                                   String adjustmentKind,
-                                   String paymentStatus) {
+                                   String adjustmentKind) {
         BigDecimal prev = safeAmount(previousCost);
         BigDecimal next = safeAmount(newCost);
         BigDecimal diff = delta != null ? delta : next.subtract(prev);
@@ -130,7 +128,7 @@ public class BookingConfirmationMailService {
             commonDetails(reservation),
             formatMoney(prev),
             formatMoney(next),
-            paymentAdjustmentText(diff, adjustmentKind, paymentStatus),
+            paymentAdjustmentText(diff, adjustmentKind),
             reservationManagementUrl(reservation)
         );
     }
@@ -177,8 +175,7 @@ public class BookingConfirmationMailService {
                                    BigDecimal previousCost,
                                    BigDecimal newCost,
                                    BigDecimal delta,
-                                   String adjustmentKind,
-                                   String paymentStatus) {
+                                   String adjustmentKind) {
         BigDecimal prev = safeAmount(previousCost);
         BigDecimal next = safeAmount(newCost);
         BigDecimal diff = delta != null ? delta : next.subtract(prev);
@@ -190,7 +187,7 @@ public class BookingConfirmationMailService {
             "Código de Reserva",
             reservation.getBookingCode(),
             reservationRows(reservation, prev, next, diff, false),
-            escapeHtml(paymentAdjustmentText(diff, adjustmentKind, paymentStatus)),
+            escapeHtml(paymentAdjustmentText(diff, adjustmentKind)),
             reservationManagementUrl(reservation),
             "Ver reserva"
         );
@@ -420,7 +417,7 @@ public class BookingConfirmationMailService {
         };
     }
 
-    private String paymentAdjustmentText(BigDecimal delta, String adjustmentKind, String paymentStatus) {
+    private String paymentAdjustmentText(BigDecimal delta, String adjustmentKind) {
         BigDecimal diff = safeAmount(delta);
         if ("CHARGED".equals(adjustmentKind) && diff.signum() > 0) {
             return "Foi cobrada a diferença de %s no seu método de pagamento Stripe.".formatted(formatMoney(diff));

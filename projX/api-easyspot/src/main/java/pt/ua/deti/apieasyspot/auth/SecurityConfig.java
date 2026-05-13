@@ -108,7 +108,7 @@ public class SecurityConfig {
             log.warn("[AUTH-401] {} {} → unauthorized: reason='{}' cause='{}' bearer={} origin={}",
                 request.getMethod(), request.getRequestURI(),
                 authException.getMessage(), cause, hasBearer, request.getHeader("Origin"));
-            writeProblem(response, HttpStatus.UNAUTHORIZED, "JWT inválido ou em falta", authException.getMessage());
+            writeProblem(response, HttpStatus.UNAUTHORIZED, "JWT inválido ou em falta");
         };
     }
 
@@ -119,15 +119,17 @@ public class SecurityConfig {
                 request.getMethod(), request.getRequestURI(),
                 accessDeniedException.getMessage(),
                 request.getUserPrincipal() != null ? request.getUserPrincipal().getName() : "anonymous");
-            writeProblem(response, HttpStatus.FORBIDDEN, "Acesso negado", accessDeniedException.getMessage());
+            writeProblem(response, HttpStatus.FORBIDDEN, "Acesso negado");
         };
     }
 
     private void writeProblem(jakarta.servlet.http.HttpServletResponse response,
-                              HttpStatus status, String title, String detail) throws java.io.IOException {
+                              HttpStatus status, String title) throws java.io.IOException {
         response.setStatus(status.value());
         response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
-        String safeDetail = detail == null ? "" : detail.replace("\"", "'");
+        String safeDetail = status == HttpStatus.UNAUTHORIZED
+            ? "Credenciais inválidas ou em falta"
+            : "Sem autorização para executar esta operação";
         response.getWriter().write(String.format(
             "{\"type\":\"about:blank\",\"title\":\"%s\",\"status\":%d,\"detail\":\"%s\"}",
             title, status.value(), safeDetail));

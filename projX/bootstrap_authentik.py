@@ -642,10 +642,7 @@ def print_summary(provider_pk: str) -> None:
     print()
     print("Test users (all at http://localhost:9000):")
     for u in TEST_USERS:
-        print(
-            f"  {u['role']:<12} {u['username']:<18}"
-            " password: [configured via environment]"
-        )
+        print(f"  {u['role']:<12} {u['username']:<18}" " password: [hidden]")
     print()
     print("Add to your .env:")
     print(f"  AUTHENTIK_ISSUER_URI={ISSUER_URI}")

@@ -403,7 +403,14 @@ public class ParkService {
     private int parseSpeedKw(String speed) {
         if (speed == null) return 0;
         Matcher m = SPEED_KW_PATTERN.matcher(speed);
-        return m.find() ? Integer.parseInt(m.group(1)) : 0;
+        if (!m.find()) {
+            return 0;
+        }
+        try {
+            return Integer.parseInt(m.group(1));
+        } catch (NumberFormatException ex) {
+            return 0;
+        }
     }
 
     private List<ParkingLotDetailsResponse.TariffResponse> fetchTariffs(UUID lotId) {

@@ -535,7 +535,7 @@ function CreateParkModal({ onClose }: Readonly<{ onClose: () => void }>) {
   );
 }
 
-function ManagedParksSection() {
+export function ManagedParksSection() {
   const [parks, setParks] = useState<ManagedPark[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');

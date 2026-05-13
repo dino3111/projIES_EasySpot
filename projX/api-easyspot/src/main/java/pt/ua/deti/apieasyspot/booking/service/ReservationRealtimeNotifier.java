@@ -27,7 +27,7 @@ public class ReservationRealtimeNotifier {
             "Reserva " + reservation.getBookingCode() + " confirmada");
     }
 
-    public void notifyUpdated(Reservation reservation, java.math.BigDecimal costDelta, String adjustmentKind, String paymentStatus) {
+    public void notifyUpdated(Reservation reservation, java.math.BigDecimal costDelta, String adjustmentKind) {
         String detail;
         if ("CHARGED".equals(adjustmentKind) && costDelta != null && costDelta.signum() > 0) {
             detail = " · cobrados +€%.2f".formatted(costDelta);

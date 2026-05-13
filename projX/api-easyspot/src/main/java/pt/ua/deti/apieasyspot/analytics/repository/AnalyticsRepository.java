@@ -217,7 +217,14 @@ public class AnalyticsRepository {
         return revenueRows.stream()
             .map(row -> {
                 String[] lotInfo = lots.get(row.parkId());
-                int totalSpaces = lotInfo == null ? 0 : Integer.parseInt(lotInfo[2]);
+                int totalSpaces = 0;
+                if (lotInfo != null) {
+                    try {
+                        totalSpaces = Integer.parseInt(lotInfo[2]);
+                    } catch (NumberFormatException ex) {
+                        totalSpaces = 0;
+                    }
+                }
                 int occupiedNow = occupiedNowByParkId.getOrDefault(row.parkId(), 0L).intValue();
 
                 return new ParkSummary(
