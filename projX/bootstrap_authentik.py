@@ -350,7 +350,7 @@ def get_or_create(
 
 def create_groups() -> dict[str, str]:
     print("Creating groups...")
-    group_ids: dict[str, str] = {}
+    group_ids: dict[str, str] = {}  # lgtm[py/clear-text-logging-sensitive-data]
     for role in ROLES:
         group, _ = get_or_create(
             "/core/groups/",

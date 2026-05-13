@@ -56,25 +56,13 @@ public class SecurityConfig {
 
     @Bean
     @Order(1)
-    // WebSocket upgrade requests cannot carry an Authorization header; the token is passed
-    // as a query param and validated at the application layer by the WebSocket handler.
-    public SecurityFilterChain wsFilterChain(HttpSecurity http) throws Exception {
-        http
-            .securityMatcher("/ws/**")
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .csrf(csrf -> csrf.disable())
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
-        return http.build();
-    }
-
-    @Bean
-    @Order(2)
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            // WebSocket upgrade requests cannot carry an Authorization header; the token is
+            // passed as a query param and validated at the application layer by the handler.
             .csrf(csrf -> csrf.ignoringRequestMatchers(
-                "/api/**", "/actuator/**", "/v3/api-docs/**",
+                "/ws/**", "/api/**", "/actuator/**", "/v3/api-docs/**",
                 "/swagger-ui/**", "/swagger-ui.html"
             ))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
