@@ -4,6 +4,22 @@ async function waitForLoaded(page: Page) {
   await page.waitForSelector('[role="status"][aria-busy="true"]', { state: 'hidden', timeout: 10000 }).catch(() => {});
 }
 
+async function fillValidReservationSchedule(page: Page) {
+  const toLocalInput = (date: Date) => {
+    const pad = (value: number) => String(value).padStart(2, '0');
+    return [
+      date.getFullYear(),
+      pad(date.getMonth() + 1),
+      pad(date.getDate()),
+    ].join('-') + `T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  };
+
+  const arrival = toLocalInput(new Date(Date.now() + 60 * 60 * 1000));
+  const exit = toLocalInput(new Date(Date.now() + 2 * 60 * 60 * 1000));
+  await page.getByLabel('Data e hora de chegada').fill(arrival);
+  await page.getByLabel('Hora de saída prevista').fill(exit);
+}
+
 const jwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1MSIsIm5hbWUiOiJBbmEiLCJlbWFpbCI6ImFuYUBlYXN5c3BvdC5wdCIsImdyb3VwcyI6WyJEUklWRVIiXSwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdC9hdXRoZW50aWsvYXBwbGljYXRpb24vby9lYXN5c3BvdC8iLCJleHAiOjk5OTk5OTk5OTl9.fake-sig';
 
 const parkWithEV = {
@@ -88,10 +104,12 @@ test.describe('US#7 — Combined Parking + Charging Fee', () => {
   test('lugar EV — reserva mostra custo estacionamento + carregamento + total', async ({ page }) => {
     await page.goto('/reservation?parkId=park-ev');
     await waitForLoaded(page);
+    await fillValidReservationSchedule(page);
 
     // Step 1: avançar
-    const nextBtn = page.locator('button:has-text("Escolher Lugar")');
+    const nextBtn = page.getByRole('button', { name: /Avançar para escolha do lugar/i });
     await expect(nextBtn).toBeVisible();
+    await expect(nextBtn).toBeEnabled();
     await nextBtn.click();
 
     // Step 2: selecionar lugar EV (B1)
@@ -111,9 +129,11 @@ test.describe('US#7 — Combined Parking + Charging Fee', () => {
   test('lugar padrão — reserva não mostra taxa de carregamento', async ({ page }) => {
     await page.goto('/reservation?parkId=park-std');
     await waitForLoaded(page);
+    await fillValidReservationSchedule(page);
 
-    const nextBtn = page.locator('button:has-text("Escolher Lugar")');
+    const nextBtn = page.getByRole('button', { name: /Avançar para escolha do lugar/i });
     await expect(nextBtn).toBeVisible();
+    await expect(nextBtn).toBeEnabled();
     await nextBtn.click();
 
     // O perfil ativo é EV; o teste quer validar um lugar standard, por isso
