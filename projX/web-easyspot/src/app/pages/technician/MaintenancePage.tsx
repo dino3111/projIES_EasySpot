@@ -228,6 +228,15 @@ export function MaintenancePage() {
     const apiState = novoEstado === 'em-progresso' ? 'IN_PROGRESS' : 'RESOLVED';
     try {
       await updateAlertState(orderId, apiState);
+      if (novoEstado === 'concluida') {
+        const order = orders.find((o) => o.id === orderId);
+        if (order?.sensorId) {
+          await updateSensorStatus(order.sensorId, 'operational').catch(() => {});
+          setSensors((prev) =>
+            prev.map((s) => (s.id === order.sensorId ? { ...s, status: 'operacional' } : s)),
+          );
+        }
+      }
       setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, state: apiState } : o));
       setIssues((prev) => prev.map((i) =>
         i.id === orderId ? { ...i, estado: toIssueEstado(apiState) } : i,
