@@ -97,7 +97,10 @@ export function Sidebar({ isCollapsed, onToggleCollapsed }: SidebarProps) {
                 aria-hidden="true"
                 style={{ width: isCollapsed ? 'auto' : '18px', textAlign: 'center', fontSize: isCollapsed ? '1.1rem' : '1rem' }}
               />
-              <span style={{ fontSize: isCollapsed ? '0.68rem' : '0.875rem', lineHeight: isCollapsed ? 1.15 : 1.3 }}>
+              <span
+                style={{ fontSize: isCollapsed ? '0.68rem' : '0.875rem', lineHeight: isCollapsed ? 1.15 : 1.3 }}
+                className={isCollapsed ? 'w-full text-center leading-tight break-words' : 'truncate'}
+              >
                 {item.label}
               </span>
             </Link>
@@ -145,7 +148,7 @@ function SidebarRoleBadge({
   return (
     <div>
       <div
-        className={`rounded-xl p-2.5 bg-primary/10 border border-primary/20 ${
+        className={`rounded-xl p-2.5 bg-primary/10 border border-primary/20 overflow-hidden ${
           isCollapsed ? 'flex flex-col items-center text-center gap-1.5' : 'flex items-center gap-2'
         }`}
       >
@@ -155,14 +158,16 @@ function SidebarRoleBadge({
             style={{ fontSize: '0.75rem' }}
           />
         </div>
-        <div className="min-w-0">
-          <p className="text-primary" style={{ fontSize: '0.72rem', fontWeight: 700 }}>
-            {isManager ? 'Modo Gestor' : 'Modo Técnico'}
-          </p>
-          <p className="text-muted-foreground" style={{ fontSize: '0.62rem' }}>
-            {user?.name ?? user?.email ?? '—'}
-          </p>
-        </div>
+        {!isCollapsed && (
+          <div className="min-w-0 overflow-hidden">
+            <p className="text-primary truncate" style={{ fontSize: '0.72rem', fontWeight: 700 }}>
+              {isManager ? 'Modo Gestor' : 'Modo Técnico'}
+            </p>
+            <p className="text-muted-foreground truncate" style={{ fontSize: '0.62rem' }}>
+              {user?.name ?? user?.email ?? '—'}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
