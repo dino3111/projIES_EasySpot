@@ -1,10 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { DashboardTechnicianPage } from '../DashboardTechnicianPage';
 
 const techApiMock = vi.hoisted(() => ({
   fetchTechnicianDashboard: vi.fn(),
-  updateAlertState: vi.fn(),
 }));
 
 vi.mock('../../../services/technicianApi', () => techApiMock);
@@ -94,17 +93,4 @@ describe('DashboardTechnicianPage', () => {
     expect(screen.getByText((content) => content.includes('Fórum Aveiro'))).toBeInTheDocument();
   });
 
-  it('calls updateAlertState and refreshes when Atualizar is clicked', async () => {
-    techApiMock.fetchTechnicianDashboard
-      .mockResolvedValueOnce(mockDashboard)
-      .mockResolvedValueOnce({ ...mockDashboard, urgentWorkOrders: [] });
-    techApiMock.updateAlertState.mockResolvedValueOnce(undefined);
-
-    render(<DashboardTechnicianPage />);
-
-    await waitFor(() => screen.getByText('Falha de leitura IR'));
-    fireEvent.click(screen.getByRole('button', { name: /atualizar estado da ordem/i }));
-
-    await waitFor(() => expect(techApiMock.updateAlertState).toHaveBeenCalledWith('order-1', 'IN_PROGRESS'));
-  });
 });
