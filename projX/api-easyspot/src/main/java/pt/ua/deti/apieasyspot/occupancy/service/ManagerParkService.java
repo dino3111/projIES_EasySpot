@@ -147,7 +147,7 @@ public class ManagerParkService {
         accessibleSpotRepository.deleteByParkingLotId(parkId);
 
         List<String> normalizedAmenities = normalizeAmenities(req.amenities());
-        lot.setAmenities(normalizedAmenities);
+        lot.setAmenities(new ArrayList<>(normalizedAmenities));
 
         List<ConfigureParkLayoutRequest.ParkingSpotSeedRequest> spotSeeds =
             req.spots() != null ? req.spots() : List.of();
