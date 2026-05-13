@@ -265,7 +265,10 @@ def api(method: str, path: str, **kwargs: object) -> dict:
         method, f"{BASE_URL}/api/v3{path}", headers=headers, **kwargs
     )
     if not resp.ok:
-        print(f"  ERROR {resp.status_code} on {method} {path}:" f" {resp.text[:300]}")
+        print(
+            f"  ERROR {resp.status_code} on {method} {path}"
+            f" (response body redacted, {len(resp.text)} bytes)"
+        )
         resp.raise_for_status()
     return resp.json() if resp.text else {}
 
@@ -512,6 +515,7 @@ def create_application(provider_pk: str) -> dict:
 def create_test_users(group_ids: dict[str, str]) -> None:
     print("Creating test users...")
     for u in TEST_USERS:
+        password_value = u["password"]
         user, created = get_or_create(
             "/core/users/",
             "/core/users/",
@@ -531,8 +535,9 @@ def create_test_users(group_ids: dict[str, str]) -> None:
             api(
                 "POST",
                 f"/core/users/{uid}/set_password/",
-                json={"password": u["password"]},
+                json={"password": password_value},
             )
+        del password_value
         status = "(created)" if created else "(exists)"
         print(f"  User '{u['username']}' (role={u['role']}) → pk={uid} {status}")
 
@@ -642,7 +647,7 @@ def print_summary(provider_pk: str) -> None:
     print()
     print("Test users (all at http://localhost:9000):")
     for u in TEST_USERS:
-        print(f"  {u['role']:<12} {u['username']:<18}" " password: [hidden]")
+        print(f"  {u['role']:<12} {u['username']:<18} password: [redacted]")
     print()
     print("Add to your .env:")
     print(f"  AUTHENTIK_ISSUER_URI={ISSUER_URI}")
