@@ -29,7 +29,14 @@ export function DashboardTechnicianPage() {
     setLoading(true);
     setError(null);
     fetchTechnicianDashboard()
-      .then((data) => { if (!cancelled) { setDashboard(data); setLoading(false); } })
+      .then((data) => {
+        console.info('[TECH-FE] dashboard page data', {
+          totalSensors: data.kpis.totalSensors,
+          operationalSensors: data.kpis.operationalSensors,
+          urgentWorkOrders: data.urgentWorkOrders.length,
+        });
+        if (!cancelled) { setDashboard(data); setLoading(false); }
+      })
       .catch((err: unknown) => {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : 'Erro ao carregar dados.');

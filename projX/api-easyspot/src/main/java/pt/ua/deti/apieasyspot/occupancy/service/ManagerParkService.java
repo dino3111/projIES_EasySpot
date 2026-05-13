@@ -6,6 +6,7 @@ import org.springframework.transaction.annotation.Transactional;
 import pt.ua.deti.apieasyspot.auth.model.User;
 import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
 import pt.ua.deti.apieasyspot.auth.service.AuthentikClient;
+import pt.ua.deti.apieasyspot.analytics.service.TechnicianParkAssignmentService;
 import pt.ua.deti.apieasyspot.common.exception.ResourceNotFoundException;
 import pt.ua.deti.apieasyspot.occupancy.dto.*;
 import pt.ua.deti.apieasyspot.occupancy.model.AccessibleSpot;
@@ -34,6 +35,7 @@ public class ManagerParkService {
     private final EVChargerRepository evChargerRepository;
     private final AccessibleSpotRepository accessibleSpotRepository;
     private final TechnicianParkAssignmentRepository assignmentRepository;
+    private final TechnicianParkAssignmentService analyticsAssignmentService;
     private final AuthentikClient authentikClient;
 
     public List<TechnicianSummaryResponse> listTechnicians() {
@@ -85,6 +87,7 @@ public class ManagerParkService {
             assignment.setTechnicianId(saved.getId());
             assignment.setParkingLotId(lot.getId());
             assignmentRepository.save(assignment);
+            analyticsAssignmentService.assign(saved.getId(), lot.getId());
         }
 
         return new TechnicianDetailResponse(saved.getId(), saved.getName(), saved.getEmail(), req.username(), parkIds);
@@ -102,11 +105,13 @@ public class ManagerParkService {
         assignment.setTechnicianId(technicianId);
         assignment.setParkingLotId(lot.getId());
         assignmentRepository.save(assignment);
+        analyticsAssignmentService.assign(technicianId, lot.getId());
     }
 
     @Transactional
     public void removeTechnicianFromPark(UUID parkId, UUID technicianId) {
         assignmentRepository.deleteByParkingLotIdAndTechnicianId(parkId, technicianId);
+        analyticsAssignmentService.unassign(technicianId, parkId);
     }
 
     @Transactional
@@ -132,6 +137,7 @@ public class ManagerParkService {
             assignment.setTechnicianId(req.technicianId());
             assignment.setParkingLotId(saved.getId());
             assignmentRepository.save(assignment);
+            analyticsAssignmentService.assign(req.technicianId(), saved.getId());
         }
 
         return saved;

@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -22,6 +23,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/technician")
 @RequiredArgsConstructor
+@Slf4j
 public class TechnicianDashboardController {
 
     private final TechnicianService technicianService;
@@ -35,6 +37,7 @@ public class TechnicianDashboardController {
     @PreAuthorize("hasRole('TECHNICAL')")
     public ResponseEntity<TechnicianDashboardResponse> getDashboard(@AuthenticationPrincipal Jwt jwt) {
         List<UUID> assignedParkIds = assignmentService.getAssignedParkIds(jwt.getSubject());
+        log.info("[TECH-DASHBOARD] subject={} assignedParkIdsCount={} assignedParkIds={}", jwt.getSubject(), assignedParkIds.size(), assignedParkIds);
         return ResponseEntity.ok(technicianService.buildDashboard(assignedParkIds));
     }
 }

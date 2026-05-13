@@ -82,6 +82,13 @@ function toAlertSeverity(prioridade: string): AlertResponse['severity'] {
   return 'INFO';
 }
 
+function toPriorityTag(prioridade: string): string {
+  if (prioridade === 'critica') return 'CRITICAL';
+  if (prioridade === 'alta') return 'HIGH';
+  if (prioridade === 'media') return 'MEDIUM';
+  return 'LOW';
+}
+
 export interface IssueReport {
   id: string;
   tipo: 'sensor' | 'cliente' | 'sistema';
@@ -126,6 +133,7 @@ function alertToWorkOrder(a: AlertResponse): WorkOrder {
     state: a.state,
     createdAt: a.createdAt,
     attributedTo: a.attributedTo,
+    notes: a.notes,
   };
 }
 
@@ -176,6 +184,11 @@ export function MaintenancePage() {
         fetchSensorList(),
         fetchAlerts(),
       ]);
+      console.info('[TECH-FE] maintenance loadAll raw', {
+        sensorsCount: apiSensors.length,
+        alertsCount: apiAlerts.length,
+        sensorParkIds: [...new Set(apiSensors.map((s) => s.parkingLotId))],
+      });
       setSensors(apiSensors.map(sensorFromApi));
       setIssues(apiAlerts.map(alertToIssue));
       setOrders(apiAlerts.map(alertToWorkOrder));
@@ -278,6 +291,7 @@ export function MaintenancePage() {
   const handleCreateOrder = async (sensorId: string, titulo: string, descricao: string, prioridade: string) => {
     const details = [titulo.trim(), descricao.trim()].filter(Boolean).join(' — ');
     const severity = toAlertSeverity(prioridade);
+    const notesWithPriority = `PRIORITY:${toPriorityTag(prioridade)}${details ? `\n${details}` : ''}`;
     const alert = orders.find((o) => o.sensorId === sensorId && o.state === 'OPEN');
     if (alert) {
       try {
@@ -297,7 +311,7 @@ export function MaintenancePage() {
       }
 
       try {
-        const created = await createSensorTaskAlert(sensorId, details || undefined, severity);
+        const created = await createSensorTaskAlert(sensorId, notesWithPriority, severity);
         setOrders((prev) => [alertToWorkOrder(created), ...prev]);
         setIssues((prev) => [alertToIssue(created), ...prev]);
         showToast(`Tarefa "${titulo}" criada — sensor ${sensorId} com alerta aberto.`, 'success');

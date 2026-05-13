@@ -24,7 +24,13 @@ function toUiEstado(state: string): 'pendente' | 'em-progresso' | 'concluida' {
   return 'pendente';
 }
 
-function toUiPrioridade(severity: string): 'critica' | 'alta' | 'media' | 'baixa' {
+function toUiPrioridade(order: WorkOrder): 'critica' | 'alta' | 'media' | 'baixa' {
+  const tag = order.notes?.match(/PRIORITY:(CRITICAL|HIGH|MEDIUM|LOW)/i)?.[1]?.toUpperCase();
+  if (tag === 'CRITICAL') return 'critica';
+  if (tag === 'HIGH') return 'alta';
+  if (tag === 'MEDIUM') return 'media';
+  if (tag === 'LOW') return 'baixa';
+  const severity = order.severity;
   if (severity === 'CRITICAL') return 'critica';
   if (severity === 'WARNING')  return 'alta';
   if (severity === 'INFO')     return 'baixa';
@@ -40,12 +46,12 @@ export function TasksTab({
   const [tarefaFil, setTarefaFil] = useState<TarefaFiltro>('urgente');
 
   const urgentes   = orders.filter(o => {
-    const p = toUiPrioridade(o.severity);
+    const p = toUiPrioridade(o);
     return (p === 'critica' || p === 'alta') && toUiEstado(o.state) === 'pendente';
   });
   const emCurso    = orders.filter(o => toUiEstado(o.state) === 'em-progresso');
   const pendentes  = orders.filter(o => {
-    const p = toUiPrioridade(o.severity);
+    const p = toUiPrioridade(o);
     return (p === 'media' || p === 'baixa') && toUiEstado(o.state) === 'pendente';
   });
   const concluidas = orders.filter(o => toUiEstado(o.state) === 'concluida');
@@ -121,7 +127,7 @@ export function TasksTab({
 function TarefaCard({
   order, sensor, onUpdate, hasBorder,
 }: TarefaCardProps) {
-  const prioridade = toUiPrioridade(order.severity);
+  const prioridade = toUiPrioridade(order);
   const estado     = toUiEstado(order.state);
   const priColor   = PRIO_COLOR[prioridade];
 

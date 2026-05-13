@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -24,6 +25,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/technician/sensors")
 @RequiredArgsConstructor
+@Slf4j
 public class SensorLogsController {
 
     private final SensorLogsService sensorLogsService;
@@ -37,7 +39,12 @@ public class SensorLogsController {
     @PreAuthorize("hasRole('TECHNICAL')")
     public ResponseEntity<List<SensorSummaryDto>> listSensors(@AuthenticationPrincipal Jwt jwt) {
         List<UUID> assignedParkIds = assignmentService.getAssignedParkIds(jwt.getSubject());
-        return ResponseEntity.ok(sensorLogsService.listSensorsByParks(assignedParkIds));
+        List<SensorSummaryDto> sensors = sensorLogsService.listSensorsByParks(assignedParkIds);
+        log.info(
+            "[TECH-SENSORS] subject={} assignedParkIdsCount={} sensorsCount={}",
+            jwt.getSubject(), assignedParkIds.size(), sensors.size()
+        );
+        return ResponseEntity.ok(sensors);
     }
 
     @Operation(summary = "Get sensor detail with full log history")

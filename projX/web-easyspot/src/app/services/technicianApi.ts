@@ -66,6 +66,7 @@ export interface WorkOrder {
   state: string;
   createdAt: string;
   attributedTo: string | null;
+  notes?: string | null;
 }
 
 export interface TechnicianDashboard {
@@ -100,10 +101,24 @@ export interface AlertResponse {
 // ── API functions (use shared apiService.request — handles auth, 401, loading) ──
 
 export const fetchTechnicianDashboard = (): Promise<TechnicianDashboard> =>
-  request<TechnicianDashboard>('/api/technician/dashboard');
+  request<TechnicianDashboard>('/api/technician/dashboard').then((data) => {
+    console.info('[TECH-FE] dashboard loaded', {
+      totalSensors: data.kpis.totalSensors,
+      operationalSensors: data.kpis.operationalSensors,
+      urgentWorkOrders: data.urgentWorkOrders.length,
+      distribution: data.sensorDistribution.length,
+    });
+    return data;
+  });
 
 export const fetchSensorList = (): Promise<SensorSummary[]> =>
-  request<SensorSummary[]>('/api/technician/sensors');
+  request<SensorSummary[]>('/api/technician/sensors').then((data) => {
+    console.info('[TECH-FE] sensors loaded', {
+      count: data.length,
+      parkIds: [...new Set(data.map((s) => s.parkingLotId))],
+    });
+    return data;
+  });
 
 export const fetchSensorDetail = (sensorId: string): Promise<SensorDetail> =>
   request<SensorDetail>(`/api/technician/sensors/${encodeURIComponent(sensorId)}/logs`);
@@ -138,7 +153,10 @@ export const fetchAlerts = (query: FetchAlertsQuery = {}): Promise<AlertResponse
   if (query.state)    params.set('state',    query.state);
   if (query.severity) params.set('severity', query.severity);
   const qs = params.toString();
-  return request<AlertResponse[]>(`/api/alerts${qs ? `?${qs}` : ''}`);
+  return request<AlertResponse[]>(`/api/alerts${qs ? `?${qs}` : ''}`).then((data) => {
+    console.info('[TECH-FE] alerts loaded', { count: data.length, query });
+    return data;
+  });
 };
 
 export interface AssignedPark {
@@ -150,4 +168,10 @@ export interface AssignedPark {
 }
 
 export const fetchMyAssignedParks = (): Promise<AssignedPark[]> =>
-  request<AssignedPark[]>('/api/technician/parks/my');
+  request<AssignedPark[]>('/api/technician/parks/my').then((data) => {
+    console.info('[TECH-FE] assigned parks loaded', {
+      count: data.length,
+      parkIds: data.map((p) => p.parkingLotId),
+    });
+    return data;
+  });
