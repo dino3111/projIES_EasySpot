@@ -88,7 +88,7 @@ describe('DashboardTechnicianPage', () => {
 
     render(<DashboardTechnicianPage />);
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: /ordens urgentes/i })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('heading', { name: /ocorrências urgentes/i })).toBeInTheDocument());
     expect(screen.getByText('Falha de leitura IR')).toBeInTheDocument();
     expect(screen.getByText((content) => content.includes('Fórum Aveiro'))).toBeInTheDocument();
   });
