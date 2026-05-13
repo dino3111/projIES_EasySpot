@@ -295,10 +295,10 @@ export function MaintenancePage() {
     const alert = orders.find((o) => o.sensorId === sensorId && o.state === 'OPEN');
     if (alert) {
       try {
-        await updateAlertState(alert.id, 'IN_PROGRESS', details || undefined);
-        setOrders((prev) => prev.map((o) => o.id === alert.id ? { ...o, state: 'IN_PROGRESS', description: details || o.description } : o));
-        setIssues((prev) => prev.map((i) => i.id === alert.id ? { ...i, estado: 'em-progresso' } : i));
-        showToast(`Tarefa "${titulo}" criada — sensor ${sensorId} em progresso.`, 'success');
+        await updateAlertState(alert.id, 'OPEN', notesWithPriority);
+        setOrders((prev) => prev.map((o) => o.id === alert.id ? { ...o, state: 'OPEN', description: details || o.description, notes: notesWithPriority } : o));
+        setIssues((prev) => prev.map((i) => i.id === alert.id ? { ...i, estado: 'aberto', notas: notesWithPriority } : i));
+        showToast(`Tarefa "${titulo}" criada — sensor ${sensorId} ficou pendente.`, 'success');
       } catch {
         showToast('Erro ao criar tarefa.', 'error');
       }

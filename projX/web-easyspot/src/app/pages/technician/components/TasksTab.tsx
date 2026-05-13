@@ -47,13 +47,10 @@ export function TasksTab({
 
   const urgentes   = orders.filter(o => {
     const p = toUiPrioridade(o);
-    return (p === 'critica' || p === 'alta') && toUiEstado(o.state) === 'pendente';
+    return p === 'critica' && toUiEstado(o.state) === 'pendente';
   });
   const emCurso    = orders.filter(o => toUiEstado(o.state) === 'em-progresso');
-  const pendentes  = orders.filter(o => {
-    const p = toUiPrioridade(o);
-    return (p === 'media' || p === 'baixa') && toUiEstado(o.state) === 'pendente';
-  });
+  const pendentes  = orders.filter(o => toUiEstado(o.state) === 'pendente');
   const concluidas = orders.filter(o => toUiEstado(o.state) === 'concluida');
 
   let visibleOrders: ReadonlyArray<WorkOrder>;

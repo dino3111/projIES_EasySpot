@@ -93,4 +93,38 @@ describe('MaintenancePage', () => {
       'Não foi possível criar a tarefa "Trocar sensor": não existe nenhum alerta aberto para o sensor sensor-1.'
     );
   });
+
+  it('keeps an existing open alert pending when creating a task', async () => {
+    techApiMock.fetchAlerts.mockResolvedValueOnce([
+      {
+        id: 'alert-1',
+        type: 'SENSOR',
+        park: 'Fórum Aveiro',
+        zone: 'Zona A',
+        spotNumber: null,
+        sensorId: 'sensor-1',
+        plate: null,
+        description: 'Falha detetada',
+        severity: 'CRITICAL',
+        state: 'OPEN',
+        createdAt: '2026-05-12T10:00:00Z',
+        attributedTo: null,
+        notes: null,
+      },
+    ]);
+
+    render(
+      <MemoryRouter>
+        <MaintenancePage />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(screen.getByTestId('incidents-tab')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('tab', { name: /tarefas/i }));
+    fireEvent.click(await screen.findByText('abrir-nova-ordem'));
+    fireEvent.click(await screen.findByText('confirmar-criacao'));
+
+    await waitFor(() => expect(techApiMock.updateAlertState).toHaveBeenCalledWith('alert-1', 'OPEN', expect.stringContaining('PRIORITY:MEDIUM')));
+  });
 });
