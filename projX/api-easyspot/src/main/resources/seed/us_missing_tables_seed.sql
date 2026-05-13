@@ -6,20 +6,20 @@
 -- Sensors for Fórum Aveiro, Glicínias Plaza, Europa and EasySpot EV Hub Aveiro
 -- ─────────────────────────────────────────────
 INSERT INTO sensor_registry (sensor_id, parking_lot_id, zone, status, last_seen_at, created_at) VALUES
-('IR-AV1-A01', '4731819f-a806-5c1f-be8c-a478d4276840', 'Piso 0 – Zona A', 'OPERATIONAL',  NOW() - INTERVAL '2 minutes',  NOW() - INTERVAL '30 days'),
-('IR-AV1-A02', '4731819f-a806-5c1f-be8c-a478d4276840', 'Piso 0 – Zona A', 'OPERATIONAL',  NOW() - INTERVAL '1 minute',   NOW() - INTERVAL '30 days'),
-('IR-AV1-A03', '4731819f-a806-5c1f-be8c-a478d4276840', 'Piso 0 – Zona A', 'DEGRADED',     NOW() - INTERVAL '45 minutes', NOW() - INTERVAL '30 days'),
-('IR-AV1-B01', '4731819f-a806-5c1f-be8c-a478d4276840', 'Piso 0 – Zona B', 'OPERATIONAL',  NOW() - INTERVAL '3 minutes',  NOW() - INTERVAL '30 days'),
-('IR-AV1-B02', '4731819f-a806-5c1f-be8c-a478d4276840', 'Piso 0 – Zona B', 'OPERATIONAL',  NOW() - INTERVAL '2 minutes',  NOW() - INTERVAL '30 days'),
-('IR-AV1-B07', '4731819f-a806-5c1f-be8c-a478d4276840', 'Piso 0 – Zona B', 'OFFLINE',      NOW() - INTERVAL '2 hours',    NOW() - INTERVAL '30 days'),
-('IR-AV2-A01', 'd8085d8f-7aaa-5eb4-b47d-2e2fe79bfe43', 'Piso -1',         'OPERATIONAL',  NOW() - INTERVAL '1 minute',   NOW() - INTERVAL '25 days'),
-('IR-AV2-A02', 'd8085d8f-7aaa-5eb4-b47d-2e2fe79bfe43', 'Piso -1',         'OPERATIONAL',  NOW() - INTERVAL '4 minutes',  NOW() - INTERVAL '25 days'),
-('IR-AV2-B01', 'd8085d8f-7aaa-5eb4-b47d-2e2fe79bfe43', 'Piso 0',          'MAINTENANCE',  NOW() - INTERVAL '1 day',      NOW() - INTERVAL '25 days'),
-('IR-LE1-A01', '070b4f4d-9a9e-5c4a-92bd-eae711ecb6b3', 'Piso 0',          'OPERATIONAL',  NOW() - INTERVAL '2 minutes',  NOW() - INTERVAL '20 days'),
-('IR-LE1-A02', '070b4f4d-9a9e-5c4a-92bd-eae711ecb6b3', 'Piso 0',          'OPERATIONAL',  NOW() - INTERVAL '3 minutes',  NOW() - INTERVAL '20 days'),
-('IR-LE1-B01', '070b4f4d-9a9e-5c4a-92bd-eae711ecb6b3', 'Piso 1',          'DEGRADED',     NOW() - INTERVAL '20 minutes', NOW() - INTERVAL '20 days'),
-('IR-EV1-A01', 'ee000001-0000-0000-0000-000000000001', 'Zona EV – Piso 0', 'OPERATIONAL',  NOW() - INTERVAL '1 minute',   NOW() - INTERVAL '15 days'),
-('IR-EV1-A02', 'ee000001-0000-0000-0000-000000000001', 'Zona EV – Piso 0', 'OPERATIONAL',  NOW() - INTERVAL '2 minutes',  NOW() - INTERVAL '15 days')
+('IR-AV1-A01', '4731819f-a806-5c1f-be8c-a478d4276840', 'Piso 0 – Zona A', 'OPERATIONAL', NOW() - INTERVAL '2 minutes', NOW() - INTERVAL '30 days'),
+('IR-AV1-A02', '4731819f-a806-5c1f-be8c-a478d4276840', 'Piso 0 – Zona A', 'OPERATIONAL', NOW() - INTERVAL '1 minute', NOW() - INTERVAL '30 days'),
+('IR-AV1-A03', '4731819f-a806-5c1f-be8c-a478d4276840', 'Piso 0 – Zona A', 'DEGRADED', NOW() - INTERVAL '45 minutes', NOW() - INTERVAL '30 days'),
+('IR-AV1-B01', '4731819f-a806-5c1f-be8c-a478d4276840', 'Piso 0 – Zona B', 'OPERATIONAL', NOW() - INTERVAL '3 minutes', NOW() - INTERVAL '30 days'),
+('IR-AV1-B02', '4731819f-a806-5c1f-be8c-a478d4276840', 'Piso 0 – Zona B', 'OPERATIONAL', NOW() - INTERVAL '2 minutes', NOW() - INTERVAL '30 days'),
+('IR-AV1-B07', '4731819f-a806-5c1f-be8c-a478d4276840', 'Piso 0 – Zona B', 'OFFLINE', NOW() - INTERVAL '2 hours', NOW() - INTERVAL '30 days'),
+('IR-AV2-A01', 'd8085d8f-7aaa-5eb4-b47d-2e2fe79bfe43', 'Piso -1', 'OPERATIONAL', NOW() - INTERVAL '1 minute', NOW() - INTERVAL '25 days'),
+('IR-AV2-A02', 'd8085d8f-7aaa-5eb4-b47d-2e2fe79bfe43', 'Piso -1', 'OPERATIONAL', NOW() - INTERVAL '4 minutes', NOW() - INTERVAL '25 days'),
+('IR-AV2-B01', 'd8085d8f-7aaa-5eb4-b47d-2e2fe79bfe43', 'Piso 0', 'MAINTENANCE', NOW() - INTERVAL '1 day', NOW() - INTERVAL '25 days'),
+('IR-LE1-A01', '070b4f4d-9a9e-5c4a-92bd-eae711ecb6b3', 'Piso 0', 'OPERATIONAL', NOW() - INTERVAL '2 minutes', NOW() - INTERVAL '20 days'),
+('IR-LE1-A02', '070b4f4d-9a9e-5c4a-92bd-eae711ecb6b3', 'Piso 0', 'OPERATIONAL', NOW() - INTERVAL '3 minutes', NOW() - INTERVAL '20 days'),
+('IR-LE1-B01', '070b4f4d-9a9e-5c4a-92bd-eae711ecb6b3', 'Piso 1', 'DEGRADED', NOW() - INTERVAL '20 minutes', NOW() - INTERVAL '20 days'),
+('IR-EV1-A01', 'ee000001-0000-0000-0000-000000000001', 'Zona EV – Piso 0', 'OPERATIONAL', NOW() - INTERVAL '1 minute', NOW() - INTERVAL '15 days'),
+('IR-EV1-A02', 'ee000001-0000-0000-0000-000000000001', 'Zona EV – Piso 0', 'OPERATIONAL', NOW() - INTERVAL '2 minutes', NOW() - INTERVAL '15 days')
 ON CONFLICT (sensor_id) DO NOTHING;
 
 -- ─────────────────────────────────────────────

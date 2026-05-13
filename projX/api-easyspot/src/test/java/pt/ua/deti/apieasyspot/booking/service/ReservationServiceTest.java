@@ -476,8 +476,8 @@ class ReservationServiceTest {
             .isInstanceOf(UnprocessableEntityException.class)
             .hasMessageContaining("cartão guardado foi recusado");
 
-        verify(confirmationMailService, never()).sendUpdate(any(), any(), any(), any(), any(), any());
-        verify(realtimeNotifier, never()).notifyUpdated(any(), any(), any(), any());
+        verify(confirmationMailService, never()).sendUpdate(any(), any(), any(), any(), any());
+        verify(realtimeNotifier, never()).notifyUpdated(any(), any(), any());
     }
 
     @Test
