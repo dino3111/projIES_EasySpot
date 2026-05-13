@@ -402,7 +402,7 @@ class ReservationServiceTest {
         when(userRepository.findByAuthentikUserId(AUTH_ID)).thenReturn(Optional.of(user));
         when(reservationRepository.expireTimedOutLocks(any(), eq(ReservationStatus.CONFIRMED), eq(ReservationStatus.EXPIRED)))
             .thenReturn(0);
-        when(reservationRepository.findByIdAndUserId(reservation.getId(), user.getId()))
+        when(reservationRepository.findByIdAndUserIdWithDetails(reservation.getId(), user.getId()))
             .thenReturn(Optional.of(reservation));
         when(parkingLotRepository.findById(lot.getId())).thenReturn(Optional.of(lot));
         when(vehicleRepository.findByIdAndUserId(vehicle.getId(), user.getId())).thenReturn(Optional.of(vehicle));
@@ -449,7 +449,7 @@ class ReservationServiceTest {
         when(userRepository.findByAuthentikUserId(AUTH_ID)).thenReturn(Optional.of(user));
         when(reservationRepository.expireTimedOutLocks(any(), eq(ReservationStatus.CONFIRMED), eq(ReservationStatus.EXPIRED)))
             .thenReturn(0);
-        when(reservationRepository.findByIdAndUserId(reservation.getId(), user.getId()))
+        when(reservationRepository.findByIdAndUserIdWithDetails(reservation.getId(), user.getId()))
             .thenReturn(Optional.of(reservation));
         when(parkingLotRepository.findById(lot.getId())).thenReturn(Optional.of(lot));
         when(vehicleRepository.findByIdAndUserId(vehicle.getId(), user.getId())).thenReturn(Optional.of(vehicle));
@@ -491,7 +491,7 @@ class ReservationServiceTest {
         when(userRepository.findByAuthentikUserId(AUTH_ID)).thenReturn(Optional.of(user));
         when(reservationRepository.expireTimedOutLocks(any(), eq(ReservationStatus.CONFIRMED), eq(ReservationStatus.EXPIRED)))
             .thenReturn(0);
-        when(reservationRepository.findByIdAndUserId(reservation.getId(), user.getId()))
+        when(reservationRepository.findByIdAndUserIdWithDetails(reservation.getId(), user.getId()))
             .thenReturn(Optional.of(reservation));
 
         UpdateReservationRequest request = new UpdateReservationRequest(
@@ -513,7 +513,7 @@ class ReservationServiceTest {
         when(userRepository.findByAuthentikUserId(AUTH_ID)).thenReturn(Optional.of(user));
         when(reservationRepository.expireTimedOutLocks(any(), eq(ReservationStatus.CONFIRMED), eq(ReservationStatus.EXPIRED)))
             .thenReturn(0);
-        when(reservationRepository.findByIdAndUserId(reservation.getId(), user.getId()))
+        when(reservationRepository.findByIdAndUserIdWithDetails(reservation.getId(), user.getId()))
             .thenReturn(Optional.of(reservation));
         when(reservationRepository.save(any(Reservation.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -535,7 +535,7 @@ class ReservationServiceTest {
         when(userRepository.findByAuthentikUserId(AUTH_ID)).thenReturn(Optional.of(user));
         when(reservationRepository.expireTimedOutLocks(any(), eq(ReservationStatus.CONFIRMED), eq(ReservationStatus.EXPIRED)))
             .thenReturn(0);
-        when(reservationRepository.findByIdAndUserId(reservation.getId(), user.getId()))
+        when(reservationRepository.findByIdAndUserIdWithDetails(reservation.getId(), user.getId()))
             .thenReturn(Optional.of(reservation));
 
         assertThatThrownBy(() -> reservationService.cancel(AUTH_ID, reservation.getId()))
