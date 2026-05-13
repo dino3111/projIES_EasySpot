@@ -160,7 +160,7 @@ public class ManagerParkService {
             List<ParkingSpot> spots = spotSeeds.stream().map(seed -> {
                 ParkingSpot spot = new ParkingSpot();
                 spot.setParkingLot(savedLot);
-                spot.setSpotNumber(seed.spotNumber().trim());
+                spot.setSpotNumber(requireTrimmed(seed.spotNumber(), "spotNumber", 20));
                 ZoneType zone = parseZone(seed.zone());
                 spot.setZone(zone);
                 spot.setSpotRow(seed.row());
@@ -177,8 +177,8 @@ public class ManagerParkService {
             List<EVCharger> chargers = chargerSeeds.stream().map(seed -> {
                 EVCharger charger = new EVCharger();
                 charger.setParkingLot(savedLot);
-                charger.setType(seed.type().trim());
-                charger.setSpeed(seed.speed().trim());
+                charger.setType(requireTrimmed(seed.type(), "evChargers.type", 50));
+                charger.setSpeed(requireTrimmed(seed.speed(), "evChargers.speed", 50));
                 charger.setPricePerKwh(seed.pricePerKwh() != null ? seed.pricePerKwh() : BigDecimal.ZERO);
                 charger.setAvailable(seed.available() == null || seed.available());
                 return charger;
@@ -192,14 +192,14 @@ public class ManagerParkService {
             List<AccessibleSpot> accessibleSpots = accSeeds.stream().map(seed -> {
                 AccessibleSpot spot = new AccessibleSpot();
                 spot.setParkingLot(savedLot);
-                spot.setLocation(seed.location().trim());
+                spot.setLocation(requireTrimmed(seed.location(), "accessibleSpots.location", 100));
                 spot.setAvailable(seed.available() == null || seed.available());
                 spot.setDistanceToEntranceMeters(seed.distanceToEntranceMeters() != null ? seed.distanceToEntranceMeters() : 0);
-                spot.setBaySize(seed.baySize() != null && !seed.baySize().isBlank() ? seed.baySize().trim() : "3.5m x 5.0m");
+                spot.setBaySize(optionalTrimmed(seed.baySize(), 50, "accessibleSpots.baySize", "3.5m x 5.0m"));
                 spot.setMonitored(seed.monitored() != null && seed.monitored());
                 spot.setHasRampSpace(seed.hasRampSpace() != null && seed.hasRampSpace());
-                spot.setSensorStatus(seed.sensorStatus() != null && !seed.sensorStatus().isBlank() ? seed.sensorStatus().trim() : "online");
-                spot.setLedStatus(seed.ledStatus() != null && !seed.ledStatus().isBlank() ? seed.ledStatus().trim() : "green");
+                spot.setSensorStatus(optionalTrimmed(seed.sensorStatus(), 20, "accessibleSpots.sensorStatus", "online"));
+                spot.setLedStatus(optionalTrimmed(seed.ledStatus(), 10, "accessibleSpots.ledStatus", "green"));
                 return spot;
             }).toList();
             accessibleSpotRepository.saveAll(accessibleSpots);
@@ -231,5 +231,23 @@ public class ManagerParkService {
         if (zone == ZoneType.EV) return "ev";
         if (zone == ZoneType.ACCESSIBLE) return "accessible";
         return "free";
+    }
+
+    private String requireTrimmed(String value, String field, int maxLen) {
+        if (value == null || value.isBlank()) throw new IllegalArgumentException(field + " is required");
+        String trimmed = value.trim();
+        if (trimmed.length() > maxLen) {
+            throw new IllegalArgumentException(field + " must be at most " + maxLen + " characters");
+        }
+        return trimmed;
+    }
+
+    private String optionalTrimmed(String value, int maxLen, String field, String defaultValue) {
+        if (value == null || value.isBlank()) return defaultValue;
+        String trimmed = value.trim();
+        if (trimmed.length() > maxLen) {
+            throw new IllegalArgumentException(field + " must be at most " + maxLen + " characters");
+        }
+        return trimmed;
     }
 }
