@@ -249,4 +249,46 @@ on conflict (sensor_id) do update set
     status = excluded.status,
     last_seen_at = excluded.last_seen_at;
 
+-- Garante automaticamente 1 sensor por cada lugar existente.
+-- Se já existir sensor manual para um lugar, este bloco não o substitui.
+insert into sensor_registry (
+    sensor_id, parking_lot_id, zone, status, last_seen_at, created_at
+)
+select
+    'IR-' || substring(replace(ps.id::text, '-', '') from 1 for 16) as sensor_id,
+    ps.parking_lot_id,
+    ps.spot_number as zone,
+    'OPERATIONAL' as status,
+    now() as last_seen_at,
+    now() as created_at
+from parking_spots as ps
+on conflict (sensor_id) do nothing;
+
+-- Garante automaticamente 2 câmaras OCR por parque (entrada e saída).
+insert into sensor_registry (
+    sensor_id, parking_lot_id, zone, status, last_seen_at, created_at
+)
+select
+    'OCR-' || upper(substring(replace(pl.id::text, '-', '') from 1 for 8)) || '-ENT1' as sensor_id,
+    pl.id as parking_lot_id,
+    'Entrada Principal' as zone,
+    'OPERATIONAL' as status,
+    now() as last_seen_at,
+    now() as created_at
+from parking_lots as pl
+on conflict (sensor_id) do nothing;
+
+insert into sensor_registry (
+    sensor_id, parking_lot_id, zone, status, last_seen_at, created_at
+)
+select
+    'OCR-' || upper(substring(replace(pl.id::text, '-', '') from 1 for 8)) || '-SAI1' as sensor_id,
+    pl.id as parking_lot_id,
+    'Saida Principal' as zone,
+    'OPERATIONAL' as status,
+    now() as last_seen_at,
+    now() as created_at
+from parking_lots as pl
+on conflict (sensor_id) do nothing;
+
 commit;

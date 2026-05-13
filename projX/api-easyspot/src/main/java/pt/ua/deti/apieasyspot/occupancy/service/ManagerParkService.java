@@ -20,8 +20,12 @@ import pt.ua.deti.apieasyspot.occupancy.repository.ParkingLotRepository;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingSpotRepository;
 import pt.ua.deti.apieasyspot.occupancy.model.TechnicianParkAssignment;
 import pt.ua.deti.apieasyspot.occupancy.repository.TechnicianParkAssignmentRepository;
+import pt.ua.deti.apieasyspot.sensor.model.SensorRegistry;
+import pt.ua.deti.apieasyspot.sensor.model.SensorStatus;
+import pt.ua.deti.apieasyspot.sensor.repository.SensorRegistryRepository;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -35,6 +39,7 @@ public class ManagerParkService {
     private final EVChargerRepository evChargerRepository;
     private final AccessibleSpotRepository accessibleSpotRepository;
     private final TechnicianParkAssignmentRepository assignmentRepository;
+    private final SensorRegistryRepository sensorRegistryRepository;
     private final TechnicianParkAssignmentService analyticsAssignmentService;
     private final AuthentikClient authentikClient;
 
@@ -131,6 +136,8 @@ public class ManagerParkService {
         lot.setTotalSpaces(req.totalSpaces());
         lot.setAmenities(new java.util.ArrayList<>());
         ParkingLot saved = parkingLotRepository.save(lot);
+        createDefaultSpotsAndSensors(saved, req.totalSpaces());
+        createDefaultOcrCameras(saved);
 
         if (req.technicianId() != null) {
             TechnicianParkAssignment assignment = new TechnicianParkAssignment();
@@ -149,6 +156,7 @@ public class ManagerParkService {
             .orElseThrow(() -> new ResourceNotFoundException("Park not found: " + parkId));
 
         parkingSpotRepository.deleteByParkingLotId(parkId);
+        sensorRegistryRepository.deleteAllByParkingLotId(parkId);
         evChargerRepository.deleteByParkingLotId(parkId);
         accessibleSpotRepository.deleteByParkingLotId(parkId);
 
@@ -174,7 +182,9 @@ public class ManagerParkService {
                 spot.setStatus(resolveStatus(seed.status(), zone));
                 return spot;
             }).toList();
-            parkingSpotRepository.saveAll(spots);
+            List<ParkingSpot> savedSpots = parkingSpotRepository.saveAll(spots);
+            createSensorsForSpots(savedLot, savedSpots);
+            createDefaultOcrCameras(savedLot);
         }
 
         List<ConfigureParkLayoutRequest.EvChargerSeedRequest> chargerSeeds =
@@ -255,5 +265,59 @@ public class ManagerParkService {
             throw new IllegalArgumentException(field + " must be at most " + maxLen + " characters");
         }
         return trimmed;
+    }
+
+    private void createDefaultSpotsAndSensors(ParkingLot lot, int totalSpaces) {
+        List<ParkingSpot> spots = new ArrayList<>(totalSpaces);
+        for (int i = 1; i <= totalSpaces; i++) {
+            ParkingSpot spot = new ParkingSpot();
+            spot.setParkingLot(lot);
+            spot.setSpotNumber("AUTO-" + i);
+            spot.setZone(ZoneType.STANDARD);
+            spot.setSpotRow(((i - 1) / 10) + 1);
+            spot.setSpotCol(((i - 1) % 10) + 1);
+            spot.setStatus("free");
+            spots.add(spot);
+        }
+        List<ParkingSpot> savedSpots = parkingSpotRepository.saveAll(spots);
+        createSensorsForSpots(lot, savedSpots);
+    }
+
+    private void createSensorsForSpots(ParkingLot lot, List<ParkingSpot> spots) {
+        LocalDateTime now = LocalDateTime.now();
+        List<SensorRegistry> sensors = spots.stream().map(spot -> {
+            SensorRegistry sensor = new SensorRegistry();
+            sensor.setSensorId("IR-" + spot.getId().toString().replace("-", "").substring(0, 16));
+            sensor.setParkingLot(lot);
+            sensor.setZone(spot.getSpotNumber());
+            sensor.setStatus(SensorStatus.OPERATIONAL);
+            sensor.setCreatedAt(now);
+            sensor.setLastSeenAt(now);
+            return sensor;
+        }).toList();
+        sensorRegistryRepository.saveAll(sensors);
+    }
+
+    private void createDefaultOcrCameras(ParkingLot lot) {
+        LocalDateTime now = LocalDateTime.now();
+        String lotKey = lot.getId().toString().replace("-", "").substring(0, 8).toUpperCase(Locale.ROOT);
+
+        SensorRegistry entrance = new SensorRegistry();
+        entrance.setSensorId("OCR-" + lotKey + "-ENT1");
+        entrance.setParkingLot(lot);
+        entrance.setZone("Entrada Principal");
+        entrance.setStatus(SensorStatus.OPERATIONAL);
+        entrance.setCreatedAt(now);
+        entrance.setLastSeenAt(now);
+
+        SensorRegistry exit = new SensorRegistry();
+        exit.setSensorId("OCR-" + lotKey + "-SAI1");
+        exit.setParkingLot(lot);
+        exit.setZone("Saida Principal");
+        exit.setStatus(SensorStatus.OPERATIONAL);
+        exit.setCreatedAt(now);
+        exit.setLastSeenAt(now);
+
+        sensorRegistryRepository.saveAll(List.of(entrance, exit));
     }
 }
