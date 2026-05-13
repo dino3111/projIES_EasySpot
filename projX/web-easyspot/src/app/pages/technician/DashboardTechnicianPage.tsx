@@ -5,7 +5,6 @@ import {
 } from 'recharts';
 import {
   fetchTechnicianDashboard,
-  updateAlertState,
   type TechnicianDashboard,
   type WorkOrder,
 } from '../../services/technicianApi';
@@ -22,7 +21,6 @@ export function DashboardTechnicianPage() {
   const [dashboard, setDashboard] = useState<TechnicianDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState<string | null>(null);
-  const [toast, setToast]     = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -46,21 +44,8 @@ export function DashboardTechnicianPage() {
     return () => { cancelled = true; };
   }, []);
 
-  const showToast = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 4000);
-  };
 
-  const handleResolveOrder = async (order: WorkOrder) => {
-    try {
-      await updateAlertState(order.id, 'IN_PROGRESS');
-      showToast(`Ordem ${order.id.slice(0, 8)}… marcada como em progresso.`);
-      const refreshed = await fetchTechnicianDashboard();
-      setDashboard(refreshed);
-    } catch {
-      showToast('Erro ao atualizar estado da ordem.');
-    }
-  };
+
 
   if (loading) return <PageLoading />;
   if (error)   return <PageError message={error} onRetry={() => { setLoading(true); setError(null); fetchTechnicianDashboard().then(setDashboard).catch((e: unknown) => setError(e instanceof Error ? e.message : 'Erro')).finally(() => setLoading(false)); }} />;
@@ -80,7 +65,6 @@ export function DashboardTechnicianPage() {
 
   return (
     <div className="px-4 py-5 max-w-screen-xl mx-auto space-y-6">
-      {toast && <Toast message={toast} />}
 
       <PageHeader />
 
@@ -97,25 +81,12 @@ export function DashboardTechnicianPage() {
       </div>
 
       {pendingOrders.length > 0 && (
-        <UrgentOrders orders={pendingOrders} onAction={handleResolveOrder} />
+        <UrgentOrders orders={pendingOrders} />
       )}
     </div>
   );
 }
 
-function Toast({ message }: { message: string }) {
-  return (
-    <div
-      role="status"
-      aria-live="polite"
-      className="fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-2xl bg-green-600 text-white shadow-xl"
-      style={{ fontSize: '0.85rem', fontWeight: 600 }}
-    >
-      <i className="fas fa-circle-check" aria-hidden="true" />
-      {message}
-    </div>
-  );
-}
 
 function PageLoading() {
   return (
@@ -149,7 +120,7 @@ function PageHeader() {
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
       <div>
         <h1 className="text-foreground" style={{ fontSize: '1.5rem', fontWeight: 800, lineHeight: 1.2 }}>Painel Técnico</h1>
-        <p className="text-muted-foreground mt-1" style={{ fontSize: '0.875rem' }}>Diagnóstico remoto de sensores e ordens urgentes</p>
+        <p className="text-muted-foreground mt-1" style={{ fontSize: '0.875rem' }}>Diagnóstico remoto de sensores e ocorrências urgentes</p>
       </div>
     </div>
   );
@@ -220,7 +191,7 @@ function UrgentOrders({ orders, onAction }: { orders: WorkOrder[]; onAction: (o:
     <div className="bg-destructive/5 border border-destructive/20 rounded-2xl p-4">
       <div className="flex items-center gap-2 mb-3">
         <i className="fas fa-triangle-exclamation text-destructive" style={{ fontSize: '1rem' }} aria-hidden="true" />
-        <h2 className="text-foreground" style={{ fontSize: '1rem', fontWeight: 700 }}>Ordens Urgentes</h2>
+        <h2 className="text-foreground" style={{ fontSize: '1rem', fontWeight: 700 }}>Ocorrências Urgentes</h2>
         <span className="ml-auto px-2 py-0.5 rounded-full bg-destructive/15 text-destructive" style={{ fontSize: '0.72rem', fontWeight: 700 }}>
           {orders.length} pendentes
         </span>
@@ -245,14 +216,6 @@ function UrgentOrders({ orders, onAction }: { orders: WorkOrder[]; onAction: (o:
                   {order.zone ? ` · ${order.zone}` : ''}
                 </p>
               </div>
-              <button
-                onClick={() => onAction(order)}
-                className="flex-shrink-0 px-2.5 py-1 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary transition-colors"
-                style={{ fontSize: '0.72rem', fontWeight: 600 }}
-                aria-label={`Atualizar estado da ordem ${order.id}`}
-              >
-                Atualizar
-              </button>
             </div>
           );
         })}
