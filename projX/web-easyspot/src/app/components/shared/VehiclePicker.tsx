@@ -127,8 +127,8 @@ export function VehiclePicker({
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 backdrop-blur-sm px-4 pt-6 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:p-4">
-          <div className="bg-background rounded-3xl w-full max-w-sm shadow-2xl max-h-[calc(100vh-8rem-env(safe-area-inset-bottom))] sm:max-h-[80vh] overflow-hidden">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm px-4 pt-6 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:p-4">
+          <div className="relative z-[10000] bg-background rounded-3xl w-full max-w-sm shadow-2xl max-h-[calc(100vh-8rem-env(safe-area-inset-bottom))] sm:max-h-[80vh] overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <h2 className="text-foreground font-extrabold" style={{ fontSize: '1rem' }}>
                 {label || 'Veículo'}
