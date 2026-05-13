@@ -171,8 +171,7 @@ export function MaintenancePage() {
         fetchAlerts(),
       ]);
       setSensors(apiSensors.map(sensorFromApi));
-      const techAlerts = apiAlerts.filter(a => a.type === 'SENSOR' || a.type === 'SYSTEM');
-      setIssues(techAlerts.map(alertToIssue));
+      setIssues(apiAlerts.map(alertToIssue));
       setOrders(apiAlerts.map(alertToWorkOrder));
     } catch (err: unknown) {
       setApiError(err instanceof Error ? err.message : 'Erro ao carregar dados.');
