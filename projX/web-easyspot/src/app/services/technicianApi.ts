@@ -114,10 +114,10 @@ export const updateAlertState = (alertId: string, state: AlertState, notes?: str
     body: JSON.stringify({ state, notes }),
   });
 
-export const createSensorTaskAlert = (sensorId: string, notes?: string): Promise<AlertResponse> =>
+export const createSensorTaskAlert = (sensorId: string, notes?: string, severity?: AlertSeverity): Promise<AlertResponse> =>
   request<AlertResponse>(`/api/alerts/sensor-tasks/${encodeURIComponent(sensorId)}`, {
     method: 'POST',
-    body: JSON.stringify({ notes: notes ?? null }),
+    body: JSON.stringify({ notes: notes ?? null, severity: severity ?? null }),
   });
 
 export const updateSensorStatus = (sensorId: string, status: string, notes?: string): Promise<void> =>

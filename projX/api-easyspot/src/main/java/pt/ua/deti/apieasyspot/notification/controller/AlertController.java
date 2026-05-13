@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import pt.ua.deti.apieasyspot.notification.dto.AlertResponse;
 import pt.ua.deti.apieasyspot.notification.dto.AlertSubscriptionResponse;
 import pt.ua.deti.apieasyspot.notification.dto.AlertStateUpdate;
+import pt.ua.deti.apieasyspot.notification.dto.CreateSensorTaskRequest;
 import pt.ua.deti.apieasyspot.notification.dto.CreateAlertSubscriptionRequest;
 import pt.ua.deti.apieasyspot.notification.model.Alert;
 import pt.ua.deti.apieasyspot.notification.model.SeverityAlert;
@@ -29,6 +30,7 @@ import pt.ua.deti.apieasyspot.sensor.model.SensorStatus;
 import pt.ua.deti.apieasyspot.sensor.repository.SensorRegistryRepository;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 
@@ -119,7 +121,7 @@ public class AlertController {
     @PreAuthorize("hasAnyRole('TECHNICAL', 'MANAGER')")
     public ResponseEntity<AlertResponse> createSensorTask(
         @PathVariable String sensorId,
-        @RequestBody(required = false) AlertStateUpdate body,
+        @RequestBody(required = false) CreateSensorTaskRequest body,
         @AuthenticationPrincipal Jwt jwt
     ) {
         SensorRegistry sensor = sensorRegistryRepository.findById(sensorId)
@@ -135,6 +137,15 @@ public class AlertController {
             throw new IllegalStateException("Sensor is operational: " + sensorId);
         }
 
+        SeverityAlert severity = SeverityAlert.CRITICAL;
+        if (body != null && body.severity() != null && !body.severity().isBlank()) {
+            try {
+                severity = SeverityAlert.valueOf(body.severity().trim().toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException ex) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid severity: " + body.severity());
+            }
+        }
+
         Alert saved = alertService.createSensorAlert(
             sensor.getParkingLot().getId(),
             sensor.getParkingLot().getName(),
@@ -143,7 +154,8 @@ public class AlertController {
             (body != null && body.notes() != null && !body.notes().isBlank())
                 ? body.notes()
                 : "Falha detetada no sensor " + sensorId + ".",
-            body != null ? body.notes() : null
+            body != null ? body.notes() : null,
+            severity
         );
         return ResponseEntity.status(201).body(AlertResponse.from(saved));
     }

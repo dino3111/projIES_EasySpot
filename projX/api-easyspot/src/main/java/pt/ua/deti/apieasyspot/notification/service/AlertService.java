@@ -63,12 +63,12 @@ public class AlertService {
         alertRepository.save(alert);
     }
 
-    public Alert createSensorAlert(UUID parkingLotId, String parkingLotName, String zone, String sensorId, String description, String notes) {
+    public Alert createSensorAlert(UUID parkingLotId, String parkingLotName, String zone, String sensorId, String description, String notes, SeverityAlert severity) {
         Alert alert = new Alert();
         alert.setParkingLotId(parkingLotId);
         alert.setParkingLotName(parkingLotName);
         alert.setType(AlertType.SENSOR);
-        alert.setSeverity(SeverityAlert.CRITICAL);
+        alert.setSeverity(severity);
         alert.setState(StateAlert.OPEN);
         alert.setZone(zone);
         alert.setSensorId(sensorId);

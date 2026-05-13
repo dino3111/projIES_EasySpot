@@ -76,6 +76,12 @@ function toIssueTipo(type: AlertResponse['type']): 'sensor' | 'cliente' | 'siste
   return 'sensor';
 }
 
+function toAlertSeverity(prioridade: string): AlertResponse['severity'] {
+  if (prioridade === 'critica') return 'CRITICAL';
+  if (prioridade === 'alta') return 'WARNING';
+  return 'INFO';
+}
+
 export interface IssueReport {
   id: string;
   tipo: 'sensor' | 'cliente' | 'sistema';
@@ -269,8 +275,9 @@ export function MaintenancePage() {
     showToast(`Sensor ${sensorId} atualizado para "${STATUS_LABEL[newStatus]}".`);
   };
 
-  const handleCreateOrder = async (sensorId: string, titulo: string, descricao: string, _prioridade: string) => {
+  const handleCreateOrder = async (sensorId: string, titulo: string, descricao: string, prioridade: string) => {
     const details = [titulo.trim(), descricao.trim()].filter(Boolean).join(' — ');
+    const severity = toAlertSeverity(prioridade);
     const alert = orders.find((o) => o.sensorId === sensorId && o.state === 'OPEN');
     if (alert) {
       try {
@@ -290,7 +297,7 @@ export function MaintenancePage() {
       }
 
       try {
-        const created = await createSensorTaskAlert(sensorId, details || undefined);
+        const created = await createSensorTaskAlert(sensorId, details || undefined, severity);
         setOrders((prev) => [alertToWorkOrder(created), ...prev]);
         setIssues((prev) => [alertToIssue(created), ...prev]);
         showToast(`Tarefa "${titulo}" criada — sensor ${sensorId} com alerta aberto.`, 'success');
