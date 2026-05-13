@@ -124,7 +124,7 @@ public class ReservationService {
         reservationRepository.expireTimedOutLocks(now, ReservationStatus.CONFIRMED, ReservationStatus.EXPIRED);
 
         User user = findUser(authentikUserId);
-        Reservation reservation = findReservationOwnedByUser(reservationId, user.getId());
+        Reservation reservation = findReservationOwnedByUserWithDetails(reservationId, user.getId());
         ensureReservationCanBeManaged(reservation, now, "updated");
 
         OffsetDateTime arrival = parseDateTime(request.arrivalDateTime(), "arrivalDateTime");
@@ -259,7 +259,7 @@ public class ReservationService {
         reservationRepository.expireTimedOutLocks(now, ReservationStatus.CONFIRMED, ReservationStatus.EXPIRED);
 
         User user = findUser(authentikUserId);
-        Reservation reservation = findReservationOwnedByUser(reservationId, user.getId());
+        Reservation reservation = findReservationOwnedByUserWithDetails(reservationId, user.getId());
         ensureReservationCanBeManaged(reservation, now, "cancelled");
 
         reservation.setStatus(ReservationStatus.CANCELLED);
@@ -662,6 +662,12 @@ public class ReservationService {
 
     private Reservation findReservationOwnedByUser(UUID reservationId, UUID userId) {
         return reservationRepository.findByIdAndUserId(reservationId, userId)
+            .orElseThrow(() -> new ResourceNotFoundException(
+                "Reservation not found or does not belong to this user: " + reservationId));
+    }
+
+    private Reservation findReservationOwnedByUserWithDetails(UUID reservationId, UUID userId) {
+        return reservationRepository.findByIdAndUserIdWithDetails(reservationId, userId)
             .orElseThrow(() -> new ResourceNotFoundException(
                 "Reservation not found or does not belong to this user: " + reservationId));
     }

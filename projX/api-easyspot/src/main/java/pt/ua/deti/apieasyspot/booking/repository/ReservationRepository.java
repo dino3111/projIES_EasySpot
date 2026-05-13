@@ -198,4 +198,17 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
         @Param("arrivalTime") OffsetDateTime arrivalTime,
         @Param("departureTime") OffsetDateTime departureTime
     );
+
+    @Query("""
+        SELECT r FROM Reservation r
+        LEFT JOIN FETCH r.parkingLot
+        LEFT JOIN FETCH r.parkingSpot
+        LEFT JOIN FETCH r.vehicle
+        LEFT JOIN FETCH r.user
+        WHERE r.id = :id AND r.user.id = :userId
+        """)
+    Optional<Reservation> findByIdAndUserIdWithDetails(
+        @Param("id") UUID id,
+        @Param("userId") UUID userId
+    );
 }
