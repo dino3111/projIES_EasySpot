@@ -185,8 +185,8 @@ function ParkSensorMapView({
   // Build a label for each sensor from sensorId suffix: "IR-AV1-B07" → "B07"
   const sensorLabel = (s: SensorDevice) => s.lugar ?? s.id.split('-').pop() ?? s.id;
 
-  // Grid: up to 4 columns, rows expand as needed
-  const COLS = Math.min(4, allSensors.length);
+  // Grid: up to 18 columns, rows expand as needed
+  const COLS = Math.min(18, allSensors.length);
 
   return (
     <div className="space-y-3">
