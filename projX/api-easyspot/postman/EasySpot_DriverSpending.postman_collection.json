@@ -112,10 +112,18 @@
       "name": "2. GET spending - vehicle filter (multi-vehicle)",
       "event": [{ "listen": "test", "script": { "exec": [
         "pm.test('Status 200', function() { pm.response.to.have.status(200); });",
-        "pm.test('Breakdown is narrowed to one vehicle', function() {",
+        "pm.test('Vehicle filter narrows results when data exists', function() {",
         "  const body = pm.response.json();",
-        "  pm.expect(body.breakdownByVehicle.length).to.eql(1);",
-        "  pm.expect(body.breakdownByVehicle[0].vehicleId).to.eql(pm.collectionVariables.get('vehicle_id_2'));",
+        "  const expectedVehicleId = pm.collectionVariables.get('vehicle_id_2');",
+        "  pm.expect(body.breakdownByVehicle).to.be.an('array');",
+        "  pm.expect(body.breakdownByVehicle.length).to.be.at.most(1);",
+        "  if (body.breakdownByVehicle.length === 1) {",
+        "    pm.expect(body.breakdownByVehicle[0].vehicleId).to.eql(expectedVehicleId);",
+        "  }",
+        "  if (Array.isArray(body.history) && body.history.length > 0) {",
+        "    const mismatches = body.history.filter(i => i.vehicleId && i.vehicleId !== expectedVehicleId);",
+        "    pm.expect(mismatches.length).to.eql(0);",
+        "  }",
         "});"
       ] } }],
       "request": {

@@ -1,49 +1,51 @@
 import { Link, useLocation } from 'react-router';
-import { useProfile, type DriverType } from '../../context/ProfileContext';
+import { useProfile } from '../../context/ProfileContext';
 
 interface NavTab {
   path: string;
   icon: string;
   label: string;
   exact: boolean;
-  priority: number;
 }
 
-const tecnicoTabs = [
-  { path: '/tecnico/dashboard', icon: 'fa-gauge-high', label: 'Painel', exact: true },
-  { path: '/tecnico/manutencao', icon: 'fa-screwdriver-wrench', label: 'Manutenção', exact: false },
-  { path: '/perfil', icon: 'fa-gear', label: 'Definições', exact: false },
+const technicianTabs: NavTab[] = [
+  { path: '/technician/dashboard',   icon: 'fa-gauge-high',         label: 'Painel',     exact: true },
+  { path: '/technician/maintenance', icon: 'fa-screwdriver-wrench', label: 'Manutenção', exact: false },
+  { path: '/profile',                icon: 'fa-gear',               label: 'Definições', exact: false },
 ];
 
-const gestorTabs = [
-  { path: '/gestor/dashboard', icon: 'fa-chart-line', label: 'Painel', exact: true },
-  { path: '/gestor/tarifas-ocorrencias', icon: 'fa-file-invoice-dollar', label: 'Tarifas', exact: false },
-  { path: '/perfil', icon: 'fa-gear', label: 'Definições', exact: false },
+const managerTabs: NavTab[] = [
+  { path: '/manager/dashboard',         icon: 'fa-chart-line',         label: 'Painel',   exact: true },
+  { path: '/manager/tariffs-incidents', icon: 'fa-file-invoice-dollar', label: 'Tarifas', exact: false },
+  { path: '/profile',                   icon: 'fa-gear',               label: 'Definições', exact: false },
 ];
+
+const driverTabs: NavTab[] = [
+  { path: '/',             icon: 'fa-list',             label: 'Lista',   exact: true },
+  { path: '/map',          icon: 'fa-map-location-dot', label: 'Mapa',    exact: false },
+  { path: '/reservations', icon: 'fa-bookmark',         label: 'Reservas',exact: false },
+  { path: '/costs',        icon: 'fa-wallet',           label: 'Custos',  exact: false },
+  { path: '/profile',      icon: 'fa-user',             label: 'Perfil',  exact: false },
+];
+
+function isActive(path: string, exact: boolean, current: string): boolean {
+  if (exact) return current === path;
+  return current.startsWith(path);
+}
 
 export function BottomNav() {
   const location = useLocation();
   const { profile } = useProfile();
 
-  const getCondutorTabs = (): NavTab[] => {
-    const baseTabs: NavTab[] = [
-      { path: '/', icon: 'fa-list', label: 'Lista', exact: true, priority: 1 },
-      { path: '/mapa', icon: 'fa-map-location-dot', label: 'Mapa', exact: false, priority: 2 },
-      { path: '/perfil', icon: 'fa-user', label: 'Perfil', exact: false, priority: 10 },
-    ];
-
-    baseTabs.push({ path: '/custos', icon: 'fa-wallet', label: 'Custos', exact: false, priority: 4 });
-
-    return baseTabs.sort((a, b) => a.priority - b.priority);
+  const getTabs = () => {
+    switch (profile) {
+      case 'MANAGER':   return managerTabs;
+      case 'TECHNICAL': return technicianTabs;
+      default:          return driverTabs;
+    }
   };
 
-  const condutorTabs = getCondutorTabs();
-  const tabs = profile === 'MANAGER' ? gestorTabs : profile === 'TECHNICAL' ? tecnicoTabs : condutorTabs;
-
-  const isActive = (path: string, exact: boolean) => {
-    if (exact) return location.pathname === path;
-    return location.pathname.startsWith(path);
-  };
+  const tabs = getTabs();
 
   return (
     <nav
@@ -53,7 +55,7 @@ export function BottomNav() {
     >
       <div className="flex items-stretch h-16">
         {tabs.map((tab) => {
-          const active = isActive(tab.path, tab.exact);
+          const active = isActive(tab.path, tab.exact, location.pathname);
           return (
             <Link
               key={tab.path}
@@ -68,10 +70,8 @@ export function BottomNav() {
                 className={`fas ${tab.icon}`}
                 aria-hidden="true"
                 style={{ fontSize: active ? '1.25rem' : '1.125rem' }}
-              ></i>
-              <span style={{ fontSize: '11px', lineHeight: 1 }}>
-                {tab.label}
-              </span>
+              />
+              <span style={{ fontSize: '11px', lineHeight: 1 }}>{tab.label}</span>
               {active && (
                 <span
                   className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[3px] bg-primary rounded-b-sm"

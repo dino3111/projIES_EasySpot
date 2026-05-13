@@ -1,6 +1,6 @@
 package pt.ua.deti.apieasyspot.billing.repository;
 
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -12,13 +12,27 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Repository
-@RequiredArgsConstructor
 public class DriverSpendingRepository {
 
+    private static final String TOTAL_SPENT = "total_spent";
+    private static final String PARKING_LOT_ID = "parking_lot_id";
+    private static final String VEHICLE_ID = "vehicle_id";
+    private static final String STATUS_COMPLETED = "COMPLETED";
+
     private final NamedParameterJdbcTemplate jdbc;
+    private final NamedParameterJdbcTemplate pgJdbc;
+
+    public DriverSpendingRepository(
+            @Qualifier("timescaleNamedJdbcTemplate") NamedParameterJdbcTemplate jdbc,
+            @Qualifier("namedParameterJdbcTemplate") NamedParameterJdbcTemplate pgJdbc) {
+        this.jdbc = jdbc;
+        this.pgJdbc = pgJdbc;
+    }
 
     public TotalsRow totals(UUID userId, UUID vehicleId, OffsetDateTime fromInclusive, OffsetDateTime toExclusive) {
         return jdbc.queryForObject(
@@ -38,7 +52,7 @@ public class DriverSpendingRepository {
             """,
             params(userId, vehicleId, fromInclusive, toExclusive),
             (rs, row) -> new TotalsRow(
-                rs.getBigDecimal("total_spent"),
+                rs.getBigDecimal(TOTAL_SPENT),
                 rs.getBigDecimal("charging_spent"),
                 rs.getBigDecimal("parking_spent"),
                 rs.getLong("sessions")
@@ -63,44 +77,63 @@ public class DriverSpendingRepository {
             params(userId, vehicleId, fromInclusive, toExclusive),
             (rs, row) -> new TimeseriesPointRow(
                 rs.getDate("day").toLocalDate(),
-                rs.getBigDecimal("total_spent")
+                rs.getBigDecimal(TOTAL_SPENT)
             )
         );
     }
 
     public List<ParkBreakdownRow> breakdownByPark(UUID userId, UUID vehicleId, OffsetDateTime fromInclusive, OffsetDateTime toExclusive) {
-        return jdbc.query(
+        record RawPark(UUID parkId, BigDecimal totalSpent, long sessionCount) {}
+
+        List<RawPark> raw = jdbc.query(
             """
-            select ps.parking_lot_id, pl.name as park_name,
+            select ps.parking_lot_id,
                    coalesce(sum(ps.revenue_euros), 0) as total_spent,
                    count(*) as session_count
             from parking_sessions ps
-            join parking_lots pl on pl.id = ps.parking_lot_id
             where ps.user_id = :userId
               and ps.entry_time >= :fromInclusive
               and ps.entry_time < :toExclusive
               and ps.exit_time is not null
               and ps.revenue_euros is not null
               and (cast(:vehicleId as uuid) is null or ps.vehicle_id = cast(:vehicleId as uuid))
-            group by ps.parking_lot_id, pl.name
-            order by total_spent desc, pl.name asc
+            group by ps.parking_lot_id
+            order by total_spent desc
             """,
             params(userId, vehicleId, fromInclusive, toExclusive),
-            (rs, row) -> new ParkBreakdownRow(
-                UUID.fromString(rs.getString("parking_lot_id")),
-                rs.getString("park_name"),
-                rs.getBigDecimal("total_spent"),
+            (rs, row) -> new RawPark(
+                UUID.fromString(rs.getString(PARKING_LOT_ID)),
+                rs.getBigDecimal(TOTAL_SPENT),
                 rs.getLong("session_count")
             )
         );
+
+        if (raw.isEmpty()) return List.of();
+
+        List<String> ids = raw.stream().map(r -> r.parkId().toString()).toList();
+        Map<UUID, String> names = parkNames(ids);
+
+        return raw.stream()
+            .map(r -> new ParkBreakdownRow(
+                r.parkId(),
+                names.getOrDefault(r.parkId(), r.parkId().toString()),
+                r.totalSpent(),
+                r.sessionCount()
+            ))
+            .sorted((a, b) -> {
+                int c = b.totalSpent().compareTo(a.totalSpent());
+                return c != 0 ? c : a.parkName().compareTo(b.parkName());
+            })
+            .toList();
     }
 
     public List<VehicleBreakdownRow> breakdownByVehicle(UUID userId, UUID vehicleId, OffsetDateTime fromInclusive, OffsetDateTime toExclusive) {
-        return jdbc.query(
+        record RawVehicle(UUID vehicleId, BigDecimal totalSpent) {}
+
+        List<RawVehicle> raw = jdbc.query(
             """
-            select ps.vehicle_id, v.plate as license_plate, coalesce(sum(ps.revenue_euros), 0) as total_spent
+            select ps.vehicle_id, coalesce(sum(ps.revenue_euros), 0) as total_spent
             from parking_sessions ps
-            join vehicles v on v.id = ps.vehicle_id
             where ps.user_id = :userId
               and ps.entry_time >= :fromInclusive
               and ps.entry_time < :toExclusive
@@ -108,28 +141,44 @@ public class DriverSpendingRepository {
               and ps.revenue_euros is not null
               and ps.vehicle_id is not null
               and (cast(:vehicleId as uuid) is null or ps.vehicle_id = cast(:vehicleId as uuid))
-            group by ps.vehicle_id, v.plate
-            order by total_spent desc, v.plate asc
+            group by ps.vehicle_id
+            order by total_spent desc
             """,
             params(userId, vehicleId, fromInclusive, toExclusive),
-            (rs, row) -> new VehicleBreakdownRow(
-                UUID.fromString(rs.getString("vehicle_id")),
-                rs.getString("license_plate"),
-                rs.getBigDecimal("total_spent")
+            (rs, row) -> new RawVehicle(
+                UUID.fromString(rs.getString(VEHICLE_ID)),
+                rs.getBigDecimal(TOTAL_SPENT)
             )
         );
+
+        if (raw.isEmpty()) return List.of();
+
+        List<String> ids = raw.stream().map(r -> r.vehicleId().toString()).toList();
+        Map<UUID, String> plates = vehiclePlates(ids);
+
+        return raw.stream()
+            .map(r -> new VehicleBreakdownRow(
+                r.vehicleId(),
+                plates.getOrDefault(r.vehicleId(), r.vehicleId().toString()),
+                r.totalSpent()
+            ))
+            .sorted((a, b) -> {
+                int c = b.totalSpent().compareTo(a.totalSpent());
+                return c != 0 ? c : a.licensePlate().compareTo(b.licensePlate());
+            })
+            .toList();
     }
 
     public CostliestSessionRow costliestSession(UUID userId, UUID vehicleId, OffsetDateTime fromInclusive, OffsetDateTime toExclusive) {
-        List<CostliestSessionRow> rows = jdbc.query(
+        record RawSession(UUID parkId, UUID vid, OffsetDateTime endedAt, BigDecimal totalSpent) {}
+
+        List<RawSession> rows = jdbc.query(
             """
-            select pl.name as park_name,
+            select ps.parking_lot_id,
+                   ps.vehicle_id,
                    ps.exit_time as ended_at,
-                   v.plate as vehicle,
                    ps.revenue_euros as total_spent
             from parking_sessions ps
-            join parking_lots pl on pl.id = ps.parking_lot_id
-            left join vehicles v on v.id = ps.vehicle_id
             where ps.user_id = :userId
               and ps.entry_time >= :fromInclusive
               and ps.entry_time < :toExclusive
@@ -140,33 +189,63 @@ public class DriverSpendingRepository {
             limit 1
             """,
             params(userId, vehicleId, fromInclusive, toExclusive),
-            (rs, row) -> new CostliestSessionRow(
-                rs.getString("park_name"),
+            (rs, row) -> new RawSession(
+                UUID.fromString(rs.getString(PARKING_LOT_ID)),
+                rs.getString("vehicle_id") != null ? UUID.fromString(rs.getString("vehicle_id")) : null,
                 asOffset(rs.getTimestamp("ended_at")),
-                rs.getString("vehicle"),
-                rs.getBigDecimal("total_spent")
+                rs.getBigDecimal(TOTAL_SPENT)
             )
         );
-        return rows.isEmpty() ? null : rows.get(0);
+
+        if (rows.isEmpty()) return null;
+        RawSession r = rows.get(0);
+
+        Map<UUID, String> names = parkNames(List.of(r.parkId().toString()));
+        String plate = r.vid() != null
+            ? vehiclePlates(List.of(r.vid().toString())).getOrDefault(r.vid(), null)
+            : null;
+
+        return new CostliestSessionRow(
+            names.getOrDefault(r.parkId(), r.parkId().toString()),
+            r.endedAt(),
+            plate,
+            r.totalSpent()
+        );
     }
 
-    private static final String STATUS_COMPLETED = "COMPLETED";
+    public long countHistory(UUID userId, UUID vehicleId, OffsetDateTime fromInclusive, OffsetDateTime toExclusive) {
+        Long result = jdbc.queryForObject(
+            """
+            select count(*)
+            from parking_sessions ps
+            where ps.user_id = :userId
+              and ps.entry_time >= :fromInclusive
+              and ps.entry_time < :toExclusive
+              and ps.exit_time is not null
+              and ps.revenue_euros is not null
+              and (cast(:vehicleId as uuid) is null or ps.vehicle_id = cast(:vehicleId as uuid))
+            """,
+            params(userId, vehicleId, fromInclusive, toExclusive),
+            Long.class
+        );
+        return result != null ? result : 0L;
+    }
 
     public List<HistoryRow> history(UUID userId, UUID vehicleId, OffsetDateTime fromInclusive, OffsetDateTime toExclusive, int page, int size) {
+        record RawHistory(UUID parkId, UUID vid, OffsetDateTime entryTime, long durationMinutes, BigDecimal totalSpent) {}
+
         var p = params(userId, vehicleId, fromInclusive, toExclusive)
             .addValue("limit", size)
             .addValue("offset", (long) page * size);
-        return jdbc.query(
+
+        List<RawHistory> raw = jdbc.query(
             """
-            select pl.name as park_name,
+            select ps.parking_lot_id,
+                   ps.vehicle_id,
                    ps.entry_time,
-                   ps.exit_time,
                    extract(epoch from (ps.exit_time - ps.entry_time)) / 60 as duration_minutes,
-                   v.plate as vehicle,
                    ps.revenue_euros as total_spent
             from parking_sessions ps
-            join parking_lots pl on pl.id = ps.parking_lot_id
-            left join vehicles v on v.id = ps.vehicle_id
             where ps.user_id = :userId
               and ps.entry_time >= :fromInclusive
               and ps.entry_time < :toExclusive
@@ -177,15 +256,57 @@ public class DriverSpendingRepository {
             limit :limit offset :offset
             """,
             p,
-            (rs, row) -> new HistoryRow(
-                rs.getString("park_name"),
-                asOffset(rs.getTimestamp("entry_time")),
-                Math.round(rs.getDouble("duration_minutes")),
-                rs.getString("vehicle"),
-                rs.getBigDecimal("total_spent"),
-                STATUS_COMPLETED
-            )
+            (rs, row) -> {
+                String vidStr = rs.getString("vehicle_id");
+                return new RawHistory(
+                    UUID.fromString(rs.getString(PARKING_LOT_ID)),
+                    vidStr != null ? UUID.fromString(vidStr) : null,
+                    asOffset(rs.getTimestamp("entry_time")),
+                    Math.round(rs.getDouble("duration_minutes")),
+                    rs.getBigDecimal(TOTAL_SPENT)
+                );
+            }
         );
+
+        if (raw.isEmpty()) return List.of();
+
+        List<String> parkIds = raw.stream().map(r -> r.parkId().toString()).distinct().toList();
+        List<String> vehicleIds = raw.stream()
+            .filter(r -> r.vid() != null)
+            .map(r -> r.vid().toString())
+            .distinct().toList();
+
+        Map<UUID, String> names = parkNames(parkIds);
+        Map<UUID, String> plates = vehicleIds.isEmpty() ? Map.of() : vehiclePlates(vehicleIds);
+
+        return raw.stream()
+            .map(r -> new HistoryRow(
+                names.getOrDefault(r.parkId(), r.parkId().toString()),
+                r.entryTime(),
+                r.durationMinutes(),
+                r.vid() != null ? plates.getOrDefault(r.vid(), null) : null,
+                r.totalSpent(),
+                STATUS_COMPLETED
+            ))
+            .toList();
+    }
+
+    private Map<UUID, String> parkNames(List<String> ids) {
+        if (ids.isEmpty()) return Map.of();
+        return pgJdbc.query(
+            "select id, name from parking_lots where id::text = any(:ids)",
+            new MapSqlParameterSource("ids", ids.toArray(new String[0])),
+            (rs, row) -> Map.entry(UUID.fromString(rs.getString("id")), rs.getString("name"))
+        ).stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+    }
+
+    private Map<UUID, String> vehiclePlates(List<String> ids) {
+        if (ids.isEmpty()) return Map.of();
+        return pgJdbc.query(
+            "select id, plate from vehicles where id::text = any(:ids)",
+            new MapSqlParameterSource("ids", ids.toArray(new String[0])),
+            (rs, row) -> Map.entry(UUID.fromString(rs.getString("id")), rs.getString("plate"))
+        ).stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
     private MapSqlParameterSource params(UUID userId, UUID vehicleId, OffsetDateTime fromInclusive, OffsetDateTime toExclusive) {

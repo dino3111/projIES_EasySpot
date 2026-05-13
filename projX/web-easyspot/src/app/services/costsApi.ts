@@ -1,0 +1,142 @@
+import { API_BASE } from '../../services/apiBase';
+import { getAccessToken } from './authToken';
+import { withGlobalLoading } from '../context/LoadingContext';
+
+export interface SpendingTotals {
+  totalSpent: number;
+  avgPerSession: number;
+  parkingSpent: number;
+  chargingSpent: number;
+}
+
+export interface SpendingInsights {
+  mostUsedPark: string | null;
+  costliestSession: {
+    parkName: string;
+    date: string;
+    vehicle: string | null;
+    totalSpent: number;
+  } | null;
+  sessionCount: number;
+}
+
+export interface SpendingTimeseriesPoint {
+  date: string;
+  totalSpent: number;
+}
+
+export interface ParkBreakdown {
+  parkId: string;
+  parkName: string;
+  totalSpent: number;
+}
+
+export interface VehicleBreakdown {
+  vehicleId: string;
+  licensePlate: string;
+  totalSpent: number;
+}
+
+export interface SpendingHistoryItem {
+  parkName: string;
+  date: string;
+  durationMinutes: number;
+  vehicle: string | null;
+  totalSpent: number;
+  status: string;
+}
+
+export interface DriverSpendingResponse {
+  totals: SpendingTotals;
+  insights: SpendingInsights;
+  timeseries: SpendingTimeseriesPoint[];
+  breakdownByPark: ParkBreakdown[];
+  breakdownByVehicle: VehicleBreakdown[];
+  history: SpendingHistoryItem[];
+  historyTotal: number;
+}
+
+export interface PlanningRecommendation {
+  id: string;
+  name: string;
+  address: string;
+  openingHours: string;
+  distanceMeters: number;
+  pricePerHour: number;
+  currentOccupancy: {
+    occupied: number;
+    total: number;
+    occupancyPercent: number;
+    status: string;
+  };
+  occupancyByHour: Array<{ hour: string; occupancyPercent: number }>;
+}
+
+export interface PlanningResponse {
+  recommendations: PlanningRecommendation[];
+}
+
+export type SpendingTimeWindow = '7D' | '30D' | '3M' | '6M' | '12M';
+
+export interface SpendingQuery {
+  vehicleId?: string | null;
+  timeWindow?: SpendingTimeWindow;
+  from?: string;
+  to?: string;
+  page?: number;
+  size?: number;
+}
+
+export interface PlanningQuery {
+  city?: string;
+  durationMinutes: number;
+  isElectric?: boolean;
+  isAccessible?: boolean;
+  maxDistanceMeters?: number;
+  lat: number;
+  lng: number;
+  orderBy?: 'price' | 'distance' | 'ratio';
+}
+
+export async function fetchDriverSpending(query: SpendingQuery = {}): Promise<DriverSpendingResponse> {
+  const params = new URLSearchParams();
+  if (query.vehicleId) params.set('vehicleId', query.vehicleId);
+  if (query.timeWindow) params.set('timeWindow', query.timeWindow);
+  if (query.from) params.set('from', query.from);
+  if (query.to) params.set('to', query.to);
+  if (query.page !== undefined) params.set('historyPage', String(query.page));
+  if (query.size !== undefined) params.set('historySize', String(query.size));
+
+  const token = getAccessToken();
+  const resp = await withGlobalLoading(() => fetch(`${API_BASE}/api/driver/costs/spending?${params.toString()}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  }));
+
+  if (!resp.ok) throw new Error(`Failed to fetch spending data (${resp.status})`);
+  return (await resp.json()) as DriverSpendingResponse;
+}
+
+export async function fetchParkingPlanning(query: PlanningQuery): Promise<PlanningResponse> {
+  const params = new URLSearchParams({
+    estimatedDurationMinutes: String(query.durationMinutes),
+    lat: String(query.lat),
+    lng: String(query.lng),
+  });
+  if (query.city) params.set('city', query.city);
+
+  if (query.isElectric === true) params.set('isElectric', 'true');
+  if (query.isAccessible === true) params.set('isAccessible', 'true');
+  if (query.maxDistanceMeters !== undefined) params.set('maxDistanceMeters', String(query.maxDistanceMeters));
+  if (query.orderBy) {
+    const orderByMap: Record<string, string> = { ratio: 'BEST', price: 'LOWEST_PRICE', distance: 'NEAREST' };
+    params.set('orderBy', orderByMap[query.orderBy] ?? 'BEST');
+  }
+
+  const token = getAccessToken();
+  const resp = await withGlobalLoading(() => fetch(`${API_BASE}/api/driver/costs/planning?${params.toString()}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  }));
+
+  if (!resp.ok) throw new Error(`Failed to fetch planning data (${resp.status})`);
+  return (await resp.json()) as PlanningResponse;
+}

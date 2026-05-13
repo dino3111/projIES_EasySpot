@@ -1,8 +1,9 @@
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { fetchVehicles } from '../services/vehiclesApi';
+import { useAuth } from './AuthContext';
 
 export type AppProfile = 'DRIVER' | 'MANAGER' | 'TECHNICAL';
-export type AccountType = AppProfile;
-export type DriverType = 'regular' | 'ev' | 'mobilidade_reduzida' | null;
+export type DriverType = 'regular' | 'ev' | 'reduced_mobility' | null;
 
 export interface Vehicle {
   id: string;
@@ -20,14 +21,15 @@ export interface Vehicle {
   chargerTypes?: string[];
   isAccessible: boolean;
   isPrimary: boolean;
-  rfid?: string;
+  imageUrl?: string;
+  brandLogoUrl?: string;
 }
 
 interface ProfileContextType {
   profile: AppProfile;
   setProfile: (p: AppProfile) => void;
-  accountType: AccountType;
-  setAccountType: (a: AccountType) => void;
+  accountType: AppProfile;
+  setAccountType: (a: AppProfile) => void;
   driverType: DriverType;
   setDriverType: (d: DriverType) => void;
   vehicles: Vehicle[];
@@ -61,46 +63,86 @@ function readJSON<T>(key: string, fallback: T): T {
   }
 }
 
-export function ProfileProvider({ children }: { children: ReactNode }) {
-  const [profile, setProfileState] = useState<AppProfile>(() => {
+export function ProfileProvider({ children }: { readonly children: ReactNode }) {
+  const { user, isLoading: authLoading } = useAuth();
+  const [profile, setProfile] = useState<AppProfile>(() => {
     const stored = localStorage.getItem(STORAGE_KEYS.profile);
-    return (stored === 'MANAGER' || stored === 'DRIVER' || stored === 'TECHNICAL') ? stored : 'DRIVER';
+    return stored === 'MANAGER' || stored === 'DRIVER' || stored === 'TECHNICAL' ? stored : 'DRIVER';
   });
 
-  const [accountType, setAccountTypeState] = useState<AccountType>(() => {
+  const [accountType, setAccountType] = useState<AppProfile>(() => {
     const stored = localStorage.getItem(STORAGE_KEYS.accountType);
-    return (stored === 'MANAGER' || stored === 'DRIVER' || stored === 'TECHNICAL') ? stored : 'DRIVER';
+    return stored === 'MANAGER' || stored === 'DRIVER' || stored === 'TECHNICAL' ? stored : 'DRIVER';
   });
 
-  const [driverType, setDriverTypeState] = useState<DriverType>(() => {
+  const [driverType, setDriverType] = useState<DriverType>(() => {
     const stored = localStorage.getItem(STORAGE_KEYS.driverType);
-    return (stored === 'regular' || stored === 'ev' || stored === 'mobilidade_reduzida') ? stored : null;
+    if (stored === 'regular' || stored === 'ev' || stored === 'reduced_mobility') return stored;
+    if (stored === 'mobilidade_reduzida') return 'reduced_mobility';
+    return null;
   });
 
-  const [vehicles, setVehicles] = useState<Vehicle[]>(() => readJSON<Vehicle[]>(STORAGE_KEYS.vehicles, []));
+  const [vehicles, setVehicles] = useState<Vehicle[]>(() =>
+    readJSON<Vehicle[]>(STORAGE_KEYS.vehicles, [])
+  );
 
-  const [managerParks, setManagerParksState] = useState<string[]>(() => {
-    const newKey = readJSON<string[]>(STORAGE_KEYS.managerParks, []);
-    if (newKey.length > 0) return newKey;
+  function mergeVehicles(base: Vehicle[], fetched: Vehicle[]) {
+    if (base.length === 0) return fetched;
+    const byId = new Map(base.map((vehicle) => [vehicle.id, vehicle]));
+    return fetched.map((vehicle) => {
+      const stored = byId.get(vehicle.id);
+      if (!stored) return vehicle;
+      return {
+        ...vehicle,
+        ...stored,
+        chargerTypes: stored.chargerTypes ?? vehicle.chargerTypes,
+      };
+    });
+  }
+
+  useEffect(() => {
+    if (authLoading) return;
+
+    if (user?.role !== 'DRIVER') {
+      return;
+    }
+
+    let mounted = true;
+    fetchVehicles().then((list) => {
+      if (!mounted || list.length === 0) return;
+      const nextVehicles = mergeVehicles(readJSON<Vehicle[]>(STORAGE_KEYS.vehicles, []), list);
+      setVehicles(nextVehicles);
+      localStorage.setItem(STORAGE_KEYS.vehicles, JSON.stringify(nextVehicles));
+    }).catch(() => {
+      // Keep local fallback when backend/auth is unavailable.
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [authLoading, user?.role]);
+
+  const [managerParks, setManagerParks] = useState<string[]>(() => {
+    const stored = readJSON<string[]>(STORAGE_KEYS.managerParks, []);
+    if (stored.length > 0) return stored;
     return readJSON<string[]>('easyspot-manager-parks', ['coimbra-1', 'coimbra-2']);
   });
 
-  const setProfile = (p: AppProfile) => {
-    setProfileState(p);
-    setAccountTypeState(p);
+  const handleProfileChange = (p: AppProfile) => {
+    setProfile(p);
+    setAccountType(p);
     localStorage.setItem(STORAGE_KEYS.profile, p);
     localStorage.setItem(STORAGE_KEYS.accountType, p);
   };
 
-  const setAccountType = (a: AccountType) => {
-    setAccountTypeState(a);
-    setProfileState(a);
+  const handleAccountTypeChange = (a: AppProfile) => {
+    setAccountType(a);
+    setProfile(a);
     localStorage.setItem(STORAGE_KEYS.accountType, a);
     localStorage.setItem(STORAGE_KEYS.profile, a);
   };
 
-  const setDriverType = (d: DriverType) => {
-    setDriverTypeState(d);
+  const handleDriverTypeChange = (d: DriverType) => {
+    setDriverType(d);
     if (d) {
       localStorage.setItem(STORAGE_KEYS.driverType, d);
     } else {
@@ -114,8 +156,8 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   };
 
   const addVehicle = (vehicle: Vehicle) => {
-    const nextVehicle = vehicles.length === 0 ? { ...vehicle, isPrimary: true } : vehicle;
-    persistVehicles([...vehicles, nextVehicle]);
+    const next = vehicles.length === 0 ? { ...vehicle, isPrimary: true } : vehicle;
+    persistVehicles([...vehicles, next]);
   };
 
   const updateVehicle = (id: string, updates: Partial<Vehicle>) => {
@@ -134,41 +176,40 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     persistVehicles(vehicles.map((v) => ({ ...v, isPrimary: v.id === id })));
   };
 
-  const setManagerParks = (parks: string[]) => {
-    setManagerParksState(parks);
+  const handleManagerParksChange = (parks: string[]) => {
+    setManagerParks(parks);
     localStorage.setItem(STORAGE_KEYS.managerParks, JSON.stringify(parks));
     localStorage.setItem('easyspot-manager-parks', JSON.stringify(parks));
   };
 
   const addManagerPark = (parkId: string) => {
-    const updated = Array.from(new Set([...managerParks, parkId]));
-    setManagerParks(updated);
+    handleManagerParksChange(Array.from(new Set([...managerParks, parkId])));
   };
 
   const removeManagerPark = (parkId: string) => {
-    setManagerParks(managerParks.filter((p) => p !== parkId));
+    handleManagerParksChange(managerParks.filter((p) => p !== parkId));
   };
 
+  const contextValue = useMemo(() => ({
+    profile,
+    setProfile: handleProfileChange,
+    accountType,
+    setAccountType: handleAccountTypeChange,
+    driverType,
+    setDriverType: handleDriverTypeChange,
+    vehicles,
+    addVehicle,
+    updateVehicle,
+    removeVehicle,
+    setPrimaryVehicle,
+    managerParks,
+    setManagerParks: handleManagerParksChange,
+    addManagerPark,
+    removeManagerPark,
+  }), [profile, accountType, driverType, vehicles, managerParks]);
+
   return (
-    <ProfileContext.Provider
-      value={{
-        profile,
-        setProfile,
-        accountType,
-        setAccountType,
-        driverType,
-        setDriverType,
-        vehicles,
-        addVehicle,
-        updateVehicle,
-        removeVehicle,
-        setPrimaryVehicle,
-        managerParks,
-        setManagerParks,
-        addManagerPark,
-        removeManagerPark,
-      }}
-    >
+    <ProfileContext.Provider value={contextValue}>
       {children}
     </ProfileContext.Provider>
   );
@@ -176,8 +217,6 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
 
 export function useProfile() {
   const context = useContext(ProfileContext);
-  if (!context) {
-    throw new Error('useProfile must be used within a ProfileProvider');
-  }
+  if (!context) throw new Error('useProfile must be used within a ProfileProvider');
   return context;
 }

@@ -1,19 +1,61 @@
 import { Link } from 'react-router';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
-import type { ParkingLot } from '../../data/parkingData';
-import { getSpotDimCategory, getDistanceColor } from '../../data/parkingData';
+import type { ParkingLot } from '../../data/parkingTypes';
+import { getSpotDimCategory, getDistanceColor } from '../../data/parkingTypes';
 
 export type FilterMode = 'ev' | 'accessible' | 'both' | null;
 
 interface ParkingCardProps {
-  lot: ParkingLot;
-  highlightAccessible?: boolean;
-  filterMode?: FilterMode;
+  readonly lot: ParkingLot;
+  readonly highlightAccessible?: boolean;
+  readonly filterMode?: FilterMode;
+}
+
+interface AvailabilityContext {
+  available: number;
+  total: number;
+  label: string;
+  icon: string | null;
+  accentColor: string;
+  isFull: boolean;
+  isAlmost: boolean;
+  statusLabel: string;
+}
+
+interface AvailabilityParams {
+  available: number;
+  total: number;
+  label: string;
+  icon: string | null;
+  availableLabel: string;
+  almostLabel: string;
+  fullLabel: string;
+  normalColor: string;
+}
+
+function buildAvailabilityContext(params: AvailabilityParams): AvailabilityContext {
+  const { available, total, label, icon, availableLabel, almostLabel, fullLabel, normalColor } = params;
+  const isFull = available === 0;
+  const isAlmost = !isFull && available <= Math.ceil(total * 0.3);
+  let accentColor = normalColor;
+  let statusLabel = availableLabel;
+
+  if (isFull) {
+    accentColor = '#ef4444';
+    statusLabel = fullLabel;
+  } else if (isAlmost) {
+    accentColor = '#f59e0b';
+    statusLabel = almostLabel;
+  }
+
+  return { available, total, label, icon, accentColor, isFull, isAlmost, statusLabel };
 }
 
 export function ParkingCard({ lot, highlightAccessible = false, filterMode = null }: ParkingCardProps) {
-  const { id, name, address, availableSpots, totalSpots, hourlyRate, walkingTime,
+  const { id, name, address, hourlyRate, walkingTime, distance,
           hasEVCharger, hasAccessible, evChargers, accessibleSpots } = lot;
+  const totalSpots = Math.max(0, lot.totalSpots);
+  const availableSpots = Math.min(totalSpots, Math.max(0, lot.availableSpots));
 
   const evAvail = evChargers?.filter((c) => c.available).length ?? 0;
   const evTotal = evChargers?.length ?? 0;
@@ -29,68 +71,65 @@ export function ParkingCard({ lot, highlightAccessible = false, filterMode = nul
     ? getSpotDimCategory(closestAvailAcc.dimensions)
     : null;
 
-  const singleCtx = (() => {
+  const getSingleCtx = (): AvailabilityContext => {
     if (filterMode === 'ev' && evTotal > 0) {
-      const isFull = evAvail === 0;
-      const isAlmost = evAvail > 0 && evAvail <= Math.ceil(evTotal * 0.3);
-      return {
-        available: evAvail, total: evTotal,
-        label: 'Carregadores', icon: 'fa-charging-station',
-        accentColor: isFull ? '#ef4444' : isAlmost ? '#f59e0b' : '#22c55e',
-        isFull, isAlmost,
-        statusLabel: isFull ? 'Sem EV' : isAlmost ? 'Quase cheio' : 'EV livre',
-      };
+      return buildAvailabilityContext({
+        available: evAvail, total: evTotal, label: 'Carregadores', icon: 'fa-charging-station',
+        availableLabel: 'EV livre', almostLabel: 'Quase cheio', fullLabel: 'Sem EV', normalColor: '#22c55e'
+      });
     }
     if (filterMode === 'accessible' && accTotal > 0) {
-      const isFull = accAvail === 0;
-      const isAlmost = accAvail > 0 && accAvail <= Math.ceil(accTotal * 0.3);
-      return {
-        available: accAvail, total: accTotal,
-        label: 'Acessíveis', icon: 'fa-wheelchair',
-        accentColor: isFull ? '#ef4444' : isAlmost ? '#f59e0b' : '#7357ec',
-        isFull, isAlmost,
-        statusLabel: isFull ? 'Sem acessíveis' : isAlmost ? 'Quase cheio' : 'Acessível',
-      };
+      return buildAvailabilityContext({
+        available: accAvail, total: accTotal, label: 'Acessíveis', icon: 'fa-wheelchair',
+        availableLabel: 'Acessível', almostLabel: 'Quase cheio', fullLabel: 'Sem acessíveis', normalColor: '#7357ec'
+      });
     }
-    const isFull = availableSpots === 0;
-    const isAlmost = !isFull && availableSpots <= Math.ceil(totalSpots * 0.2);
-    return {
-      available: availableSpots, total: totalSpots,
-      label: 'Livres', icon: null,
-      accentColor: isFull ? '#ef4444' : isAlmost ? '#f59e0b' : '#22c55e',
-      isFull, isAlmost,
-      statusLabel: isFull ? 'Lotado' : isAlmost ? 'Quase cheio' : 'Disponível',
-    };
-  })();
+    return buildAvailabilityContext({
+      available: availableSpots, total: totalSpots, label: 'Livres', icon: null,
+      availableLabel: 'Disponível', almostLabel: 'Quase cheio', fullLabel: 'Lotado', normalColor: '#22c55e'
+    });
+  };
 
-  const ctx = filterMode !== 'both' ? singleCtx : null;
-  const pct = ctx ? (ctx.total > 0 ? Math.round((ctx.available / ctx.total) * 100) : 0) : 0;
+  const singleCtx = getSingleCtx();
+  const ctx = filterMode === 'both' ? null : singleCtx;
 
-  const borderClass = filterMode === 'both'
-    ? 'border-primary'
-    : filterMode === 'accessible'
-    ? 'border-primary/50 ring-1 ring-primary/20'
-    : filterMode === 'ev'
-    ? 'border-green-400/60 ring-1 ring-green-400/15'
-    : 'border-border';
+  let pct = 0;
+  if (ctx && ctx.total > 0) {
+    pct = Math.round((ctx.available / ctx.total) * 100);
+  }
+
+  const getBorderClass = () => {
+    if (filterMode === 'both')       return 'border-primary';
+    if (filterMode === 'accessible') return 'border-primary/50 ring-1 ring-primary/20';
+    if (filterMode === 'ev')         return 'border-green-400/60 ring-1 ring-green-400/15';
+    return 'border-border';
+  };
+
+  const borderClass = getBorderClass();
 
   const defaultIsFull = availableSpots === 0;
   const defaultIsAlmost = !defaultIsFull && availableSpots <= Math.ceil(totalSpots * 0.2);
 
-  const getBadgeStyle = (isFull: boolean, isAlmost: boolean) => ({
-    bg: isFull ? '#ef4444' : isAlmost ? '#f59e0b' : '#22c55e',
-    color: isAlmost ? '#000' : '#fff',
-  });
+  const getBadgeStyle = (isFull: boolean, isAlmost: boolean) => {
+    if (isFull) return { bg: '#ef4444', color: '#fff' };
+    if (isAlmost) return { bg: '#f59e0b', color: '#000' };
+    return { bg: '#22c55e', color: '#fff' };
+  };
 
   const defaultBadgeStyle = getBadgeStyle(defaultIsFull, defaultIsAlmost);
-  const defaultBadgeLabel = defaultIsFull ? 'Lotado' : defaultIsAlmost ? 'Quase Cheio' : 'Disponível';
-
   const badgeStyle = ctx ? getBadgeStyle(ctx.isFull, ctx.isAlmost) : defaultBadgeStyle;
+
+  let defaultBadgeLabel = 'Disponível';
+  if (defaultIsFull) {
+    defaultBadgeLabel = 'Lotado';
+  } else if (defaultIsAlmost) {
+    defaultBadgeLabel = 'Quase Cheio';
+  }
   const badgeLabel = ctx ? ctx.statusLabel : defaultBadgeLabel;
 
   return (
     <Link
-      to={`/parque/${id}`}
+      to={`/parking/${id}`}
       className="h-full flex flex-col focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-xl no-underline"
       aria-label={`Ver detalhes do ${name}.`}
     >
@@ -177,7 +216,7 @@ export function ParkingCard({ lot, highlightAccessible = false, filterMode = nul
           <div className="mt-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="relative w-10 h-10 flex-shrink-0">
+                <div className="relative w-10 h-10 min-w-10 min-h-10 flex-shrink-0">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
@@ -212,9 +251,16 @@ export function ParkingCard({ lot, highlightAccessible = false, filterMode = nul
                   </p>
                 </div>
               </div>
-              <span className="flex items-center gap-1 text-muted-foreground font-medium" style={{ fontSize: '0.7rem' }}>
-                <i className="fas fa-person-walking" aria-hidden="true" /> {walkingTime}
-              </span>
+              <div className="flex flex-col items-end gap-0.5">
+                {distance && distance !== 'N/D' && (
+                  <span className="flex items-center gap-1 text-muted-foreground font-medium" style={{ fontSize: '0.7rem' }}>
+                    <i className="fas fa-car" aria-hidden="true" /> {distance}
+                  </span>
+                )}
+                <span className="flex items-center gap-1 text-muted-foreground font-medium" style={{ fontSize: '0.7rem' }}>
+                  <i className="fas fa-person-walking" aria-hidden="true" /> {walkingTime}
+                </span>
+              </div>
             </div>
 
             {filterMode === 'accessible' && closestAvailAcc && (
@@ -230,7 +276,7 @@ export function ParkingCard({ lot, highlightAccessible = false, filterMode = nul
   );
 }
 
-function DistanceBadge({ distance }: { distance: number }) {
+function DistanceBadge({ distance }: Readonly<{ distance: number }>) {
   const { bg, label } = getDistanceColor(distance);
   return (
     <span
@@ -244,7 +290,7 @@ function DistanceBadge({ distance }: { distance: number }) {
   );
 }
 
-function DimBadge({ category }: { category: ReturnType<typeof getSpotDimCategory> }) {
+function DimBadge({ category }: Readonly<{ category: ReturnType<typeof getSpotDimCategory> }>) {
   return (
     <span
       className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-bold border ${category.bgClass} ${category.textClass}`}

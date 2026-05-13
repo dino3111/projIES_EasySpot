@@ -12,14 +12,16 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
+import org.springframework.test.context.ActiveProfiles;
 import pt.ua.deti.apieasyspot.TestcontainersConfiguration;
+import pt.ua.deti.apieasyspot.TestTimescaleDataSourceConfig;
 import pt.ua.deti.apieasyspot.auth.model.User;
 import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
 import pt.ua.deti.apieasyspot.infrastructure.R2StorageService;
 import pt.ua.deti.apieasyspot.notification.model.AlertType;
 import pt.ua.deti.apieasyspot.notification.model.SeverityAlert;
 import pt.ua.deti.apieasyspot.notification.model.StateAlert;
-import pt.ua.deti.apieasyspot.notification.repository.AlertRepository;
+import pt.ua.deti.apieasyspot.notification.repository.TimescaleAlertRepository;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingLotRepository;
 
@@ -34,14 +36,15 @@ import static org.springframework.security.test.web.servlet.setup.SecurityMockMv
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+@ActiveProfiles("test")
 @SpringBootTest
-@Import(TestcontainersConfiguration.class)
+@Import({TestcontainersConfiguration.class, TestTimescaleDataSourceConfig.class})
 class ReportControllerIT {
 
     @Autowired WebApplicationContext wac;
     @Autowired UserRepository userRepository;
     @Autowired ParkingLotRepository parkingLotRepository;
-    @Autowired AlertRepository alertRepository;
+    @Autowired TimescaleAlertRepository alertRepository;
     @MockitoBean JwtDecoder jwtDecoder;
     @MockitoBean R2StorageService r2StorageService;
 
@@ -64,6 +67,13 @@ class ReportControllerIT {
         driver.setRole("DRIVER");
         driver = userRepository.save(driver);
 
+        User technician = new User();
+        technician.setAuthentikUserId("tech-sub-001");
+        technician.setEmail("laura@test.com");
+        technician.setName("Laura Farias");
+        technician.setRole("TECHNICAL");
+        technician = userRepository.save(technician);
+
         parkingLot = new ParkingLot();
         parkingLot.setName("Parque Central");
         parkingLot.setCity("Aveiro");
@@ -71,6 +81,7 @@ class ReportControllerIT {
         parkingLot.setLatitude(40.6405);
         parkingLot.setLongitude(-8.6531);
         parkingLot.setTotalSpaces(100);
+        parkingLot.setTechnician(technician);
         parkingLot = parkingLotRepository.save(parkingLot);
 
         when(r2StorageService.upload(any(), any(), any()))
@@ -195,6 +206,7 @@ class ReportControllerIT {
         assertThat(saved.getType()).isEqualTo(AlertType.CLIENT);
         assertThat(saved.getState()).isEqualTo(StateAlert.OPEN);
         assertThat(saved.getSpotNumber()).isEqualTo("A12");
+        assertThat(saved.getAttributedTo()).isEqualTo("Laura Farias");
     }
 
     @Test

@@ -13,6 +13,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import pt.ua.deti.apieasyspot.auth.SecurityConfig;
 import pt.ua.deti.apieasyspot.auth.model.User;
 import pt.ua.deti.apieasyspot.auth.model.UserRole;
+import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
 import pt.ua.deti.apieasyspot.auth.service.UserProfileService;
 import pt.ua.deti.apieasyspot.common.exception.ResourceNotFoundException;
 
@@ -41,6 +42,9 @@ class AccountTypeControllerTest {
 
     @MockitoBean
     JwtDecoder jwtDecoder;
+
+    @MockitoBean
+    UserRepository userRepository;
 
     @Test
     @DisplayName("POST /api/account/type - unauthenticated - returns 401")
@@ -90,7 +94,7 @@ class AccountTypeControllerTest {
     @Test
     @DisplayName("POST /api/account/type - success DRIVER - returns 200 with profile")
     void updateAccountType_successDriver_returns200() throws Exception {
-        when(userProfileService.updateRole(eq(EXISTING_SUBJECT), eq(UserRole.DRIVER)))
+        when(userProfileService.updateRole(EXISTING_SUBJECT, UserRole.DRIVER))
             .thenReturn(buildUser("DRIVER"));
 
         mockMvc.perform(post("/api/account/type")
@@ -108,7 +112,7 @@ class AccountTypeControllerTest {
     @Test
     @DisplayName("POST /api/account/type - success MANAGER - returns 200 with updated role")
     void updateAccountType_successManager_returns200() throws Exception {
-        when(userProfileService.updateRole(eq(EXISTING_SUBJECT), eq(UserRole.MANAGER)))
+        when(userProfileService.updateRole(EXISTING_SUBJECT, UserRole.MANAGER))
             .thenReturn(buildUser("MANAGER"));
 
         mockMvc.perform(post("/api/account/type")
@@ -123,7 +127,7 @@ class AccountTypeControllerTest {
     @Test
     @DisplayName("POST /api/account/type - success TECHNICAL - returns 200 with updated role")
     void updateAccountType_successTechnical_returns200() throws Exception {
-        when(userProfileService.updateRole(eq(EXISTING_SUBJECT), eq(UserRole.TECHNICAL)))
+        when(userProfileService.updateRole(EXISTING_SUBJECT, UserRole.TECHNICAL))
             .thenReturn(buildUser("TECHNICAL"));
 
         mockMvc.perform(post("/api/account/type")
@@ -138,7 +142,7 @@ class AccountTypeControllerTest {
     @Test
     @DisplayName("POST /api/account/type - role case insensitive - DRIVER lowercase accepted")
     void updateAccountType_lowercaseRole_returns200() throws Exception {
-        when(userProfileService.updateRole(eq(EXISTING_SUBJECT), eq(UserRole.DRIVER)))
+        when(userProfileService.updateRole(EXISTING_SUBJECT, UserRole.DRIVER))
             .thenReturn(buildUser("DRIVER"));
 
         mockMvc.perform(post("/api/account/type")

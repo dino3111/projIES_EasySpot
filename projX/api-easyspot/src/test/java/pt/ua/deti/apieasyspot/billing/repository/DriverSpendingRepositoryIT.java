@@ -18,15 +18,21 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
-import java.util.UUID;
+
+import org.springframework.context.annotation.Import;
+import org.springframework.test.context.ActiveProfiles;
+import pt.ua.deti.apieasyspot.TestTimescaleDataSourceConfig;
+import pt.ua.deti.apieasyspot.TestcontainersConfiguration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@ActiveProfiles("test")
+@Import({TestcontainersConfiguration.class, TestTimescaleDataSourceConfig.class})
 @SpringBootTest
 class DriverSpendingRepositoryIT {
 
     @Autowired private DriverSpendingRepository repository;
-    @Autowired private ParkingSessionRepository parkingSessionRepository;
+    @Autowired private TimescaleParkingSessionRepository parkingSessionRepository;
     @Autowired private UserRepository userRepository;
     @Autowired private VehicleRepository vehicleRepository;
     @Autowired private ParkingLotRepository parkingLotRepository;
@@ -94,6 +100,25 @@ class DriverSpendingRepositoryIT {
 
         assertThat(repository.costliestSession(driver.getId(), null, from, to).totalSpent()).isEqualByComparingTo("10.00");
         assertThat(repository.history(driver.getId(), null, from, to, 0, 50)).hasSize(3);
+        assertThat(repository.countHistory(driver.getId(), null, from, to)).isEqualTo(3L);
+    }
+
+    @Test
+    @DisplayName("countHistory - pagination - page 0 returns first 2, historyTotal is 3")
+    void countHistory_matchesHistorySize() {
+        OffsetDateTime base = OffsetDateTime.now(ZoneOffset.UTC).minusDays(2);
+        parkingSessionRepository.saveAll(List.of(
+            session(lotA, vehicleA, ZoneType.STANDARD, base.plusHours(1), 30, "2.00"),
+            session(lotA, vehicleA, ZoneType.STANDARD, base.plusHours(3), 30, "3.00"),
+            session(lotB, vehicleA, ZoneType.STANDARD, base.plusHours(5), 30, "4.00")
+        ));
+
+        OffsetDateTime from = base.minusHours(1);
+        OffsetDateTime to = base.plusDays(3);
+
+        assertThat(repository.countHistory(driver.getId(), null, from, to)).isEqualTo(3L);
+        assertThat(repository.history(driver.getId(), null, from, to, 0, 2)).hasSize(2);
+        assertThat(repository.history(driver.getId(), null, from, to, 1, 2)).hasSize(1);
     }
 
     @Test
@@ -139,9 +164,9 @@ class DriverSpendingRepositoryIT {
 
     private ParkingSession session(ParkingLot lot, Vehicle vehicle, ZoneType zoneType, OffsetDateTime entry, long durationMinutes, String revenue) {
         ParkingSession session = new ParkingSession();
-        session.setUser(driver);
-        session.setVehicle(vehicle);
-        session.setParkingLot(lot);
+        session.setUserId(driver.getId());
+        session.setVehicleId(vehicle.getId());
+        session.setParkingLotId(lot.getId());
         session.setZoneType(zoneType);
         session.setEntryTime(entry);
         session.setExitTime(entry.plusMinutes(durationMinutes));

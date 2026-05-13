@@ -11,6 +11,8 @@ public record DriverProfileResponse(
     String photoUrl,
     DriverType driverType,
     boolean notificationsEnabled,
+    boolean pushNotificationsEnabled,
+    boolean emailNotificationsEnabled,
     SpendingSummary spending,
     long favoritesCount
 ) {}

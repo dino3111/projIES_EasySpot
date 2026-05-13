@@ -17,8 +17,15 @@ import static org.springframework.security.test.web.servlet.setup.SecurityMockMv
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import org.springframework.context.annotation.Import;
+import org.springframework.test.context.ActiveProfiles;
+import pt.ua.deti.apieasyspot.TestTimescaleDataSourceConfig;
+import pt.ua.deti.apieasyspot.TestcontainersConfiguration;
+
 import static pt.ua.deti.apieasyspot.support.TestJwtRequests.jwtWithRole;
 
+@ActiveProfiles("test")
+@Import({TestcontainersConfiguration.class, TestTimescaleDataSourceConfig.class})
 @SpringBootTest
 class DriverSpendingContractIT {
 
@@ -58,6 +65,7 @@ class DriverSpendingContractIT {
             .andExpect(jsonPath("$.timeseries").isArray())
             .andExpect(jsonPath("$.breakdownByPark").isArray())
             .andExpect(jsonPath("$.breakdownByVehicle").isArray())
-            .andExpect(jsonPath("$.history").isArray());
+            .andExpect(jsonPath("$.history").isArray())
+            .andExpect(jsonPath("$.historyTotal").isNumber());
     }
 }

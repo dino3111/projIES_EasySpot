@@ -7,6 +7,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import pt.ua.deti.apieasyspot.booking.model.Reservation;
 import pt.ua.deti.apieasyspot.notification.dto.AlertTriggerEvent;
 import pt.ua.deti.apieasyspot.notification.model.AlertSubscription;
 import pt.ua.deti.apieasyspot.notification.repository.AlertSubscriptionRepository;
@@ -14,6 +15,7 @@ import pt.ua.deti.apieasyspot.notification.repository.AlertSubscriptionRepositor
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -40,16 +42,11 @@ public class AlertNotificationDispatchService {
 
         int delivered = 0;
         for (AlertSubscription subscription : subscriptions) {
-            if (!matchesPark(subscription, event.parkId())) {
-                continue;
+            if (matchesPark(subscription, event.parkId()) && matchesVehicle(subscription, event.vehicleId())) {
+                String destination = "/topic/alerts/" + subscription.getUser().getAuthentikUserId();
+                messagingTemplate.convertAndSend(destination, event);
+                delivered++;
             }
-            if (!matchesVehicle(subscription, event.vehicleId())) {
-                continue;
-            }
-
-            String destination = "/topic/alerts/" + subscription.getUser().getAuthentikUserId();
-            messagingTemplate.convertAndSend(destination, event);
-            delivered++;
         }
         return delivered;
     }
@@ -69,6 +66,26 @@ public class AlertNotificationDispatchService {
             return true;
         }
         return StringUtils.hasText(vehicleId) && subscription.getVehicleId().equalsIgnoreCase(vehicleId.trim());
+    }
+
+    public void sendReservationConfirmed(Reservation reservation) {
+        String userId = reservation.getUser().getAuthentikUserId();
+        if (userId == null || userId.isBlank()) {
+            log.warn("Cannot send WS reservation notification: user {} has no authentikUserId",
+                reservation.getUser().getId());
+            return;
+        }
+        Map<String, Object> payload = Map.of(
+            "alertType", "RESERVATION_CONFIRMED",
+            "parkId", reservation.getParkingLot().getId().toString(),
+            "vehicleId", reservation.getVehicle() != null ? reservation.getVehicle().getId().toString() : "",
+            "message", "Reserva " + reservation.getBookingCode() + " confirmada em " + reservation.getParkingLot().getName(),
+            "bookingCode", reservation.getBookingCode(),
+            "occurredAt", Instant.now().toString(),
+            "source", "reservation-service"
+        );
+        messagingTemplate.convertAndSend("/topic/alerts/" + userId, (Object) payload);
+        log.info("[WS] Reservation confirmed notification sent to user={} booking={}", userId, reservation.getBookingCode());
     }
 
     private boolean isLagged(AlertTriggerEvent event) {

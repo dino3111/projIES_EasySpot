@@ -26,6 +26,9 @@ public class User {
     @NotBlank
     private String authentikUserId;
 
+    @Column
+    private String authentikPk;
+
     @Column(unique = true, nullable = false, length = 255)
     @Email @NotBlank
     private String email;
@@ -41,12 +44,21 @@ public class User {
     @NotBlank
     private String role;
 
+    @Column(length = 100)
+    private String stripeCustomerId;
+
     @Enumerated(EnumType.STRING)
     @Column(length = 30)
     private DriverType driverType;
 
     @Column(nullable = false, columnDefinition = "boolean default true")
     private boolean notificationsEnabled = true;
+
+    @Column(nullable = false, columnDefinition = "boolean default true")
+    private boolean pushNotificationsEnabled = true;
+
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean emailNotificationsEnabled = false;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Vehicle> vehicles = new ArrayList<>();

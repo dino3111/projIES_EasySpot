@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import pt.ua.deti.apieasyspot.auth.model.User;
 import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
+import pt.ua.deti.apieasyspot.booking.dto.FavoriteStatusResponse;
 import pt.ua.deti.apieasyspot.booking.dto.FavoriteToggleResponse;
 import pt.ua.deti.apieasyspot.booking.model.UserFavorite;
 import pt.ua.deti.apieasyspot.booking.repository.UserFavoriteRepository;
@@ -41,6 +42,14 @@ public class FavoriteService {
         userFavoriteRepository.save(favorite);
 
         return new FavoriteToggleResponse(parkId, true);
+    }
+
+    @Transactional(readOnly = true)
+    public FavoriteStatusResponse getStatus(String authentikUserId, UUID parkId) {
+        User user = findUser(authentikUserId);
+        ParkingLot parkingLot = findPark(parkId);
+        boolean isFavorite = userFavoriteRepository.existsByUserIdAndParkingLotId(user.getId(), parkingLot.getId());
+        return new FavoriteStatusResponse(parkId, isFavorite);
     }
 
     private User findUser(String authentikUserId) {

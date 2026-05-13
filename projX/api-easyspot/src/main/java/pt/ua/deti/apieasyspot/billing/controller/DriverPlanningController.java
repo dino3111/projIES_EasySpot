@@ -3,11 +3,9 @@ package pt.ua.deti.apieasyspot.billing.controller;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -32,15 +30,13 @@ public class DriverPlanningController {
 
     @GetMapping("/planning")
     @Operation(summary = "Estimate parking costs and best options for a planned trip")
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Planning generated successfully"),
-        @ApiResponse(responseCode = "400", description = "Invalid query parameters"),
-        @ApiResponse(responseCode = "403", description = "User is not a driver")
-    })
+    @ApiResponse(responseCode = "200", description = "Planning generated successfully")
+    @ApiResponse(responseCode = "400", description = "Invalid query parameters")
+    @ApiResponse(responseCode = "403", description = "User is not a driver")
     @PreAuthorize("hasRole('DRIVER')")
     public ResponseEntity<ParkingPlanningResponse> getPlanning(
-        @Parameter(description = "City name to search parking options")
-        @RequestParam @NotBlank String city,
+        @Parameter(description = "City name to narrow search (optional — omit to search by coordinates only)")
+        @RequestParam(required = false) String city,
         @Parameter(description = "Estimated parking duration in minutes", example = "90")
         @RequestParam @Min(1) int estimatedDurationMinutes,
         @Parameter(description = "Filter for EV-compatible parking lots")

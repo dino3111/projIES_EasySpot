@@ -6,13 +6,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import pt.ua.deti.apieasyspot.auth.SecurityConfig;
 import pt.ua.deti.apieasyspot.auth.model.DriverType;
 import pt.ua.deti.apieasyspot.auth.model.User;
+import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
 import pt.ua.deti.apieasyspot.auth.service.UserProfileService;
 import pt.ua.deti.apieasyspot.common.exception.ResourceNotFoundException;
 
@@ -41,6 +41,9 @@ class DriverTypeControllerTest {
 
     @MockitoBean
     JwtDecoder jwtDecoder;
+
+    @MockitoBean
+    UserRepository userRepository;
 
     @Test
     @DisplayName("POST /api/driver/type - unauthenticated - returns 401")
@@ -97,7 +100,7 @@ class DriverTypeControllerTest {
     @Test
     @DisplayName("POST /api/driver/type - success - returns 200 with profile excerpt")
     void updateDriverTypeSuccess() throws Exception {
-        when(userProfileService.updateDriverType(eq(EXISTING_AUTHENTIK_ID), eq(DriverType.REDUCED_MOBILITY)))
+        when(userProfileService.updateDriverType(EXISTING_AUTHENTIK_ID, DriverType.REDUCED_MOBILITY))
             .thenReturn(buildUser(DriverType.REDUCED_MOBILITY));
 
         mockMvc.perform(post("/api/driver/type")
@@ -115,7 +118,7 @@ class DriverTypeControllerTest {
     @DisplayName("POST /api/driver/type - explicit userId in body - uses it over JWT subject")
     void updateDriverTypeExplicitUserId() throws Exception {
         String explicitUserId = "explicit-user-id";
-        when(userProfileService.updateDriverType(eq(explicitUserId), eq(DriverType.EV)))
+        when(userProfileService.updateDriverType(explicitUserId, DriverType.EV))
             .thenReturn(buildUser(DriverType.EV));
 
         mockMvc.perform(post("/api/driver/type")

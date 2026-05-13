@@ -18,13 +18,13 @@ import pt.ua.deti.apieasyspot.infrastructure.R2StorageService;
 import pt.ua.deti.apieasyspot.notification.dto.CreateReportRequest;
 import pt.ua.deti.apieasyspot.notification.dto.ReportResponse;
 import pt.ua.deti.apieasyspot.notification.model.Alert;
-import pt.ua.deti.apieasyspot.notification.model.AlertType;
-import pt.ua.deti.apieasyspot.notification.model.SeverityAlert;
-import pt.ua.deti.apieasyspot.notification.model.StateAlert;
-import pt.ua.deti.apieasyspot.notification.repository.AlertRepository;
+import pt.ua.deti.apieasyspot.notification.repository.TimescaleAlertRepository;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
+import pt.ua.deti.apieasyspot.occupancy.model.TechnicianParkAssignment;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingLotRepository;
+import pt.ua.deti.apieasyspot.occupancy.repository.TechnicianParkAssignmentRepository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -41,15 +41,17 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class ReportServiceTest {
 
-    @Mock private AlertRepository alertRepository;
+    @Mock private TimescaleAlertRepository alertRepository;
     @Mock private UserRepository userRepository;
     @Mock private ParkingLotRepository parkingLotRepository;
+    @Mock private TechnicianParkAssignmentRepository technicianParkAssignmentRepository;
     @Mock private R2StorageService r2StorageService;
     @Mock private SimpMessagingTemplate messagingTemplate;
 
     @InjectMocks private ReportService reportService;
 
     private User driver;
+    private User technician;
     private ParkingLot parkingLot;
 
     @BeforeEach
@@ -58,14 +60,24 @@ class ReportServiceTest {
         driver.setId(UUID.randomUUID());
         driver.setAuthentikUserId("driver-sub-001");
         driver.setName("Filipe Teixeira");
+        driver.setRole("DRIVER");
+
+        technician = new User();
+        technician.setId(UUID.randomUUID());
+        technician.setAuthentikUserId("tech-sub-001");
+        technician.setName("Laura Farias");
+        technician.setRole("TECHNICAL");
 
         parkingLot = new ParkingLot();
         parkingLot.setId(UUID.randomUUID());
         parkingLot.setName("Parque Central");
         parkingLot.setCity("Aveiro");
+        parkingLot.setTechnician(technician);
 
         lenient().when(userRepository.findByAuthentikUserId("driver-sub-001")).thenReturn(Optional.of(driver));
+        lenient().when(userRepository.findById(technician.getId())).thenReturn(Optional.of(technician));
         lenient().when(parkingLotRepository.findById(parkingLot.getId())).thenReturn(Optional.of(parkingLot));
+        lenient().when(technicianParkAssignmentRepository.findByParkingLotId(parkingLot.getId())).thenReturn(List.of());
         lenient().when(alertRepository.save(any())).thenAnswer(inv -> {
             Alert a = inv.getArgument(0);
             a.setId(UUID.randomUUID());
@@ -122,7 +134,7 @@ class ReportServiceTest {
 
     @Test
     @DisplayName("create - with valid JPEG photo - uploads to R2 and includes url in response")
-    void create_withJpegPhoto_uploadsAndIncludesUrl() throws Exception {
+    void create_withJpegPhoto_uploadsAndIncludesUrl() {
         when(r2StorageService.upload(any(), any(), any()))
             .thenReturn("https://cdn.example.com/reports/spot.jpg");
         MockMultipartFile photo = new MockMultipartFile("photo", "spot.jpg", "image/jpeg", new byte[1024]);
@@ -237,8 +249,13 @@ class ReportServiceTest {
     }
 
     @Test
-    @DisplayName("create - attributedTo is set from driver name")
-    void create_attributedToIsDriverName() {
+    @DisplayName("create - attributedTo is set from assigned technician name")
+    void create_attributedToIsAssignedTechnicianName() {
+        TechnicianParkAssignment assignment = new TechnicianParkAssignment();
+        assignment.setParkingLotId(parkingLot.getId());
+        assignment.setTechnicianId(technician.getId());
+        when(technicianParkAssignmentRepository.findByParkingLotId(parkingLot.getId())).thenReturn(List.of(assignment));
+
         CreateReportRequest req = new CreateReportRequest(
             parkingLot.getId(), "A", "A12", "accessible", null, "desc"
         );
@@ -246,7 +263,36 @@ class ReportServiceTest {
         reportService.create("driver-sub-001", req, null);
 
         verify(alertRepository).save(argThat(alert ->
-            "Filipe Teixeira".equals(alert.getAttributedTo())
+            "Laura Farias".equals(alert.getAttributedTo())
         ));
+    }
+
+    @Test
+    @DisplayName("create - falls back to legacy parking lot technician when no assignment exists")
+    void create_withoutAssignment_fallsBackToParkingLotTechnician() {
+        CreateReportRequest req = new CreateReportRequest(
+            parkingLot.getId(), "A", "A12", "accessible", null, "desc"
+        );
+
+        reportService.create("driver-sub-001", req, null);
+
+        verify(alertRepository).save(argThat(alert ->
+            "Laura Farias".equals(alert.getAttributedTo())
+        ));
+    }
+
+    @Test
+    @DisplayName("create - park without assignment or technician - still creates report without attribution")
+    void create_parkWithoutAssignmentOrTechnician_createsWithoutAttribution() {
+        parkingLot.setTechnician(null);
+        CreateReportRequest req = new CreateReportRequest(
+            parkingLot.getId(), "A", "A12", "accessible", null, "desc"
+        );
+
+        ReportResponse response = reportService.create("driver-sub-001", req, null);
+
+        assertThat(response.id()).isNotNull();
+        verify(alertRepository).save(argThat(alert -> alert.getAttributedTo() == null));
+        verify(messagingTemplate).convertAndSend(eq("/topic/reports"), any(ReportResponse.class));
     }
 }

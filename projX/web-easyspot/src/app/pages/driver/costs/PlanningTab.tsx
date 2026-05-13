@@ -1,0 +1,419 @@
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router';
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
+import { useProfile } from '../../../context/ProfileContext';
+import { VehiclePicker } from '../../../components/shared/VehiclePicker';
+import { fetchParkingPlanning, type PlanningRecommendation } from '../../../services/costsApi';
+import { DestinationPicker, type DestinationPoint } from '../../../components/planning/DestinationPicker';
+
+interface OccupancyTooltipProps {
+  readonly active?: boolean;
+  readonly payload?: { readonly value: number }[];
+  readonly label?: string;
+}
+
+function OccupancyTooltip({ active, payload, label }: OccupancyTooltipProps) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-card border border-border/40 rounded-xl px-3 py-2 shadow-xl">
+      <p className="text-muted-foreground text-xs mb-0.5">{label}</p>
+      <p className="text-primary font-bold text-sm">{payload[0].value}%</p>
+    </div>
+  );
+}
+
+interface ChipProps {
+  readonly active: boolean;
+  readonly icon?: string;
+  readonly label: string;
+  readonly onClick: () => void;
+  readonly ariaLabel?: string;
+}
+
+function Chip({ active, icon, label, onClick, ariaLabel }: ChipProps) {
+  return (
+    <button
+      onClick={onClick}
+      aria-pressed={active}
+      aria-label={ariaLabel ?? label}
+      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-all text-[0.8rem] font-medium ${
+        active
+          ? 'bg-primary border-primary text-white shadow-sm shadow-primary/20'
+          : 'bg-card border-border text-muted-foreground hover:border-primary/40 hover:text-primary'
+      }`}
+    >
+      {icon && <i className={`fas ${icon}`} aria-hidden="true" style={{ fontSize: '0.75rem' }} />}
+      {label}
+    </button>
+  );
+}
+
+export function PlanningTab() {
+  const navigate = useNavigate();
+  const { vehicles, driverType } = useProfile();
+  const primaryVehicle = vehicles.find((v) => v.isPrimary) ?? vehicles[0] ?? null;
+
+  const [planVehicleId, setPlanVehicleId]       = useState<string | null>(primaryVehicle?.id ?? null);
+  const [destination, setDestination]           = useState<DestinationPoint | null>(null);
+  const [durationHours, setDurationHours]       = useState(2);
+  const [durationMinutes, setDurationMinutes]   = useState(0);
+  const [filterEV, setFilterEV]                 = useState(driverType === 'ev');
+  const [filterAccessible, setFilterAccessible] = useState(driverType === 'reduced_mobility');
+  const [maxDistance, setMaxDistance]           = useState(5);
+  const [sortBy, setSortBy]                     = useState<'price' | 'distance' | 'ratio'>('ratio');
+  const [expandedPark, setExpandedPark]         = useState<string | null>(null);
+
+  const [recommendations, setRecommendations]   = useState<PlanningRecommendation[]>([]);
+  const [loading, setLoading]                   = useState(false);
+  const [error, setError]                       = useState<string | null>(null);
+  const userSelectedVehicleRef = useRef(false);
+
+  useEffect(() => {
+    if (userSelectedVehicleRef.current) return;
+    if (driverType === 'ev') {
+      setFilterEV(true);
+      setFilterAccessible(false);
+      return;
+    }
+    if (driverType === 'reduced_mobility') {
+      setFilterEV(false);
+      setFilterAccessible(true);
+      return;
+    }
+    setFilterEV(false);
+    setFilterAccessible(false);
+  }, [driverType]);
+
+  useEffect(() => {
+    if (!userSelectedVehicleRef.current) return;
+    const vehicle = vehicles.find((v) => v.id === planVehicleId) ?? null;
+    if (!vehicle) {
+      setFilterEV(false);
+      setFilterAccessible(false);
+      return;
+    }
+    setFilterEV(vehicle.isEV);
+    setFilterAccessible(vehicle.isAccessible);
+  }, [planVehicleId, vehicles]);
+
+  const handleVehicleSelect = (id: string | null) => {
+    userSelectedVehicleRef.current = true;
+    setPlanVehicleId(id);
+  };
+
+  useEffect(() => {
+    if (!destination) {
+      setRecommendations([]);
+      return;
+    }
+
+    const loadPlanning = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const resp = await fetchParkingPlanning({
+          durationMinutes: durationHours * 60 + durationMinutes,
+          isElectric: filterEV || undefined,
+          isAccessible: filterAccessible || undefined,
+          maxDistanceMeters: maxDistance * 1000,
+          lat: destination.lat,
+          lng: destination.lng,
+          orderBy: sortBy,
+        });
+        setRecommendations(resp.recommendations);
+      } catch (err) {
+        setError('Não foi possível gerar o planeamento.');
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const timeout = setTimeout(loadPlanning, 400);
+    return () => clearTimeout(timeout);
+  }, [destination, durationHours, durationMinutes, filterEV, filterAccessible, maxDistance, sortBy]);
+
+  const activeFilters = [filterEV, filterAccessible].filter(Boolean).length;
+
+  return (
+    <div className="animate-in fade-in duration-200">
+      {vehicles.length > 0 && (
+        <div className="bg-card rounded-2xl border border-border/40 shadow-sm p-4 mb-4">
+          <VehiclePicker
+            vehicles={vehicles}
+            selectedId={planVehicleId}
+            onSelect={handleVehicleSelect}
+            allLabel="Sem veículo selecionado"
+            className="w-full"
+          />
+          {planVehicleId && (
+            <p className="text-muted-foreground mt-2" style={{ fontSize: '0.72rem' }}>
+              <i className="fas fa-circle-info mr-1" aria-hidden="true" />{' '}
+              O veículo está selecionado. Ativa os filtros EV/Acessível apenas se precisares.
+            </p>
+          )}
+        </div>
+      )}
+
+      <div className="bg-card rounded-2xl border border-border/40 shadow-sm p-4 mb-4">
+        <p className="text-foreground font-semibold mb-3" style={{ fontSize: '0.8rem' }}>
+          <i className="fas fa-map-location-dot text-primary mr-1.5" aria-hidden="true" />{' '}
+          Destino
+        </p>
+        <DestinationPicker value={destination} onChange={setDestination} height="240px" />
+      </div>
+
+      <div className="bg-card rounded-2xl border border-border/40 shadow-sm p-4 mb-5">
+        <p className="text-foreground font-semibold mb-2" style={{ fontSize: '0.8rem' }}>
+          <i className="fas fa-clock text-primary mr-1.5" aria-hidden="true" />{' '}
+          Duração estimada
+        </p>
+        <div className="flex items-center gap-3 mb-4">
+          {[
+            { value: durationHours, setter: setDurationHours, max: 23, label: 'Horas', unit: 'h' },
+            { value: durationMinutes, setter: setDurationMinutes, max: 59, label: 'Minutos', unit: 'min', step: 5 },
+          ].map(({ value, setter, max, label, unit, step }) => (
+            <div key={unit} className="flex items-center gap-2 bg-muted rounded-xl px-3 py-2">
+              <input
+                type="number" min={0} max={max} step={step ?? 1} value={value}
+                onChange={(e) => { const v = Number(e.target.value); setter(Math.min(max, Math.max(0, Number.isNaN(v) ? 0 : v))); }}
+                className="w-12 bg-transparent text-center text-base font-bold text-foreground focus:outline-none"
+                aria-label={label}
+              />
+              <span className="text-xs text-muted-foreground font-semibold">{unit}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="border-t border-border/40 mb-4" />
+
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-muted-foreground mb-2" style={{ fontSize: '0.75rem' }}>
+              <i className="fas fa-sliders mr-1.5" aria-hidden="true" />{' '}
+              Filtros
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Chip active={filterEV}         icon="fa-charging-station" label="Carregador EV"
+                onClick={() => setFilterEV((v) => !v)}
+                ariaLabel={filterEV ? 'Remover filtro EV' : 'Filtrar com carregador EV'} />
+              <Chip active={filterAccessible} icon="fa-wheelchair"       label="Acessível"
+                onClick={() => setFilterAccessible((v) => !v)}
+                ariaLabel={filterAccessible ? 'Remover filtro acessível' : 'Filtrar lugares acessíveis'} />
+              {activeFilters > 0 && (
+                <button
+                  onClick={() => { setFilterEV(false); setFilterAccessible(false); }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-dashed border-error/60 text-error hover:bg-error/5 transition-all"
+                  style={{ fontSize: '0.75rem' }} aria-label="Limpar filtros"
+                >
+                  <i className="fas fa-xmark" aria-hidden="true" />{' '}
+                  Limpar ({activeFilters})
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <p className="text-muted-foreground mb-2" style={{ fontSize: '0.75rem' }}>
+              <i className="fas fa-arrow-up-wide-short mr-1.5" aria-hidden="true" />{' '}
+              Ordenar por
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Chip active={sortBy === 'ratio'}    label="Melhor relação"   icon="fa-arrow-trend-up" onClick={() => setSortBy('ratio')}    />
+              <Chip active={sortBy === 'price'}    label="Preço mais baixo" icon="fa-euro-sign"      onClick={() => setSortBy('price')}    />
+              <Chip active={sortBy === 'distance'} label="Mais próximo"     icon="fa-location-dot"  onClick={() => setSortBy('distance')} />
+            </div>
+          </div>
+        </div>
+
+        <div className="border-t border-border/40 mt-4 mb-3" />
+
+        <div className="flex items-center justify-between mb-1.5">
+          <p className="text-foreground font-semibold" style={{ fontSize: '0.8rem' }}>
+            <i className="fas fa-circle-dot text-primary mr-1.5" aria-hidden="true" />{' '}
+            Raio à volta do destino
+          </p>
+          <span className="text-primary font-bold" style={{ fontSize: '0.8rem' }}>{maxDistance} km</span>
+        </div>
+        <input
+          type="range" min={1} max={10} step={1} value={maxDistance}
+          onChange={(e) => setMaxDistance(Number(e.target.value))}
+          className="w-full accent-primary h-1.5 rounded-full cursor-pointer"
+          aria-label={`Raio à volta do destino: ${maxDistance} km`}
+        />
+        <div className="flex justify-between text-muted-foreground mt-1" style={{ fontSize: '0.65rem' }}>
+          <span>1 km</span><span>5 km</span><span>10 km</span>
+        </div>
+      </div>
+
+      {!destination ? (
+        <div className="flex flex-col items-center justify-center rounded-2xl py-16 px-6 text-center bg-card border-2 border-dashed border-border">
+          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-3">
+            <i className="fas fa-map-location-dot text-primary" style={{ fontSize: '1.5rem' }} aria-hidden="true" />
+          </div>
+          <p className="text-foreground font-bold mb-1" style={{ fontSize: '1rem' }}>Escolhe um destino</p>
+          <p className="text-muted-foreground" style={{ fontSize: '0.875rem' }}>
+            Pesquisa, clica no mapa ou usa a localização atual para ver os melhores parques.
+          </p>
+        </div>
+      ) : loading ? (
+        <div className="py-20 text-center text-muted-foreground">A calcular as melhores opções...</div>
+      ) : error ? (
+        <div className="py-20 text-center text-error font-bold">{error}</div>
+      ) : recommendations.length === 0 ? (
+        <div className="flex flex-col items-center justify-center rounded-2xl py-16 px-6 text-center bg-card border-2 border-dashed border-border">
+          <div className="w-16 h-16 rounded-full bg-warning/10 flex items-center justify-center mb-3">
+            <i className="fas fa-triangle-exclamation text-warning" style={{ fontSize: '1.5rem' }} aria-hidden="true" />
+          </div>
+          <p className="text-foreground font-bold mb-1" style={{ fontSize: '1rem' }}>Nenhum parque encontrado</p>
+          <p className="text-muted-foreground" style={{ fontSize: '0.875rem' }}>Tenta ajustar os filtros ou aumentar o raio.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {recommendations.map((park, index) => {
+            const isExpanded = expandedPark === park.id;
+            const occ = park.currentOccupancy;
+            const durationTotalMinutes = durationHours * 60 + durationMinutes;
+            const estimatedCost = (park.pricePerHour * durationTotalMinutes) / 60;
+            const distanceKm = (park.distanceMeters / 1000).toFixed(1);
+
+            let statusCfg = { bg: 'bg-success/10', text: 'text-success', label: 'Disponível' };
+            if (occ.status === 'FULL') {
+              statusCfg = { bg: 'bg-error/10', text: 'text-error', label: 'Lotado' };
+            } else if (occ.status === 'LIMITED') {
+              statusCfg = { bg: 'bg-warning/10', text: 'text-warning', label: 'Quase cheio' };
+            }
+
+            return (
+              <article
+                key={park.id}
+                className="bg-card rounded-2xl border border-border/40 shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md hover:border-primary/20"
+                aria-label={`Parque ${park.name}`}
+              >
+                <div className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
+                        <span className={`px-2 py-0.5 rounded-full text-[0.65rem] font-bold uppercase ${statusCfg.bg} ${statusCfg.text}`}>
+                          {statusCfg.label}
+                        </span>
+                        {index === 0 && sortBy === 'ratio' && (
+                          <span className="px-2 py-0.5 rounded-full text-[0.65rem] font-bold uppercase bg-primary/10 text-primary">
+                            <i className="fas fa-trophy mr-1" aria-hidden="true" />{' '}
+                            Melhor opção
+                          </span>
+                        )}
+                      </div>
+                      <h2 className="text-foreground font-bold leading-tight line-clamp-1" style={{ fontSize: '1rem' }}>{park.name}</h2>
+                      <p className="text-muted-foreground flex items-center gap-1 mt-0.5 line-clamp-1" style={{ fontSize: '0.78rem' }}>
+                        <i className="fas fa-location-dot" aria-hidden="true" />{park.address}
+                      </p>
+                    </div>
+
+                    <div className="flex gap-3 shrink-0">
+                      <div className="text-center">
+                        <p className="text-muted-foreground uppercase tracking-wide" style={{ fontSize: '0.6rem' }}>Custo Est.</p>
+                        <p className="text-primary font-extrabold" style={{ fontSize: '1.1rem', lineHeight: 1 }}>€{estimatedCost.toFixed(2)}</p>
+                        <p className="text-muted-foreground" style={{ fontSize: '0.6rem' }}>{durationHours}h{durationMinutes > 0 ? `${durationMinutes}m` : ''}</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-muted-foreground uppercase tracking-wide" style={{ fontSize: '0.6rem' }}>Distância</p>
+                        <p className="text-foreground font-extrabold" style={{ fontSize: '1.1rem', lineHeight: 1 }}>{distanceKm} km</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 pt-3 border-t border-border/40 grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {[
+                      { label: 'Tarifa Horária', value: `€${park.pricePerHour.toFixed(2)}/h` },
+                      { label: 'Horário',        value: park.openingHours },
+                      { label: 'Disponíveis',    value: `${park.currentOccupancy.total - park.currentOccupancy.occupied}/${park.currentOccupancy.total}` },
+                    ].map((item) => (
+                      <div key={item.label} className="flex flex-col">
+                        <span className="text-muted-foreground" style={{ fontSize: '0.68rem' }}>{item.label}</span>
+                        <span className="font-semibold text-foreground truncate" style={{ fontSize: '0.8rem' }}>{item.value}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-3">
+                    <div className="flex justify-between text-muted-foreground mb-1" style={{ fontSize: '0.68rem' }}>
+                      <span>Ocupação atual</span><span>{occ.occupancyPercent}%</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          occ.occupancyPercent >= 90 ? 'bg-error' : occ.occupancyPercent >= 70 ? 'bg-warning' : 'bg-success'
+                        }`}
+                        style={{ width: `${occ.occupancyPercent}%` }}
+                        role="progressbar"
+                        aria-valuenow={occ.occupancyPercent}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-between gap-2">
+                    <button
+                      onClick={() => setExpandedPark(isExpanded ? null : park.id)}
+                      className="flex items-center gap-1.5 text-muted-foreground hover:text-primary transition-colors"
+                      style={{ fontSize: '0.78rem' }} aria-expanded={isExpanded}
+                    >
+                      <i className="fas fa-chart-line" aria-hidden="true" style={{ fontSize: '0.75rem' }} />
+                      {isExpanded ? 'Ocultar previsão' : 'Ver previsão de ocupação'}
+                      <i className={`fas fa-chevron-${isExpanded ? 'up' : 'down'}`} aria-hidden="true" style={{ fontSize: '0.65rem' }} />
+                    </button>
+                    <button
+                      onClick={() => navigate(`/parking/${park.id}`)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border text-muted-foreground hover:border-primary/40 hover:text-primary transition-all font-medium"
+                      style={{ fontSize: '0.78rem' }} aria-label={`Ver detalhes de ${park.name}`}
+                    >
+                      <i className="fas fa-circle-info" aria-hidden="true" style={{ fontSize: '0.7rem' }} />{' '}
+                      Detalhes
+                    </button>
+                  </div>
+                </div>
+
+                {isExpanded && (
+                  <div className="border-t border-border/40 px-4 pb-4 pt-3 bg-muted/30">
+                    <p className="text-foreground font-semibold mb-3" style={{ fontSize: '0.8rem' }}>
+                      <i className="fas fa-calendar text-primary mr-1.5" aria-hidden="true" />
+                      Previsão de ocupação — próximas horas
+                    </p>
+                    <div style={{ width: '100%', height: 180 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={park.occupancyByHour} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.08} />
+                          <XAxis dataKey="hour" style={{ fontSize: '0.62rem' }} tick={{ fill: 'var(--color-muted-foreground)' }} />
+                          <YAxis domain={[0, 100]} style={{ fontSize: '0.62rem' }} tick={{ fill: 'var(--color-muted-foreground)' }} tickFormatter={(v) => `${v}%`} />
+                          <Tooltip content={<OccupancyTooltip />} />
+                          <Line type="monotone" dataKey="occupancyPercent" stroke="#7357ec" strokeWidth={2}
+                            dot={{ fill: '#7357ec', r: 2.5 }} activeDot={{ r: 4 }} name="Ocupação prevista" />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                )}
+              </article>
+            );
+          })}
+        </div>
+      )}
+
+      <aside className="flex items-start gap-3 rounded-xl p-4 mt-5 bg-card border border-border">
+        <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+          <i className="fas fa-circle-info text-primary" style={{ fontSize: '0.85rem' }} aria-hidden="true" />
+        </div>
+        <div>
+          <p className="text-foreground font-bold mb-0.5" style={{ fontSize: '0.8rem' }}>Informação sobre planeamento</p>
+          <p className="text-muted-foreground leading-relaxed" style={{ fontSize: '0.78rem' }}>
+            As estimativas de custo baseiam-se nas tarifas atuais. O raio de pesquisa é calculado a partir
+            do ponto exato que escolheste no mapa. A previsão de ocupação usa dados históricos e tendências
+            em tempo real para ajudar a escolher o melhor momento para a tua viagem.
+          </p>
+        </div>
+      </aside>
+    </div>
+  );
+}

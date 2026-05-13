@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="EasySpot - Reports" tests="18" time="0.960">
+  <testsuite name="0. Setup / Get Driver JWT" id="53121a8c-b992-4833-8e76-8c4a722fbd60" timestamp="2026-05-09T22:04:33.063Z" tests="1" failures="0" errors="0" time="0.103">
+    <testcase name="Driver JWT obtained" time="0.103" classname="0SetupGetDriverJwt"/>
+  </testsuite>
+  <testsuite name="0. Setup / Get Manager JWT" id="969011e7-d0af-4944-935f-42b5ec019ccb" timestamp="2026-05-09T22:04:33.063Z" tests="1" failures="0" errors="0" time="0.009">
+    <testcase name="Manager JWT obtained" time="0.009" classname="0SetupGetManagerJwt"/>
+  </testsuite>
+  <testsuite name="0. Setup / Get Technical JWT" id="32c7f6f6-b788-4a5a-ad9c-27e53d5ebb3d" timestamp="2026-05-09T22:04:33.063Z" tests="1" failures="0" errors="0" time="0.007">
+    <testcase name="Technical JWT obtained" time="0.007" classname="0SetupGetTechnicalJwt"/>
+  </testsuite>
+  <testsuite name="0. Setup / Get Unknown Driver JWT" id="4411df2d-5f0b-4d55-b8e7-383fcd54865b" timestamp="2026-05-09T22:04:33.063Z" tests="1" failures="0" errors="0" time="0.007">
+    <testcase name="Unknown driver JWT obtained" time="0.007" classname="0SetupGetUnknownDriverJwt"/>
+  </testsuite>
+  <testsuite name="0. Setup / Seed Test Data" id="e6cd963b-c5fc-448b-bb58-5d0b2c825f5b" timestamp="2026-05-09T22:04:33.063Z" tests="1" failures="0" errors="0" time="0.167">
+    <testcase name="Seed data returned" time="0.167" classname="0SetupSeedTestData"/>
+  </testsuite>
+  <testsuite name="1. Submit Report - Warning - Created (201)" id="f7671b2a-f3e6-4ecc-a7e7-fcaf705bba73" timestamp="2026-05-09T22:04:33.063Z" tests="2" failures="0" errors="0" time="0.159">
+    <testcase name="Status 201" time="0.159" classname="1SubmitReportWarningCreated201"/>
+    <testcase name="Response payload (warning) is correct" time="0.159" classname="1SubmitReportWarningCreated201"/>
+  </testsuite>
+  <testsuite name="2. Submit Report - Critical + Photo - Created (201)" id="eab9cc7e-b80e-4d64-9542-8478b51159f0" timestamp="2026-05-09T22:04:33.063Z" tests="2" failures="0" errors="0" time="0.085">
+    <testcase name="Status 201" time="0.085" classname="2SubmitReportCriticalPhotoCreated201"/>
+    <testcase name="Response payload (critical) is correct" time="0.085" classname="2SubmitReportCriticalPhotoCreated201"/>
+  </testsuite>
+  <testsuite name="3. Invalid Violation Type - 400" id="ed196fa4-6ae9-45ee-8655-1017083a2031" timestamp="2026-05-09T22:04:33.063Z" tests="2" failures="0" errors="0" time="0.062">
+    <testcase name="Status 400" time="0.062" classname="3InvalidViolationType400"/>
+    <testcase name="Returns invalid violation detail" time="0.062" classname="3InvalidViolationType400"/>
+  </testsuite>
+  <testsuite name="4. Invalid Park ID - 404" id="b71105e7-8d5f-4e1c-9651-b2648d463f9d" timestamp="2026-05-09T22:04:33.063Z" tests="2" failures="0" errors="0" time="0.064">
+    <testcase name="Status 404" time="0.064" classname="4InvalidParkId404"/>
+    <testcase name="Returns not found detail" time="0.064" classname="4InvalidParkId404"/>
+  </testsuite>
+  <testsuite name="5. Missing Required Field (zone) - 400" id="5fbc1ecc-cb6f-4a63-90f0-5ebdeb6023de" timestamp="2026-05-09T22:04:33.063Z" tests="2" failures="0" errors="0" time="0.054">
+    <testcase name="Status 400" time="0.054" classname="5MissingRequiredFieldZone400"/>
+    <testcase name="Returns validation detail for blank zone" time="0.054" classname="5MissingRequiredFieldZone400"/>
+  </testsuite>
+  <testsuite name="6. Missing Required Field (spotNumber) - 400" id="7a019700-8e47-420e-baab-de1433b37030" timestamp="2026-05-09T22:04:33.063Z" tests="2" failures="0" errors="0" time="0.033">
+    <testcase name="Status 400" time="0.033" classname="6MissingRequiredFieldSpotNumber400"/>
+    <testcase name="Returns validation detail for blank spotNumber" time="0.033" classname="6MissingRequiredFieldSpotNumber400"/>
+  </testsuite>
+  <testsuite name="7. Missing Required Field (description) - 400" id="2dad434e-37a6-4b3e-98c2-597fef4609b8" timestamp="2026-05-09T22:04:33.063Z" tests="2" failures="0" errors="0" time="0.030">
+    <testcase name="Status 400" time="0.030" classname="7MissingRequiredFieldDescription400"/>
+    <testcase name="Returns validation detail for blank description" time="0.030" classname="7MissingRequiredFieldDescription400"/>
+  </testsuite>
+  <testsuite name="8. Missing Request Param (parkingLotId) - 400" id="85f50790-67c2-4f39-b278-9e51c6db108f" timestamp="2026-05-09T22:04:33.063Z" tests="1" failures="0" errors="0" time="0.043">
+    <testcase name="Status 400" time="0.043" classname="8MissingRequestParamParkingLotId400"/>
+  </testsuite>
+  <testsuite name="9. Invalid parkingLotId Format - 400" id="23e2118d-03f4-41ef-9a3e-76f7c64b5be4" timestamp="2026-05-09T22:04:33.063Z" tests="1" failures="0" errors="0" time="0.032">
+    <testcase name="Status 400" time="0.032" classname="9InvalidParkingLotIdFormat400"/>
+  </testsuite>
+  <testsuite name="10. Missing Request Param (violationType) - 400" id="f0e0f51b-8c41-48c0-a9ab-0e98516d1225" timestamp="2026-05-09T22:04:33.063Z" tests="1" failures="0" errors="0" time="0.032">
+    <testcase name="Status 400" time="0.032" classname="10MissingRequestParamViolationType400"/>
+  </testsuite>
+  <testsuite name="11. No Token - 401" id="0ab96365-a2ec-47bb-8cbb-b2ad1e8a8868" timestamp="2026-05-09T22:04:33.063Z" tests="1" failures="0" errors="0" time="0.008">
+    <testcase name="Status 401" time="0.008" classname="11NoToken401"/>
+  </testsuite>
+  <testsuite name="12. Malformed Token - 401" id="8d4033fe-43aa-49d8-add5-205cec3baa8a" timestamp="2026-05-09T22:04:33.063Z" tests="1" failures="0" errors="0" time="0.007">
+    <testcase name="Status 401" time="0.007" classname="12MalformedToken401"/>
+  </testsuite>
+  <testsuite name="13. Wrong Role (Manager) - 403" id="60761723-b2cb-45e4-9709-d60b55ee34c0" timestamp="2026-05-09T22:04:33.063Z" tests="1" failures="1" errors="1" time="0.058">
+    <system-err><![CDATA[Iteration: 0
+
+---
+testScriptError: AssertionFailure: Status 403
+    at postProcessContext (/home/martim/.npm/_npx/75b90f33e80c3d7c/node_modules/postman-runtime/lib/runner/extensions/event.command.js:41:17)
+    at PostmanCollectionRun.<anonymous> (/home/martim/.npm/_npx/75b90f33e80c3d7c/node_modules/postman-runtime/lib/runner/extensions/event.command.js:513:39)
+    at PostmanSandbox.<anonymous> (/home/martim/.npm/_npx/75b90f33e80c3d7c/node_modules/postman-sandbox/lib/postman-sandbox.js:139:13)
+    at Object.onceWrapper (node:events:634:26)
+    at PostmanSandbox.emit (node:events:519:28)
+    at context.__uvm_emit (/home/martim/.npm/_npx/75b90f33e80c3d7c/node_modules/uvm/lib/bridge.js:71:21)
+    at Object.dispatch (evalmachine.<anonymous>:20:13)
+    at Object.<anonymous> (evalmachine.<anonymous>:66:7860)
+    at t.exports.terminate (evalmachine.<anonymous>:66:22105)
+    at Immediate._onImmediate (evalmachine.<anonymous>:66:5993)
+    at process.processImmediate (node:internal/timers:486:21)
+---
+]]></system-err>
+    <testcase name="Status 403" time="0.058" classname="13WrongRoleManager403">
+      <failure type="AssertionFailure" message="expected response to have status code 403 but got 401">
+        <![CDATA[Failed 1 times.]]>
+        <![CDATA[Collection JSON ID: 230c79d4-364b-4ca0-8e1a-ae5600f1d645.]]>
+        <![CDATA[Collection name: EasySpot - Reports.]]>
+        <![CDATA[Request name: 13. Wrong Role (Manager) - 403.]]>
+        <![CDATA[Test description: Status 403.]]>
+        <![CDATA[Error message: expected response to have status code 403 but got 401.]]>
+        <![CDATA[Stacktrace: AssertionError: expected response to have status code 403 but got 401
+   at Object.eval sandbox-script.js:1:18).]]>
+      </failure>
+    </testcase>
+  </testsuite>
+</testsuites>

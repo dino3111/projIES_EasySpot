@@ -13,7 +13,7 @@ import org.springframework.web.context.WebApplicationContext;
 import pt.ua.deti.apieasyspot.auth.model.User;
 import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
 import pt.ua.deti.apieasyspot.billing.model.ParkingSession;
-import pt.ua.deti.apieasyspot.billing.repository.ParkingSessionRepository;
+import pt.ua.deti.apieasyspot.billing.repository.TimescaleParkingSessionRepository;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
 import pt.ua.deti.apieasyspot.occupancy.model.ZoneType;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingLotRepository;
@@ -29,8 +29,15 @@ import static org.springframework.security.test.web.servlet.setup.SecurityMockMv
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import org.springframework.context.annotation.Import;
+import org.springframework.test.context.ActiveProfiles;
+import pt.ua.deti.apieasyspot.TestTimescaleDataSourceConfig;
+import pt.ua.deti.apieasyspot.TestcontainersConfiguration;
+
 import static pt.ua.deti.apieasyspot.support.TestJwtRequests.jwtWithRole;
 
+@ActiveProfiles("test")
+@Import({TestcontainersConfiguration.class, TestTimescaleDataSourceConfig.class})
 @SpringBootTest
 class DriverSpendingControllerIT {
 
@@ -38,7 +45,7 @@ class DriverSpendingControllerIT {
     @Autowired private UserRepository userRepository;
     @Autowired private VehicleRepository vehicleRepository;
     @Autowired private ParkingLotRepository parkingLotRepository;
-    @Autowired private ParkingSessionRepository parkingSessionRepository;
+    @Autowired private TimescaleParkingSessionRepository parkingSessionRepository;
     @MockitoBean private JwtDecoder jwtDecoder;
 
     private MockMvc mockMvc;
@@ -106,7 +113,8 @@ class DriverSpendingControllerIT {
             .andExpect(jsonPath("$.totals.totalSpent").value(13.50))
             .andExpect(jsonPath("$.totals.chargingSpent").value(8.50))
             .andExpect(jsonPath("$.breakdownByVehicle.length()").value(2))
-            .andExpect(jsonPath("$.insights.costliestSession.totalSpent").value(8.50));
+            .andExpect(jsonPath("$.insights.costliestSession.totalSpent").value(8.50))
+            .andExpect(jsonPath("$.historyTotal").value(2));
     }
 
     @Test
@@ -118,7 +126,35 @@ class DriverSpendingControllerIT {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.totals.totalSpent").value(0.00))
             .andExpect(jsonPath("$.timeseries.length()").value(0))
-            .andExpect(jsonPath("$.history.length()").value(0));
+            .andExpect(jsonPath("$.history.length()").value(0))
+            .andExpect(jsonPath("$.historyTotal").value(0));
+    }
+
+    @Test
+    @DisplayName("historyPage and historySize - pagination returns correct page slice")
+    void spending_pagination_returnsCorrectSlice() throws Exception {
+        OffsetDateTime now = OffsetDateTime.now();
+        for (int i = 0; i < 15; i++) {
+            parkingSessionRepository.save(session(vehicleA, ZoneType.STANDARD, now.minusHours(i + 1), 30, "1.00"));
+        }
+
+        mockMvc.perform(get("/api/driver/costs/spending")
+                .with(jwtWithRole("driver-e2e-001", "DRIVER"))
+                .param("timeWindow", "30D")
+                .param("historyPage", "0")
+                .param("historySize", "10"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.history.length()").value(10))
+            .andExpect(jsonPath("$.historyTotal").value(15));
+
+        mockMvc.perform(get("/api/driver/costs/spending")
+                .with(jwtWithRole("driver-e2e-001", "DRIVER"))
+                .param("timeWindow", "30D")
+                .param("historyPage", "1")
+                .param("historySize", "10"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.history.length()").value(5))
+            .andExpect(jsonPath("$.historyTotal").value(15));
     }
 
     @Test
@@ -167,9 +203,9 @@ class DriverSpendingControllerIT {
 
     private ParkingSession session(Vehicle vehicle, ZoneType zoneType, OffsetDateTime entry, long durationMinutes, String amount) {
         ParkingSession s = new ParkingSession();
-        s.setUser(driver);
-        s.setVehicle(vehicle);
-        s.setParkingLot(lot);
+        s.setUserId(driver.getId());
+        s.setVehicleId(vehicle.getId());
+        s.setParkingLotId(lot.getId());
         s.setZoneType(zoneType);
         s.setEntryTime(entry);
         s.setExitTime(entry.plusMinutes(durationMinutes));

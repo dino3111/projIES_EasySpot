@@ -21,14 +21,20 @@ import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingLotRepository;
 
 import java.time.Instant;
-import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import org.springframework.context.annotation.Import;
+import org.springframework.test.context.ActiveProfiles;
+import pt.ua.deti.apieasyspot.TestTimescaleDataSourceConfig;
+import pt.ua.deti.apieasyspot.TestcontainersConfiguration;
+
 import static org.mockito.Mockito.verify;
 
+@ActiveProfiles("test")
+@Import({TestcontainersConfiguration.class, TestTimescaleDataSourceConfig.class})
 @SpringBootTest
 @TestPropertySource(properties = {
     "alerts.kafka.max-lag-seconds=120"

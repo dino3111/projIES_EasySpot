@@ -2,7 +2,6 @@ package pt.ua.deti.apieasyspot.occupancy.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -30,11 +29,9 @@ public class ManagerTariffController {
     private final ManagerTariffService managerTariffService;
 
     @Operation(summary = "List tariffs by parking lot (filter/search)")
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "List of tariffs"),
-        @ApiResponse(responseCode = "401", description = "Not authenticated"),
-        @ApiResponse(responseCode = "403", description = "Not a manager")
-    })
+    @ApiResponse(responseCode = "200", description = "List of tariffs")
+    @ApiResponse(responseCode = "401", description = "Not authenticated")
+    @ApiResponse(responseCode = "403", description = "Not a manager")
     @GetMapping
     @PreAuthorize("hasRole('MANAGER')")
     public ResponseEntity<Page<TariffResponse>> listTariffs(
@@ -46,13 +43,11 @@ public class ManagerTariffController {
     }
 
     @Operation(summary = "Update tariffs (hourly, max daily, monthly, pricePerKwh, status)")
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Tariff updated successfully"),
-        @ApiResponse(responseCode = "400", description = "Invalid request"),
-        @ApiResponse(responseCode = "404", description = "Park not found"),
-        @ApiResponse(responseCode = "401", description = "Not authenticated"),
-        @ApiResponse(responseCode = "403", description = "Not a manager")
-    })
+    @ApiResponse(responseCode = "200", description = "Tariff updated successfully")
+    @ApiResponse(responseCode = "400", description = "Invalid request")
+    @ApiResponse(responseCode = "404", description = "Park not found")
+    @ApiResponse(responseCode = "401", description = "Not authenticated")
+    @ApiResponse(responseCode = "403", description = "Not a manager")
     @PutMapping
     @PreAuthorize("hasRole('MANAGER')")
     public ResponseEntity<TariffResponse> updateTariff(

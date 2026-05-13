@@ -6,7 +6,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import pt.ua.deti.apieasyspot.billing.repository.ParkingSessionRepository;
+import pt.ua.deti.apieasyspot.billing.repository.TimescaleParkingSessionRepository;
 import pt.ua.deti.apieasyspot.common.exception.ConflictException;
 import pt.ua.deti.apieasyspot.common.exception.ForbiddenException;
 import pt.ua.deti.apieasyspot.common.exception.ResourceNotFoundException;
@@ -31,11 +31,12 @@ public class ManagerTariffService {
     private final TariffRepository tariffRepository;
     private final TariffAuditRepository tariffAuditRepository;
     private final ParkingLotRepository parkingLotRepository;
-    private final ParkingSessionRepository parkingSessionRepository;
+    private final TimescaleParkingSessionRepository parkingSessionRepository;
 
     @Transactional(readOnly = true)
     public Page<TariffResponse> listTariffs(UUID parkId, String city, TariffStatus status, Pageable pageable) {
-        return tariffRepository.findFiltered(parkId, city, status, pageable)
+        String cityPattern = (city == null || city.isBlank()) ? null : "%" + city.trim().toLowerCase() + "%";
+        return tariffRepository.findFiltered(parkId, cityPattern, status, pageable)
             .map(this::mapToResponse);
     }
 
@@ -75,7 +76,7 @@ public class ManagerTariffService {
     }
 
     private void validateNoActiveSessions(UUID parkingLotId) {
-        long activeSessionCount = parkingSessionRepository.countActiveSessionsByParkingLot(parkingLotId);
+        long activeSessionCount = parkingSessionRepository.countActiveByParkingLotId(parkingLotId);
         if (activeSessionCount > 0) {
             throw new ConflictException(
                 String.format("Cannot update tariff. %d active parking session(s) in progress for this parking lot.",

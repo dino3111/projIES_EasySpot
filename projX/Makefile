@@ -1,6 +1,7 @@
 .PHONY: help up down logs bootstrap setup clean
 
-PYTHON := python3
+VENV := .venv
+PYTHON := $(VENV)/bin/python3
 COMPOSE := docker compose
 
 help:
@@ -24,8 +25,15 @@ down:
 logs:
 	$(COMPOSE) logs -f
 
-bootstrap:
-	$(PYTHON) bootstrap_authentik.py
+$(VENV)/bin/python3:
+	python3 -m venv $(VENV)
+	$(VENV)/bin/pip install requests -q
+
+bootstrap: $(VENV)/bin/python3
+	@grep -v '^\s*#' .env | grep -v '^\s*$$' | grep -v '^UID=' | grep -v '^GID=' > /tmp/.env.bootstrap && \
+	export $$(cat /tmp/.env.bootstrap | xargs -d '\n') 2>/dev/null; \
+	$(PYTHON) bootstrap_authentik.py; \
+	rm -f /tmp/.env.bootstrap
 
 setup:
 	@if [ ! -f .env ]; then \

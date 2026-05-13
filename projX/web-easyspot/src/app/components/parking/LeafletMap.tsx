@@ -1,6 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { useTheme } from 'next-themes';
-import type { ParkingLot } from '../../data/parkingData';
+import { useEffect, useRef, useState } from 'react';
+import type { ParkingLot } from '../../data/parkingTypes';
 
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -43,8 +42,10 @@ function createParkingIcon(color: string, isSelected: boolean) {
 }
 
 function getPinColor(lot: ParkingLot): string {
-  const pct = lot.availableSpots / lot.totalSpots;
-  if (lot.availableSpots === 0) return '#ef4444';
+  const total = Math.max(0, lot.totalSpots);
+  const available = Math.min(total, Math.max(0, lot.availableSpots));
+  const pct = available / Math.max(1, total);
+  if (available === 0) return '#ef4444';
   if (pct < 0.2) return '#f59e0b';
   return '#22c55e';
 }
@@ -56,6 +57,7 @@ interface LeafletMapProps {
   readonly singleLot?: ParkingLot;
   readonly height?: string;
   readonly className?: string;
+  readonly pinColorOverrides?: Record<string, string>;
 }
 
 export function LeafletMap({
@@ -65,12 +67,22 @@ export function LeafletMap({
   singleLot,
   height = '100%',
   className = '',
+  pinColorOverrides,
 }: LeafletMapProps) {
   const mapRef = useRef<L.Map | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const markersRef = useRef<Map<string, L.Marker>>(new Map());
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === 'dark';
+  const [isDark, setIsDark] = useState(() =>
+    document.documentElement.classList.contains('dark')
+  );
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDark(document.documentElement.classList.contains('dark'));
+    });
+    observer.observe(document.documentElement, { attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
 
   const lastFlyToIdRef = useRef<string | null>(null);
 
@@ -144,7 +156,7 @@ export function LeafletMap({
 
     activeLots.forEach((lot) => {
       const isSelected = lot.id === selectedId;
-      const icon = createParkingIcon(getPinColor(lot), isSelected);
+      const icon = createParkingIcon(pinColorOverrides?.[lot.id] ?? getPinColor(lot), isSelected);
 
       if (markersRef.current.has(lot.id)) {
         const existing = markersRef.current.get(lot.id)!;
@@ -166,8 +178,7 @@ export function LeafletMap({
       map.fitBounds(bounds, { padding: [20, 20], animate: false });
       hasFitBounds.current = true;
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lots, selectedId, singleLot]);
+  }, [lots, selectedId, singleLot, pinColorOverrides]);
 
   useEffect(() => {
     if (!selectedId || !mapRef.current) return;

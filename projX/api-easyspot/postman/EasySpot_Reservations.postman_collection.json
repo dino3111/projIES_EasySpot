@@ -1,0 +1,327 @@
+{
+  "info": {
+    "name": "EasySpot - Reservations",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8080" },
+    { "key": "driver_token", "value": "" },
+    { "key": "manager_token", "value": "" },
+    { "key": "park_id", "value": "" },
+    { "key": "vehicle_id", "value": "" },
+    { "key": "reservation_id", "value": "" },
+    { "key": "booking_code", "value": "" },
+    { "key": "arrival_time", "value": "" },
+    { "key": "departure_time", "value": "" },
+    { "key": "updated_arrival_time", "value": "" },
+    { "key": "updated_departure_time", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "0. Setup",
+      "item": [
+        {
+          "name": "Get Driver JWT",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Driver JWT obtained', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('driver_token', body.access_token);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/test/token?role=DRIVER&sub=auth-sub-postman-driver"
+          }
+        },
+        {
+          "name": "Get Manager JWT",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Manager JWT obtained', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('manager_token', body.access_token);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/test/token?role=MANAGER&sub=auth-sub-postman-manager"
+          }
+        },
+        {
+          "name": "Seed Data",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Seed data available', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('park_id', body.parkId);",
+                  "  pm.collectionVariables.set('vehicle_id', body.vehicleId);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/test/seed",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{driver_token}}" }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "1. Create Reservation (201)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "const now = new Date();",
+              "const arrival = new Date(now.getTime() + 2 * 60 * 60 * 1000);",
+              "const departure = new Date(now.getTime() + 4 * 60 * 60 * 1000);",
+              "pm.collectionVariables.set('arrival_time', arrival.toISOString());",
+              "pm.collectionVariables.set('departure_time', departure.toISOString());"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 201', function () {",
+              "  pm.response.to.have.status(201);",
+              "});",
+              "pm.test('Reservation created', function () {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.status).to.eql('CONFIRMED');",
+              "  pm.expect(body.reservationId).to.be.a('string');",
+              "  pm.collectionVariables.set('reservation_id', body.reservationId);",
+              "  pm.collectionVariables.set('booking_code', body.bookingCode);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{driver_token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"parkId\": \"{{park_id}}\",\n  \"vehicleId\": \"{{vehicle_id}}\",\n  \"arrivalDateTime\": \"{{arrival_time}}\",\n  \"departureDateTime\": \"{{departure_time}}\"\n}"
+        },
+        "url": "{{base_url}}/api/reservations"
+      }
+    },
+    {
+      "name": "2. List Reservations (200)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Created reservation is listed', function () {",
+              "  const body = pm.response.json();",
+              "  const reservationId = pm.collectionVariables.get('reservation_id');",
+              "  pm.expect(body.some(item => item.reservationId === reservationId)).to.be.true;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{driver_token}}" }
+        ],
+        "url": "{{base_url}}/api/reservations"
+      }
+    },
+    {
+      "name": "3. Reservation Details (200)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Correct reservation returned', function () {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.reservationId).to.eql(pm.collectionVariables.get('reservation_id'));",
+              "  pm.expect(body.bookingCode).to.eql(pm.collectionVariables.get('booking_code'));",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{driver_token}}" }
+        ],
+        "url": "{{base_url}}/api/reservations/{{reservation_id}}"
+      }
+    },
+    {
+      "name": "4. Update Reservation (200)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "const now = new Date();",
+              "const arrival = new Date(now.getTime() + 5 * 60 * 60 * 1000);",
+              "const departure = new Date(now.getTime() + 7 * 60 * 60 * 1000);",
+              "pm.collectionVariables.set('updated_arrival_time', arrival.toISOString());",
+              "pm.collectionVariables.set('updated_departure_time', departure.toISOString());"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Reservation updated', function () {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body).to.have.property('reservation');",
+              "  pm.expect(Date.parse(body.reservation.arrivalDateTime)).to.eql(Date.parse(pm.collectionVariables.get('updated_arrival_time')));",
+              "  pm.expect(Date.parse(body.reservation.departureDateTime)).to.eql(Date.parse(pm.collectionVariables.get('updated_departure_time')));",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{driver_token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"parkId\": \"{{park_id}}\",\n  \"vehicleId\": \"{{vehicle_id}}\",\n  \"arrivalDateTime\": \"{{updated_arrival_time}}\",\n  \"departureDateTime\": \"{{updated_departure_time}}\"\n}"
+        },
+        "url": "{{base_url}}/api/reservations/{{reservation_id}}"
+      }
+    },
+    {
+      "name": "5. Cancel Reservation (200)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Reservation cancelled', function () {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.status).to.eql('CANCELLED');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{driver_token}}" }
+        ],
+        "url": "{{base_url}}/api/reservations/{{reservation_id}}"
+      }
+    },
+    {
+      "name": "6. Detail Without Token (401)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 401', function () {",
+              "  pm.response.to.have.status(401);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/api/reservations/{{reservation_id}}"
+      }
+    },
+    {
+      "name": "7. List With Manager Role (403)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 403', function () {",
+              "  pm.response.to.have.status(403);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{manager_token}}" }
+        ],
+        "url": "{{base_url}}/api/reservations"
+      }
+    },
+    {
+      "name": "8. Unknown Reservation (404)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 404', function () {",
+              "  pm.response.to.have.status(404);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{driver_token}}" }
+        ],
+        "url": "{{base_url}}/api/reservations/00000000-0000-0000-0000-000000000001"
+      }
+    }
+  ]
+}

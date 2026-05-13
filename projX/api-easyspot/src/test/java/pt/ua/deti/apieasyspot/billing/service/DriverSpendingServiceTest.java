@@ -69,9 +69,10 @@ class DriverSpendingServiceTest {
     @DisplayName("getSpending - unknown vehicle for user - throws 404")
     void getSpending_unknownVehicle_throws404() {
         UUID vehicleId = UUID.randomUUID();
+        String vehicleIdStr = vehicleId.toString();
         when(vehicleRepository.findByIdAndUserId(vehicleId, user.getId())).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.getSpending("driver-sub-001", vehicleId.toString(), "7D", null, null, 0, 50))
+        assertThatThrownBy(() -> service.getSpending("driver-sub-001", vehicleIdStr, "7D", null, null, 0, 50))
             .isInstanceOf(ResourceNotFoundException.class)
             .hasMessageContaining("Unknown vehicleId");
     }
@@ -86,6 +87,7 @@ class DriverSpendingServiceTest {
         when(repository.breakdownByPark(eq(user.getId()), any(), any(), any())).thenReturn(List.of());
         when(repository.breakdownByVehicle(eq(user.getId()), any(), any(), any())).thenReturn(List.of());
         when(repository.history(eq(user.getId()), any(), any(), any(), anyInt(), anyInt())).thenReturn(List.of());
+        when(repository.countHistory(eq(user.getId()), any(), any(), any())).thenReturn(0L);
 
         DriverSpendingResponse response = service.getSpending("driver-sub-001", null, "30D", null, null, 0, 50);
 
@@ -93,6 +95,7 @@ class DriverSpendingServiceTest {
         assertThat(response.totals().avgPerSession()).isEqualByComparingTo("0.00");
         assertThat(response.insights().mostUsedPark()).isNull();
         assertThat(response.history()).isEmpty();
+        assertThat(response.historyTotal()).isZero();
         assertThat(response.breakdownByVehicle()).isEmpty();
     }
 
@@ -116,6 +119,7 @@ class DriverSpendingServiceTest {
                 UUID.randomUUID(), "Fórum Aveiro", new BigDecimal("14.00"), 2)));
         when(repository.breakdownByVehicle(eq(user.getId()), eq(vehicleId), any(), any())).thenReturn(List.of());
         when(repository.history(eq(user.getId()), eq(vehicleId), any(), any(), anyInt(), anyInt())).thenReturn(List.of());
+        when(repository.countHistory(eq(user.getId()), eq(vehicleId), any(), any())).thenReturn(3L);
 
         DriverSpendingResponse response = service.getSpending("driver-sub-001", vehicleId.toString(), null, null, null, 0, 50);
 
@@ -124,5 +128,6 @@ class DriverSpendingServiceTest {
         assertThat(response.totals().parkingSpent()).isEqualByComparingTo("18.00");
         assertThat(response.insights().mostUsedPark()).isEqualTo("Fórum Aveiro");
         assertThat(response.insights().costliestSession().totalSpent()).isEqualByComparingTo("20.00");
+        assertThat(response.historyTotal()).isEqualTo(3L);
     }
 }

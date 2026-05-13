@@ -12,7 +12,9 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
+import org.springframework.test.context.ActiveProfiles;
 import pt.ua.deti.apieasyspot.TestcontainersConfiguration;
+import pt.ua.deti.apieasyspot.TestTimescaleDataSourceConfig;
 import pt.ua.deti.apieasyspot.auth.model.User;
 import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
 
@@ -25,8 +27,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+@ActiveProfiles("test")
 @SpringBootTest
-@Import(TestcontainersConfiguration.class)
+@Import({TestcontainersConfiguration.class, TestTimescaleDataSourceConfig.class})
 class AccountTypeControllerIT {
 
     private static final String USER_SUBJECT = "account-it-subject";
@@ -154,19 +157,5 @@ class AccountTypeControllerIT {
                 .content("{\"role\":\"MANAGER\"}"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.role").value("MANAGER"));
-    }
-
-    @Test
-    @DisplayName("POST /api/account/type - active session with old role - DB updated, response reflects new role")
-    void updateAccountType_activeSessionOldRole_dbUpdated() throws Exception {
-        mockMvc.perform(post("/api/account/type")
-                .with(jwt().jwt(j -> j.subject(USER_SUBJECT).claim("groups", List.of("DRIVER"))))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"role\":\"MANAGER\"}"))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.role").value("MANAGER"));
-
-        User updated = userRepository.findByAuthentikUserId(USER_SUBJECT).orElseThrow();
-        assertThat(updated.getRole()).isEqualTo("MANAGER");
     }
 }

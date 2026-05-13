@@ -4,7 +4,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
@@ -40,16 +39,16 @@ public class ParkController {
         description = "Returns paginated parking lots and supports text, availability and feature filters. " +
             "When vehicleId is provided, compatible filters are automatically enriched with vehicle capabilities."
     )
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Parking lots retrieved successfully"),
-        @ApiResponse(responseCode = "400", description = "Invalid query parameters")
-    })
+    @ApiResponse(responseCode = "200", description = "Parking lots retrieved successfully")
+    @ApiResponse(responseCode = "400", description = "Invalid query parameters")
     @GetMapping("/list")
     public ResponseEntity<ParkingLotSummaryResponse> listParks(
         @Parameter(description = "Optional search text for parking lot name or location", example = "Aveiro")
         @RequestParam(required = false) String textQuery,
         @Parameter(description = "Optional minimum number of available spaces", example = "5")
         @RequestParam(required = false) Integer minAvailableSpaces,
+        @Parameter(description = "Optional city filter", example = "Aveiro")
+        @RequestParam(required = false) String city,
         @Parameter(
             description = "Optional feature filters",
             schema = @Schema(type = "array", allowableValues = {"EV", "ACCESSIBLE", "COVERED", "SECURITY"})
@@ -68,19 +67,35 @@ public class ParkController {
             if (caps.ev() && !activeFilters.contains("EV")) activeFilters.add("EV");
             if (caps.accessible() && !activeFilters.contains("ACCESSIBLE")) activeFilters.add("ACCESSIBLE");
         }
-        return ResponseEntity.ok(parkService.searchParks(textQuery, minAvailableSpaces, activeFilters, page, pageSize));
+        return ResponseEntity.ok(parkService.searchParks(textQuery, minAvailableSpaces, city, activeFilters, page, pageSize));
+    }
+
+    @Operation(summary = "List available cities", description = "Returns a distinct list of cities with at least one parking lot")
+    @ApiResponse(responseCode = "200", description = "City list retrieved successfully")
+    @GetMapping("/cities")
+    public ResponseEntity<List<String>> listCities() {
+        return ResponseEntity.ok(parkService.listCities());
     }
 
     @Operation(summary = "Get parking lot details")
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Parking lot details retrieved successfully"),
-        @ApiResponse(responseCode = "404", description = "Parking lot not found")
-    })
+    @ApiResponse(responseCode = "200", description = "Parking lot details retrieved successfully")
+    @ApiResponse(responseCode = "404", description = "Parking lot not found")
     @GetMapping("/{id}/details")
     public ResponseEntity<ParkingLotDetailsResponse> getDetails(
         @Parameter(description = "Parking lot UUID", example = "9f6a9a7b-c6a2-43a2-a2b6-f57e6d03df57")
         @PathVariable UUID id
     ) {
         return ResponseEntity.ok(parkService.getDetails(id));
+    }
+
+    @Operation(summary = "Get hourly occupancy trend for a parking lot (last 7 days average)")
+    @ApiResponse(responseCode = "200", description = "Hourly occupancy data retrieved successfully")
+    @ApiResponse(responseCode = "404", description = "Parking lot not found")
+    @GetMapping("/{id}/occupancy/hourly")
+    public ResponseEntity<List<java.util.Map<String, Object>>> getHourlyOccupancy(
+        @Parameter(description = "Parking lot UUID")
+        @PathVariable UUID id
+    ) {
+        return ResponseEntity.ok(parkService.getHourlyOccupancy(id));
     }
 }

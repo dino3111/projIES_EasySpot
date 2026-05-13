@@ -7,49 +7,46 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.RowMapper;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import pt.ua.deti.apieasyspot.billing.dto.ParkingPlanningRequest;
 import pt.ua.deti.apieasyspot.billing.dto.ParkingPlanningRequest.LocationRequest;
 import pt.ua.deti.apieasyspot.billing.dto.ParkingPlanningRequest.OrderBy;
+import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
+import pt.ua.deti.apieasyspot.occupancy.model.Tariff;
+import pt.ua.deti.apieasyspot.occupancy.model.ZoneType;
+import pt.ua.deti.apieasyspot.occupancy.repository.ParkingLotRepository;
+import pt.ua.deti.apieasyspot.occupancy.repository.TariffRepository;
+import pt.ua.deti.apieasyspot.occupancy.repository.TimescaleOccupancySnapshotRepository;
+import pt.ua.deti.apieasyspot.occupancy.repository.TimescaleOccupancySnapshotRepository.ZoneSnapshot;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class ParkingPlanningServiceTest {
 
-    @Mock private JdbcTemplate jdbc;
-    @Mock private NamedParameterJdbcTemplate namedJdbc;
+    @Mock private ParkingLotRepository parkingLotRepository;
+    @Mock private TariffRepository tariffRepository;
+    @Mock private TimescaleOccupancySnapshotRepository occupancyRepository;
     @InjectMocks private ParkingPlanningService service;
 
-    private ParkingPlanningService.LotCandidate availableLot;
-    private ParkingPlanningService.LotCandidate fullLot;
-    private ParkingPlanningService.LotCandidate cheapLot;
-    private ParkingPlanningService.LotCandidate nearLot;
+    private ParkingLot availableLot;
+    private ParkingLot fullLot;
+    private ParkingLot cheapLot;
+    private ParkingLot nearLot;
 
     @BeforeEach
     void setUp() {
-        availableLot = new ParkingPlanningService.LotCandidate(
-            UUID.randomUUID(), "Central Park", "Rua A", "08:00-22:00",
-            500.0, BigDecimal.valueOf(1.20), 20, 100, 20, false, false, List.of());
-        fullLot = new ParkingPlanningService.LotCandidate(
-            UUID.randomUUID(), "Full Park", "Rua B", "08:00-22:00",
-            300.0, BigDecimal.valueOf(0.80), 100, 100, 100, false, false, List.of());
-        cheapLot = new ParkingPlanningService.LotCandidate(
-            UUID.randomUUID(), "Cheap Park", "Rua C", "24h",
-            1200.0, BigDecimal.valueOf(0.50), 30, 100, 30, false, false, List.of());
-        nearLot = new ParkingPlanningService.LotCandidate(
-            UUID.randomUUID(), "Near Park", "Rua D", "24h",
-            100.0, BigDecimal.valueOf(2.00), 40, 100, 40, false, false, List.of());
+        availableLot = lot("Central Park", "Rua A", 40.6440, -8.6510, 100, "24h");
+        fullLot = lot("Full Park", "Rua B", 40.6410, -8.6520, 100, "24h");
+        cheapLot = lot("Cheap Park", "Rua C", 40.6500, -8.6500, 100, "24h");
+        nearLot = lot("Near Park", "Rua D", 40.6406, -8.6537, 100, "24h");
     }
 
     // --- isOpen tests ---
@@ -129,7 +126,11 @@ class ParkingPlanningServiceTest {
 
     @Test
     void score_twoLotsProduceDifferentValues() {
-        assertThat(service.score(availableLot, 5000.0)).isNotEqualTo(service.score(nearLot, 5000.0));
+        var c1 = new ParkingPlanningService.LotCandidate(
+            UUID.randomUUID(), "A", "addr", "24h", 500.0, BigDecimal.ONE, 20, 100, 20, false, false, List.of());
+        var c2 = new ParkingPlanningService.LotCandidate(
+            UUID.randomUUID(), "B", "addr", "24h", 100.0, BigDecimal.valueOf(2), 40, 100, 40, false, false, List.of());
+        assertThat(service.score(c1, 5000.0)).isNotEqualTo(service.score(c2, 5000.0));
     }
 
     // --- plan filtering tests ---
@@ -144,9 +145,7 @@ class ParkingPlanningServiceTest {
 
     @Test
     void plan_filtersOutOfRange() {
-        var farLot = new ParkingPlanningService.LotCandidate(
-            UUID.randomUUID(), "Far Park", "Rua Z", "24h",
-            6000.0, BigDecimal.valueOf(1.00), 10, 100, 10, false, false, List.of());
+        var farLot = lot("Far Park", "Rua Z", 41.0, -8.0, 100, "24h");
         stubCandidates(List.of(availableLot, farLot));
         var response = service.plan(req("Aveiro", 60, null, null, 1000.0, OrderBy.NEAREST));
         assertThat(response.recommendations()).hasSize(1);
@@ -155,9 +154,7 @@ class ParkingPlanningServiceTest {
 
     @Test
     void plan_filtersByEv_whenRequested() {
-        var evLot = new ParkingPlanningService.LotCandidate(
-            UUID.randomUUID(), "EV Park", "Rua EV", "24h",
-            400.0, BigDecimal.valueOf(1.50), 10, 100, 10, true, false, List.of());
+        var evLot = lot("EV Park", "Rua EV", 40.6430, -8.6520, 100, "24h");
         stubCandidates(List.of(availableLot, evLot));
         var response = service.plan(req("Aveiro", 60, Boolean.TRUE, null, 5000.0, OrderBy.NEAREST));
         assertThat(response.recommendations()).hasSize(1);
@@ -166,9 +163,7 @@ class ParkingPlanningServiceTest {
 
     @Test
     void plan_filtersByAccessible_whenRequested() {
-        var accLot = new ParkingPlanningService.LotCandidate(
-            UUID.randomUUID(), "Acc Park", "Rua Acc", "24h",
-            400.0, BigDecimal.valueOf(1.00), 5, 100, 5, false, true, List.of());
+        var accLot = lot("Acc Park", "Rua Acc", 40.6430, -8.6520, 100, "24h");
         stubCandidates(List.of(availableLot, accLot));
         var response = service.plan(req("Aveiro", 60, null, Boolean.TRUE, 5000.0, OrderBy.NEAREST));
         assertThat(response.recommendations()).hasSize(1);
@@ -213,9 +208,7 @@ class ParkingPlanningServiceTest {
 
     @Test
     void plan_occupancyStatus_LIMITED_at92pct() {
-        var limited = new ParkingPlanningService.LotCandidate(
-            UUID.randomUUID(), "Limited", "Rua L", "24h",
-            200.0, BigDecimal.valueOf(1.00), 92, 100, 92, false, false, List.of());
+        var limited = lot("Limited", "Rua L", 40.6430, -8.6520, 100, "24h");
         stubCandidates(List.of(limited));
         var occ = service.plan(req("Aveiro", 60, null, null, 5000.0, OrderBy.BEST))
             .recommendations().get(0).currentOccupancy();
@@ -230,8 +223,8 @@ class ParkingPlanningServiceTest {
         assertThat(s.id()).isNotNull();
         assertThat(s.name()).isEqualTo("Central Park");
         assertThat(s.address()).isEqualTo("Rua A");
-        assertThat(s.openingHours()).isEqualTo("08:00-22:00");
-        assertThat(s.distanceMeters()).isEqualTo(500.0);
+        assertThat(s.openingHours()).isEqualTo("24h");
+        assertThat(s.distanceMeters()).isEqualTo(455.3);
         assertThat(s.pricePerHour()).isEqualTo(BigDecimal.valueOf(1.20));
         assertThat(s.currentOccupancy().occupied()).isEqualTo(20);
         assertThat(s.currentOccupancy().total()).isEqualTo(100);
@@ -241,10 +234,43 @@ class ParkingPlanningServiceTest {
 
     // --- helpers ---
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    private void stubCandidates(List<ParkingPlanningService.LotCandidate> candidates) {
-        when(jdbc.query(anyString(), (RowMapper) any(RowMapper.class), any(Object[].class)))
-            .thenReturn((List) candidates);
+    private void stubCandidates(List<ParkingLot> lots) {
+        when(parkingLotRepository.findAll()).thenReturn(lots);
+        java.util.Map<UUID, List<ZoneSnapshot>> byLot = new java.util.HashMap<>();
+        for (ParkingLot lot : lots) {
+            List<ZoneSnapshot> snapshots = switch (lot.getName()) {
+                case "Full Park" -> List.of(new ZoneSnapshot(ZoneType.STANDARD, 100, 100, Instant.now()));
+                case "EV Park" -> List.of(new ZoneSnapshot(ZoneType.EV, 10, 100, Instant.now()));
+                case "Acc Park" -> List.of(new ZoneSnapshot(ZoneType.ACCESSIBLE, 5, 100, Instant.now()));
+                case "Limited" -> List.of(new ZoneSnapshot(ZoneType.STANDARD, 92, 100, Instant.now()));
+                default -> List.of(new ZoneSnapshot(ZoneType.STANDARD, 20, 100, Instant.now()));
+            };
+            byLot.put(lot.getId(), snapshots);
+            Tariff tariff = new Tariff();
+            BigDecimal price = switch (lot.getName()) {
+                case "Cheap Park" -> BigDecimal.valueOf(0.50);
+                case "Near Park" -> BigDecimal.valueOf(2.00);
+                case "Full Park" -> BigDecimal.valueOf(0.80);
+                default -> BigDecimal.valueOf(1.20);
+            };
+            tariff.setPricePerHour(price);
+            when(tariffRepository.findByParkingLotId(lot.getId())).thenReturn(List.of(tariff));
+        }
+        when(occupancyRepository.latestByLotIds(lots.stream().map(ParkingLot::getId).toList())).thenReturn(byLot);
+        when(occupancyRepository.hourlyOccupancyLast7Days(lots.stream().map(ParkingLot::getId).toList())).thenReturn(java.util.Map.of());
+    }
+
+    private ParkingLot lot(String name, String address, double lat, double lng, int totalSpaces, String openingHours) {
+        ParkingLot p = new ParkingLot();
+        p.setId(UUID.randomUUID());
+        p.setName(name);
+        p.setCity("Aveiro");
+        p.setAddress(address);
+        p.setLatitude(lat);
+        p.setLongitude(lng);
+        p.setTotalSpaces(totalSpaces);
+        p.setOpeningHours(openingHours);
+        return p;
     }
 
     private ParkingPlanningRequest req(String city, int duration,

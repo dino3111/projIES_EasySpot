@@ -8,4 +8,5 @@ import java.util.UUID;
 
 public interface AccessibleSpotRepository extends JpaRepository<AccessibleSpot, UUID> {
     List<AccessibleSpot> findByParkingLotId(UUID parkingLotId);
+    void deleteByParkingLotId(UUID parkingLotId);
 }
