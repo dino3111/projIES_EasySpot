@@ -2,6 +2,8 @@ import { API_BASE } from './apiBase';
 import { withGlobalLoading } from '../app/context/LoadingContext';
 import { getAccessToken } from '../app/services/authToken';
 const AUTH_STORAGE_KEYS = ['es_access_token', 'es_id_token', 'es_refresh_token', 'es_pkce_verifier', 'es_pkce_state'] as const;
+const RECENT_AUTH_TS_KEY = 'es_recent_auth_ts';
+const RECENT_AUTH_WINDOW_MS = 15_000;
 const RETRYABLE_STATUSES = new Set([502, 503, 504]);
 const RETRY_DELAY_MS = 700;
 
@@ -18,6 +20,14 @@ function redirectToWelcomeIfNeeded() {
   const maybeLocation = (globalThis as { location?: Location }).location;
   if (!maybeLocation || maybeLocation.pathname === '/welcome') return;
   maybeLocation.href = '/welcome?session=expired';
+}
+
+function isWithinRecentAuthWindow(): boolean {
+  const raw = sessionStorage.getItem(RECENT_AUTH_TS_KEY);
+  if (!raw) return false;
+  const ts = Number(raw);
+  if (!Number.isFinite(ts)) return false;
+  return Date.now() - ts <= RECENT_AUTH_WINDOW_MS;
 }
 
 function parseErrorMessage(text: string, status: number): string {
@@ -49,6 +59,11 @@ async function readErrorBody(res: Response): Promise<string> {
 }
 
 function throwUnauthorizedError(): never {
+  if (isWithinRecentAuthWindow()) {
+    // Right after a fresh login/registration, backend sync can briefly return 401.
+    // Avoid forcing a global logout in this transient window.
+    throw new Error('A conta está a ser sincronizada. Tente novamente em alguns segundos.');
+  }
   clearAuthStorage();
   redirectToWelcomeIfNeeded();
   throw new Error('Sessão expirada ou inválida. Por favor, tente entrar novamente.');

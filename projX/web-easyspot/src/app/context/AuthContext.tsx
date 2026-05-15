@@ -22,6 +22,7 @@ const SK = {
   refreshToken: 'es_refresh_token',
   pkceVerifier: 'es_pkce_verifier',
   pkceState:    'es_pkce_state',
+  recentAuthTs: 'es_recent_auth_ts',
 } as const;
 
 // PKCE values must survive redirects — use localStorage, not sessionStorage
@@ -264,7 +265,9 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
       code_challenge_method: 'S256',
     });
 
-    const next = `${AUTHORIZE_URL}?${authorizeParams.toString()}`;
+    // Authentik enrollment flow validates `next`; using a relative path avoids
+    // "Invalid next URL" rejections behind reverse-proxy/localhost setups.
+    const next = `/authentik/application/o/authorize/?${authorizeParams.toString()}`;
     globalThis.location.href = `${ENROLLMENT_URL}?next=${encodeURIComponent(next)}`;
   }, []);
 
@@ -325,6 +328,7 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
     sessionStorage.setItem(SK.accessToken, data.access_token);
     if (data.id_token)      sessionStorage.setItem(SK.idToken,      data.id_token);
     if (data.refresh_token) sessionStorage.setItem(SK.refreshToken, data.refresh_token);
+    sessionStorage.setItem(SK.recentAuthTs, String(Date.now()));
 
     const authedUser = buildUser(claims);
     console.log('[AUTH] handleCallback — setUser:', authedUser.sub, 'role:', authedUser.role, 'issuer:', claims['iss']);
