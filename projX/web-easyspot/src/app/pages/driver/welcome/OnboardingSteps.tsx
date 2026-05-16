@@ -274,24 +274,38 @@ export function StepPayment(props: Readonly<{
   );
 }
 
-export function StepDriverType({ driverType, setDriverType }: Readonly<{ driverType: DriverType; setDriverType: (v: DriverType) => void }>) {
+export function StepDriverType({ driverTypes, setDriverTypes }: Readonly<{ driverTypes: DriverType[]; setDriverTypes: (v: DriverType[]) => void }>) {
+  const toggleDriverType = (type: DriverType) => {
+    if (type === 'regular') {
+      setDriverTypes(['regular']);
+      return;
+    }
+    const withoutRegular = driverTypes.filter((d) => d !== 'regular');
+    if (driverTypes.includes(type)) {
+      const next = withoutRegular.filter((d) => d !== type);
+      setDriverTypes(next.length > 0 ? next : ['regular']);
+      return;
+    }
+    setDriverTypes([...withoutRegular, type]);
+  };
+
   return (
     <div className="space-y-3">
-      <p className="text-muted-foreground mb-3" style={{ fontSize: '0.82rem' }}>Personalize a experiência. O perfil seleccionado activa filtros e recomendações automáticas.</p>
+      <p className="text-muted-foreground mb-3" style={{ fontSize: '0.82rem' }}>Personalize a experiência. Pode selecionar múltiplos perfis; EV e Mobilidade Reduzida podem coexistir.</p>
       {([
         { id: 'regular',           icon: 'fa-car',            color: '#7357ec', label: 'Condutor Regular',    desc: 'Prioridade por preço e distância. Veja a ocupação em tempo real e reserve em até 30 min.' },
         { id: 'ev',                icon: 'fa-charging-station', color: '#22c55e', label: 'Condutor EV',         desc: 'Filtragem por carregadores compatíveis, velocidade de carga e custo por kWh.' },
         { id: 'reduced_mobility', icon: 'fa-wheelchair',   color: '#0ea5e9', label: 'Mobilidade Reduzida', desc: 'Lugares acessíveis com dimensões, distância à entrada, vigilância e espaço para rampa.' },
       ] as const).map((t) => (
-        <button key={t.id} onClick={() => setDriverType(t.id)} className={`w-full flex items-start gap-3 p-4 rounded-xl border-2 text-left transition-all ${driverType === t.id ? 'border-primary bg-primary/8' : 'border-border hover:border-primary/40'}`}>
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: driverType === t.id ? t.color : undefined }}>
-            <i className={`fas ${t.icon} ${driverType === t.id ? 'text-white' : 'text-muted-foreground'}`} style={{ fontSize: '1rem' }} />
+        <button key={t.id} onClick={() => toggleDriverType(t.id)} className={`w-full flex items-start gap-3 p-4 rounded-xl border-2 text-left transition-all ${driverTypes.includes(t.id) ? 'border-primary bg-primary/8' : 'border-border hover:border-primary/40'}`}>
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: driverTypes.includes(t.id) ? t.color : undefined }}>
+            <i className={`fas ${t.icon} ${driverTypes.includes(t.id) ? 'text-white' : 'text-muted-foreground'}`} style={{ fontSize: '1rem' }} />
           </div>
           <div className="flex-1">
-            <p className={`font-bold ${driverType === t.id ? 'text-primary' : 'text-foreground'}`} style={{ fontSize: '0.875rem' }}>{t.label}</p>
+            <p className={`font-bold ${driverTypes.includes(t.id) ? 'text-primary' : 'text-foreground'}`} style={{ fontSize: '0.875rem' }}>{t.label}</p>
             <p className="text-muted-foreground mt-0.5" style={{ fontSize: '0.75rem', lineHeight: 1.4 }}>{t.desc}</p>
           </div>
-          {driverType === t.id && <i className="fas fa-circle-check text-primary mt-0.5" />}
+          {driverTypes.includes(t.id) && <i className="fas fa-circle-check text-primary mt-0.5" />}
         </button>
       ))}
     </div>

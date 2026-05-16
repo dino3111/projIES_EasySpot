@@ -22,7 +22,9 @@ import { StepPaymentStripe } from '../welcome/StepPaymentStripe';
 export function ReservationPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { vehicles, driverType } = useProfile();
+  const { vehicles, driverTypes } = useProfile();
+  const prefersEv = driverTypes.includes('ev');
+  const prefersAccessible = driverTypes.includes('reduced_mobility');
 
   const [step, setStep] = useState<ReservationStep>(1);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>(
@@ -41,8 +43,8 @@ export function ReservationPage() {
   const [selectedFloorId, setSelectedFloorId] = useState<string>('');
   const [selectedSpotId, setSelectedSpotId]   = useState<string>('');
   const [spotFilter, setSpotFilter] = useState<SpotFilter>(() => {
-    if (driverType === 'ev') return 'ev';
-    if (driverType === 'reduced_mobility') return 'accessible';
+    if (prefersEv && !prefersAccessible) return 'ev';
+    if (!prefersEv && prefersAccessible) return 'accessible';
     return 'todos';
   });
   const didUserSetSpotFilterRef = useRef(false);
@@ -154,20 +156,24 @@ export function ReservationPage() {
       setSpotFilter('accessible');
       return;
     }
-    if (driverType === 'ev') {
+    if (prefersEv && prefersAccessible) {
+      setSpotFilter('todos');
+      return;
+    }
+    if (prefersEv) {
       setSpotFilter('ev');
       return;
     }
-    if (driverType === 'reduced_mobility') {
+    if (prefersAccessible) {
       setSpotFilter('accessible');
       return;
     }
     setSpotFilter('todos');
-  }, [driverType, selectedSpotId, selectedVehicle?.isEV, selectedVehicle?.isAccessible]);
+  }, [prefersEv, prefersAccessible, selectedSpotId, selectedVehicle?.isEV, selectedVehicle?.isAccessible]);
 
   useEffect(() => {
     didUserSetSpotFilterRef.current = false;
-  }, [selectedVehicleId, driverType, selectedParkId]);
+  }, [selectedVehicleId, driverTypes, selectedParkId]);
 
   const handleSpotFilterChange = (filter: SpotFilter) => {
     didUserSetSpotFilterRef.current = true;

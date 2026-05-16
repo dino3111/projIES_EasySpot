@@ -15,8 +15,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import pt.ua.deti.apieasyspot.auth.dto.DriverTypeResponse;
 import pt.ua.deti.apieasyspot.auth.dto.DriverTypeUpdateRequest;
+import pt.ua.deti.apieasyspot.auth.model.DriverType;
 import pt.ua.deti.apieasyspot.auth.model.User;
 import pt.ua.deti.apieasyspot.auth.service.UserProfileService;
+import java.util.EnumSet;
+import java.util.Set;
 
 @Tag(name = "Auth", description = "Authenticated user profile management")
 @RestController
@@ -39,7 +42,10 @@ public class DriverTypeController {
         @AuthenticationPrincipal Jwt jwt
     ) {
         String authentikUserId = request.userId() != null ? request.userId() : jwt.getSubject();
-        User user = userProfileService.updateDriverType(authentikUserId, request.driverType());
+        Set<DriverType> effectiveTypes = request.driverTypes() != null && !request.driverTypes().isEmpty()
+            ? EnumSet.copyOf(request.driverTypes())
+            : EnumSet.of(request.driverType());
+        User user = userProfileService.updateDriverType(authentikUserId, request.driverType(), effectiveTypes);
         return ResponseEntity.ok(toResponse(user));
     }
 
@@ -49,7 +55,8 @@ public class DriverTypeController {
             user.getName(),
             user.getEmail(),
             user.getRole(),
-            user.getDriverType()
+            user.getDriverType(),
+            user.getDriverTypes()
         );
     }
 }

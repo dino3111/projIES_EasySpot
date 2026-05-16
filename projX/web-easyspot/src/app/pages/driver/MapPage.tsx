@@ -26,12 +26,14 @@ function getStatusInfo(lot: ParkingLot) {
 }
 
 export function MapPage() {
-  const { vehicles, driverType } = useProfile();
+  const { vehicles, driverTypes } = useProfile();
   const primaryVehicle = vehicles.find((v) => v.isPrimary) ?? vehicles[0] ?? null;
+  const prefersEv = driverTypes.includes('ev');
+  const prefersAccessible = driverTypes.includes('reduced_mobility');
   const initialFilter: FilterType =
-    driverType === 'ev'
+    prefersEv
       ? 'ev'
-      : driverType === 'reduced_mobility'
+      : prefersAccessible
         ? 'accessible'
         : 'all';
 
@@ -51,11 +53,15 @@ export function MapPage() {
     const vehicle = vehicles.find((v) => v.id === selectedVehicleId) ?? null;
     if (userChangedFilterRef.current) return;
     if (!userSelectedVehicleRef.current) {
-      if (driverType === 'ev') {
+      if (prefersEv && prefersAccessible) {
+        setActiveFilter('all');
+        return;
+      }
+      if (prefersEv) {
         setActiveFilter('ev');
         return;
       }
-      if (driverType === 'reduced_mobility') {
+      if (prefersAccessible) {
         setActiveFilter('accessible');
         return;
       }
@@ -63,7 +69,7 @@ export function MapPage() {
     if (vehicle?.isEV) setActiveFilter('ev');
     else if (vehicle?.isAccessible) setActiveFilter('accessible');
     else if (vehicle) setActiveFilter('all');
-  }, [selectedVehicleId, vehicles, driverType]);
+  }, [selectedVehicleId, vehicles, prefersEv, prefersAccessible]);
 
   const handleVehicleSelect = useCallback((id: string | null) => {
     userSelectedVehicleRef.current = true;

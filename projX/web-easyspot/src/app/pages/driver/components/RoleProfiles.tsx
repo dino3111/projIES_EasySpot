@@ -13,7 +13,7 @@ import { LocationPreviewMap } from '../../../components/parking/LocationPreviewM
 const DRIVER_LOCATION_ENABLED_KEY = 'easyspot_driver_location_enabled';
 
 export function DriverProfile({ profileData, onProfileUpdate }: Readonly<{ profileData: DriverProfileResponse | null; onProfileUpdate: (profile: ProfileResponse) => void }>) {
-  const { driverType, setDriverType, vehicles } = useProfile();
+  const { driverTypes, setDriverTypes, vehicles } = useProfile();
   const [activeTab, setActiveTab] = useState<'profile' | 'payments'>('profile');
   const [notifications, setNotifications] = useState(profileData?.notificationsEnabled ?? true);
   const [pushNotifications, setPushNotifications] = useState(profileData?.pushNotificationsEnabled ?? profileData?.notificationsEnabled ?? true);
@@ -35,7 +35,7 @@ export function DriverProfile({ profileData, onProfileUpdate }: Readonly<{ profi
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
 
-  const persistProfile = async (payload: { notificationsEnabled?: boolean; pushNotificationsEnabled?: boolean; emailNotificationsEnabled?: boolean; driverType?: 'regular' | 'ev' | 'reduced_mobility' | null }) => {
+  const persistProfile = async (payload: { notificationsEnabled?: boolean; pushNotificationsEnabled?: boolean; emailNotificationsEnabled?: boolean; driverType?: 'regular' | 'ev' | 'reduced_mobility' | null; driverTypes?: Array<'regular' | 'ev' | 'reduced_mobility'> }) => {
     const updated = await profileApi.update(payload);
     onProfileUpdate(updated);
   };
@@ -45,8 +45,8 @@ export function DriverProfile({ profileData, onProfileUpdate }: Readonly<{ profi
     setNotifications(profileData.notificationsEnabled);
     setPushNotifications(profileData.pushNotificationsEnabled);
     setEmailNotifications(profileData.emailNotificationsEnabled);
-    setDriverType(profileData.driverType);
-  }, [profileData, setDriverType]);
+    setDriverTypes(profileData.driverTypes && profileData.driverTypes.length > 0 ? profileData.driverTypes : [profileData.driverType ?? 'regular']);
+  }, [profileData, setDriverTypes]);
 
   const loadPaymentMethods = async () => {
     setLoadingPayments(true);
@@ -172,14 +172,14 @@ export function DriverProfile({ profileData, onProfileUpdate }: Readonly<{ profi
       </div>
 
       <SectionHeader icon="fa-id-card" title="Tipo de Condutor" />
-      <div className="rounded-2xl p-4 mb-5 bg-card border border-border" role="radiogroup" aria-label="Selecionar tipo de condutor">
+      <div className="rounded-2xl p-4 mb-5 bg-card border border-border" role="group" aria-label="Selecionar perfis de condutor">
         <p className="text-muted-foreground mb-3" style={{ fontSize: '0.78rem' }}>
-          Selecione o seu perfil para personalizar os filtros e recomendações.
+          Selecione um ou mais perfis para personalizar filtros e recomendações.
         </p>
         <div className="space-y-2.5">
-          <UserTypeOption id="condutor"  icon="fa-car"              label="Condutor Regular"          desc="Estacionamento convencional, precos e distancia"      selected={driverType === 'regular' || driverType === null} onChange={() => { setDriverType('regular'); void persistProfile({ driverType: 'regular' }); }} />
-          <UserTypeOption id="ev"        icon="fa-charging-station" label="Condutor Veiculo Eletrico"  desc="Prioridade a lugares com carregadores EV"             selected={driverType === 'ev'}                             onChange={() => { setDriverType('ev'); void persistProfile({ driverType: 'ev' }); }} />
-          <UserTypeOption id="acessivel" icon="fa-wheelchair"       label="Mobilidade Reduzida"        desc="Filtros para lugares acessiveis e monitorizados"      selected={driverType === 'reduced_mobility'}               onChange={() => { setDriverType('reduced_mobility'); void persistProfile({ driverType: 'reduced_mobility' }); }} />
+          <UserTypeOption id="condutor"  icon="fa-car"              label="Condutor Regular"          desc="Estacionamento convencional, precos e distancia"      selected={driverTypes.includes('regular')} onChange={() => { const next: Array<'regular' | 'ev' | 'reduced_mobility'> = ['regular']; setDriverTypes(next); void persistProfile({ driverTypes: next }); }} />
+          <UserTypeOption id="ev"        icon="fa-charging-station" label="Condutor Veiculo Eletrico"  desc="Prioridade a lugares com carregadores EV"             selected={driverTypes.includes('ev')} onChange={() => { const base = driverTypes.filter((d) => d !== 'regular'); const next: Array<'regular' | 'ev' | 'reduced_mobility'> = base.includes('ev') ? (base.filter((d) => d !== 'ev') as Array<'regular' | 'ev' | 'reduced_mobility'>) : ([...base, 'ev'] as Array<'regular' | 'ev' | 'reduced_mobility'>); const normalized = next.length > 0 ? next : ['regular']; setDriverTypes(normalized); void persistProfile({ driverTypes: normalized }); }} />
+          <UserTypeOption id="acessivel" icon="fa-wheelchair"       label="Mobilidade Reduzida"        desc="Filtros para lugares acessiveis e monitorizados"      selected={driverTypes.includes('reduced_mobility')} onChange={() => { const base = driverTypes.filter((d) => d !== 'regular'); const next: Array<'regular' | 'ev' | 'reduced_mobility'> = base.includes('reduced_mobility') ? (base.filter((d) => d !== 'reduced_mobility') as Array<'regular' | 'ev' | 'reduced_mobility'>) : ([...base, 'reduced_mobility'] as Array<'regular' | 'ev' | 'reduced_mobility'>); const normalized = next.length > 0 ? next : ['regular']; setDriverTypes(normalized); void persistProfile({ driverTypes: normalized }); }} />
         </div>
       </div>
 

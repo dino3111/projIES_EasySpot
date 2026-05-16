@@ -8,6 +8,8 @@ import pt.ua.deti.apieasyspot.auth.model.User;
 import pt.ua.deti.apieasyspot.auth.model.UserRole;
 import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
 import pt.ua.deti.apieasyspot.common.exception.ResourceNotFoundException;
+import java.util.EnumSet;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -15,9 +17,13 @@ public class UserProfileService {
     private final UserRepository userRepository;
 
     @Transactional
-    public User updateDriverType(String authentikUserId, DriverType driverType) {
+    public User updateDriverType(String authentikUserId, DriverType driverType, Set<DriverType> driverTypes) {
         User user = findUser(authentikUserId);
+        Set<DriverType> effectiveTypes = driverTypes != null && !driverTypes.isEmpty()
+            ? EnumSet.copyOf(driverTypes)
+            : EnumSet.of(driverType);
         user.setDriverType(driverType);
+        user.setDriverTypes(effectiveTypes);
         return userRepository.save(user);
     }
 

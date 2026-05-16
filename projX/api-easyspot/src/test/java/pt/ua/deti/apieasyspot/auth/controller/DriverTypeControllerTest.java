@@ -17,6 +17,7 @@ import pt.ua.deti.apieasyspot.auth.service.UserProfileService;
 import pt.ua.deti.apieasyspot.common.exception.ResourceNotFoundException;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -87,7 +88,7 @@ class DriverTypeControllerTest {
     @Test
     @DisplayName("POST /api/driver/type - user not found - returns 404")
     void updateDriverTypeUserNotFound() throws Exception {
-        when(userProfileService.updateDriverType(eq("missing-subject"), any()))
+        when(userProfileService.updateDriverType(eq("missing-subject"), any(), any()))
             .thenThrow(new ResourceNotFoundException("User not found: missing-subject"));
 
         mockMvc.perform(post("/api/driver/type")
@@ -100,7 +101,7 @@ class DriverTypeControllerTest {
     @Test
     @DisplayName("POST /api/driver/type - success - returns 200 with profile excerpt")
     void updateDriverTypeSuccess() throws Exception {
-        when(userProfileService.updateDriverType(EXISTING_AUTHENTIK_ID, DriverType.REDUCED_MOBILITY))
+        when(userProfileService.updateDriverType(EXISTING_AUTHENTIK_ID, DriverType.REDUCED_MOBILITY, Set.of(DriverType.REDUCED_MOBILITY)))
             .thenReturn(buildUser(DriverType.REDUCED_MOBILITY));
 
         mockMvc.perform(post("/api/driver/type")
@@ -109,6 +110,7 @@ class DriverTypeControllerTest {
                 .content("{\"driverType\":\"reduced_mobility\"}"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.driverType").value("reduced_mobility"))
+            .andExpect(jsonPath("$.driverTypes[0]").value("reduced_mobility"))
             .andExpect(jsonPath("$.email").value("driver@test.com"))
             .andExpect(jsonPath("$.name").value("Test Driver"))
             .andExpect(jsonPath("$.role").value("DRIVER"));
@@ -118,7 +120,7 @@ class DriverTypeControllerTest {
     @DisplayName("POST /api/driver/type - explicit userId in body - uses it over JWT subject")
     void updateDriverTypeExplicitUserId() throws Exception {
         String explicitUserId = "explicit-user-id";
-        when(userProfileService.updateDriverType(explicitUserId, DriverType.EV))
+        when(userProfileService.updateDriverType(explicitUserId, DriverType.EV, Set.of(DriverType.EV)))
             .thenReturn(buildUser(DriverType.EV));
 
         mockMvc.perform(post("/api/driver/type")
@@ -126,7 +128,8 @@ class DriverTypeControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"driverType\":\"ev\",\"userId\":\"" + explicitUserId + "\"}"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.driverType").value("ev"));
+            .andExpect(jsonPath("$.driverType").value("ev"))
+            .andExpect(jsonPath("$.driverTypes[0]").value("ev"));
     }
 
     private User buildUser(DriverType driverType) {
@@ -137,6 +140,7 @@ class DriverTypeControllerTest {
         user.setName("Test Driver");
         user.setRole("DRIVER");
         user.setDriverType(driverType);
+        user.setDriverTypes(Set.of(driverType));
         return user;
     }
 }

@@ -3,7 +3,7 @@ import { fetchVehicles } from '../services/vehiclesApi';
 import { useAuth } from './AuthContext';
 
 export type AppProfile = 'DRIVER' | 'MANAGER' | 'TECHNICAL';
-export type DriverType = 'regular' | 'ev' | 'reduced_mobility' | null;
+export type DriverType = 'regular' | 'ev' | 'reduced_mobility';
 
 export interface Vehicle {
   id: string;
@@ -30,8 +30,10 @@ interface ProfileContextType {
   setProfile: (p: AppProfile) => void;
   accountType: AppProfile;
   setAccountType: (a: AppProfile) => void;
-  driverType: DriverType;
-  setDriverType: (d: DriverType) => void;
+  driverType: DriverType | null;
+  driverTypes: DriverType[];
+  setDriverType: (d: DriverType | null) => void;
+  setDriverTypes: (d: DriverType[]) => void;
   vehicles: Vehicle[];
   addVehicle: (v: Vehicle) => void;
   updateVehicle: (id: string, updates: Partial<Vehicle>) => void;
@@ -79,7 +81,20 @@ export function ProfileProvider({ children }: { readonly children: ReactNode }) 
     const stored = localStorage.getItem(STORAGE_KEYS.driverType);
     if (stored === 'regular' || stored === 'ev' || stored === 'reduced_mobility') return stored;
     if (stored === 'mobilidade_reduzida') return 'reduced_mobility';
-    return null;
+    return 'regular';
+  });
+  const [driverTypes, setDriverTypes] = useState<DriverType[]>(() => {
+    const stored = localStorage.getItem(STORAGE_KEYS.driverType);
+    if (!stored) return ['regular'];
+    try {
+      const parsed = JSON.parse(stored) as string[];
+      const normalized = parsed.filter((t): t is DriverType => t === 'regular' || t === 'ev' || t === 'reduced_mobility');
+      return normalized.length > 0 ? Array.from(new Set(normalized)) : ['regular'];
+    } catch {
+      if (stored === 'regular' || stored === 'ev' || stored === 'reduced_mobility') return [stored];
+      if (stored === 'mobilidade_reduzida') return ['reduced_mobility'];
+      return ['regular'];
+    }
   });
 
   const [vehicles, setVehicles] = useState<Vehicle[]>(() =>
@@ -141,13 +156,23 @@ export function ProfileProvider({ children }: { readonly children: ReactNode }) 
     localStorage.setItem(STORAGE_KEYS.profile, a);
   };
 
-  const handleDriverTypeChange = (d: DriverType) => {
-    setDriverType(d);
-    if (d) {
-      localStorage.setItem(STORAGE_KEYS.driverType, d);
-    } else {
-      localStorage.removeItem(STORAGE_KEYS.driverType);
+  const persistDriverTypes = (types: DriverType[]) => {
+    const normalized = types.length > 0 ? Array.from(new Set(types)) : ['regular'];
+    setDriverTypes(normalized);
+    setDriverType(normalized[0] ?? null);
+    localStorage.setItem(STORAGE_KEYS.driverType, JSON.stringify(normalized));
+  };
+
+  const handleDriverTypeChange = (d: DriverType | null) => {
+    if (!d) {
+      persistDriverTypes(['regular']);
+      return;
     }
+    persistDriverTypes([d]);
+  };
+
+  const handleDriverTypesChange = (types: DriverType[]) => {
+    persistDriverTypes(types);
   };
 
   const persistVehicles = (next: Vehicle[]) => {
@@ -196,7 +221,9 @@ export function ProfileProvider({ children }: { readonly children: ReactNode }) 
     accountType,
     setAccountType: handleAccountTypeChange,
     driverType,
+    driverTypes,
     setDriverType: handleDriverTypeChange,
+    setDriverTypes: handleDriverTypesChange,
     vehicles,
     addVehicle,
     updateVehicle,
@@ -206,7 +233,7 @@ export function ProfileProvider({ children }: { readonly children: ReactNode }) 
     setManagerParks: handleManagerParksChange,
     addManagerPark,
     removeManagerPark,
-  }), [profile, accountType, driverType, vehicles, managerParks]);
+  }), [profile, accountType, driverType, driverTypes, vehicles, managerParks]);
 
   return (
     <ProfileContext.Provider value={contextValue}>
