@@ -45,8 +45,13 @@ export function DriverProfile({ profileData, onProfileUpdate }: Readonly<{ profi
     setNotifications(profileData.notificationsEnabled);
     setPushNotifications(profileData.pushNotificationsEnabled);
     setEmailNotifications(profileData.emailNotificationsEnabled);
-    setDriverTypes(profileData.driverTypes && profileData.driverTypes.length > 0 ? profileData.driverTypes : [profileData.driverType ?? 'regular']);
-  }, [profileData, setDriverTypes]);
+    const nextDriverTypes = profileData.driverTypes && profileData.driverTypes.length > 0 ? profileData.driverTypes : [profileData.driverType ?? 'regular'];
+    const isSame = nextDriverTypes.length === driverTypes.length
+      && nextDriverTypes.every((value, index) => value === driverTypes[index]);
+    if (!isSame) {
+      setDriverTypes(nextDriverTypes);
+    }
+  }, [profileData, driverTypes, setDriverTypes]);
 
   const loadPaymentMethods = async () => {
     setLoadingPayments(true);

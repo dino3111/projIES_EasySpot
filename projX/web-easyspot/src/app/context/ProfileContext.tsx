@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { fetchVehicles } from '../services/vehiclesApi';
 import { useAuth } from './AuthContext';
 
@@ -54,6 +54,11 @@ const STORAGE_KEYS = {
 } as const;
 
 const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
+
+function sameDriverTypes(a: DriverType[], b: DriverType[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((value, index) => value === b[index]);
+}
 
 function readJSON<T>(key: string, fallback: T): T {
   try {
@@ -156,24 +161,25 @@ export function ProfileProvider({ children }: { readonly children: ReactNode }) 
     localStorage.setItem(STORAGE_KEYS.profile, a);
   };
 
-  const persistDriverTypes = (types: DriverType[]) => {
+  const persistDriverTypes = useCallback((types: DriverType[]) => {
     const normalized = types.length > 0 ? Array.from(new Set(types)) : ['regular'];
-    setDriverTypes(normalized);
-    setDriverType(normalized[0] ?? null);
+    const nextPrimary = normalized[0] ?? null;
+    setDriverTypes((prev) => (sameDriverTypes(prev, normalized) ? prev : normalized));
+    setDriverType((prev) => (prev === nextPrimary ? prev : nextPrimary));
     localStorage.setItem(STORAGE_KEYS.driverType, JSON.stringify(normalized));
-  };
+  }, []);
 
-  const handleDriverTypeChange = (d: DriverType | null) => {
+  const handleDriverTypeChange = useCallback((d: DriverType | null) => {
     if (!d) {
       persistDriverTypes(['regular']);
       return;
     }
     persistDriverTypes([d]);
-  };
+  }, [persistDriverTypes]);
 
-  const handleDriverTypesChange = (types: DriverType[]) => {
+  const handleDriverTypesChange = useCallback((types: DriverType[]) => {
     persistDriverTypes(types);
-  };
+  }, [persistDriverTypes]);
 
   const persistVehicles = (next: Vehicle[]) => {
     setVehicles(next);
