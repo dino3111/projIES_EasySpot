@@ -299,6 +299,8 @@ export function ReservationPage() {
                 exitTime={exitTime} setExitTime={setExitTime}
                 vehicles={vehicles} selectedVehicleId={selectedVehicleId} setSelectedVehicleId={setSelectedVehicleId}
                 parks={parks}
+                autoFilterEV={selectedVehicle?.isEV ?? prefersEv}
+                autoFilterAccessible={selectedVehicle?.isAccessible ?? prefersAccessible}
                 onNext={() => { setLotRefreshKey(k => k + 1); setStep(2); }}
               />
             )}

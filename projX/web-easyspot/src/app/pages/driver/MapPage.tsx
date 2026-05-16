@@ -7,11 +7,12 @@ import { ParkPanel } from './components/ParkPanel';
 import { fetchParkDetails, fetchParksList } from '../../services/parksApi';
 import { subscribeSpaceAvailableAlerts } from '../../services/parksApi';
 
-type FilterType = 'all' | 'ev' | 'accessible' | 'available';
+type FilterType = 'all' | 'ev' | 'accessible' | 'both' | 'available';
 
 const FILTERS: { id: FilterType; icon: string; label: string }[] = [
   { id: 'all',       icon: 'fa-layer-group',      label: 'Todos' },
   { id: 'available', icon: 'fa-circle-check',     label: 'Livres' },
+  { id: 'both',      icon: 'fa-filter',            label: 'EV + Acessível' },
   { id: 'ev',        icon: 'fa-charging-station', label: 'EV' },
   { id: 'accessible', icon: 'fa-wheelchair',      label: 'Acessível' },
 ];
@@ -31,7 +32,9 @@ export function MapPage() {
   const prefersEv = driverTypes.includes('ev');
   const prefersAccessible = driverTypes.includes('reduced_mobility');
   const initialFilter: FilterType =
-    prefersEv
+    prefersEv && prefersAccessible
+      ? 'both'
+      : prefersEv
       ? 'ev'
       : prefersAccessible
         ? 'accessible'
@@ -54,7 +57,7 @@ export function MapPage() {
     if (userChangedFilterRef.current) return;
     if (!userSelectedVehicleRef.current) {
       if (prefersEv && prefersAccessible) {
-        setActiveFilter('all');
+        setActiveFilter('both');
         return;
       }
       if (prefersEv) {
@@ -87,14 +90,14 @@ export function MapPage() {
     const load = async () => {
       try {
         setLoading(true);
-        const shouldUseVehicleCompatibility = activeFilter === 'ev' || activeFilter === 'accessible';
+        const shouldUseVehicleCompatibility = activeFilter === 'ev' || activeFilter === 'accessible' || activeFilter === 'both';
         const data = await fetchParksList({
           page: 1,
           pageSize: 200,
           textQuery: searchQuery || undefined,
           vehicleId: shouldUseVehicleCompatibility ? selectedVehicleId : null,
-          evOnly: activeFilter === 'ev',
-          accessibleOnly: activeFilter === 'accessible',
+          evOnly: activeFilter === 'ev' || activeFilter === 'both',
+          accessibleOnly: activeFilter === 'accessible' || activeFilter === 'both',
           availableOnly: activeFilter === 'available',
         });
         if (mounted) setParkingLots(data.items);
