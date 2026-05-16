@@ -17,6 +17,7 @@ on:
       - '**/Dockerfile'
       - '**/*.dockerfile'
       - 'projX/api-easyspot/**'
+      - 'projX/sensors/**'
       - 'projX/web-easyspot/**'
       - 'projX/pom.xml'
   pull_request:
@@ -96,6 +97,30 @@ jobs:
             projX/api-easyspot/target/failsafe-reports/
             projX/api-easyspot/target/site/jacoco/
           retention-days: 30
+
+  test-sensors-python:
+    name: Sensors tests (Python)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install sensors dependencies
+        run: |
+          cd projX/sensors
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run sensors tests
+        run: |
+          cd projX/sensors
+          python -m unittest discover -s tests -v
 
   test-newman:
     name: Backend Newman validation

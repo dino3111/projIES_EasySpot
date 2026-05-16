@@ -81,6 +81,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/test/token").permitAll()
                 .requestMatchers("/api/stripe/webhook").permitAll()
                 .requestMatchers("/api/parks/list", "/api/parks/*/details", "/api/parks/cities").permitAll()
+                .requestMatchers("/api/technician/sensors/context").permitAll()
                 .requestMatchers("/api/test/**").authenticated()
                 .anyRequest().authenticated());
 

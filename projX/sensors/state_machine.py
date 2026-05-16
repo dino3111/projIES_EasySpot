@@ -16,7 +16,7 @@ class SpotStateMachine:
             if roll < 0.72:
                 return "free", "stable_free"
             if roll < 0.92:
-                return "occupies", "vehicle_entered"
+                return "occupied", "vehicle_entered"
             if roll < 0.97:
                 return "reserved", "reservation_started"
             return "out_of_service", "temporary_failure"

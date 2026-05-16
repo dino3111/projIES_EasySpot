@@ -22,10 +22,20 @@ import pt.ua.deti.apieasyspot.sensor.model.SensorRegistry;
 import pt.ua.deti.apieasyspot.sensor.model.SensorStatus;
 import pt.ua.deti.apieasyspot.sensor.repository.SensorRegistryRepository;
 import pt.ua.deti.apieasyspot.notification.repository.TimescaleAlertRepository;
+import pt.ua.deti.apieasyspot.occupancy.model.ParkingSpot;
+import pt.ua.deti.apieasyspot.occupancy.model.ZoneType;
+import pt.ua.deti.apieasyspot.occupancy.repository.ParkingSpotRepository;
+import pt.ua.deti.apieasyspot.auth.model.User;
+import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
+import pt.ua.deti.apieasyspot.vehicle.model.Vehicle;
+import pt.ua.deti.apieasyspot.vehicle.repository.VehicleRepository;
+import pt.ua.deti.apieasyspot.booking.model.Reservation;
+import pt.ua.deti.apieasyspot.booking.model.ReservationStatus;
+import pt.ua.deti.apieasyspot.booking.repository.ReservationRepository;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import org.springframework.http.MediaType;
-import pt.ua.deti.apieasyspot.sensor.model.SensorStatus;
 
 import static pt.ua.deti.apieasyspot.support.TestJwtRequests.jwtWithRole;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -36,12 +46,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @ActiveProfiles("test")
+@org.springframework.test.context.TestPropertySource(properties = "simulation.service-token=test-sensors-token")
 @Import({TestcontainersConfiguration.class, TestTimescaleDataSourceConfig.class})
 class SensorLogsControllerIT {
 
     @Autowired WebApplicationContext wac;
     @Autowired ParkingLotRepository parkingLotRepository;
     @Autowired SensorRegistryRepository sensorRegistryRepository;
+    @Autowired ParkingSpotRepository parkingSpotRepository;
+    @Autowired UserRepository userRepository;
+    @Autowired VehicleRepository vehicleRepository;
+    @Autowired ReservationRepository reservationRepository;
     @Autowired TimescaleAlertRepository alertRepository;
     @Autowired @Qualifier("timescaleJdbcTemplate") JdbcTemplate timescaleJdbc;
     @MockitoBean JwtDecoder jwtDecoder;
@@ -55,6 +70,10 @@ class SensorLogsControllerIT {
         mockMvc = MockMvcBuilders.webAppContextSetup(wac).apply(springSecurity()).build();
 
         timescaleJdbc.update("DELETE FROM alerts WHERE sensor_id IN ('IR-IT-01','IR-IT-02')");
+        reservationRepository.deleteAll();
+        vehicleRepository.deleteAll();
+        userRepository.deleteAll();
+        parkingSpotRepository.deleteAll();
         sensorRegistryRepository.findById("IR-IT-01").ifPresent(s -> sensorRegistryRepository.delete(s));
         sensorRegistryRepository.findById("IR-IT-02").ifPresent(s -> sensorRegistryRepository.delete(s));
 
@@ -84,6 +103,46 @@ class SensorLogsControllerIT {
         sensor2.setLastSeenAt(LocalDateTime.now().minusMinutes(5));
         sensor2.setCreatedAt(LocalDateTime.now().minusDays(30));
         sensorRegistryRepository.save(sensor2);
+
+        User user = new User();
+        user.setAuthentikUserId("sub-driver");
+        user.setEmail("driver.context@easyspot.test");
+        user.setName("Driver Context");
+        user.setRole("DRIVER");
+        user = userRepository.save(user);
+
+        Vehicle vehicle = new Vehicle();
+        vehicle.setUser(user);
+        vehicle.setPlate("11-AA-11");
+        vehicle.setMake("Test");
+        vehicle.setModel("Model");
+        vehicle.setYear(2022);
+        vehicle.setFuelType("electric");
+        vehicle.setEv(true);
+        vehicle.setAccessible(false);
+        vehicle.setPrimary(true);
+        vehicle = vehicleRepository.save(vehicle);
+
+        ParkingSpot spot = new ParkingSpot();
+        spot.setParkingLot(lot);
+        spot.setSpotNumber("A01");
+        spot.setZone(ZoneType.ACCESSIBLE);
+        spot.setSpotRow(0);
+        spot.setSpotCol(0);
+        spot.setStatus("reserved");
+        spot = parkingSpotRepository.save(spot);
+
+        Reservation reservation = new Reservation();
+        reservation.setUser(user);
+        reservation.setParkingLot(lot);
+        reservation.setParkingSpot(spot);
+        reservation.setVehicle(vehicle);
+        reservation.setStatus(ReservationStatus.CONFIRMED);
+        reservation.setArrivalTime(OffsetDateTime.now().minusMinutes(10));
+        reservation.setDepartureTime(OffsetDateTime.now().plusHours(2));
+        reservation.setLockedUntil(OffsetDateTime.now().plusMinutes(20));
+        reservation.setBookingCode("BK-CONTEXT-01");
+        reservationRepository.save(reservation);
 
         timescaleJdbc.update("""
             INSERT INTO alerts (id, parking_lot_id, parking_lot_name, type, severity, state,
@@ -142,6 +201,52 @@ class SensorLogsControllerIT {
         mockMvc.perform(get("/api/technician/sensors/IR-IT-01/logs")
                 .with(jwtWithRole("sub-driver", "DRIVER")))
             .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("GET /api/technician/sensors/context - unauthenticated - returns 401")
+    void context_unauthenticated_returns401() throws Exception {
+        mockMvc.perform(get("/api/technician/sensors/context"))
+            .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("GET /api/technician/sensors/context - DRIVER role - returns 403")
+    void context_driverRole_returns403() throws Exception {
+        mockMvc.perform(get("/api/technician/sensors/context")
+                .with(jwtWithRole("sub-driver", "DRIVER")))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("GET /api/technician/sensors/context - MANAGER role - returns 200 with only real entities")
+    void context_managerRole_returnsSnapshot() throws Exception {
+        mockMvc.perform(get("/api/technician/sensors/context")
+                .with(jwtWithRole("sub-manager", "MANAGER")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.version").value(1))
+            .andExpect(jsonPath("$.generatedAt").exists())
+            .andExpect(jsonPath("$.parkingLots").isArray())
+            .andExpect(jsonPath("$.parkingLots[0].id").exists())
+            .andExpect(jsonPath("$.parkingSpots[?(@.spotNumber == 'A01')]").isArray())
+            .andExpect(jsonPath("$.sensors[?(@.sensorId == 'IR-IT-01')]").isArray())
+            .andExpect(jsonPath("$.users[?(@.authentikUserId == 'sub-driver')]").isArray())
+            .andExpect(jsonPath("$.vehicles[?(@.plate == '11-AA-11')]").isArray())
+            .andExpect(jsonPath("$.activeReservations").isArray())
+            .andExpect(jsonPath("$.activeReservations.length()").value(1))
+            .andExpect(jsonPath("$.activeReservations[0].parkingSpotId").exists())
+            .andExpect(jsonPath("$.activeReservations[0].status").value("CONFIRMED"));
+    }
+
+    @Test
+    @DisplayName("GET /api/technician/sensors/context - service token header - returns 200")
+    void context_serviceToken_returnsSnapshot() throws Exception {
+        mockMvc.perform(get("/api/technician/sensors/context")
+                .header("X-Simulation-Token", "test-sensors-token"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.version").value(1))
+            .andExpect(jsonPath("$.parkingSpots").isArray())
+            .andExpect(jsonPath("$.sensors").isArray());
     }
 
     // ── Happy path ────────────────────────────────────────────────────────────

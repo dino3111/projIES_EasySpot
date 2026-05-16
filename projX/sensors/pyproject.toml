@@ -3,6 +3,6 @@ name = "sensors"
 version = "0.1.0"
 requires-python = ">=3.14"
 dependencies = [
-    "kafka-python==2.0.2",
+    "kafka-python==2.2.15",
     "requests==2.32.3",
 ]

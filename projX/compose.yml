@@ -198,6 +198,7 @@ services:
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
       AUTHENTIK_API_URL: http://authentik-server:9000/authentik
       AUTHENTIK_TOKEN: ${AUTHENTIK_TOKEN:-}
+      SIMULATION_SERVICE_TOKEN: ${SIMULATION_SERVICE_TOKEN:-dev-sensors-token}
       MAIL_HOST: ${MAIL_HOST:-smtp.mailtrap.io}
       MAIL_PORT: ${MAIL_PORT:-587}
       MAIL_USERNAME: ${MAIL_USERNAME:-}
@@ -214,6 +215,25 @@ services:
         condition: service_healthy
       authentik-server:
         condition: service_started
+
+  sensors:
+    build:
+      context: ./sensors
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      BACKEND_BASE_URL: http://api:8080
+      SENSOR_CONTEXT_ENDPOINT: /api/technician/sensors/context
+      SIMULATION_SERVICE_TOKEN: ${SIMULATION_SERVICE_TOKEN:-dev-sensors-token}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_TOPIC: parking-spot-events
+      SIMULATION_INTERVAL_SECONDS: ${SIMULATION_INTERVAL_SECONDS:-0}
+      SIMULATION_SEED: ${SIMULATION_SEED:-42}
+    depends_on:
+      api:
+        condition: service_started
+      kafka:
+        condition: service_healthy
 
   scraper-vehicle:
     build:

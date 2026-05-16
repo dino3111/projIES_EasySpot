@@ -9,6 +9,8 @@ from state_machine import SpotStateMachine
 
 def run():
     spots = load_spots()
+    if not spots:
+        raise RuntimeError("No parking spots returned by backend context endpoint")
     publisher = KafkaPublisher()
     machine = SpotStateMachine(seed=SIMULATION_SEED)
 
@@ -37,7 +39,8 @@ def run():
                 publisher.publish(KAFKA_TOPIC, spot_id, event)
 
         publisher.flush()
-        time.sleep(SIMULATION_INTERVAL_SECONDS)
+        if SIMULATION_INTERVAL_SECONDS > 0:
+            time.sleep(SIMULATION_INTERVAL_SECONDS)
 
 
 def normalize_initial_status(status, zone):
