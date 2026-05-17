@@ -2,6 +2,7 @@ import random
 import string
 import uuid
 from datetime import datetime, timezone
+from typing import Dict, List, Optional, Tuple
 
 
 def now_iso():
@@ -40,8 +41,8 @@ def _random_pt_plate(rng: random.Random) -> str:
 
 
 def build_ocr_event(
-    spot: dict, event_direction: str, plate: str, confidence: float
-) -> dict:
+    spot: Dict, event_direction: str, plate: str, confidence: float
+) -> Dict:
     """
     Build an OCR camera read event for entry or exit at a parking lot gate.
 
@@ -72,16 +73,26 @@ class OcrEventGenerator:
     """Stateful generator: tracks which plates are inside each park to produce
     consistent entry/exit sequences."""
 
-    def __init__(self, spots: list[dict], seed: int = 42):
+    def __init__(
+        self,
+        spots: List[Dict],
+        seed: int = 42,
+        registered_plates: Optional[List[str]] = None,
+    ):
         self.spots = spots
         self.rng = random.Random(seed)
         # plate -> spotId of where the vehicle currently is (None = outside)
-        self._parked: dict[str, str] = {}
-        self._plate_pool: list[str] = [
-            _random_pt_plate(self.rng) for _ in range(max(len(spots) * 2, 30))
-        ]
+        self._parked: Dict[str, str] = {}
+        if registered_plates is None:
+            self._plate_pool = [
+                _random_pt_plate(self.rng) for _ in range(max(len(spots) * 2, 30))
+            ]
+        else:
+            self._plate_pool = [
+                p.strip().upper() for p in registered_plates if p and p.strip()
+            ]
 
-    def next_events(self) -> list[tuple[dict, str]]:
+    def next_events(self) -> List[Tuple[Dict, str]]:
         """Return a list of (event, spot_id) tuples for this simulation tick."""
         events = []
         for spot in self.rng.sample(self.spots, k=max(1, len(self.spots) // 4)):
@@ -107,17 +118,15 @@ class OcrEventGenerator:
 
         return events
 
-    def _plate_currently_at(self, spot_id: str) -> str | None:
+    def _plate_currently_at(self, spot_id: str) -> Optional[str]:
         for plate, sid in self._parked.items():
             if sid == spot_id:
                 return plate
         return None
 
-    def _pick_free_plate(self) -> str | None:
+    def _pick_free_plate(self) -> Optional[str]:
         parked = set(self._parked.keys())
         free = [p for p in self._plate_pool if p not in parked]
         if not free:
-            new_plate = _random_pt_plate(self.rng)
-            self._plate_pool.append(new_plate)
-            return new_plate
+            return None
         return self.rng.choice(free)

@@ -141,8 +141,8 @@ public class TimescaleHypertableInitializer implements ApplicationRunner {
         boolean occupancyHypertable = createHypertable("occupancy_snapshots", "recorded_at");
         boolean parkingSessionsHypertable = createHypertable("parking_sessions", "entry_time");
         boolean alertsHypertable = createHypertable("alerts", "created_at");
-        createHypertable("ocr_plate_reads", "occurred_at");
-        if (!occupancyHypertable || !parkingSessionsHypertable || !alertsHypertable) {
+        boolean ocrReadsHypertable = createHypertable("ocr_plate_reads", "occurred_at");
+        if (!occupancyHypertable || !parkingSessionsHypertable || !alertsHypertable || !ocrReadsHypertable) {
             throw new IllegalStateException("One or more Timescale tables could not be converted to hypertables.");
         }
         log.info("TimescaleDB hypertables ready.");

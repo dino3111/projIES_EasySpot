@@ -91,12 +91,18 @@ class OcrEventGeneratorTests(unittest.TestCase):
         ]
 
     def test_next_events_returns_list(self):
-        gen = OcrEventGenerator(self._spots(), seed=42)
+        gen = OcrEventGenerator(
+            self._spots(), seed=42, registered_plates=["AA-00-00", "BB-11-11"]
+        )
         events = gen.next_events()
         self.assertIsInstance(events, list)
 
     def test_events_have_valid_direction(self):
-        gen = OcrEventGenerator(self._spots(10), seed=7)
+        gen = OcrEventGenerator(
+            self._spots(10),
+            seed=7,
+            registered_plates=["AA-00-00", "BB-11-11", "CC-22-22", "DD-33-33"],
+        )
         for _ in range(20):
             for event, _ in gen.next_events():
                 direction = event["payload"]["direction"]
@@ -104,7 +110,11 @@ class OcrEventGeneratorTests(unittest.TestCase):
 
     def test_entry_before_exit_consistency(self):
         """A plate that exited must have entered first — no exit without prior entry."""
-        gen = OcrEventGenerator(self._spots(10), seed=99)
+        gen = OcrEventGenerator(
+            self._spots(10),
+            seed=99,
+            registered_plates=["AA-00-00", "BB-11-11", "CC-22-22", "DD-33-33"],
+        )
         seen_entry = set()
         for _ in range(100):
             for event, _ in gen.next_events():
@@ -120,16 +130,46 @@ class OcrEventGeneratorTests(unittest.TestCase):
                     seen_entry.add(plate)
 
     def test_multiple_ticks_produce_events(self):
-        gen = OcrEventGenerator(self._spots(20), seed=1)
+        gen = OcrEventGenerator(
+            self._spots(20),
+            seed=1,
+            registered_plates=[
+                "AA-00-00",
+                "BB-11-11",
+                "CC-22-22",
+                "DD-33-33",
+                "EE-44-44",
+            ],
+        )
         total = sum(len(gen.next_events()) for _ in range(50))
         self.assertGreater(total, 0)
 
     def test_generator_supports_multiple_vehicles_simultaneously(self):
         """Multiple vehicles can be parked at the same time."""
-        gen = OcrEventGenerator(self._spots(20), seed=5)
+        gen = OcrEventGenerator(
+            self._spots(20),
+            seed=5,
+            registered_plates=[
+                "AA-00-00",
+                "BB-11-11",
+                "CC-22-22",
+                "DD-33-33",
+                "EE-44-44",
+                "FF-55-55",
+            ],
+        )
         for _ in range(30):
             gen.next_events()
         self.assertGreater(len(gen._parked), 0)
+
+    def test_generator_uses_only_registered_plates(self):
+        plates = ["AA-00-00", "BB-11-11", "CC-22-22"]
+        gen = OcrEventGenerator(self._spots(10), seed=11, registered_plates=plates)
+        seen = set()
+        for _ in range(80):
+            for event, _ in gen.next_events():
+                seen.add(event["payload"]["plate"])
+        self.assertTrue(seen.issubset(set(plates)))
 
 
 if __name__ == "__main__":

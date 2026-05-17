@@ -1,7 +1,7 @@
 import time
 
 from config import KAFKA_TOPIC_OCR, SIMULATION_INTERVAL_SECONDS, SIMULATION_SEED
-from context_loader import load_spots
+from context_loader import load_spots, load_vehicle_plates
 from kafka_publisher import KafkaPublisher
 from ocr_event_builder import OcrEventGenerator
 
@@ -10,11 +10,22 @@ def run_ocr():
     spots = load_spots()
     if not spots:
         raise RuntimeError("No parking spots returned by backend context endpoint")
+    plates = load_vehicle_plates()
+    if not plates:
+        raise RuntimeError(
+            "No registered vehicles returned by backend context endpoint; "
+            "OCR simulation requires real registered plates"
+        )
 
     publisher = KafkaPublisher()
-    generator = OcrEventGenerator(spots=spots, seed=SIMULATION_SEED)
+    generator = OcrEventGenerator(
+        spots=spots, seed=SIMULATION_SEED, registered_plates=plates
+    )
 
-    print(f"[ocr] Loaded {len(spots)} spots for OCR simulation")
+    print(
+        f"[ocr] Loaded {len(spots)} spots and {len(plates)} "
+        "registered plates for OCR simulation"
+    )
 
     while True:
         for event, spot_id in generator.next_events():

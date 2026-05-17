@@ -9,6 +9,8 @@ import pt.ua.deti.apieasyspot.ocr.dto.OcrPlateEvent;
 import pt.ua.deti.apieasyspot.ocr.model.OcrPlateRead;
 import pt.ua.deti.apieasyspot.ocr.repository.OcrPlateReadRepository;
 
+import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
@@ -20,7 +22,7 @@ public class OcrPlateEventKafkaListener {
     private final OcrPlateReadRepository repository;
 
     @KafkaListener(
-        topics = {"parking-ocr-events"},
+        topics = {"${easyspot.ocr.kafka.topic:parking-ocr-events}"},
         groupId = "${easyspot.ocr.kafka.group-id:easyspot-ocr}"
     )
     public void onEvent(String payload) {
@@ -50,8 +52,9 @@ public class OcrPlateEventKafkaListener {
             read.setSpotId(event.spotId());
             read.setPlate(p.plate().toUpperCase());
             read.setConfidence(p.confidence() != null ? p.confidence() : 0.0);
-            read.setDirection(p.direction());
-            read.setOccurredAt(event.occurredAt() != null ? event.occurredAt() : java.time.Instant.now());
+            read.setDirection(p.direction().toLowerCase());
+            read.setOccurredAt(event.occurredAt() != null ? event.occurredAt() : Instant.now());
+            read.setExtra(p.extensions() != null ? p.extensions() : Map.of());
 
             repository.save(read);
 
