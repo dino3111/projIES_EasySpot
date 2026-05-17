@@ -6,12 +6,16 @@ import unittest
 
 sys.path.insert(0, ".")
 
-from ocr_event_builder import OcrEventGenerator, _random_pt_plate, build_ocr_event
+from ocr_event_builder import (  # noqa: E402
+    OcrEventGenerator,
+    _random_pt_plate,
+    build_ocr_event,
+)
 
 PT_PLATE_RE = re.compile(
-    r"^([A-Z]{2}-\d{2}-\d{2}|"   # AA-00-00
-    r"\d{2}-[A-Z]{2}-\d{2}|"      # 00-AA-00
-    r"\d{2}-\d{2}-[A-Z]{2}|"      # 00-00-AA
+    r"^([A-Z]{2}-\d{2}-\d{2}|"  # AA-00-00
+    r"\d{2}-[A-Z]{2}-\d{2}|"  # 00-AA-00
+    r"\d{2}-\d{2}-[A-Z]{2}|"  # 00-00-AA
     r"[A-Z]{2}-\d{2}-[A-Z]{2})$"  # AA-00-AA
 )
 
