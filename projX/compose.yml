@@ -227,6 +227,7 @@ services:
       SIMULATION_SERVICE_TOKEN: ${SIMULATION_SERVICE_TOKEN:-dev-sensors-token}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_TOPIC: parking-spot-events
+      KAFKA_TOPIC_OCR: parking-ocr-events
       SIMULATION_INTERVAL_SECONDS: ${SIMULATION_INTERVAL_SECONDS:-0}
       SIMULATION_SEED: ${SIMULATION_SEED:-42}
     depends_on:

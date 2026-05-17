@@ -1,7 +1,15 @@
 {
   "permissions": {
     "allow": [
-      "Bash(find /home/martim/Documentos/IES_Projeto/projX/api-easyspot/src -name *.java)"
+      "Bash(find /home/martim/Documentos/IES_Projeto/projX/api-easyspot/src -name *.java)",
+      "Bash(rtk ls *)",
+      "Bash(rtk read *)",
+      "Bash(xargs cat)",
+      "Bash(rtk grep *)",
+      "Bash(rtk pytest *)",
+      "Bash(uv run *)",
+      "Bash(uv add *)",
+      "Bash(./mvnw compile *)"
     ]
   }
 }
