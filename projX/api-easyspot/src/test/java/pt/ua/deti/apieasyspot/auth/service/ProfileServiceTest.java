@@ -18,6 +18,7 @@ import pt.ua.deti.apieasyspot.booking.repository.UserFavoriteRepository;
 import pt.ua.deti.apieasyspot.common.exception.ResourceNotFoundException;
 
 import java.math.BigDecimal;
+import java.util.EnumSet;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -111,7 +112,7 @@ class ProfileServiceTest {
     @Test
     @DisplayName("updateProfile - unknown role - throws before persisting (EC-role-guard)")
     void updateProfile_unknownRole_doesNotPersist() {
-        ProfileUpdateRequest request = new ProfileUpdateRequest(null, false, null, null, null);
+        ProfileUpdateRequest request = new ProfileUpdateRequest(null, null, false, null, null, null);
 
         assertThatThrownBy(() -> profileService.updateProfile("sub", "test@test.com", request, "UNKNOWN"))
             .isInstanceOf(IllegalArgumentException.class)
@@ -136,17 +137,37 @@ class ProfileServiceTest {
         when(userRepository.findByAuthentikUserId("sub")).thenReturn(Optional.of(user));
         when(userRepository.save(any())).thenReturn(user);
 
-        ProfileUpdateRequest request = new ProfileUpdateRequest(DriverType.EV, null, null, null, null);
+        ProfileUpdateRequest request = new ProfileUpdateRequest(DriverType.EV, null, null, null, null, null);
         Object result = profileService.updateProfile("sub", "test@test.com", request, "DRIVER");
 
         assertThat(result).isInstanceOf(DriverProfileResponse.class);
-        verify(userRepository).save(argThat(u -> u.getDriverType() == DriverType.EV));
+        verify(userRepository).save(argThat(u -> u.getDriverType() == DriverType.EV && u.getDriverTypes().contains(DriverType.EV)));
+    }
+
+    @Test
+    @DisplayName("updateProfile - driverTypes allowed for DRIVER (multi-profile)")
+    void updateProfile_driverTypes_allowedForDriver() {
+        User user = buildUser("DRIVER");
+        when(userRepository.findByAuthentikUserId("sub")).thenReturn(Optional.of(user));
+        when(userRepository.save(any())).thenReturn(user);
+
+        ProfileUpdateRequest request = new ProfileUpdateRequest(
+            null,
+            EnumSet.of(DriverType.EV, DriverType.REDUCED_MOBILITY),
+            null, null, null, null
+        );
+        Object result = profileService.updateProfile("sub", "test@test.com", request, "DRIVER");
+
+        assertThat(result).isInstanceOf(DriverProfileResponse.class);
+        verify(userRepository).save(argThat(u ->
+            u.getDriverTypes().contains(DriverType.EV)
+                && u.getDriverTypes().contains(DriverType.REDUCED_MOBILITY)));
     }
 
     @Test
     @DisplayName("updateProfile - driverType rejected for MANAGER (EC-11)")
     void updateProfile_driverType_rejectedForManager() {
-        ProfileUpdateRequest request = new ProfileUpdateRequest(DriverType.EV, null, null, null, null);
+        ProfileUpdateRequest request = new ProfileUpdateRequest(DriverType.EV, null, null, null, null, null);
 
         assertThatThrownBy(() -> profileService.updateProfile("sub", "test@test.com", request, "MANAGER"))
             .isInstanceOf(IllegalArgumentException.class)
@@ -156,7 +177,7 @@ class ProfileServiceTest {
     @Test
     @DisplayName("updateProfile - driverType rejected for TECHNICAL (EC-11)")
     void updateProfile_driverType_rejectedForTechnician() {
-        ProfileUpdateRequest request = new ProfileUpdateRequest(DriverType.EV, null, null, null, null);
+        ProfileUpdateRequest request = new ProfileUpdateRequest(DriverType.EV, null, null, null, null, null);
 
         assertThatThrownBy(() -> profileService.updateProfile("sub", "test@test.com", request, "TECHNICAL"))
             .isInstanceOf(IllegalArgumentException.class)
@@ -170,7 +191,7 @@ class ProfileServiceTest {
         when(userRepository.findByAuthentikUserId("sub")).thenReturn(Optional.of(user));
         when(userRepository.save(any())).thenReturn(user);
 
-        ProfileUpdateRequest request = new ProfileUpdateRequest(null, false, null, null, null);
+        ProfileUpdateRequest request = new ProfileUpdateRequest(null, null, false, null, null, null);
         profileService.updateProfile("sub", "test@test.com", request, "MANAGER");
 
         verify(userRepository).save(argThat(u -> !u.isNotificationsEnabled()));
@@ -183,7 +204,7 @@ class ProfileServiceTest {
         when(userRepository.findByAuthentikUserId("sub")).thenReturn(Optional.of(user));
         when(userRepository.save(any())).thenReturn(user);
 
-        ProfileUpdateRequest request = new ProfileUpdateRequest(null, null, true, false, null);
+        ProfileUpdateRequest request = new ProfileUpdateRequest(null, null, null, true, false, null);
         profileService.updateProfile("sub", "test@test.com", request, "DRIVER");
 
         verify(userRepository).save(argThat(u ->
@@ -197,7 +218,7 @@ class ProfileServiceTest {
         when(userRepository.findByAuthentikUserId("sub")).thenReturn(Optional.of(user));
         when(userRepository.save(any())).thenReturn(user);
 
-        ProfileUpdateRequest request = new ProfileUpdateRequest(null, null, null, null, null);
+        ProfileUpdateRequest request = new ProfileUpdateRequest(null, null, null, null, null, null);
         profileService.updateProfile("sub", "test@test.com", request, "DRIVER");
 
         verify(userRepository).save(argThat(u ->
@@ -211,7 +232,7 @@ class ProfileServiceTest {
         when(userRepository.findByAuthentikUserId("sub")).thenReturn(Optional.of(user));
         when(userRepository.save(any())).thenReturn(user);
 
-        ProfileUpdateRequest request = new ProfileUpdateRequest(null, null, null, null, "https://example.com/photo.jpg");
+        ProfileUpdateRequest request = new ProfileUpdateRequest(null, null, null, null, null, "https://example.com/photo.jpg");
         profileService.updateProfile("sub", "test@test.com", request, "TECHNICAL");
 
         verify(userRepository).save(argThat(u -> "https://example.com/photo.jpg".equals(u.getPhotoUrl())));

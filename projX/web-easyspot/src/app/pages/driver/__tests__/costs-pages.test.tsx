@@ -6,6 +6,10 @@ import { CostsPage } from '../costs/CostsPage';
 // Mock the contexts
 vi.mock('../../../context/ProfileContext', () => ({
   useProfile: vi.fn(() => ({
+    driverType: 'regular',
+    driverTypes: ['regular'],
+    setDriverType: vi.fn(),
+    setDriverTypes: vi.fn(),
     vehicles: [
       { id: 'v1', plate: 'AA-11-BB', isPrimary: true, isEV: true, isAccessible: false, model: 'Model 3' },
     ],
