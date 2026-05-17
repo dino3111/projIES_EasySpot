@@ -18,8 +18,12 @@ def _random_pt_plate(rng: random.Random) -> str:
     Weights reflect rough fleet distribution.
     """
     letters = string.ascii_uppercase
-    ll = lambda: "".join(rng.choices(letters, k=2))
-    dd = lambda: f"{rng.randint(0, 99):02d}"
+
+    def ll():
+        return "".join(rng.choices(letters, k=2))
+
+    def dd():
+        return f"{rng.randint(0, 99):02d}"
 
     fmt = rng.choices(
         ["AA-00-00", "00-AA-00", "00-00-AA", "AA-00-AA"],
