@@ -9,7 +9,10 @@
       "Bash(rtk pytest *)",
       "Bash(uv run *)",
       "Bash(uv add *)",
-      "Bash(./mvnw compile *)"
+      "Bash(./mvnw compile *)",
+      "Bash(xargs cat -n)",
+      "Bash(rtk vitest *)",
+      "Bash(node_modules/.bin/vitest run *)"
     ]
   }
 }
