@@ -37,13 +37,13 @@ Optional env vars:
 from __future__ import annotations
 
 import base64
-from typing import Any
 import os
 import struct
 import sys
 import time
 import urllib.parse
 import zlib
+from typing import Any
 
 try:
     import requests  # type: ignore[import]
