@@ -112,8 +112,9 @@ class OcrEventGeneratorTests(unittest.TestCase):
                 direction = event["payload"]["direction"]
                 if direction == "exit":
                     self.assertIn(
-                        plate, seen_entry,
-                        f"Exit event for plate {plate} without prior entry"
+                        plate,
+                        seen_entry,
+                        f"Exit event for plate {plate} without prior entry",
                     )
                 else:
                     seen_entry.add(plate)
