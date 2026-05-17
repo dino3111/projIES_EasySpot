@@ -17,6 +17,7 @@ interface QueryState {
   selectedDistrict: string;
   selectedVehicleId: string | null;
 }
+const REALTIME_REFRESH_MS = 8000;
 
 export function ParkingListPage() {
   const { vehicles, driverType } = useProfile();
@@ -115,12 +116,14 @@ export function ParkingListPage() {
 
   useEffect(() => {
     let mounted = true;
-    const load = async () => {
+    const load = async (background = false) => {
       try {
-        setLoading(true);
-        setLoadError(null);
+        if (!background) {
+          setLoading(true);
+          setLoadError(null);
+        }
         const shouldUseVehicleCompatibility = query.showEVOnly || query.showAccessibleOnly;
-        const data = await fetchParksList({
+        const requestQuery = {
           page: query.page,
           pageSize: 20,
           textQuery: query.searchQuery || undefined,
@@ -129,7 +132,10 @@ export function ParkingListPage() {
           evOnly: query.showEVOnly,
           accessibleOnly: query.showAccessibleOnly,
           availableOnly: query.showAvailableOnly,
-        });
+        };
+        const data = background
+          ? await fetchParksList(requestQuery, { background: true })
+          : await fetchParksList(requestQuery);
         if (!mounted) return;
         const coords = userCoords;
         const lots = coords
@@ -141,13 +147,19 @@ export function ParkingListPage() {
         setParkingLots(lots);
         setTotalPages(data.pagination.totalPages);
       } catch {
-        if (mounted) setLoadError('Não foi possível carregar parques do backend.');
+        if (mounted && !background) setLoadError('Não foi possível carregar parques do backend.');
       } finally {
-        if (mounted) setLoading(false);
+        if (mounted && !background) setLoading(false);
       }
     };
-    load();
-    return () => { mounted = false; };
+    void load();
+    const intervalId = globalThis.setInterval(() => {
+      void load(true);
+    }, REALTIME_REFRESH_MS);
+    return () => {
+      mounted = false;
+      globalThis.clearInterval(intervalId);
+    };
   }, [query]);
 
   const { showEVOnly, showAccessibleOnly, showAvailableOnly, searchQuery, selectedDistrict, selectedVehicleId, page } = query;

@@ -1,4 +1,5 @@
 import time
+from datetime import datetime
 
 from config import KAFKA_TOPIC, SIMULATION_INTERVAL_SECONDS, SIMULATION_SEED
 from context_loader import load_spots
@@ -22,10 +23,14 @@ def run():
     print(f"Loaded {len(spots)} spots")
 
     while True:
+        current_hour = datetime.now().hour
+
         for spot in spots:
             spot_id = spot["spotId"]
             current = state_by_spot[spot_id]
-            next_status, reason = machine.next_status(current)
+            next_status, reason = machine.next_status(
+                current, spot.get("zone"), current_hour=current_hour
+            )
 
             if next_status != current:
                 state_by_spot[spot_id] = next_status

@@ -19,7 +19,7 @@ export interface AccessibleSpot {
   ledStatus: 'green' | 'red' | 'blue' | 'yellow';
 }
 
-export type SpotStatus = 'free' | 'occupied' | 'reserved' | 'ev' | 'accessible';
+export type SpotStatus = 'free' | 'occupied' | 'reserved' | 'out_of_service' | 'ev' | 'accessible';
 
 export interface ParkingSpot {
   id: string;

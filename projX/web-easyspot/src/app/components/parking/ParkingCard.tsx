@@ -217,7 +217,7 @@ export function ParkingCard({ lot, highlightAccessible = false, filterMode = nul
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="relative w-10 h-10 min-w-10 min-h-10 flex-shrink-0">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                     <PieChart>
                       <Pie
                         data={[

@@ -288,30 +288,8 @@ public class ParkService {
             statusBySpot.put(spot.getId(), status);
         }
 
-        Map<ZoneType, ZoneSnapshot> snapshotByZone = snapshots.stream()
-            .collect(Collectors.toMap(ZoneSnapshot::zoneType, s -> s, (a, b) -> a));
-
-        Map<ZoneType, List<ParkingSpot>> freeSpotsByZone = spots.stream()
-            .filter(s -> isCandidateForSensorProjection(statusBySpot.get(s.getId())))
-            .collect(Collectors.groupingBy(ParkingSpot::getZone));
-
-        for (Map.Entry<ZoneType, ZoneSnapshot> entry : snapshotByZone.entrySet()) {
-            ZoneType zone = entry.getKey();
-            ZoneSnapshot snapshot = entry.getValue();
-            int alreadyUnavailableInZone = countUnavailableSpotsForZone(statusBySpot, zone, spots);
-            int sensorOccupied = snapshot.occupiedCount();
-            int unaccountedOccupied = Math.max(0, sensorOccupied - alreadyUnavailableInZone);
-
-            List<ParkingSpot> freeSpots = freeSpotsByZone.getOrDefault(zone, List.of()).stream()
-                .sorted(Comparator.comparing(ParkingSpot::getId))
-                .toList();
-
-            int toMark = Math.min(unaccountedOccupied, freeSpots.size());
-            for (int i = 0; i < toMark; i++) {
-                statusBySpot.put(freeSpots.get(i).getId(), STATUS_OCCUPIED);
-            }
-        }
-
+        // When we have per-spot state in the application DB, prefer it as the source of truth
+        // (plus reservation lifecycle overlay). Timescale snapshots are fallback-only.
         return statusBySpot;
     }
 
@@ -327,14 +305,6 @@ public class ParkService {
             .filter(zone -> zone.zoneName().equalsIgnoreCase(zoneType.name()))
             .mapToInt(ParkingLotDetailsResponse.ZoneResponse::free)
             .sum();
-    }
-
-    private int countUnavailableSpotsForZone(Map<UUID, String> statusBySpot, ZoneType zone, List<ParkingSpot> spots) {
-        return (int) spots.stream()
-            .filter(spot -> spot.getZone() == zone)
-            .map(spot -> statusBySpot.getOrDefault(spot.getId(), restoreSpotBaseStatus(spot)))
-            .filter(status -> !countsAsFree(status))
-            .count();
     }
 
     private boolean countsAsFree(String status) {
@@ -374,13 +344,6 @@ public class ParkService {
         if (spot.getZone() == ZoneType.EV) return "ev";
         if (spot.getZone() == ZoneType.ACCESSIBLE) return "accessible";
         return normalizeSpotStatus(spot.getStatus());
-    }
-
-    private boolean isCandidateForSensorProjection(String status) {
-        if (!StringUtils.hasText(status)) {
-            return true;
-        }
-        return !STATUS_RESERVED.equalsIgnoreCase(status) && !STATUS_OCCUPIED.equalsIgnoreCase(status);
     }
 
     private List<ParkingLotDetailsResponse.EVChargerResponse> fetchEVChargers(UUID lotId) {
