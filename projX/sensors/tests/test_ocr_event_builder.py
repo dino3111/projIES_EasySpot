@@ -1,13 +1,11 @@
+import random
+import re
 import sys
 import unittest
 
 sys.path.insert(0, ".")
 
 from ocr_event_builder import OcrEventGenerator, _random_pt_plate, build_ocr_event
-import random
-
-
-import re
 
 PT_PLATE_RE = re.compile(
     r"^([A-Z]{2}-\d{2}-\d{2}|"   # AA-00-00

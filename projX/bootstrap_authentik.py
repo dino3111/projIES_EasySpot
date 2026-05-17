@@ -37,6 +37,7 @@ Optional env vars:
 from __future__ import annotations
 
 import base64
+from typing import Any
 import os
 import struct
 import sys
@@ -256,7 +257,7 @@ def _make_transparent_png() -> bytes:
     return sig + ihdr + idat + iend
 
 
-def api(method: str, path: str, **kwargs: object) -> dict:
+def api(method: str, path: str, **kwargs: Any) -> dict:
     headers = {
         "Authorization": f"Bearer {TOKEN}",
         "Content-Type": "application/json",

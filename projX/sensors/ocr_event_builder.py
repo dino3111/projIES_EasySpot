@@ -35,7 +35,9 @@ def _random_pt_plate(rng: random.Random) -> str:
     return f"{ll()}-{dd()}-{ll()}"
 
 
-def build_ocr_event(spot: dict, event_direction: str, plate: str, confidence: float) -> dict:
+def build_ocr_event(
+    spot: dict, event_direction: str, plate: str, confidence: float
+) -> dict:
     """
     Build an OCR camera read event for entry or exit at a parking lot gate.
 

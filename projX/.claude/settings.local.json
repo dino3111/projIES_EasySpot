@@ -12,7 +12,8 @@
       "Bash(./mvnw compile *)",
       "Bash(xargs cat -n)",
       "Bash(rtk vitest *)",
-      "Bash(node_modules/.bin/vitest run *)"
+      "Bash(node_modules/.bin/vitest run *)",
+      "Bash(rtk find *)"
     ]
   }
 }
