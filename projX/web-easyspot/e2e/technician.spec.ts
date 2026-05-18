@@ -63,68 +63,73 @@ const mockSensors = [
   },
 ];
 
-const mockAlerts = [
-  {
-    id: '9f6a9a7b-c6a2-43a2-a2b6-f57e6d03df57',
-    type: 'SENSOR',
-    park: 'Fórum Aveiro',
-    zone: 'Piso 0 – Zona B',
-    spotNumber: null,
-    sensorId: 'IR-AV1-B07',
-    plate: null,
-    description: 'Falha de leitura IR sem sinal',
-    severity: 'CRITICAL',
-    state: 'OPEN',
-    createdAt: '2026-05-08T09:00:00Z',
-    attributedTo: null,
-    notes: null,
-  },
-  {
-    id: 'alert-uuid-001',
-    type: 'SENSOR',
-    park: 'Fórum Aveiro',
-    zone: 'Piso 0 – Zona B',
-    spotNumber: 'B7',
-    sensorId: 'IR-AV1-B07',
-    plate: null,
-    description: 'Sensor IR sem leituras há >2h.',
-    severity: 'CRITICAL',
-    state: 'OPEN',
-    createdAt: '2026-05-08T08:12:00Z',
-    attributedTo: null,
-    notes: null,
-  },
-  {
-    id: 'alert-uuid-002',
-    type: 'SYSTEM',
-    park: 'Foz Plaza',
-    zone: 'Sala Técnica',
-    spotNumber: null,
-    sensorId: 'GW-FI2-01',
-    plate: null,
-    description: 'Gateway em modo de manutenção.',
-    severity: 'WARNING',
-    state: 'OPEN',
-    createdAt: '2026-05-08T09:30:00Z',
-    attributedTo: 'Laura Farias',
-    notes: 'Atualização em curso.',
-  },
-  {
-    id: 'alert-uuid-003',
-    type: 'SENSOR',
-    park: 'Fórum Aveiro',
-    zone: 'Piso 0 – Zona B',
-    spotNumber: 'B7',
-    sensorId: 'IR-AV1-B07',
-    plate: null,
-    description: 'Sinal IR abaixo do limiar mínimo.',
-    severity: 'WARNING',
-    state: 'RESOLVED',
-    createdAt: '2026-05-06T14:30:00Z',
-    attributedTo: 'Laura Farias',
-    notes: 'Emissor IR substituído.',
-  },
-];
+const mockAlertOpen1 = {
+  id: '9f6a9a7b-c6a2-43a2-a2b6-f57e6d03df57',
+  type: 'SENSOR',
+  park: 'Fórum Aveiro',
+  zone: 'Piso 0 – Zona B',
+  spotNumber: null,
+  sensorId: 'IR-AV1-B07',
+  plate: null,
+  description: 'Falha de leitura IR sem sinal',
+  severity: 'CRITICAL',
+  state: 'OPEN',
+  createdAt: '2026-05-08T09:00:00Z',
+  attributedTo: null,
+  notes: null,
+};
+
+const mockAlertOpen2 = {
+  id: 'alert-uuid-001',
+  type: 'SENSOR',
+  park: 'Fórum Aveiro',
+  zone: 'Piso 0 – Zona B',
+  spotNumber: 'B7',
+  sensorId: 'IR-AV1-B07',
+  plate: null,
+  description: 'Sensor IR sem leituras há >2h.',
+  severity: 'CRITICAL',
+  state: 'OPEN',
+  createdAt: '2026-05-08T08:12:00Z',
+  attributedTo: null,
+  notes: null,
+};
+
+const mockAlertOpen3 = {
+  id: 'alert-uuid-002',
+  type: 'SYSTEM',
+  park: 'Foz Plaza',
+  zone: 'Sala Técnica',
+  spotNumber: null,
+  sensorId: 'GW-FI2-01',
+  plate: null,
+  description: 'Gateway em modo de manutenção.',
+  severity: 'WARNING',
+  state: 'OPEN',
+  createdAt: '2026-05-08T09:30:00Z',
+  attributedTo: 'Laura Farias',
+  notes: 'Atualização em curso.',
+};
+
+const mockAlertResolved = {
+  id: 'alert-uuid-003',
+  type: 'SENSOR',
+  park: 'Fórum Aveiro',
+  zone: 'Piso 0 – Zona B',
+  spotNumber: 'B7',
+  sensorId: 'IR-AV1-B07',
+  plate: null,
+  description: 'Sinal IR abaixo do limiar mínimo.',
+  severity: 'WARNING',
+  state: 'RESOLVED',
+  createdAt: '2026-05-06T14:30:00Z',
+  attributedTo: 'Laura Farias',
+  notes: 'Emissor IR substituído.',
+};
+
+const mockAlertsOpen = [mockAlertOpen1, mockAlertOpen2, mockAlertOpen3];
+const mockAlertsResolved = [mockAlertResolved];
+const mockAlerts = [...mockAlertsOpen, mockAlertResolved];
 
 const mockSensorDetail = {
   ...mockSensors[0],
@@ -176,9 +181,17 @@ test.beforeEach(async ({ page }) => {
   await page.route('**/api/technician/dashboard', (route) => route.fulfill({ json: mockDashboard }));
   await page.route('**/api/technician/sensors', (route) => route.fulfill({ json: mockSensors }));
   await page.route('**/api/technician/sensors/IR-AV1-B07/logs', (route) => route.fulfill({ json: mockSensorDetail }));
-  await page.route('**/api/alerts', (route) => route.fulfill({ json: mockAlerts }));
-  await page.route('**/api/alerts/**/state', (route) => route.fulfill({ status: 204, body: '' }));
-  await page.route('**/api/alerts**', (route) => route.fulfill({ json: mockAlerts }));
+  await page.route('**/api/alerts**', (route) => {
+    const url = new URL(route.request().url());
+    const state = url.searchParams.get('state');
+    if (route.request().method() === 'PATCH') {
+      return route.fulfill({ status: 204, body: '' });
+    }
+    if (state === 'RESOLVED') return route.fulfill({ json: mockAlertsResolved });
+    if (state === 'IN_PROGRESS') return route.fulfill({ json: [] });
+    if (state === 'OPEN') return route.fulfill({ json: mockAlertsOpen });
+    return route.fulfill({ json: mockAlerts });
+  });
 });
 
 test('Painel técnico mostra KPIs da API', async ({ page }) => {

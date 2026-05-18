@@ -224,7 +224,9 @@ export function MaintenancePage() {
   }, []);
 
   useEffect(() => { loadAll(); }, [loadAll]);
-  useEffect(() => { loadCompleted(weekOffset); }, [loadCompleted, weekOffset]);
+  useEffect(() => {
+    if (tab === 'tarefas') loadCompleted(weekOffset);
+  }, [loadCompleted, weekOffset, tab]);
 
   const kpis = computeTechKPIs(sensors);
   const filteredSensors = statusFil === 'todos' ? sensors : sensors.filter((s) => s.status === statusFil);
