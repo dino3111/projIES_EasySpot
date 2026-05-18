@@ -21,7 +21,11 @@
       "Bash(python3 -m isort --check-only sensors/tests/test_ocr_event_builder.py bootstrap_authentik.py)",
       "Bash(python3 -m ruff check sensors/tests/test_ocr_event_builder.py sensors/ocr_event_builder.py)",
       "Bash(.venv/bin/python -m pytest tests/test_ocr_event_builder.py tests/test_ocr_failures.py -v)",
-      "Bash(./mvnw test *)"
+      "Bash(./mvnw test *)",
+      "Bash(.venv/bin/python -m pytest tests/test_ocr_event_builder.py tests/test_ocr_failures.py -q)",
+      "Bash(.venv/bin/python *)",
+      "Bash(awk length > 88 {print NR\": \"length\" chars: \"$0} *)",
+      "Bash(awk 'length > 88 {print FILENAME\":\"NR\": \"length\" chars\"}' ocr_event_builder.py tests/test_ocr_failures.py)"
     ]
   }
 }

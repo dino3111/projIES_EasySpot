@@ -82,7 +82,15 @@ class FailureEventBuilderTests(unittest.TestCase):
 
     def test_failure_event_has_required_fields(self):
         event = build_ocr_failure_event(_spot(), OcrFailureMode.UNREADABLE)
-        for field in ("eventId", "eventType", "parkId", "spotId", "occurredAt", "payload", "version"):
+        for field in (
+            "eventId",
+            "eventType",
+            "parkId",
+            "spotId",
+            "occurredAt",
+            "payload",
+            "version",
+        ):
             self.assertIn(field, event)
         for field in ("plate", "confidence", "direction", "failureMode"):
             self.assertIn(field, event["payload"])
@@ -132,7 +140,9 @@ class OcrGeneratorFailureModeTests(unittest.TestCase):
                 else:
                     normal_events.append(event)
 
-        self.assertGreater(len(failure_events), 0, "failure_rate=1.0 produced no failures")
+        self.assertGreater(
+            len(failure_events), 0, "failure_rate=1.0 produced no failures"
+        )
 
     def test_failure_events_have_failure_mode_field(self):
         spots = _spots(10)
@@ -145,7 +155,12 @@ class OcrGeneratorFailureModeTests(unittest.TestCase):
                     self.assertIn("failureMode", event["payload"])
                     self.assertIn(
                         event["payload"]["failureMode"],
-                        {"UNREADABLE", "LOW_CONFIDENCE", "WRONG_PLATE", "CAMERA_DEGRADED"},
+                        {
+                            "UNREADABLE",
+                            "LOW_CONFIDENCE",
+                            "WRONG_PLATE",
+                            "CAMERA_DEGRADED",
+                        },
                     )
 
     def test_recovery_restores_normal_reads(self):
@@ -221,7 +236,11 @@ class OcrGeneratorFailureModeTests(unittest.TestCase):
             for event, spot_id in gen.next_events()
             if spot_id == "spot-1"
         ]
-        self.assertGreater(len(spot1_events), 0, "Offline camera emitted zero events (silent failure)")
+        self.assertGreater(
+            len(spot1_events),
+            0,
+            "Offline camera emitted zero events (silent failure)",
+        )
 
     def test_zero_failure_rate_produces_no_failures(self):
         spots = _spots(10)

@@ -106,7 +106,8 @@ def build_ocr_failure_event(
     - CAMERA_OFFLINE: plate=None, confidence=0.0, no camera signal
     - CAMERA_DEGRADED: plate present, confidence degraded (0.3–0.6)
 
-    failureMode is always set in payload so consumers can distinguish from normal events.
+    failureMode is always set in payload so consumers can distinguish
+    from normal events.
     """
     payload: Dict = {
         "plate": plate or "",
@@ -257,7 +258,9 @@ class OcrEventGenerator:
         mode = self.rng.choice(non_offline_modes)
 
         if mode == OcrFailureMode.UNREADABLE:
-            return build_ocr_failure_event(spot, mode, direction, plate=None, confidence=0.0)
+            return build_ocr_failure_event(
+                spot, mode, direction, plate=None, confidence=0.0
+            )
 
         if mode == OcrFailureMode.LOW_CONFIDENCE:
             confidence = self.rng.uniform(0.10, 0.49)
@@ -268,7 +271,11 @@ class OcrEventGenerator:
         if mode == OcrFailureMode.WRONG_PLATE:
             garbled = _garble_plate(self.rng, real_plate)
             return build_ocr_failure_event(
-                spot, mode, direction, plate=garbled, confidence=self.rng.uniform(0.50, 0.75)
+                spot,
+                mode,
+                direction,
+                plate=garbled,
+                confidence=self.rng.uniform(0.50, 0.75),
             )
 
         # CAMERA_DEGRADED
