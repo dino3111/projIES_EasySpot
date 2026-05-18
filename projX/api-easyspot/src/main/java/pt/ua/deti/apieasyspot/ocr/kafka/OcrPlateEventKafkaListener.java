@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import pt.ua.deti.apieasyspot.ocr.dto.OcrPlateEvent;
 import pt.ua.deti.apieasyspot.ocr.model.OcrPlateRead;
 import pt.ua.deti.apieasyspot.ocr.repository.OcrPlateReadRepository;
+import pt.ua.deti.apieasyspot.sensor.service.SensorLogsService;
 
 import java.time.Instant;
 import java.util.Map;
@@ -20,6 +21,7 @@ public class OcrPlateEventKafkaListener {
 
     private final ObjectMapper objectMapper;
     private final OcrPlateReadRepository repository;
+    private final SensorLogsService sensorLogsService;
 
     @KafkaListener(
         topics = {"${easyspot.ocr.kafka.topic:parking-ocr-events}"},
@@ -29,8 +31,23 @@ public class OcrPlateEventKafkaListener {
         try {
             OcrPlateEvent event = objectMapper.readValue(payload, OcrPlateEvent.class);
 
-            if (event.parkId() == null || event.payload() == null) {
-                log.warn("Ignoring malformed OCR event: missing parkId or payload");
+            if (event.parkId() == null) {
+                log.warn("Ignoring malformed OCR event: missing parkId");
+                return;
+            }
+
+            if ("device.recovery".equals(event.eventType())) {
+                handleDeviceRecovery(event);
+                return;
+            }
+
+            if ("device.fault".equals(event.eventType())) {
+                log.info("OCR device fault reported for park={}", event.parkId());
+                return;
+            }
+
+            if (event.payload() == null) {
+                log.warn("Ignoring malformed OCR event: missing payload");
                 return;
             }
 
@@ -64,6 +81,22 @@ public class OcrPlateEventKafkaListener {
         } catch (Exception ex) {
             log.warn("Invalid OCR plate event ignored: {}", payload, ex);
         }
+    }
+
+    private void handleDeviceRecovery(OcrPlateEvent event) {
+        if (event.payload() == null || event.payload().extensions() == null) {
+            log.warn("device.recovery event missing extensions: park={}", event.parkId());
+            return;
+        }
+        Map<String, Object> ext = event.payload().extensions();
+        Object deviceIdObj = ext.get("deviceId");
+        if (!(deviceIdObj instanceof String deviceId) || deviceId.isBlank()) {
+            log.warn("device.recovery event missing deviceId: park={}", event.parkId());
+            return;
+        }
+        String recoveryType = ext.get("recoveryType") instanceof String s ? s : "AUTO_RECOVERY";
+        sensorLogsService.recoverSensor(deviceId, recoveryType);
+        log.info("OCR device recovered: deviceId={} type={} park={}", deviceId, recoveryType, event.parkId());
     }
 
     private boolean isValidDirection(String direction) {

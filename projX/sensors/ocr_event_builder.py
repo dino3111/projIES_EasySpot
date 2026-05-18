@@ -1,5 +1,6 @@
 import random
 import string
+import time
 import uuid
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
@@ -40,6 +41,12 @@ def _random_pt_plate(rng: random.Random) -> str:
     return f"{ll()}-{dd()}-{ll()}"
 
 
+def _ocr_sensor_id(park_id: str) -> str:
+    """Derive OCR entrance camera sensor ID from park UUID — matches backend convention."""
+    park_key = park_id.replace("-", "")[:8].upper()
+    return f"OCR-{park_key}-ENT1"
+
+
 def build_ocr_event(
     spot: Dict, event_direction: str, plate: str, confidence: float
 ) -> Dict:
@@ -69,20 +76,87 @@ def build_ocr_event(
     }
 
 
+def build_device_fault_event(park_id: str, park_name: str) -> Dict:
+    return {
+        "eventId": str(uuid.uuid4()),
+        "eventType": "device.fault",
+        "parkId": park_id,
+        "spotId": None,
+        "occurredAt": now_iso(),
+        "payload": {
+            "plate": None,
+            "confidence": None,
+            "direction": None,
+            "parkName": park_name,
+            "spotNumber": None,
+            "zone": None,
+            "row": None,
+            "col": None,
+            "extensions": {
+                "deviceType": "OCR_CAMERA",
+                "deviceId": _ocr_sensor_id(park_id),
+            },
+        },
+        "version": 1,
+    }
+
+
+def build_device_recovery_event(
+    park_id: str,
+    park_name: str,
+    recovery_type: str,
+    fault_duration_seconds: float,
+) -> Dict:
+    return {
+        "eventId": str(uuid.uuid4()),
+        "eventType": "device.recovery",
+        "parkId": park_id,
+        "spotId": None,
+        "occurredAt": now_iso(),
+        "payload": {
+            "plate": None,
+            "confidence": None,
+            "direction": None,
+            "parkName": park_name,
+            "spotNumber": None,
+            "zone": None,
+            "row": None,
+            "col": None,
+            "extensions": {
+                "deviceType": "OCR_CAMERA",
+                "deviceId": _ocr_sensor_id(park_id),
+                "recoveryType": recovery_type,
+                "faultDurationSeconds": round(fault_duration_seconds, 2),
+            },
+        },
+        "version": 1,
+    }
+
+
 class OcrEventGenerator:
     """Stateful generator: tracks which plates are inside each park to produce
-    consistent entry/exit sequences."""
+    consistent entry/exit sequences. Also simulates OCR camera fault/recovery."""
 
     def __init__(
         self,
         spots: List[Dict],
         seed: int = 42,
         registered_plates: Optional[List[str]] = None,
+        fault_min_duration: float = 30.0,
+        fault_max_duration: float = 300.0,
+        fault_probability_per_tick: float = 0.0,
+        technician_repair_probability: float = 0.3,
     ):
         self.spots = spots
         self.rng = random.Random(seed)
+        self.fault_min_duration = fault_min_duration
+        self.fault_max_duration = fault_max_duration
+        self.fault_probability_per_tick = fault_probability_per_tick
+        self.technician_repair_probability = technician_repair_probability
+
         # plate -> spotId of where the vehicle currently is (None = outside)
         self._parked: Dict[str, str] = {}
+
         if registered_plates is None:
             self._plate_pool = [
                 _random_pt_plate(self.rng) for _ in range(max(len(spots) * 2, 30))
@@ -92,22 +166,59 @@ class OcrEventGenerator:
                 p.strip().upper() for p in registered_plates if p and p.strip()
             ]
 
-    def next_events(self) -> List[Tuple[Dict, str]]:
-        """Return a list of (event, spot_id) tuples for this simulation tick."""
+        # Group spots by park for camera-level fault tracking
+        self._spots_by_park: Dict[str, List[Dict]] = {}
+        for spot in spots:
+            self._spots_by_park.setdefault(spot["parkId"], []).append(spot)
+
+        # per park_id: fault start time (float) when camera is offline; absent = operational
+        self._camera_fault_start: Dict[str, float] = {}
+
+    def next_events(self, now: Optional[float] = None) -> List[Tuple[Dict, str]]:
+        """Return a list of (event, key) tuples for this simulation tick.
+        key is spot_id for plate reads, park_id for device fault/recovery events.
+        """
+        if now is None:
+            now = time.monotonic()
+
         events = []
+
+        # Camera fault/recovery phase (per park)
+        for park_id, park_spots in self._spots_by_park.items():
+            park_name = park_spots[0].get("parkName", "")
+            if park_id not in self._camera_fault_start:
+                # Camera is operational — check for new fault
+                if self.fault_probability_per_tick > 0 and self.rng.random() < self.fault_probability_per_tick:
+                    self._camera_fault_start[park_id] = now
+                    events.append((build_device_fault_event(park_id, park_name), park_id))
+            else:
+                # Camera is offline — always check for recovery
+                fault_duration = now - self._camera_fault_start[park_id]
+                recovered, recovery_type = self._check_camera_recovery(fault_duration)
+                if recovered:
+                    del self._camera_fault_start[park_id]
+                    events.append((
+                        build_device_recovery_event(park_id, park_name, recovery_type, fault_duration),
+                        park_id,
+                    ))
+
+        # Plate-read phase (skip parks with offline cameras)
         for spot in self.rng.sample(self.spots, k=max(1, len(self.spots) // 4)):
             spot_id = spot["spotId"]
+            park_id = spot["parkId"]
+
+            if park_id in self._camera_fault_start:
+                continue
+
             parked_plate = self._plate_currently_at(spot_id)
 
             if parked_plate:
-                # vehicle exits with high probability
                 if self.rng.random() < 0.55:
                     confidence = self.rng.uniform(0.82, 0.99)
                     event = build_ocr_event(spot, "exit", parked_plate, confidence)
                     del self._parked[parked_plate]
                     events.append((event, spot_id))
             else:
-                # new vehicle may enter
                 if self.rng.random() < 0.45:
                     plate = self._pick_free_plate()
                     if plate:
@@ -117,6 +228,18 @@ class OcrEventGenerator:
                         events.append((event, spot_id))
 
         return events
+
+    def _check_camera_recovery(self, fault_duration: float) -> Tuple[bool, str]:
+        if fault_duration >= self.fault_max_duration:
+            return True, "TECHNICIAN_REPAIR"
+        if fault_duration >= self.fault_min_duration and self.rng.random() < 0.30:
+            recovery_type = (
+                "TECHNICIAN_REPAIR"
+                if self.rng.random() < self.technician_repair_probability
+                else "AUTO_RECOVERY"
+            )
+            return True, recovery_type
+        return False, ""
 
     def _plate_currently_at(self, spot_id: str) -> Optional[str]:
         for plate, sid in self._parked.items():

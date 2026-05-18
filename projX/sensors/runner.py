@@ -1,6 +1,13 @@
 import time
 
-from config import KAFKA_TOPIC, SIMULATION_INTERVAL_SECONDS, SIMULATION_SEED
+from config import (
+    FAULT_MAX_DURATION_SECONDS,
+    FAULT_MIN_DURATION_SECONDS,
+    KAFKA_TOPIC,
+    SIMULATION_INTERVAL_SECONDS,
+    SIMULATION_SEED,
+    TECHNICIAN_REPAIR_PROBABILITY,
+)
 from context_loader import load_spots
 from event_builder import build_spot_event
 from kafka_publisher import KafkaPublisher
@@ -12,7 +19,12 @@ def run():
     if not spots:
         raise RuntimeError("No parking spots returned by backend context endpoint")
     publisher = KafkaPublisher()
-    machine = SpotStateMachine(seed=SIMULATION_SEED)
+    machine = SpotStateMachine(
+        seed=SIMULATION_SEED,
+        fault_min_duration=FAULT_MIN_DURATION_SECONDS,
+        fault_max_duration=FAULT_MAX_DURATION_SECONDS,
+        technician_repair_probability=TECHNICIAN_REPAIR_PROBABILITY,
+    )
 
     state_by_spot = {
         spot["spotId"]: normalize_initial_status(spot["status"], spot["zone"])
@@ -25,7 +37,7 @@ def run():
         for spot in spots:
             spot_id = spot["spotId"]
             current = state_by_spot[spot_id]
-            next_status, reason = machine.next_status(current)
+            next_status, reason, fault_duration = machine.next_status(spot_id, current)
 
             if next_status != current:
                 state_by_spot[spot_id] = next_status
@@ -35,6 +47,7 @@ def run():
                     previous_status=current,
                     new_status=next_status,
                     reason=reason,
+                    fault_duration_seconds=fault_duration,
                 )
                 publisher.publish(KAFKA_TOPIC, spot_id, event)
 

@@ -2,33 +2,36 @@ package pt.ua.deti.apieasyspot.ocr.kafka;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import pt.ua.deti.apieasyspot.ocr.model.OcrPlateRead;
 import pt.ua.deti.apieasyspot.ocr.repository.OcrPlateReadRepository;
+import pt.ua.deti.apieasyspot.sensor.service.SensorLogsService;
 
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 
 class OcrPlateEventKafkaListenerTest {
 
     private OcrPlateReadRepository repository;
+    private SensorLogsService sensorLogsService;
     private OcrPlateEventKafkaListener listener;
 
     @BeforeEach
     void setUp() {
         repository = mock(OcrPlateReadRepository.class);
+        sensorLogsService = mock(SensorLogsService.class);
         ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
-        listener = new OcrPlateEventKafkaListener(objectMapper, repository);
+        listener = new OcrPlateEventKafkaListener(objectMapper, repository, sensorLogsService);
     }
 
     @Test
+    @DisplayName("plate read event is persisted with extensions in extra")
     void onEvent_persistsExtensionsInExtra() {
         UUID eventId = UUID.randomUUID();
         UUID parkId = UUID.randomUUID();
@@ -77,6 +80,7 @@ class OcrPlateEventKafkaListenerTest {
     }
 
     @Test
+    @DisplayName("event with invalid direction is not persisted")
     void onEvent_invalidDirection_doesNotPersist() {
         String payload = """
             {
@@ -96,6 +100,126 @@ class OcrPlateEventKafkaListenerTest {
 
         listener.onEvent(payload);
 
-        verify(repository, never()).save(org.mockito.ArgumentMatchers.any(OcrPlateRead.class));
+        verify(repository, never()).save(any(OcrPlateRead.class));
+    }
+
+    @Test
+    @DisplayName("device.recovery event triggers sensor recovery without persisting a plate read")
+    void onEvent_deviceRecovery_callsRecoverSensorAndSkipsPersist() {
+        UUID parkId = UUID.randomUUID();
+        String parkKey = parkId.toString().replace("-", "").substring(0, 8).toUpperCase();
+        String deviceId = "OCR-" + parkKey + "-ENT1";
+
+        String payload = """
+            {
+              "eventId": "%s",
+              "eventType": "device.recovery",
+              "parkId": "%s",
+              "spotId": null,
+              "occurredAt": "2026-05-18T10:00:00Z",
+              "version": 1,
+              "payload": {
+                "plate": null,
+                "confidence": null,
+                "direction": null,
+                "parkName": "Parque Test",
+                "extensions": {
+                  "deviceType": "OCR_CAMERA",
+                  "deviceId": "%s",
+                  "recoveryType": "AUTO_RECOVERY",
+                  "faultDurationSeconds": 65.4
+                }
+              }
+            }
+            """.formatted(UUID.randomUUID(), parkId, deviceId);
+
+        listener.onEvent(payload);
+
+        verify(sensorLogsService).recoverSensor(deviceId, "AUTO_RECOVERY");
+        verify(repository, never()).save(any(OcrPlateRead.class));
+    }
+
+    @Test
+    @DisplayName("device.recovery with TECHNICIAN_REPAIR type forwards the correct recovery type")
+    void onEvent_deviceRecovery_technicianRepair_forwardsType() {
+        UUID parkId = UUID.randomUUID();
+        String parkKey = parkId.toString().replace("-", "").substring(0, 8).toUpperCase();
+        String deviceId = "OCR-" + parkKey + "-ENT1";
+
+        String payload = """
+            {
+              "eventId": "%s",
+              "eventType": "device.recovery",
+              "parkId": "%s",
+              "spotId": null,
+              "occurredAt": "2026-05-18T10:00:00Z",
+              "version": 1,
+              "payload": {
+                "extensions": {
+                  "deviceId": "%s",
+                  "recoveryType": "TECHNICIAN_REPAIR",
+                  "faultDurationSeconds": 310.0
+                }
+              }
+            }
+            """.formatted(UUID.randomUUID(), parkId, deviceId);
+
+        listener.onEvent(payload);
+
+        verify(sensorLogsService).recoverSensor(deviceId, "TECHNICIAN_REPAIR");
+    }
+
+    @Test
+    @DisplayName("device.fault event is acknowledged without persisting or recovering")
+    void onEvent_deviceFault_doesNothing() {
+        UUID parkId = UUID.randomUUID();
+
+        String payload = """
+            {
+              "eventId": "%s",
+              "eventType": "device.fault",
+              "parkId": "%s",
+              "spotId": null,
+              "occurredAt": "2026-05-18T10:00:00Z",
+              "version": 1,
+              "payload": {
+                "extensions": {
+                  "deviceType": "OCR_CAMERA",
+                  "deviceId": "OCR-TEST-ENT1"
+                }
+              }
+            }
+            """.formatted(UUID.randomUUID(), parkId);
+
+        listener.onEvent(payload);
+
+        verify(repository, never()).save(any(OcrPlateRead.class));
+        verify(sensorLogsService, never()).recoverSensor(any(), any());
+    }
+
+    @Test
+    @DisplayName("device.recovery with missing deviceId is silently ignored")
+    void onEvent_deviceRecovery_missingDeviceId_ignored() {
+        UUID parkId = UUID.randomUUID();
+
+        String payload = """
+            {
+              "eventId": "%s",
+              "eventType": "device.recovery",
+              "parkId": "%s",
+              "spotId": null,
+              "occurredAt": "2026-05-18T10:00:00Z",
+              "version": 1,
+              "payload": {
+                "extensions": {
+                  "recoveryType": "AUTO_RECOVERY"
+                }
+              }
+            }
+            """.formatted(UUID.randomUUID(), parkId);
+
+        listener.onEvent(payload);
+
+        verify(sensorLogsService, never()).recoverSensor(any(), any());
     }
 }

@@ -10,8 +10,10 @@ import pt.ua.deti.apieasyspot.occupancy.dto.ParkingSpotEvent;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingSpot;
 import pt.ua.deti.apieasyspot.occupancy.model.ZoneType;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingSpotRepository;
+import pt.ua.deti.apieasyspot.sensor.service.SensorLogsService;
 
 import java.util.Locale;
+import java.util.UUID;
 
 @Slf4j
 @Component
@@ -26,6 +28,7 @@ public class ParkingSpotEventKafkaListener {
 
     private final ObjectMapper objectMapper;
     private final ParkingSpotRepository parkingSpotRepository;
+    private final SensorLogsService sensorLogsService;
 
     @KafkaListener(
         topics = {"parking-spot-events"},
@@ -50,6 +53,7 @@ public class ParkingSpotEventKafkaListener {
             ParkingSpot spot = parkingSpotRepository.findById(event.spotId()).orElse(null);
             if (spot == null) {
                 log.warn("Ignoring event for unknown spotId={}", event.spotId());
+                return;
             }
 
             String current = normalize(spot.getStatus());
@@ -66,9 +70,30 @@ public class ParkingSpotEventKafkaListener {
                 current,
                 normalized
             );
+
+            if (isRecoveryTransition(current, normalized)) {
+                String reason = extractReason(event);
+                if ("AUTO_RECOVERY".equals(reason) || "TECHNICIAN_REPAIR".equals(reason)) {
+                    sensorLogsService.recoverSensor(sensorIdFromSpotId(event.spotId()), reason);
+                }
+            }
         } catch (Exception ex) {
             log.warn("Invalid parking spot event ignored: {}", payload, ex);
         }
+    }
+
+    private boolean isRecoveryTransition(String previousNormalized, String newNormalized) {
+        return STATUS_OUT_OF_SERVICE.equals(previousNormalized) && STATUS_FREE.equals(newNormalized);
+    }
+
+    private String extractReason(ParkingSpotEvent event) {
+        if (event.payload() == null) return null;
+        Object reason = event.payload().get("reason");
+        return reason instanceof String s ? s : null;
+    }
+
+    private String sensorIdFromSpotId(UUID spotId) {
+        return "IR-" + spotId.toString().replace("-", "").substring(0, 16);
     }
 
     private boolean isAllowedStatus(String status) {
