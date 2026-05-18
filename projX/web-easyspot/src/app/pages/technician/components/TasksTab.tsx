@@ -6,6 +6,10 @@ import { QuickStat, EmptyState } from './shared';
 
 type TasksTabProps = Readonly<{
   orders: ReadonlyArray<WorkOrder>;
+  completedOrders: ReadonlyArray<WorkOrder>;
+  completedLoading: boolean;
+  weekOffset: number;
+  onWeekChange: (offset: number) => void;
   sensors: ReadonlyArray<SensorDevice>;
   onUpdate: (id: string, estado: 'em-progresso' | 'concluida') => void;
   onNewOrder: () => void;
@@ -37,28 +41,51 @@ function toUiPrioridade(order: WorkOrder): 'critica' | 'alta' | 'media' | 'baixa
   return 'media';
 }
 
+function getWeekBounds(weekOffset: number): { start: Date; end: Date } {
+  const now = new Date();
+  const dayOfWeek = now.getDay();
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - ((dayOfWeek + 6) % 7) + weekOffset * 7);
+  monday.setHours(0, 0, 0, 0);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  sunday.setHours(23, 59, 59, 999);
+  return { start: monday, end: sunday };
+}
+
+function formatWeekLabel(weekOffset: number): string {
+  if (weekOffset === 0) return 'Esta semana';
+  if (weekOffset === -1) return 'Semana passada';
+  const { start, end } = getWeekBounds(weekOffset);
+  const fmt = (d: Date) => d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
+  return `${fmt(start)} – ${fmt(end)}`;
+}
+
 export function TasksTab({
   orders,
+  completedOrders,
+  completedLoading,
+  weekOffset,
+  onWeekChange,
   sensors,
   onUpdate,
   onNewOrder,
 }: TasksTabProps) {
   const [tarefaFil, setTarefaFil] = useState<TarefaFiltro>('urgente');
 
-  const urgentes   = orders.filter(o => {
+  const urgentes  = orders.filter(o => {
     const p = toUiPrioridade(o);
     return p === 'critica' && toUiEstado(o.state) === 'pendente';
   });
-  const emCurso    = orders.filter(o => toUiEstado(o.state) === 'em-progresso');
-  const pendentes  = orders.filter(o => toUiEstado(o.state) !== 'concluida');
-  const concluidas = orders.filter(o => toUiEstado(o.state) === 'concluida');
+  const emCurso   = orders.filter(o => toUiEstado(o.state) === 'em-progresso');
+  const pendentes = orders.filter(o => toUiEstado(o.state) !== 'concluida');
 
   let visibleOrders: ReadonlyArray<WorkOrder>;
   switch (tarefaFil) {
-    case 'urgente':      visibleOrders = urgentes;   break;
-    case 'em-progresso': visibleOrders = emCurso;    break;
-    case 'pendente':     visibleOrders = pendentes;  break;
-    case 'concluida':    visibleOrders = concluidas; break;
+    case 'urgente':      visibleOrders = urgentes;        break;
+    case 'em-progresso': visibleOrders = emCurso;         break;
+    case 'pendente':     visibleOrders = pendentes;       break;
+    case 'concluida':    visibleOrders = completedOrders; break;
   }
 
   const filterConfig = {
@@ -78,7 +105,7 @@ export function TasksTab({
             { fil: 'urgente'      as TarefaFiltro, label: 'Urgentes',   count: urgentes.length,   color: '#d4183d', icon: 'fa-circle-exclamation' },
             { fil: 'em-progresso' as TarefaFiltro, label: 'Em Curso',   count: emCurso.length,    color: '#3b82f6', icon: 'fa-spinner' },
             { fil: 'pendente'     as TarefaFiltro, label: 'Pendentes',  count: pendentes.length,  color: '#f59e0b', icon: 'fa-hourglass-half' },
-            { fil: 'concluida'    as TarefaFiltro, label: 'Concluídas', count: concluidas.length, color: '#22c55e', icon: 'fa-circle-check' },
+            { fil: 'concluida'    as TarefaFiltro, label: 'Concluídas', count: completedOrders.length, color: '#22c55e', icon: 'fa-circle-check' },
           ]).map(({ fil, label, count, color, icon }) => (
             <button
               key={fil}
@@ -98,6 +125,29 @@ export function TasksTab({
           Nova Tarefa
         </button>
       </div>
+
+      {tarefaFil === 'concluida' && (
+        <div className="flex items-center gap-2 self-start">
+          <button
+            onClick={() => onWeekChange(weekOffset - 1)}
+            className="p-1.5 rounded-lg hover:bg-muted transition-colors"
+            aria-label="Semana anterior"
+          >
+            <i className="fas fa-chevron-left text-muted-foreground" style={{ fontSize: '0.75rem' }} aria-hidden="true" />
+          </button>
+          <span className="text-foreground" style={{ fontSize: '0.8rem', fontWeight: 600, minWidth: '130px', textAlign: 'center' }}>
+            {completedLoading ? <i className="fas fa-spinner fa-spin" aria-hidden="true" /> : formatWeekLabel(weekOffset)}
+          </span>
+          <button
+            onClick={() => onWeekChange(Math.min(weekOffset + 1, 0))}
+            disabled={weekOffset >= 0}
+            className="p-1.5 rounded-lg hover:bg-muted transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            aria-label="Semana seguinte"
+          >
+            <i className="fas fa-chevron-right text-muted-foreground" style={{ fontSize: '0.75rem' }} aria-hidden="true" />
+          </button>
+        </div>
+      )}
 
       {visibleOrders.length === 0 ? (
         <EmptyState icon={activeConfig.icon} title={`Sem tarefas ${activeConfig.label.toLowerCase()}s`} desc="Nenhuma tarefa nesta categoria." />

@@ -50,15 +50,17 @@ function Chip({ active, icon, label, onClick, ariaLabel }: ChipProps) {
 
 export function PlanningTab() {
   const navigate = useNavigate();
-  const { vehicles, driverType } = useProfile();
+  const { vehicles, driverTypes } = useProfile();
+  const prefersEv = driverTypes.includes('ev');
+  const prefersAccessible = driverTypes.includes('reduced_mobility');
   const primaryVehicle = vehicles.find((v) => v.isPrimary) ?? vehicles[0] ?? null;
 
   const [planVehicleId, setPlanVehicleId]       = useState<string | null>(primaryVehicle?.id ?? null);
   const [destination, setDestination]           = useState<DestinationPoint | null>(null);
   const [durationHours, setDurationHours]       = useState(2);
   const [durationMinutes, setDurationMinutes]   = useState(0);
-  const [filterEV, setFilterEV]                 = useState(driverType === 'ev');
-  const [filterAccessible, setFilterAccessible] = useState(driverType === 'reduced_mobility');
+  const [filterEV, setFilterEV]                 = useState(prefersEv);
+  const [filterAccessible, setFilterAccessible] = useState(prefersAccessible);
   const [maxDistance, setMaxDistance]           = useState(5);
   const [sortBy, setSortBy]                     = useState<'price' | 'distance' | 'ratio'>('ratio');
   const [expandedPark, setExpandedPark]         = useState<string | null>(null);
@@ -70,19 +72,9 @@ export function PlanningTab() {
 
   useEffect(() => {
     if (userSelectedVehicleRef.current) return;
-    if (driverType === 'ev') {
-      setFilterEV(true);
-      setFilterAccessible(false);
-      return;
-    }
-    if (driverType === 'reduced_mobility') {
-      setFilterEV(false);
-      setFilterAccessible(true);
-      return;
-    }
-    setFilterEV(false);
-    setFilterAccessible(false);
-  }, [driverType]);
+    setFilterEV(prefersEv);
+    setFilterAccessible(prefersAccessible);
+  }, [prefersEv, prefersAccessible]);
 
   useEffect(() => {
     if (!userSelectedVehicleRef.current) return;

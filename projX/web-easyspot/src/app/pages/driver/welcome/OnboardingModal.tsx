@@ -24,7 +24,7 @@ export function OnboardingModal({
   onFinish: (dt: DriverType) => void;
   onClose: () => void;
 }) {
-  const { addVehicle, setDriverType: setProfileDriverType } = useProfile();
+  const { addVehicle, setDriverTypes: setProfileDriverTypes } = useProfile();
   const initialStep = needsVehicle ? 1 : needsPayment ? 2 : 3;
   const [step, setStep] = useState(initialStep);
 
@@ -39,7 +39,7 @@ export function OnboardingModal({
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
-  const [driverType, setDriverType]             = useState<DriverType>('regular');
+  const [driverTypes, setDriverTypes]           = useState<DriverType[]>(['regular']);
   const [notifPush, setNotifPush]               = useState(true);
   const [notifEmail, setNotifEmail]             = useState(false);
   const [savingProfile, setSavingProfile]       = useState(false);
@@ -51,7 +51,7 @@ export function OnboardingModal({
   useEffect(() => {
     profileApi.get()
       .then((profile) => {
-        setDriverType(profile.driverType ?? 'regular');
+        setDriverTypes(profile.driverTypes && profile.driverTypes.length > 0 ? profile.driverTypes : [profile.driverType ?? 'regular']);
         setNotifPush(profile.pushNotificationsEnabled ?? profile.notificationsEnabled);
         setNotifEmail(profile.emailNotificationsEnabled ?? false);
       })
@@ -202,12 +202,12 @@ export function OnboardingModal({
       setSavingProfile(true);
       try {
         const updatedProfile = await profileApi.update({
-          driverType,
+          driverTypes,
           notificationsEnabled: notifPush || notifEmail,
           pushNotificationsEnabled: notifPush,
           emailNotificationsEnabled: notifEmail,
         });
-        setProfileDriverType(updatedProfile.driverType ?? 'regular');
+        setProfileDriverTypes(updatedProfile.driverTypes && updatedProfile.driverTypes.length > 0 ? updatedProfile.driverTypes : [updatedProfile.driverType ?? 'regular']);
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Erro ao guardar preferências.');
         setSavingProfile(false);
@@ -259,7 +259,7 @@ export function OnboardingModal({
       />
     );
     if (step === 2) return <StepPaymentStripe onReady={setPaymentConfirmed} />;
-    if (step === 3) return <StepDriverType driverType={driverType} setDriverType={setDriverType} />;
+    if (step === 3) return <StepDriverType driverTypes={driverTypes} setDriverTypes={setDriverTypes} />;
     if (step === 4) return <StepPreferences notifPush={notifPush} setNotifPush={setNotifPush} notifEmail={notifEmail} setNotifEmail={setNotifEmail} />;
     if (isFinishStep) return <StepFinished accountType="DRIVER" />;
     return null;
@@ -309,7 +309,7 @@ export function OnboardingModal({
               <i className="fas fa-arrow-right" />
             </button>
           ) : (
-            <button onClick={() => onFinish(driverType)} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary text-primary-foreground font-extrabold hover:opacity-90 shadow-md shadow-primary/20 transition-all" style={{ fontSize: '0.9rem' }}>
+            <button onClick={() => onFinish(driverTypes[0] ?? 'regular')} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary text-primary-foreground font-extrabold hover:opacity-90 shadow-md shadow-primary/20 transition-all" style={{ fontSize: '0.9rem' }}>
               <i className="fas fa-rocket" />
               Ir para a aplicação
             </button>

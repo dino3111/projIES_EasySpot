@@ -161,6 +161,9 @@ export function MaintenancePage() {
   const [sensors, setSensors]               = useState<SensorDevice[]>([]);
   const [issues, setIssues]                 = useState<IssueReport[]>([]);
   const [orders, setOrders]                 = useState<WorkOrder[]>([]);
+  const [completedOrders, setCompletedOrders] = useState<WorkOrder[]>([]);
+  const [completedLoading, setCompletedLoading] = useState(false);
+  const [weekOffset, setWeekOffset]         = useState(-1);
   const [loading, setLoading]               = useState(true);
   const [apiError, setApiError]             = useState<string | null>(null);
   const [selectedIssue, setSelectedIssue]   = useState<IssueReport | null>(null);
@@ -180,18 +183,17 @@ export function MaintenancePage() {
     setLoading(true);
     setApiError(null);
     try {
-      const [apiSensors, apiAlerts] = await Promise.all([
+      const [apiSensors, openAlerts, inProgressAlerts, resolvedAlerts] = await Promise.all([
         fetchSensorList(),
-        fetchAlerts(),
+        fetchAlerts({ state: 'OPEN' }),
+        fetchAlerts({ state: 'IN_PROGRESS' }),
+        fetchAlerts({ state: 'RESOLVED' }),
       ]);
-      console.info('[TECH-FE] maintenance loadAll raw', {
-        sensorsCount: apiSensors.length,
-        alertsCount: apiAlerts.length,
-        sensorParkIds: [...new Set(apiSensors.map((s) => s.parkingLotId))],
-      });
+      const activeAlerts = [...openAlerts, ...inProgressAlerts];
+      const allAlerts = [...activeAlerts, ...resolvedAlerts];
       setSensors(apiSensors.map(sensorFromApi));
-      setIssues(apiAlerts.map(alertToIssue));
-      setOrders(apiAlerts.map(alertToWorkOrder));
+      setIssues(allAlerts.map(alertToIssue));
+      setOrders(activeAlerts.map(alertToWorkOrder));
     } catch (err: unknown) {
       setApiError(err instanceof Error ? err.message : 'Erro ao carregar dados.');
     } finally {
@@ -199,7 +201,34 @@ export function MaintenancePage() {
     }
   }, []);
 
+  const loadCompleted = useCallback(async (offset: number) => {
+    setCompletedLoading(true);
+    try {
+      const now = new Date();
+      const dayOfWeek = now.getDay();
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - ((dayOfWeek + 6) % 7) + offset * 7);
+      monday.setHours(0, 0, 0, 0);
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+      sunday.setHours(23, 59, 59, 999);
+      const apiAlerts = await fetchAlerts({
+        state: 'RESOLVED',
+        from: monday.toISOString(),
+        to: sunday.toISOString(),
+      });
+      setCompletedOrders(apiAlerts.map(alertToWorkOrder));
+    } catch {
+      setCompletedOrders([]);
+    } finally {
+      setCompletedLoading(false);
+    }
+  }, []);
+
   useEffect(() => { loadAll(); }, [loadAll]);
+  useEffect(() => {
+    if (tab === 'tarefas') loadCompleted(weekOffset);
+  }, [loadCompleted, weekOffset, tab]);
 
   const kpis = computeTechKPIs(sensors);
   const filteredSensors = statusFil === 'todos' ? sensors : sensors.filter((s) => s.status === statusFil);
@@ -399,6 +428,10 @@ export function MaintenancePage() {
       {tab === 'tarefas' && (
         <TasksTab
           orders={orders}
+          completedOrders={completedOrders}
+          completedLoading={completedLoading}
+          weekOffset={weekOffset}
+          onWeekChange={setWeekOffset}
           sensors={sensors}
           onUpdate={handleOrderUpdate}
           onNewOrder={() => setNewOrderModal(true)}

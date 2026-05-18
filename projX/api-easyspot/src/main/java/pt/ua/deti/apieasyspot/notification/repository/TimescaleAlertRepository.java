@@ -89,7 +89,8 @@ public class TimescaleAlertRepository {
         );
     }
 
-    public List<Alert> findAllFiltered(UUID parkId, StateAlert state, SeverityAlert severity) {
+    public List<Alert> findAllFiltered(UUID parkId, StateAlert state, SeverityAlert severity,
+                                        Timestamp from, Timestamp to) {
         StringBuilder sql = new StringBuilder("""
             select id, parking_lot_id, parking_lot_name, type, severity, state, zone, spot_number,
                    sensor_id, plate, description, photo_url, reported_by, attributed_to, notes, resolved_at, created_at
@@ -110,13 +111,22 @@ public class TimescaleAlertRepository {
             sql.append(" and severity = ?");
             params.add(severity.name());
         }
+        if (from != null) {
+            sql.append(" and created_at >= ?");
+            params.add(from);
+        }
+        if (to != null) {
+            sql.append(" and created_at <= ?");
+            params.add(to);
+        }
 
         sql.append(" order by created_at desc");
 
         return jdbc.query(sql.toString(), this::mapRow, params.toArray());
     }
 
-    public List<Alert> findAllFilteredByParks(List<UUID> parkIds, StateAlert state, SeverityAlert severity) {
+    public List<Alert> findAllFilteredByParks(List<UUID> parkIds, StateAlert state, SeverityAlert severity,
+                                               Timestamp from, Timestamp to) {
         if (parkIds == null || parkIds.isEmpty()) return List.of();
 
         StringBuilder sql = new StringBuilder("""
@@ -138,6 +148,14 @@ public class TimescaleAlertRepository {
         if (severity != null) {
             sql.append(" and severity = ?");
             params.add(severity.name());
+        }
+        if (from != null) {
+            sql.append(" and created_at >= ?");
+            params.add(from);
+        }
+        if (to != null) {
+            sql.append(" and created_at <= ?");
+            params.add(to);
         }
 
         sql.append(" order by created_at desc");
