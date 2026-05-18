@@ -445,8 +445,8 @@ test('Tab ocorrências mostra alerta resolvido no filtro resolvidos', async ({ p
 });
 
 test('Banner de erro aparece quando API de alertas falha', async ({ page }) => {
-  await page.unroute('**/api/alerts');
-  await page.route('**/api/alerts', (route) => route.fulfill({ status: 503, body: 'Unavailable' }));
+  await page.unroute('**/api/alerts**');
+  await page.route('**/api/alerts**', (route) => route.fulfill({ status: 503, body: 'Unavailable' }));
 
   await page.goto('/technician/maintenance');
 

@@ -183,14 +183,16 @@ export function MaintenancePage() {
     setLoading(true);
     setApiError(null);
     try {
-      const [apiSensors, openAlerts, inProgressAlerts] = await Promise.all([
+      const [apiSensors, openAlerts, inProgressAlerts, resolvedAlerts] = await Promise.all([
         fetchSensorList(),
         fetchAlerts({ state: 'OPEN' }),
         fetchAlerts({ state: 'IN_PROGRESS' }),
+        fetchAlerts({ state: 'RESOLVED' }),
       ]);
       const activeAlerts = [...openAlerts, ...inProgressAlerts];
+      const allAlerts = [...activeAlerts, ...resolvedAlerts];
       setSensors(apiSensors.map(sensorFromApi));
-      setIssues(activeAlerts.map(alertToIssue));
+      setIssues(allAlerts.map(alertToIssue));
       setOrders(activeAlerts.map(alertToWorkOrder));
     } catch (err: unknown) {
       setApiError(err instanceof Error ? err.message : 'Erro ao carregar dados.');
