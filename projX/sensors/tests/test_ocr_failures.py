@@ -187,7 +187,8 @@ class OcrGeneratorFailureModeTests(unittest.TestCase):
             if spot_id == "spot-3" and event["eventType"] == "ocr.plate.read"
         ]
         self.assertGreater(
-            len(normal_after_recovery), 0,
+            len(normal_after_recovery),
+            0,
             "No normal reads after camera recovery",
         )
 

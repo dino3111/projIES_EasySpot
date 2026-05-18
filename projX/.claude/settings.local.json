@@ -25,7 +25,11 @@
       "Bash(.venv/bin/python -m pytest tests/test_ocr_event_builder.py tests/test_ocr_failures.py -q)",
       "Bash(.venv/bin/python *)",
       "Bash(awk length > 88 {print NR\": \"length\" chars: \"$0} *)",
-      "Bash(awk 'length > 88 {print FILENAME\":\"NR\": \"length\" chars\"}' ocr_event_builder.py tests/test_ocr_failures.py)"
+      "Bash(awk 'length > 88 {print FILENAME\":\"NR\": \"length\" chars\"}' ocr_event_builder.py tests/test_ocr_failures.py)",
+      "Bash(rtk pip *)",
+      "Bash(python -m black --diff /home/claudino/ies2526-group-project-g703/projX/sensors/ocr_event_builder.py /home/claudino/ies2526-group-project-g703/projX/sensors/tests/test_ocr_failures.py)",
+      "Bash(python3 -m black --diff /home/claudino/ies2526-group-project-g703/projX/sensors/ocr_event_builder.py /home/claudino/ies2526-group-project-g703/projX/sensors/tests/test_ocr_failures.py)",
+      "Bash(.venv/bin/black *)"
     ]
   }
 }

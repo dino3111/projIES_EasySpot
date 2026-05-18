@@ -245,9 +245,7 @@ class OcrEventGenerator:
             return self.rng.uniform(0.30, 0.65)
         return self.rng.uniform(0.82, 0.99)
 
-    def _make_failure_event(
-        self, spot: Dict, direction: str, real_plate: str
-    ) -> Dict:
+    def _make_failure_event(self, spot: Dict, direction: str, real_plate: str) -> Dict:
         """Pick a random non-offline failure mode and build the event."""
         non_offline_modes = [
             OcrFailureMode.UNREADABLE,

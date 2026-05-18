@@ -30,10 +30,18 @@ spot AS (
     LIMIT 1
 ),
 
-scenarios (label, plate, confidence, direction, failure_mode, minutes_ago) AS (
-    VALUES
+scenarios AS (
+    SELECT
+        t.label,
+        t.plate,
+        t.confidence,
+        t.direction,
+        t.failure_mode,
+        t.minutes_ago
+    FROM (
+        VALUES
         -- 1. Normal read (baseline - no failure)
-        ('normal_entry', 'AA-10-AB', 0.9500, 'entry', NULL, 120),
+        ('normal_entry', 'AA-10-AB', 0.9500, 'entry', NULL::VARCHAR, 120),
         -- 2. UNREADABLE - plate field empty, confidence 0.0
         ('unreadable', '', 0.0000, 'entry', 'UNREADABLE', 110),
         -- 3. LOW_CONFIDENCE - plate present but score too low to trust
@@ -45,7 +53,8 @@ scenarios (label, plate, confidence, direction, failure_mode, minutes_ago) AS (
         -- 6. CAMERA_DEGRADED - plate read but with reduced quality
         ('camera_degraded', 'AA-10-AB', 0.4800, 'exit', 'CAMERA_DEGRADED', 70),
         -- 7. Recovery - normal read after failures (proves recovery works)
-        ('recovery_entry', 'BA-21-CD', 0.9200, 'entry', NULL, 60)
+        ('recovery_entry', 'BA-21-CD', 0.9200, 'entry', NULL::VARCHAR, 60)
+    ) AS t (label, plate, confidence, direction, failure_mode, minutes_ago)
 )
 
 INSERT INTO ocr_plate_reads (
