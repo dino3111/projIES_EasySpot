@@ -3,6 +3,13 @@ import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MyReservationsPage } from '../reservations/MyReservationsPage';
 
+const now = new Date();
+const futureArrival = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+const futureDeparture = new Date(now.getTime() + 26 * 60 * 60 * 1000);
+const pastArrival = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+const pastDeparture = new Date(now.getTime() - 46 * 60 * 60 * 1000);
+const lockedUntil = new Date(now.getTime() + 25 * 60 * 60 * 1000);
+
 const toastMock = vi.hoisted(() => ({
   success: vi.fn(),
   error: vi.fn(),
@@ -29,8 +36,8 @@ vi.mock('../reservations/EditReservationModal', () => ({
       <span>Editar modal</span>
       {error && <span>{error}</span>}
       <button onClick={() => onSave({
-        arrivalDateTime: '2026-05-14T10:00:00Z',
-        departureDateTime: '2026-05-14T12:00:00Z',
+        arrivalDateTime: futureArrival.toISOString(),
+        departureDateTime: futureDeparture.toISOString(),
         selectedSpotId: null,
       })}
       >
@@ -72,8 +79,8 @@ const pastReservation = {
   reservationId: 'res-past',
   bookingCode: 'ES-PAST',
   parkName: 'Parque Passado',
-  arrivalDateTime: '2025-05-14T08:00:00Z',
-  departureDateTime: '2025-05-14T10:00:00Z',
+  arrivalDateTime: pastArrival.toISOString(),
+  departureDateTime: pastDeparture.toISOString(),
   status: 'COMPLETED' as const,
 };
 

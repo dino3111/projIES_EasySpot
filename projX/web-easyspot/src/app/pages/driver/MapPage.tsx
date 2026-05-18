@@ -7,11 +7,12 @@ import { ParkPanel } from './components/ParkPanel';
 import { fetchParkDetails, fetchParksList } from '../../services/parksApi';
 import { subscribeSpaceAvailableAlerts } from '../../services/parksApi';
 
-type FilterType = 'all' | 'ev' | 'accessible' | 'available';
+type FilterType = 'all' | 'ev' | 'accessible' | 'both' | 'available';
 
 const FILTERS: { id: FilterType; icon: string; label: string }[] = [
   { id: 'all',       icon: 'fa-layer-group',      label: 'Todos' },
   { id: 'available', icon: 'fa-circle-check',     label: 'Livres' },
+  { id: 'both',      icon: 'fa-filter',            label: 'EV + Acessível' },
   { id: 'ev',        icon: 'fa-charging-station', label: 'EV' },
   { id: 'accessible', icon: 'fa-wheelchair',      label: 'Acessível' },
 ];
@@ -26,12 +27,16 @@ function getStatusInfo(lot: ParkingLot) {
 }
 
 export function MapPage() {
-  const { vehicles, driverType } = useProfile();
+  const { vehicles, driverTypes } = useProfile();
   const primaryVehicle = vehicles.find((v) => v.isPrimary) ?? vehicles[0] ?? null;
+  const prefersEv = driverTypes.includes('ev');
+  const prefersAccessible = driverTypes.includes('reduced_mobility');
   const initialFilter: FilterType =
-    driverType === 'ev'
+    prefersEv && prefersAccessible
+      ? 'both'
+      : prefersEv
       ? 'ev'
-      : driverType === 'reduced_mobility'
+      : prefersAccessible
         ? 'accessible'
         : 'all';
 
@@ -51,11 +56,15 @@ export function MapPage() {
     const vehicle = vehicles.find((v) => v.id === selectedVehicleId) ?? null;
     if (userChangedFilterRef.current) return;
     if (!userSelectedVehicleRef.current) {
-      if (driverType === 'ev') {
+      if (prefersEv && prefersAccessible) {
+        setActiveFilter('both');
+        return;
+      }
+      if (prefersEv) {
         setActiveFilter('ev');
         return;
       }
-      if (driverType === 'reduced_mobility') {
+      if (prefersAccessible) {
         setActiveFilter('accessible');
         return;
       }
@@ -63,7 +72,7 @@ export function MapPage() {
     if (vehicle?.isEV) setActiveFilter('ev');
     else if (vehicle?.isAccessible) setActiveFilter('accessible');
     else if (vehicle) setActiveFilter('all');
-  }, [selectedVehicleId, vehicles, driverType]);
+  }, [selectedVehicleId, vehicles, prefersEv, prefersAccessible]);
 
   const handleVehicleSelect = useCallback((id: string | null) => {
     userSelectedVehicleRef.current = true;
@@ -81,14 +90,14 @@ export function MapPage() {
     const load = async () => {
       try {
         setLoading(true);
-        const shouldUseVehicleCompatibility = activeFilter === 'ev' || activeFilter === 'accessible';
+        const shouldUseVehicleCompatibility = activeFilter === 'ev' || activeFilter === 'accessible' || activeFilter === 'both';
         const data = await fetchParksList({
           page: 1,
           pageSize: 200,
           textQuery: searchQuery || undefined,
           vehicleId: shouldUseVehicleCompatibility ? selectedVehicleId : null,
-          evOnly: activeFilter === 'ev',
-          accessibleOnly: activeFilter === 'accessible',
+          evOnly: activeFilter === 'ev' || activeFilter === 'both',
+          accessibleOnly: activeFilter === 'accessible' || activeFilter === 'both',
           availableOnly: activeFilter === 'available',
         });
         if (mounted) setParkingLots(data.items);
