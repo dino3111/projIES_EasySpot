@@ -29,7 +29,7 @@ public class ParkingSpotEventKafkaListener {
 
     @KafkaListener(
         topics = {"parking-spot-events"},
-        groupId = "${easyspot.occupancy.kafka.group-id:easyspot-occupancy"
+        groupId = "${easyspot.occupancy.kafka.group-id:easyspot-occupancy}"
     )
     @Transactional
     public void onEvent(String payload){
