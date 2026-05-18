@@ -15,6 +15,7 @@ import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingLotRepository;
 import pt.ua.deti.apieasyspot.occupancy.repository.TechnicianParkAssignmentRepository;
 
+import java.sql.Timestamp;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -32,14 +33,20 @@ public class AlertService {
     private final TechnicianParkAssignmentRepository technicianParkAssignmentRepository;
     private final UserRepository userRepository;
 
-    public List<Alert> listAlerts(UUID parkId, StateAlert state, SeverityAlert severity) {
-        List<Alert> alerts = alertRepository.findAllFiltered(parkId, state, severity);
+    public List<Alert> listAlerts(UUID parkId, StateAlert state, SeverityAlert severity,
+                                   OffsetDateTime from, OffsetDateTime to) {
+        Timestamp tsFrom = from != null ? Timestamp.from(from.toInstant()) : null;
+        Timestamp tsTo   = to   != null ? Timestamp.from(to.toInstant())   : null;
+        List<Alert> alerts = alertRepository.findAllFiltered(parkId, state, severity, tsFrom, tsTo);
         hydrateClientReportAttribution(alerts);
         return alerts;
     }
 
-    public List<Alert> listAlertsByParks(List<UUID> parkIds, StateAlert state, SeverityAlert severity) {
-        return alertRepository.findAllFilteredByParks(parkIds, state, severity);
+    public List<Alert> listAlertsByParks(List<UUID> parkIds, StateAlert state, SeverityAlert severity,
+                                          OffsetDateTime from, OffsetDateTime to) {
+        Timestamp tsFrom = from != null ? Timestamp.from(from.toInstant()) : null;
+        Timestamp tsTo   = to   != null ? Timestamp.from(to.toInstant())   : null;
+        return alertRepository.findAllFilteredByParks(parkIds, state, severity, tsFrom, tsTo);
     }
 
     public void updateState(UUID id, String rawState, String notes) {

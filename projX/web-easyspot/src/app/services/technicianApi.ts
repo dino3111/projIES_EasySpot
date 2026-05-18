@@ -145,6 +145,8 @@ export type FetchAlertsQuery = {
   parkId?: string;
   state?: AlertState;
   severity?: AlertSeverity;
+  from?: string;
+  to?: string;
 };
 
 export const fetchAlerts = (query: FetchAlertsQuery = {}): Promise<AlertResponse[]> => {
@@ -152,6 +154,8 @@ export const fetchAlerts = (query: FetchAlertsQuery = {}): Promise<AlertResponse
   if (query.parkId)   params.set('parkId',   query.parkId);
   if (query.state)    params.set('state',    query.state);
   if (query.severity) params.set('severity', query.severity);
+  if (query.from)     params.set('from',     query.from);
+  if (query.to)       params.set('to',       query.to);
   const qs = params.toString();
   return request<AlertResponse[]>(`/api/alerts${qs ? `?${qs}` : ''}`).then((data) => {
     console.info('[TECH-FE] alerts loaded', { count: data.length, query });
