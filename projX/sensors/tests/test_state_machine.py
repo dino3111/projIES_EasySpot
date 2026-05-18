@@ -1,4 +1,5 @@
-import pytest
+import math
+
 from state_machine import SpotStateMachine
 
 
@@ -73,8 +74,8 @@ def test_next_status_temporal_adjustment():
         status: prob for status, _, prob in test_machine.last_transitions
     }
 
-    assert morning_transitions["occupied"] == pytest.approx(
-        base_transitions["occupied"] * 2.5
+    assert math.isclose(
+        morning_transitions["occupied"], base_transitions["occupied"] * 2.5
     )
 
     # Check occupied to free during evening peak,
@@ -89,8 +90,8 @@ def test_next_status_temporal_adjustment():
         status: prob for status, _, prob in test_machine.last_transitions
     }
 
-    assert evening_occ_transitions["free"] == pytest.approx(
-        base_occ_transitions["free"] * 2.5
+    assert math.isclose(
+        evening_occ_transitions["free"], base_occ_transitions["free"] * 2.5
     )
 
 

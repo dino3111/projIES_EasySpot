@@ -308,9 +308,7 @@ public class ParkService {
     }
 
     private boolean countsAsFree(String status) {
-        return STATUS_FREE.equalsIgnoreCase(status)
-            || "ev".equalsIgnoreCase(status)
-            || "accessible".equalsIgnoreCase(status);
+        return STATUS_FREE.equalsIgnoreCase(status);
     }
 
     private String deriveSpotStatus(ParkingSpot spot, Reservation reservation, OffsetDateTime now) {
@@ -341,8 +339,8 @@ public class ParkService {
     }
 
     private String restoreSpotBaseStatus(ParkingSpot spot) {
-        if (spot.getZone() == ZoneType.EV) return "ev";
-        if (spot.getZone() == ZoneType.ACCESSIBLE) return "accessible";
+        if (spot.getZone() == ZoneType.EV) return STATUS_OCCUPIED;
+        if (spot.getZone() == ZoneType.ACCESSIBLE) return STATUS_OCCUPIED;
         return normalizeSpotStatus(spot.getStatus());
     }
 
