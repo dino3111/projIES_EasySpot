@@ -290,9 +290,6 @@ class GateSimulator:
 
     def gate_states(self) -> Dict[str, Dict[str, str]]:
         return {
-            park_id: {
-                direction: gate.state.value
-                for direction, gate in gates.items()
-            }
+            park_id: {direction: gate.state.value for direction, gate in gates.items()}
             for park_id, gates in self._gates.items()
         }

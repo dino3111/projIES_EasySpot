@@ -24,6 +24,7 @@ def _parks(n=3):
 
 def _gate(direction=GateDirection.ENTRY, seed=42):
     import random
+
     return ParkGate(
         gate_id="gate-test-entry",
         direction=direction,
@@ -114,6 +115,7 @@ class ParkGateOpenCloseTests(unittest.TestCase):
 
     def test_auto_close_after_ticks(self):
         import random
+
         gate = ParkGate("g", GateDirection.ENTRY, random.Random(1))
         gate.state = GateState.OPEN
         gate._open_ticks = 1
@@ -143,6 +145,7 @@ class ParkGateOpenCloseTests(unittest.TestCase):
 class ParkGateFaultRecoveryTests(unittest.TestCase):
     def test_fault_state_can_recover(self):
         import random
+
         gate = ParkGate("g", GateDirection.ENTRY, random.Random(99))
         gate.state = GateState.FAULT
         recovered = False
@@ -158,6 +161,7 @@ class ParkGateFaultRecoveryTests(unittest.TestCase):
 
     def test_fault_event_has_correct_type(self):
         import random
+
         # Force a fault by monkeypatching the rng to always return 0
         gate = ParkGate("g", GateDirection.ENTRY, random.Random(0))
         gate.state = GateState.CLOSED
@@ -297,7 +301,6 @@ class GateSimulatorKafkaPublishTests(unittest.TestCase):
             def flush(self):
                 pass
 
-        import random
         sim = GateSimulator(parks=_parks(3), seed=99)
         publisher = StubPublisher()
 
