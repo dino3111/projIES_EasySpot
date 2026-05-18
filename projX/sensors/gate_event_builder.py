@@ -79,15 +79,11 @@ class ParkGate:
         self._open_ticks = 0
         self._fault_ticks = 0
 
-    def trigger_open(
-        self, plate: Optional[str] = None
-    ) -> Optional[Dict]:
+    def trigger_open(self, plate: Optional[str] = None) -> Optional[Dict]:
         """Called when a valid OCR read arrives. Returns event dict or None."""
         return self._try_open(plate, reason="valid_ocr_read")
 
-    def trigger_blocked(
-        self, plate: Optional[str] = None
-    ) -> Optional[Dict]:
+    def trigger_blocked(self, plate: Optional[str] = None) -> Optional[Dict]:
         """Called when OCR read fails. Gate should block."""
         return self._block(plate, reason="ocr_failure")
 

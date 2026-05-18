@@ -25,7 +25,9 @@
       "Read(//home/claudino/ies2526-group-project-g703/**)",
       "Bash(sqlfluff fix *)",
       "Bash(python3 -m sqlfluff fix /home/claudino/ies2526-group-project-g703/projX/api-easyspot/src/main/resources/seed/us_gate_events_seed.sql --dialect postgres)",
-      "Bash(rtk pip *)"
+      "Bash(rtk pip *)",
+      "Bash(rtk git *)",
+      "Bash(python3 -m black --check projX/sensors/gate_event_builder.py projX/sensors/tests/test_gate_simulator.py)"
     ]
   }
 }
