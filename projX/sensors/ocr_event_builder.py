@@ -63,7 +63,7 @@ def _random_pt_plate(rng: random.Random) -> str:
 
 
 def _ocr_sensor_id(park_id: str) -> str:
-    """Derive OCR entrance camera sensor ID from park UUID — matches backend convention."""
+    """Derive OCR camera sensor ID from park UUID — matches backend convention."""
     park_key = park_id.replace("-", "")[:8].upper()
     return f"OCR-{park_key}-ENT1"
 
@@ -221,7 +221,7 @@ class OcrEventGenerator:
         for spot in spots:
             self._spots_by_park.setdefault(spot["parkId"], []).append(spot)
 
-        # per park_id: fault start time (float) when camera is offline; absent = operational
+        # per park_id: fault start time when camera is offline; absent = operational
         self._camera_fault_start: Dict[str, float] = {}
 
         # per-spot camera state sets

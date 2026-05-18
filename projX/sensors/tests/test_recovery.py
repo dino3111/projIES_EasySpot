@@ -4,13 +4,13 @@ import unittest
 
 sys.path.insert(0, ".")
 
-from event_builder import build_spot_event
-from ocr_event_builder import (
+from event_builder import build_spot_event  # noqa: E402
+from ocr_event_builder import (  # noqa: E402
     OcrEventGenerator,
     build_device_recovery_event,
     _ocr_sensor_id,
 )
-from state_machine import SpotStateMachine
+from state_machine import SpotStateMachine  # noqa: E402
 
 
 def _spot(spot_id="spot-1", park_id="park-1"):
