@@ -86,6 +86,21 @@ def load_vehicle_plates():
     return unique
 
 
+def load_reservations():
+    context = load_context()
+    return [
+        {
+            "reservationId": res["reservationId"],
+            "spotId": res["spotId"],
+            "arrival": res["arrivalDateTime"],
+            "departure": res["departureDateTime"],
+            "status": res["status"],
+        }
+        for res in context.get("activeReservations", [])
+        if res.get("spotId")
+    ]
+
+
 def _validate_context(context):
     required_top_level = [
         "version",

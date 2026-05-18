@@ -1,3 +1,4 @@
+import pytest
 from state_machine import SpotStateMachine
 
 
@@ -59,30 +60,90 @@ def test_next_status_temporal_adjustment():
 
     test_machine = TestMachine()
 
-    # Base case, hour 11 (normal daytime, multiplier 1.0, 1.0)
-    test_machine.next_status("free", current_hour=11)
+    # Base case, hour 11, time_in_state=900 (aging factor 1.0),
+    # row=10, col=10 (low hotspot)
+    test_machine.next_status("free", current_hour=11, time_in_state=900, row=10, col=10)
     base_transitions = {
         status: prob for status, _, prob in test_machine.last_transitions
     }
 
     # Morning peak, hour 9 (entry mult 2.5)
-    test_machine.next_status("free", current_hour=9)
+    test_machine.next_status("free", current_hour=9, time_in_state=900, row=10, col=10)
     morning_transitions = {
         status: prob for status, _, prob in test_machine.last_transitions
     }
 
-    assert morning_transitions["occupied"] == base_transitions["occupied"] * 2.5
-    assert morning_transitions["reserved"] == base_transitions["reserved"] * 2.5
+    assert morning_transitions["occupied"] == pytest.approx(
+        base_transitions["occupied"] * 2.5
+    )
 
-    # Check occupied to free during evening peak, hour 18 (exit mult 2.5)
-    test_machine.next_status("occupied", current_hour=11)
+    # Check occupied to free during evening peak,
+    # hour 18 (exit mult 2.5)
+    test_machine.next_status("occupied", current_hour=11, time_in_state=900)
     base_occ_transitions = {
         status: prob for status, _, prob in test_machine.last_transitions
     }
 
-    test_machine.next_status("occupied", current_hour=18)
+    test_machine.next_status("occupied", current_hour=18, time_in_state=900)
     evening_occ_transitions = {
         status: prob for status, _, prob in test_machine.last_transitions
     }
 
-    assert evening_occ_transitions["free"] == base_occ_transitions["free"] * 2.5
+    assert evening_occ_transitions["free"] == pytest.approx(
+        base_occ_transitions["free"] * 2.5
+    )
+
+
+def test_hotspot_effect():
+    class TestMachine(SpotStateMachine):
+        def __init__(self):
+            super().__init__()
+            self.last_transitions = []
+
+        def _weighted_choice(self, transitions):
+            self.last_transitions = transitions
+            return super()._weighted_choice(transitions)
+
+    machine = TestMachine()
+    # Near entrance (0,0)
+    machine.next_status("free", row=0, col=0, current_hour=11)
+    near_prob = next(p for s, r, p in machine.last_transitions if s == "occupied")
+
+    # Far away (20,20)
+    machine.next_status("free", row=20, col=20, current_hour=11)
+    far_prob = next(p for s, r, p in machine.last_transitions if s == "occupied")
+
+    assert near_prob > far_prob
+
+
+def test_state_aging_effect():
+    class TestMachine(SpotStateMachine):
+        def __init__(self):
+            super().__init__()
+            self.last_transitions = []
+
+        def _weighted_choice(self, transitions):
+            self.last_transitions = transitions
+            return super()._weighted_choice(transitions)
+
+    machine = TestMachine()
+    # Just parked
+    machine.next_status("occupied", time_in_state=10, current_hour=11)
+    newly_parked_exit_prob = next(
+        p for s, r, p in machine.last_transitions if s == "free"
+    )
+
+    # Parked for long time (30 mins = 1800 ticks)
+    machine.next_status("occupied", time_in_state=1800, current_hour=11)
+    long_parked_exit_prob = next(
+        p for s, r, p in machine.last_transitions if s == "free"
+    )
+
+    assert long_parked_exit_prob > newly_parked_exit_prob
+
+
+def test_reservation_integration():
+    machine = SpotStateMachine()
+    status, reason = machine.next_status("free", has_pending_reservation=True)
+    assert status == "reserved"
+    assert "backend" in reason

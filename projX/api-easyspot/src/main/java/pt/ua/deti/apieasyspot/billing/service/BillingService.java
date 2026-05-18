@@ -25,14 +25,19 @@ import pt.ua.deti.apieasyspot.auth.model.User;
 import pt.ua.deti.apieasyspot.billing.repository.PaymentRecordRepository;
 import pt.ua.deti.apieasyspot.billing.repository.TimescaleParkingSessionRepository;
 import pt.ua.deti.apieasyspot.booking.model.Reservation;
+import pt.ua.deti.apieasyspot.occupancy.model.Tariff;
 import pt.ua.deti.apieasyspot.occupancy.model.ZoneType;
+import pt.ua.deti.apieasyspot.occupancy.repository.TariffRepository;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.time.Duration;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Objects;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -42,6 +47,7 @@ public class BillingService {
     private final TimescaleParkingSessionRepository parkingSessionRepository;
     private final PaymentRecordRepository paymentRecordRepository;
     private final UserRepository userRepository;
+    private final TariffRepository tariffRepository;
 
     @Value("${stripe.api.key:}")
     private String stripeSecretKey;
@@ -224,7 +230,11 @@ public class BillingService {
         OffsetDateTime exit  = reservation.getDepartureTime().withOffsetSameInstant(ZoneOffset.UTC);
 
         ParkingSession session = new ParkingSession();
-        if (reservation.getUser() != null) session.setUserId(reservation.getUser().getId());
+        session.setId(reservation.getId());
+        session.setReservationId(reservation.getId());
+        if (reservation.getUser() != null) {
+            session.setUserId(reservation.getUser().getId());
+        }
         session.setParkingLotId(reservation.getParkingLot().getId());
         if (reservation.getVehicle() != null) session.setVehicleId(reservation.getVehicle().getId());
         session.setZoneType(zone);
@@ -233,6 +243,79 @@ public class BillingService {
         session.setRevenueEuros(reservation.getEstimatedCost());
 
         parkingSessionRepository.save(session);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void registerReservationEntry(Reservation reservation, OffsetDateTime actualEntry) {
+        if (reservation == null || actualEntry == null) {
+            return;
+        }
+        ZoneType zone = reservation.getParkingSpot() != null
+            ? reservation.getParkingSpot().getZone()
+            : ZoneType.STANDARD;
+        OffsetDateTime entryUtc = actualEntry.withOffsetSameInstant(ZoneOffset.UTC);
+        parkingSessionRepository.updateEntryByReservationId(reservation.getId(), entryUtc, zone);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public PaymentAdjustmentResult settleReservationOnExit(
+        Reservation reservation,
+        OffsetDateTime actualExit,
+        String customerEmail
+    ) {
+        if (reservation == null || actualExit == null) {
+            return new PaymentAdjustmentResult(BigDecimal.ZERO, "NO_CHANGE", null, null);
+        }
+
+        OffsetDateTime actualExitUtc = actualExit.withOffsetSameInstant(ZoneOffset.UTC);
+        OffsetDateTime plannedDeparture = reservation.getDepartureTime().withOffsetSameInstant(ZoneOffset.UTC);
+        BigDecimal estimated = reservation.getEstimatedCost() != null
+            ? reservation.getEstimatedCost()
+            : BigDecimal.ZERO;
+
+        BigDecimal finalRevenue = estimated;
+        PaymentAdjustmentResult result = new PaymentAdjustmentResult(BigDecimal.ZERO, "NO_CHANGE", null, null);
+
+        if (actualExitUtc.isAfter(plannedDeparture)) {
+            BigDecimal actualCost = calculateCost(
+                reservation.getParkingLot().getId(),
+                reservation.getArrivalTime().withOffsetSameInstant(ZoneOffset.UTC),
+                actualExitUtc
+            );
+            if (actualCost.compareTo(estimated) > 0) {
+                result = adjustPaymentForReservation(reservation, estimated, actualCost, customerEmail);
+                finalRevenue = actualCost;
+            }
+        }
+
+        parkingSessionRepository.updateExitAndRevenueByReservationId(reservation.getId(), actualExitUtc, finalRevenue);
+        return result;
+    }
+
+    private BigDecimal calculateCost(UUID parkingLotId, OffsetDateTime entry, OffsetDateTime exit) {
+        if (parkingLotId == null || entry == null || exit == null || !exit.isAfter(entry)) {
+            return BigDecimal.ZERO;
+        }
+        List<Tariff> tariffs = tariffRepository.findByParkingLotId(parkingLotId);
+        if (tariffs.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+
+        Tariff tariff = tariffs.stream()
+            .filter(t -> t.getPricePerHour() != null)
+            .min((a, b) -> a.getPricePerHour().compareTo(b.getPricePerHour()))
+            .orElse(tariffs.get(0));
+        if (tariff.getPricePerHour() == null) {
+            return BigDecimal.ZERO;
+        }
+
+        long minutes = Duration.between(entry, exit).toMinutes();
+        BigDecimal hours = BigDecimal.valueOf(minutes).divide(BigDecimal.valueOf(60), 4, RoundingMode.HALF_UP);
+        BigDecimal cost = tariff.getPricePerHour().multiply(hours).setScale(2, RoundingMode.HALF_UP);
+        if (tariff.getMaxDaily() != null && cost.compareTo(tariff.getMaxDaily()) > 0) {
+            cost = tariff.getMaxDaily();
+        }
+        return cost;
     }
 
     /**

@@ -21,11 +21,24 @@ class SpotStateMachine:
         else:
             return 1.0, 1.0  # Normal daytime
 
-    def next_status(self, current_status, zone="STANDARD", current_hour=None):
+    def next_status(
+        self,
+        current_status,
+        zone="STANDARD",
+        current_hour=None,
+        time_in_state=0,
+        row=0,
+        col=0,
+        has_pending_reservation=False,
+    ):
         current = (current_status or "free").strip().lower()
 
         if current in ("ev", "accessible"):
             current = "free"
+
+        # MTTR Logic: Deterministic recovery if repair time is reached
+        # handled by the runner or here if we pass a special flag.
+        # For now, let's stick to probability but with a high boost if aging.
 
         transitions = self.transition_probs.get(current)
         if not transitions:
@@ -33,17 +46,38 @@ class SpotStateMachine:
 
         entry_mult, exit_mult = self._get_time_multipliers(current_hour)
 
+        # 3. Hotspots & Spatial Preference
+        # Preference for spots near (0,0). Max boost of 2.0x, decaying with distance.
+        distance = (row**2 + col**2) ** 0.5
+        spatial_mult = max(1.0, 2.0 / (1.0 + 0.1 * distance))
+        if current == "free":
+            entry_mult *= spatial_mult
+
+        # 2. State Aging (Occupied -> Free)
+        # 15 mins = 900 ticks. Sigmoid-like boost to exit_mult.
+        if current == "occupied":
+            # Probability is very low for first 5 mins, normal at
+            # 15 mins, high after 30 mins.
+            aging_factor = 1.0 / (1.0 + pow(2.718, -(time_in_state - 900) / 300.0))
+            exit_mult *= max(0.01, aging_factor * 2.0)
+
+        # 4. Reservation Integration
+        if current == "free" and has_pending_reservation:
+            # Force reservation status
+            return "reserved", "reservation_triggered_by_backend"
+
         adjusted_transitions = []
         for status, reason, probability in transitions:
             adj_prob = probability
 
-            # Temporal adjustments
+            # Temporal & Logic adjustments
             if current == "free" and status in ("occupied", "reserved"):
                 adj_prob *= entry_mult
             elif current == "occupied" and status == "free":
                 adj_prob *= exit_mult
             elif current == "reserved" and status == "occupied":
-                adj_prob *= entry_mult
+                # reserved spots have high arrival probability
+                adj_prob *= entry_mult * 2.0
 
             # Zone adjustments
             if (
