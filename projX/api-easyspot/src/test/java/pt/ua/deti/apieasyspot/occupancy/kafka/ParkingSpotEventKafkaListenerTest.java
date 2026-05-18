@@ -8,6 +8,7 @@ import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingSpot;
 import pt.ua.deti.apieasyspot.occupancy.model.ZoneType;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingSpotRepository;
+import pt.ua.deti.apieasyspot.occupancy.service.OccupancySnapshotIngestService;
 import pt.ua.deti.apieasyspot.sensor.service.SensorLogsService;
 
 import java.util.Optional;
@@ -19,15 +20,19 @@ import static org.mockito.Mockito.*;
 class ParkingSpotEventKafkaListenerTest {
 
     private ParkingSpotRepository parkingSpotRepository;
+    private OccupancySnapshotIngestService occupancySnapshotIngestService;
     private SensorLogsService sensorLogsService;
     private ParkingSpotEventKafkaListener listener;
 
     @BeforeEach
     void setUp() {
         parkingSpotRepository = mock(ParkingSpotRepository.class);
+        occupancySnapshotIngestService = mock(OccupancySnapshotIngestService.class);
         sensorLogsService = mock(SensorLogsService.class);
         ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
-        listener = new ParkingSpotEventKafkaListener(objectMapper, parkingSpotRepository, sensorLogsService);
+        listener = new ParkingSpotEventKafkaListener(
+            objectMapper, parkingSpotRepository, occupancySnapshotIngestService, sensorLogsService
+        );
     }
 
     private ParkingSpot spotWithStatus(UUID spotId, String status) {

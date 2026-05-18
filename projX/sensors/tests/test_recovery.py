@@ -41,7 +41,9 @@ class SpotRecoveryNotInstantaneousTests(unittest.TestCase):
         machine._fault_start["spot-1"] = 0.0
 
         for _ in range(50):
-            status, reason, duration = machine.next_status("spot-1", "out_of_service", now=50.0)
+            status, reason, duration = machine.next_status(
+                "out_of_service", spot_id="spot-1", now=50.0
+            )
             self.assertEqual(status, "out_of_service")
             self.assertEqual(reason, "still_faulty")
             self.assertIsNone(duration)
@@ -50,19 +52,27 @@ class SpotRecoveryNotInstantaneousTests(unittest.TestCase):
         machine = SpotStateMachine(seed=1, fault_min_duration=30.0)
         machine._fault_start["spot-1"] = 100.0
 
-        # at same timestamp as fault_start, duration=0 < min_duration
-        status, reason, _ = machine.next_status("spot-1", "out_of_service", now=100.0)
+        status, reason, _ = machine.next_status(
+            "out_of_service", spot_id="spot-1", now=100.0
+        )
         self.assertEqual(status, "out_of_service")
 
 
 class SpotAutoRecoveryTests(unittest.TestCase):
     def test_auto_recovery_possible_after_min_duration(self):
-        machine = SpotStateMachine(seed=1, fault_min_duration=10.0, fault_max_duration=300.0, technician_repair_probability=0.0)
+        machine = SpotStateMachine(
+            seed=1,
+            fault_min_duration=10.0,
+            fault_max_duration=300.0,
+            technician_repair_probability=0.0,
+        )
         machine._fault_start["spot-1"] = 0.0
 
         recovered = False
         for _ in range(60):
-            status, reason, duration = machine.next_status("spot-1", "out_of_service", now=200.0)
+            status, reason, duration = machine.next_status(
+                "out_of_service", spot_id="spot-1", now=200.0
+            )
             if status == "free":
                 self.assertEqual(reason, "AUTO_RECOVERY")
                 self.assertIsNotNone(duration)
@@ -72,12 +82,19 @@ class SpotAutoRecoveryTests(unittest.TestCase):
         self.assertTrue(recovered, "Expected AUTO_RECOVERY within 60 ticks")
 
     def test_technician_repair_recovery(self):
-        machine = SpotStateMachine(seed=42, fault_min_duration=10.0, fault_max_duration=300.0, technician_repair_probability=1.0)
+        machine = SpotStateMachine(
+            seed=42,
+            fault_min_duration=10.0,
+            fault_max_duration=300.0,
+            technician_repair_probability=1.0,
+        )
         machine._fault_start["spot-1"] = 0.0
 
         recovered = False
         for _ in range(60):
-            status, reason, duration = machine.next_status("spot-1", "out_of_service", now=200.0)
+            status, reason, duration = machine.next_status(
+                "out_of_service", spot_id="spot-1", now=200.0
+            )
             if status == "free":
                 self.assertEqual(reason, "TECHNICIAN_REPAIR")
                 recovered = True
@@ -88,50 +105,67 @@ class SpotAutoRecoveryTests(unittest.TestCase):
         machine = SpotStateMachine(fault_min_duration=10.0, fault_max_duration=100.0)
         machine._fault_start["spot-1"] = 0.0
 
-        # well past max_duration — must always recover as TECHNICIAN_REPAIR
-        status, reason, duration = machine.next_status("spot-1", "out_of_service", now=200.0)
+        status, reason, duration = machine.next_status(
+            "out_of_service", spot_id="spot-1", now=200.0
+        )
         self.assertEqual(status, "free")
         self.assertEqual(reason, "TECHNICIAN_REPAIR")
         self.assertAlmostEqual(duration, 200.0, places=1)
 
     def test_fault_duration_is_reported_correctly(self):
-        machine = SpotStateMachine(seed=1, fault_min_duration=0.0, fault_max_duration=1000.0, technician_repair_probability=0.0)
+        machine = SpotStateMachine(
+            seed=1,
+            fault_min_duration=0.0,
+            fault_max_duration=1000.0,
+            technician_repair_probability=0.0,
+        )
         machine._fault_start["spot-1"] = 50.0
 
         for _ in range(60):
-            status, _, duration = machine.next_status("spot-1", "out_of_service", now=300.0)
+            status, _, duration = machine.next_status(
+                "out_of_service", spot_id="spot-1", now=300.0
+            )
             if status == "free":
                 self.assertAlmostEqual(duration, 250.0, places=1)
                 break
 
     def test_fault_tracking_cleared_after_recovery(self):
-        machine = SpotStateMachine(seed=1, fault_min_duration=0.0, technician_repair_probability=0.0)
+        machine = SpotStateMachine(
+            seed=1, fault_min_duration=0.0, technician_repair_probability=0.0
+        )
         machine._fault_start["spot-1"] = 0.0
 
         for _ in range(60):
-            status, _, _ = machine.next_status("spot-1", "out_of_service", now=100.0)
+            status, _, _ = machine.next_status(
+                "out_of_service", spot_id="spot-1", now=100.0
+            )
             if status == "free":
                 self.assertNotIn("spot-1", machine._fault_start)
                 break
 
     def test_multiple_spots_tracked_independently(self):
-        machine = SpotStateMachine(seed=5, fault_min_duration=10.0, fault_max_duration=300.0, technician_repair_probability=0.0)
+        machine = SpotStateMachine(
+            seed=5,
+            fault_min_duration=10.0,
+            fault_max_duration=300.0,
+            technician_repair_probability=0.0,
+        )
         machine._fault_start["spot-A"] = 0.0
         machine._fault_start["spot-B"] = 0.0
 
-        # spot-B reaches min_duration at t=50, spot-A still too early (min=60)
-        # But here both have same min_duration=10, so both eligible at t=100
-        # Just verify independent tracking
-        status_a, _, _ = machine.next_status("spot-A", "out_of_service", now=5.0)
-        status_b, _, _ = machine.next_status("spot-B", "out_of_service", now=5.0)
+        status_a, _, _ = machine.next_status(
+            "out_of_service", spot_id="spot-A", now=5.0
+        )
+        status_b, _, _ = machine.next_status(
+            "out_of_service", spot_id="spot-B", now=5.0
+        )
         self.assertEqual(status_a, "out_of_service")
         self.assertEqual(status_b, "out_of_service")
 
     def test_non_recovery_transitions_return_none_duration(self):
         machine = SpotStateMachine(seed=42)
 
-        # fresh spot — no fault start recorded, transitions that aren't recovery
-        _, _, dur = machine.next_status("spot-x", "free", now=0.0)
+        _, _, dur = machine.next_status("free", spot_id="spot-x", now=0.0)
         self.assertIsNone(dur)
 
 
@@ -196,7 +230,7 @@ class OcrCameraRecoveryTests(unittest.TestCase):
             _spots(),
             seed=42,
             registered_plates=["AA-00-00", "BB-11-11"],
-            fault_probability_per_tick=1.0,  # fault on every tick
+            fault_probability_per_tick=1.0,
             fault_min_duration=0.0,
         )
 
@@ -214,10 +248,8 @@ class OcrCameraRecoveryTests(unittest.TestCase):
             fault_max_duration=100.0,
             technician_repair_probability=0.0,
         )
-        # inject fault manually
         gen._camera_fault_start["park-1"] = 0.0
 
-        # at t=200, max_duration=100 exceeded — guaranteed TECHNICIAN_REPAIR
         events = gen.next_events(now=200.0)
         recovery_events = [e for e, _ in events if e["eventType"] == "device.recovery"]
         self.assertEqual(len(recovery_events), 1)
@@ -237,7 +269,6 @@ class OcrCameraRecoveryTests(unittest.TestCase):
         )
         gen._camera_fault_start["park-1"] = 0.0
 
-        # Within min_duration, camera stays offline and no plate reads should appear
         events = gen.next_events(now=30.0)
         plate_reads = [e for e, _ in events if e["eventType"] == "ocr.plate.read"]
         self.assertEqual(len(plate_reads), 0)
@@ -253,7 +284,7 @@ class OcrCameraRecoveryTests(unittest.TestCase):
         )
         gen._camera_fault_start["park-1"] = 0.0
 
-        gen.next_events(now=50.0)  # guaranteed recovery past max_duration
+        gen.next_events(now=50.0)
         self.assertNotIn("park-1", gen._camera_fault_start)
 
     def test_device_recovery_event_contains_valid_device_id(self):

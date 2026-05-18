@@ -10,6 +10,7 @@ import pt.ua.deti.apieasyspot.occupancy.dto.ParkingSpotEvent;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingSpot;
 import pt.ua.deti.apieasyspot.occupancy.model.ZoneType;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingSpotRepository;
+import pt.ua.deti.apieasyspot.occupancy.service.OccupancySnapshotIngestService;
 import pt.ua.deti.apieasyspot.sensor.service.SensorLogsService;
 
 import java.util.Locale;
@@ -25,9 +26,9 @@ public class ParkingSpotEventKafkaListener {
     private static final String STATUS_RESERVED = "reserved";
     private static final String STATUS_OUT_OF_SERVICE = "out_of_service";
 
-
     private final ObjectMapper objectMapper;
     private final ParkingSpotRepository parkingSpotRepository;
+    private final OccupancySnapshotIngestService occupancySnapshotIngestService;
     private final SensorLogsService sensorLogsService;
 
     @KafkaListener(
@@ -35,7 +36,7 @@ public class ParkingSpotEventKafkaListener {
         groupId = "${easyspot.occupancy.kafka.group-id:easyspot-occupancy}"
     )
     @Transactional
-    public void onEvent(String payload){
+    public void onEvent(String payload) {
         try {
             ParkingSpotEvent event = objectMapper.readValue(payload, ParkingSpotEvent.class);
 
@@ -61,8 +62,15 @@ public class ParkingSpotEventKafkaListener {
                 return;
             }
 
+            if (!isPlausibleTransition(current, normalized)) {
+                log.warn("Ignoring implausible transition for spot {}: {} -> {}",
+                    spot.getId(), current, normalized);
+                return;
+            }
+
             spot.setStatus(toPersistedStatus(spot, normalized));
             parkingSpotRepository.save(spot);
+            occupancySnapshotIngestService.captureLotSnapshotIfDue(spot.getParkingLot().getId());
 
             log.info("Updated spot {} in park {} from {} to {}",
                 spot.getSpotNumber(),
@@ -108,17 +116,32 @@ public class ParkingSpotEventKafkaListener {
     }
 
     private String toPersistedStatus(ParkingSpot spot, String status) {
-        if(STATUS_FREE.equals(status)) {
-            if(spot.getZone() == ZoneType.ACCESSIBLE) {
+        if (STATUS_FREE.equals(status)) {
+            if (spot.getZone() == ZoneType.ACCESSIBLE) {
                 return "accessible";
             }
             if (spot.getZone() == ZoneType.EV) {
                 return "ev";
             }
-
             return STATUS_FREE;
         }
         return status;
     }
 
+    private boolean isPlausibleTransition(String from, String to) {
+        if (from.equals(to)) return true;
+        if (STATUS_FREE.equals(from)) {
+            return STATUS_OCCUPIED.equals(to) || STATUS_RESERVED.equals(to) || STATUS_OUT_OF_SERVICE.equals(to);
+        }
+        if (STATUS_OCCUPIED.equals(from)) {
+            return STATUS_FREE.equals(to) || STATUS_OUT_OF_SERVICE.equals(to);
+        }
+        if (STATUS_RESERVED.equals(from)) {
+            return STATUS_OCCUPIED.equals(to) || STATUS_FREE.equals(to) || STATUS_OUT_OF_SERVICE.equals(to);
+        }
+        if (STATUS_OUT_OF_SERVICE.equals(from)) {
+            return STATUS_FREE.equals(to) || STATUS_OUT_OF_SERVICE.equals(to);
+        }
+        return STATUS_FREE.equals(to);
+    }
 }

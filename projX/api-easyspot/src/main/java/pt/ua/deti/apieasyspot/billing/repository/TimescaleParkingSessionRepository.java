@@ -66,6 +66,32 @@ public class TimescaleParkingSessionRepository {
         );
     }
 
+    public void updateEntryByReservationId(UUID reservationId, OffsetDateTime entryTime, ZoneType zoneType) {
+        jdbc.update(
+            """
+            update parking_sessions
+            set entry_time = ?, zone_type = ?
+            where reservation_id = ?::uuid
+            """,
+            entryTime,
+            zoneType.name(),
+            reservationId.toString()
+        );
+    }
+
+    public void updateExitAndRevenueByReservationId(UUID reservationId, OffsetDateTime exitTime, java.math.BigDecimal revenue) {
+        jdbc.update(
+            """
+            update parking_sessions
+            set exit_time = ?, revenue_euros = ?
+            where reservation_id = ?::uuid
+            """,
+            exitTime,
+            revenue,
+            reservationId.toString()
+        );
+    }
+
     public long countActiveByParkingLotId(UUID parkingLotId) {
         Long result = jdbc.queryForObject(
             "select count(*) from parking_sessions where parking_lot_id = ?::uuid and exit_time > now()",

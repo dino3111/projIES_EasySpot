@@ -23,10 +23,6 @@ public class OcrPlateEventKafkaListener {
     private final OcrPlateReadRepository repository;
     private final SensorLogsService sensorLogsService;
 
-    private static final java.util.Set<String> VALID_FAILURE_MODES = java.util.Set.of(
-        "UNREADABLE", "LOW_CONFIDENCE", "WRONG_PLATE", "CAMERA_OFFLINE", "CAMERA_DEGRADED"
-    );
-
     @KafkaListener(
         topics = {"${easyspot.ocr.kafka.topic:parking-ocr-events}"},
         groupId = "${easyspot.ocr.kafka.group-id:easyspot-ocr}"
@@ -57,11 +53,6 @@ public class OcrPlateEventKafkaListener {
 
             OcrPlateEvent.OcrPayload p = event.payload();
 
-            if (p.isFailure()) {
-                handleFailureEvent(event, p);
-                return;
-            }
-
             if (p.plate() == null || p.direction() == null) {
                 log.warn("Ignoring OCR event with missing plate or direction");
                 return;
@@ -72,7 +63,16 @@ public class OcrPlateEventKafkaListener {
                 return;
             }
 
-            OcrPlateRead read = buildRead(event, p);
+            OcrPlateRead read = new OcrPlateRead();
+            read.setId(event.eventId() != null ? event.eventId() : UUID.randomUUID());
+            read.setParkId(event.parkId());
+            read.setSpotId(event.spotId());
+            read.setPlate(p.plate().toUpperCase());
+            read.setConfidence(p.confidence() != null ? p.confidence() : 0.0);
+            read.setDirection(p.direction().toLowerCase());
+            read.setOccurredAt(event.occurredAt() != null ? event.occurredAt() : Instant.now());
+            read.setExtra(p.extensions() != null ? p.extensions() : Map.of());
+
             repository.save(read);
 
             log.debug("OCR read persisted: plate={} direction={} park={} spot={}",
@@ -97,32 +97,6 @@ public class OcrPlateEventKafkaListener {
         String recoveryType = ext.get("recoveryType") instanceof String s ? s : "AUTO_RECOVERY";
         sensorLogsService.recoverSensor(deviceId, recoveryType);
         log.info("OCR device recovered: deviceId={} type={} park={}", deviceId, recoveryType, event.parkId());
-    private void handleFailureEvent(OcrPlateEvent event, OcrPlateEvent.OcrPayload p) {
-        String mode = p.failureMode();
-        if (!VALID_FAILURE_MODES.contains(mode)) {
-            log.warn("Unknown OCR failureMode '{}': eventId={}", mode, event.eventId());
-            return;
-        }
-
-        OcrPlateRead read = buildRead(event, p);
-        read.setFailureMode(mode);
-        repository.save(read);
-
-        log.warn("OCR failure persisted: failureMode={} plate='{}' confidence={} park={} spot={}",
-            mode, read.getPlate(), read.getConfidence(), read.getParkId(), read.getSpotId());
-    }
-
-    private OcrPlateRead buildRead(OcrPlateEvent event, OcrPlateEvent.OcrPayload p) {
-        OcrPlateRead read = new OcrPlateRead();
-        read.setId(event.eventId() != null ? event.eventId() : UUID.randomUUID());
-        read.setParkId(event.parkId());
-        read.setSpotId(event.spotId());
-        read.setPlate(p.plate() != null ? p.plate().toUpperCase() : "");
-        read.setConfidence(p.confidence() != null ? p.confidence() : 0.0);
-        read.setDirection(p.direction() != null ? p.direction().toLowerCase() : "entry");
-        read.setOccurredAt(event.occurredAt() != null ? event.occurredAt() : Instant.now());
-        read.setExtra(p.extensions() != null ? p.extensions() : Map.of());
-        return read;
     }
 
     private boolean isValidDirection(String direction) {

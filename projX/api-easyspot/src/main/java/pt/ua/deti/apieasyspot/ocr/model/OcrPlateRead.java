@@ -39,6 +39,9 @@ public class OcrPlateRead {
     @Column(name = "occurred_at", nullable = false)
     private Instant occurredAt;
 
+    @Column(name = "failure_mode", length = 30)
+    private String failureMode;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     private Map<String, Object> extra;
