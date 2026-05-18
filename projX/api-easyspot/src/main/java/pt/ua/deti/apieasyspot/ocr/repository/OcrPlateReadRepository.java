@@ -24,9 +24,9 @@ public class OcrPlateReadRepository {
         jdbc.update(
             """
             insert into ocr_plate_reads
-                (id, park_id, spot_id, plate, confidence, direction, occurred_at, extra)
+                (id, park_id, spot_id, plate, confidence, direction, failure_mode, occurred_at, extra)
             values
-                (?::uuid, ?::uuid, ?::uuid, ?, ?, ?, ?, ?::jsonb)
+                (?::uuid, ?::uuid, ?::uuid, ?, ?, ?, ?, ?, ?::jsonb)
             on conflict do nothing
             """,
             read.getId() != null ? read.getId().toString() : UUID.randomUUID().toString(),
@@ -35,6 +35,7 @@ public class OcrPlateReadRepository {
             read.getPlate(),
             read.getConfidence(),
             read.getDirection(),
+            read.getFailureMode(),
             Timestamp.from(read.getOccurredAt()),
             toJson(read.getExtra())
         );

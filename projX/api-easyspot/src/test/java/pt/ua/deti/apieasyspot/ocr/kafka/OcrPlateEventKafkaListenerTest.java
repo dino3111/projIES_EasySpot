@@ -222,4 +222,212 @@ class OcrPlateEventKafkaListenerTest {
 
         verify(sensorLogsService, never()).recoverSensor(any(), any());
     }
+
+    // ------------------------------------------------------------------
+    // OCR failure mode tests
+    // ------------------------------------------------------------------
+
+    @Test
+    void onEvent_unreadable_persistsWithFailureMode() {
+        UUID parkId = UUID.randomUUID();
+        String payload = """
+            {
+              "eventId": "%s",
+              "eventType": "ocr.plate.failure",
+              "parkId": "%s",
+              "occurredAt": "2026-05-18T10:00:00Z",
+              "version": 1,
+              "payload": {
+                "plate": "",
+                "confidence": 0.0,
+                "direction": "entry",
+                "failureMode": "UNREADABLE"
+              }
+            }
+            """.formatted(UUID.randomUUID(), parkId);
+
+        listener.onEvent(payload);
+
+        ArgumentCaptor<OcrPlateRead> captor = ArgumentCaptor.forClass(OcrPlateRead.class);
+        verify(repository).save(captor.capture());
+        assertThat(captor.getValue().getFailureMode()).isEqualTo("UNREADABLE");
+        assertThat(captor.getValue().getPlate()).isEqualTo("");
+        assertThat(captor.getValue().getConfidence()).isEqualTo(0.0);
+    }
+
+    @Test
+    void onEvent_lowConfidence_persistsWithFailureMode() {
+        UUID parkId = UUID.randomUUID();
+        String payload = """
+            {
+              "eventId": "%s",
+              "eventType": "ocr.plate.failure",
+              "parkId": "%s",
+              "occurredAt": "2026-05-18T10:01:00Z",
+              "version": 1,
+              "payload": {
+                "plate": "AB-12-CD",
+                "confidence": 0.23,
+                "direction": "exit",
+                "failureMode": "LOW_CONFIDENCE"
+              }
+            }
+            """.formatted(UUID.randomUUID(), parkId);
+
+        listener.onEvent(payload);
+
+        ArgumentCaptor<OcrPlateRead> captor = ArgumentCaptor.forClass(OcrPlateRead.class);
+        verify(repository).save(captor.capture());
+        assertThat(captor.getValue().getFailureMode()).isEqualTo("LOW_CONFIDENCE");
+        assertThat(captor.getValue().getPlate()).isEqualTo("AB-12-CD");
+    }
+
+    @Test
+    void onEvent_wrongPlate_persistsWithFailureMode() {
+        UUID parkId = UUID.randomUUID();
+        String payload = """
+            {
+              "eventId": "%s",
+              "eventType": "ocr.plate.failure",
+              "parkId": "%s",
+              "occurredAt": "2026-05-18T10:02:00Z",
+              "version": 1,
+              "payload": {
+                "plate": "A1-12-CD",
+                "confidence": 0.61,
+                "direction": "entry",
+                "failureMode": "WRONG_PLATE"
+              }
+            }
+            """.formatted(UUID.randomUUID(), parkId);
+
+        listener.onEvent(payload);
+
+        ArgumentCaptor<OcrPlateRead> captor = ArgumentCaptor.forClass(OcrPlateRead.class);
+        verify(repository).save(captor.capture());
+        assertThat(captor.getValue().getFailureMode()).isEqualTo("WRONG_PLATE");
+    }
+
+    @Test
+    void onEvent_cameraOffline_persistsWithFailureMode() {
+        UUID parkId = UUID.randomUUID();
+        String payload = """
+            {
+              "eventId": "%s",
+              "eventType": "ocr.plate.failure",
+              "parkId": "%s",
+              "occurredAt": "2026-05-18T10:03:00Z",
+              "version": 1,
+              "payload": {
+                "plate": "",
+                "confidence": 0.0,
+                "direction": "entry",
+                "failureMode": "CAMERA_OFFLINE"
+              }
+            }
+            """.formatted(UUID.randomUUID(), parkId);
+
+        listener.onEvent(payload);
+
+        ArgumentCaptor<OcrPlateRead> captor = ArgumentCaptor.forClass(OcrPlateRead.class);
+        verify(repository).save(captor.capture());
+        assertThat(captor.getValue().getFailureMode()).isEqualTo("CAMERA_OFFLINE");
+    }
+
+    @Test
+    void onEvent_cameraDegraded_persistsWithFailureMode() {
+        UUID parkId = UUID.randomUUID();
+        String payload = """
+            {
+              "eventId": "%s",
+              "eventType": "ocr.plate.failure",
+              "parkId": "%s",
+              "occurredAt": "2026-05-18T10:04:00Z",
+              "version": 1,
+              "payload": {
+                "plate": "AB-12-CD",
+                "confidence": 0.48,
+                "direction": "exit",
+                "failureMode": "CAMERA_DEGRADED"
+              }
+            }
+            """.formatted(UUID.randomUUID(), parkId);
+
+        listener.onEvent(payload);
+
+        ArgumentCaptor<OcrPlateRead> captor = ArgumentCaptor.forClass(OcrPlateRead.class);
+        verify(repository).save(captor.capture());
+        assertThat(captor.getValue().getFailureMode()).isEqualTo("CAMERA_DEGRADED");
+    }
+
+    @Test
+    void onEvent_unknownFailureMode_doesNotPersist() {
+        UUID parkId = UUID.randomUUID();
+        String payload = """
+            {
+              "eventId": "%s",
+              "eventType": "ocr.plate.failure",
+              "parkId": "%s",
+              "occurredAt": "2026-05-18T10:05:00Z",
+              "version": 1,
+              "payload": {
+                "plate": "",
+                "confidence": 0.0,
+                "direction": "entry",
+                "failureMode": "COSMIC_RAY"
+              }
+            }
+            """.formatted(UUID.randomUUID(), parkId);
+
+        listener.onEvent(payload);
+
+        verify(repository, never()).save(org.mockito.ArgumentMatchers.any(OcrPlateRead.class));
+    }
+
+    @Test
+    void onEvent_normalRead_hasNullFailureMode() {
+        UUID parkId = UUID.randomUUID();
+        String payload = """
+            {
+              "eventId": "%s",
+              "eventType": "ocr.plate.read",
+              "parkId": "%s",
+              "occurredAt": "2026-05-18T10:06:00Z",
+              "version": 1,
+              "payload": {
+                "plate": "AB-12-CD",
+                "confidence": 0.95,
+                "direction": "entry"
+              }
+            }
+            """.formatted(UUID.randomUUID(), parkId);
+
+        listener.onEvent(payload);
+
+        ArgumentCaptor<OcrPlateRead> captor = ArgumentCaptor.forClass(OcrPlateRead.class);
+        verify(repository).save(captor.capture());
+        assertThat(captor.getValue().getFailureMode()).isNull();
+    }
+
+    @Test
+    void onEvent_missingParkId_doesNotPersist() {
+        String payload = """
+            {
+              "eventId": "%s",
+              "eventType": "ocr.plate.failure",
+              "occurredAt": "2026-05-18T10:07:00Z",
+              "version": 1,
+              "payload": {
+                "plate": "",
+                "confidence": 0.0,
+                "direction": "entry",
+                "failureMode": "UNREADABLE"
+              }
+            }
+            """.formatted(UUID.randomUUID());
+
+        listener.onEvent(payload);
+
+        verify(repository, never()).save(org.mockito.ArgumentMatchers.any(OcrPlateRead.class));
+    }
 }

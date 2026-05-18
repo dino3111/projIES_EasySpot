@@ -3,11 +3,32 @@ import string
 import time
 import uuid
 from datetime import datetime, timezone
+from enum import Enum
 from typing import Dict, List, Optional, Tuple
 
 
 def now_iso():
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+class OcrFailureMode(str, Enum):
+    UNREADABLE = "UNREADABLE"
+    LOW_CONFIDENCE = "LOW_CONFIDENCE"
+    WRONG_PLATE = "WRONG_PLATE"
+    CAMERA_OFFLINE = "CAMERA_OFFLINE"
+    CAMERA_DEGRADED = "CAMERA_DEGRADED"
+
+
+def _garble_plate(rng: random.Random, plate: str) -> str:
+    """Return a plate-like string that does NOT match any valid PT format."""
+    chars = list(plate)
+    # flip a digit to a letter or vice versa at a random position to break format
+    idx = rng.randint(0, len(chars) - 1)
+    if chars[idx].isdigit():
+        chars[idx] = rng.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+    elif chars[idx].isalpha():
+        chars[idx] = str(rng.randint(0, 9))
+    return "".join(chars)
 
 
 def _random_pt_plate(rng: random.Random) -> str:
@@ -214,17 +235,25 @@ class OcrEventGenerator:
 
             if parked_plate:
                 if self.rng.random() < 0.55:
-                    confidence = self.rng.uniform(0.82, 0.99)
-                    event = build_ocr_event(spot, "exit", parked_plate, confidence)
-                    del self._parked[parked_plate]
+                    if self._should_fail():
+                        event = self._make_failure_event(spot, "exit", parked_plate)
+                        # do NOT remove from _parked — plate still inside, state unknown
+                    else:
+                        confidence = self._exit_confidence(spot_id)
+                        event = build_ocr_event(spot, "exit", parked_plate, confidence)
+                        del self._parked[parked_plate]
                     events.append((event, spot_id))
             else:
                 if self.rng.random() < 0.45:
                     plate = self._pick_free_plate()
                     if plate:
-                        confidence = self.rng.uniform(0.75, 0.99)
-                        event = build_ocr_event(spot, "entry", plate, confidence)
-                        self._parked[plate] = spot_id
+                        if self._should_fail():
+                            event = self._make_failure_event(spot, "entry", plate)
+                            # do NOT add to _parked — state of entry unknown
+                        else:
+                            confidence = self._entry_confidence(spot_id)
+                            event = build_ocr_event(spot, "entry", plate, confidence)
+                            self._parked[plate] = spot_id
                         events.append((event, spot_id))
 
         return events

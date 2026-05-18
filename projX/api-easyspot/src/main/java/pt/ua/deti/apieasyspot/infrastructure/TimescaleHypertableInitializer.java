@@ -124,17 +124,25 @@ public class TimescaleHypertableInitializer implements ApplicationRunner {
     private void prepareOcrPlateReadsTable() {
         jdbc.execute("""
             create table if not exists ocr_plate_reads (
-                id          uuid        not null,
-                park_id     uuid        not null,
-                spot_id     uuid,
-                plate       varchar(20) not null,
-                confidence  double precision not null,
-                direction   varchar(10) not null,
-                occurred_at timestamptz not null,
-                extra       jsonb       not null default '{}',
+                id           uuid             not null,
+                park_id      uuid             not null,
+                spot_id      uuid,
+                plate        varchar(20)      not null,
+                confidence   double precision not null,
+                direction    varchar(10)      not null,
+                failure_mode varchar(20),
+                occurred_at  timestamptz      not null,
+                extra        jsonb            not null default '{}',
                 primary key (id, occurred_at)
             )
             """);
+        try {
+            jdbc.execute(
+                "alter table ocr_plate_reads add column if not exists failure_mode varchar(20)"
+            );
+        } catch (Exception e) {
+            log.debug("ocr_plate_reads.failure_mode column already exists: {}", e.getMessage());
+        }
     }
 
     private void createHypertables() {
