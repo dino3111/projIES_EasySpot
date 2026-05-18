@@ -78,6 +78,7 @@ public class TimescaleHypertableInitializer implements ApplicationRunner {
         jdbc.execute("""
             create table if not exists parking_sessions (
                 id uuid not null,
+                reservation_id uuid,
                 user_id uuid,
                 parking_lot_id uuid not null,
                 vehicle_id uuid,
@@ -88,6 +89,11 @@ public class TimescaleHypertableInitializer implements ApplicationRunner {
                 primary key (id, entry_time)
             )
             """);
+        try {
+            jdbc.execute("alter table parking_sessions add column if not exists reservation_id uuid");
+        } catch (Exception exception) {
+            log.debug("parking_sessions.reservation_id column already exists: {}", exception.getMessage());
+        }
     }
 
     private void prepareAlertsTable() {
@@ -130,11 +136,17 @@ public class TimescaleHypertableInitializer implements ApplicationRunner {
                 plate       varchar(20) not null,
                 confidence  double precision not null,
                 direction   varchar(10) not null,
+                failure_mode varchar(20),
                 occurred_at timestamptz not null,
                 extra       jsonb       not null default '{}',
                 primary key (id, occurred_at)
             )
             """);
+        try {
+            jdbc.execute("alter table ocr_plate_reads add column if not exists failure_mode varchar(20)");
+        } catch (Exception exception) {
+            log.debug("ocr_plate_reads.failure_mode column already exists: {}", exception.getMessage());
+        }
     }
 
     private void createHypertables() {

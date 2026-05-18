@@ -25,7 +25,7 @@ export function TabGeneral({
     <div className="animate-in fade-in duration-200">
       <div className="flex flex-col sm:flex-row gap-4 items-center mb-6 bg-muted/40 p-4 rounded-xl border border-border">
         <div className="w-[120px] h-[120px] relative flex-shrink-0">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
             <PieChart>
               <Pie
                 data={[{ name: 'Livres', value: availableSpots }, { name: 'Ocupados', value: safeOccupied }]}

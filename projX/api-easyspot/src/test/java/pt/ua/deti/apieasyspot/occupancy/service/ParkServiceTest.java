@@ -179,7 +179,7 @@ class ParkServiceTest {
         occupiedSpot.setZone(ZoneType.STANDARD);
         occupiedSpot.setSpotRow(1);
         occupiedSpot.setSpotCol(2);
-        occupiedSpot.setStatus("free");
+        occupiedSpot.setStatus("occupied");
 
         when(parkingSpotRepository.findByParkingLotId(lotId)).thenReturn(List.of(freeSpot, occupiedSpot));
         when(reservationRepository.findActiveWithSpotByParkId(lotId)).thenReturn(List.of());

@@ -2,6 +2,7 @@ import { useRef, useEffect, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router';
 import { ThemeToggle } from './ThemeToggle';
 import { useAuth } from '../../context/AuthContext';
+import { useWs, type WsStatus } from '../../context/WsContext';
 import type { AppProfile } from '../../context/ProfileContext';
 import { profileApi } from '../../../services/apiService';
 
@@ -79,18 +80,28 @@ export function Header() {
 }
 
 function RealtimeBadge() {
+  const { status } = useWs();
+
+  const config: Record<WsStatus, { dot: string; label: string; ping: boolean }> = {
+    connected:    { dot: 'bg-green-400',  label: 'Tempo Real', ping: true },
+    connecting:   { dot: 'bg-amber-400',  label: 'A Ligar...', ping: false },
+    disconnected: { dot: 'bg-slate-400', label: 'Desligado',  ping: false },
+  };
+
+  const { dot, label, ping } = config[status];
+
   return (
     <div
       className="hidden sm:flex items-center gap-2 bg-white/15 px-3 py-1.5 rounded-full"
       aria-live="polite"
-      aria-label="Dados em tempo real"
+      aria-label={`Estado da ligação: ${label}`}
     >
       <span className="relative flex h-2 w-2" aria-hidden="true">
-        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-300 opacity-75" />
-        <span className="relative inline-flex rounded-full h-2 w-2 bg-green-300" />
+        {ping && <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${dot} opacity-75`} />}
+        <span className={`relative inline-flex rounded-full h-2 w-2 ${dot}`} />
       </span>
       <span className="text-white/90" style={{ fontSize: '0.75rem', fontWeight: 500 }}>
-        Tempo Real
+        {label}
       </span>
     </div>
   );

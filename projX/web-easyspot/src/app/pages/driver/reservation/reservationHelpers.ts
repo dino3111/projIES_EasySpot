@@ -90,7 +90,7 @@ export function genBookingCode(): string {
 }
 
 export function isSpotSelectable(spot: ParkingSpot, filter: SpotFilter): boolean {
-  if (spot.status === 'occupied' || spot.status === 'reserved') return false;
+  if (spot.status === 'occupied' || spot.status === 'reserved' || spot.status === 'out_of_service') return false;
   if (filter === 'ev' && spot.status !== 'ev') return false;
   if (filter === 'accessible' && spot.status !== 'accessible') return false;
   if (filter === 'standard' && (spot.status === 'ev' || spot.status === 'accessible')) return false;
@@ -102,6 +102,7 @@ export function spotColorClasses(spot: ParkingSpot, selected: boolean, selectabl
   if (!selectable) {
     if (spot.status === 'occupied') return 'bg-[#b91c1c] text-white border-[#7f1d1d] cursor-not-allowed opacity-90';
     if (spot.status === 'reserved') return 'bg-[#d97706] text-white border-[#92400e] cursor-not-allowed opacity-90';
+    if (spot.status === 'out_of_service') return 'bg-[#374151] text-white border-[#111827] cursor-not-allowed opacity-95';
     return 'bg-[#6b7280] text-white border-[#4b5563] cursor-not-allowed opacity-65';
   }
   if (spot.status === 'ev') return 'bg-[#f59e0b] text-black border-[#b45309] ring-1 ring-[#fcd34d] hover:scale-105 hover:shadow-md cursor-pointer';

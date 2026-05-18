@@ -12,6 +12,7 @@ import { TabTariffs } from './TabTariffs';
 import { fetchParkDetails, fetchParkFavoriteStatus, toggleParkFavorite } from '../../../services/parksApi';
 
 type Tab = 'general' | 'map' | 'ev' | 'accessibility' | 'tariffs';
+const REALTIME_REFRESH_MS = 8000;
 
 function getOccupancyStatus(availableSpots: number, totalSpots: number) {
   const safeTotal = Math.max(0, totalSpots);
@@ -59,12 +60,17 @@ export function ParkingDetail() {
   useEffect(() => {
     if (!id) return;
     let mounted = true;
-    const load = async () => {
+    const load = async (background = false) => {
       try {
-        setLoading(true);
-        const details = await fetchParkDetails(id);
+        if (!background) {
+          setLoading(true);
+        }
+        const details = background
+          ? await fetchParkDetails(id, { background: true })
+          : await fetchParkDetails(id);
         if (!mounted) return;
         setLot(details);
+        if (background) return;
         try {
           const favoriteStatus = await fetchParkFavoriteStatus(id);
           if (mounted) setIsFavorite(favoriteStatus.isFavorite);
@@ -72,14 +78,18 @@ export function ParkingDetail() {
           if (mounted) setIsFavorite(false);
         }
       } catch {
-        if (mounted) setLot(null);
+        if (mounted && !background) setLot(null);
       } finally {
-        if (mounted) setLoading(false);
+        if (mounted && !background) setLoading(false);
       }
     };
-    load();
+    void load();
+    const intervalId = globalThis.setInterval(() => {
+      void load(true);
+    }, REALTIME_REFRESH_MS);
     return () => {
       mounted = false;
+      globalThis.clearInterval(intervalId);
     };
   }, [id]);
 

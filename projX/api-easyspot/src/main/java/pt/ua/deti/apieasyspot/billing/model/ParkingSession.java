@@ -11,6 +11,7 @@ import java.util.UUID;
 public class ParkingSession {
 
     private UUID id;
+    private UUID reservationId;
     private UUID userId;
     private UUID parkingLotId;
     private UUID vehicleId;
