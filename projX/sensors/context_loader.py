@@ -66,6 +66,26 @@ def load_spots():
     ]
 
 
+def load_vehicle_plates():
+    context = load_context()
+    plates = []
+    for vehicle in context["vehicles"]:
+        plate = vehicle.get("plate")
+        if plate:
+            plates.append(str(plate).strip().upper())
+
+    # preserve order while removing duplicates
+    unique = []
+    seen = set()
+    for plate in plates:
+        if plate in seen:
+            continue
+        seen.add(plate)
+        unique.append(plate)
+
+    return unique
+
+
 def _validate_context(context):
     required_top_level = [
         "version",

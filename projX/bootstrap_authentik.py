@@ -43,6 +43,7 @@ import sys
 import time
 import urllib.parse
 import zlib
+from typing import Any
 
 try:
     import requests  # type: ignore[import]
@@ -256,7 +257,7 @@ def _make_transparent_png() -> bytes:
     return sig + ihdr + idat + iend
 
 
-def api(method: str, path: str, **kwargs: object) -> dict:
+def api(method: str, path: str, **kwargs: Any) -> dict:
     headers = {
         "Authorization": f"Bearer {TOKEN}",
         "Content-Type": "application/json",

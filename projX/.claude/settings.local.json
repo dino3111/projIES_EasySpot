@@ -1,7 +1,25 @@
 {
   "permissions": {
     "allow": [
-      "Bash(find /home/martim/Documentos/IES_Projeto/projX/api-easyspot/src -name *.java)"
+      "Bash(find /home/martim/Documentos/IES_Projeto/projX/api-easyspot/src -name *.java)",
+      "Bash(rtk ls *)",
+      "Bash(rtk read *)",
+      "Bash(xargs cat)",
+      "Bash(rtk grep *)",
+      "Bash(rtk pytest *)",
+      "Bash(uv run *)",
+      "Bash(uv add *)",
+      "Bash(./mvnw compile *)",
+      "Bash(xargs cat -n)",
+      "Bash(rtk vitest *)",
+      "Bash(node_modules/.bin/vitest run *)",
+      "Bash(rtk find *)",
+      "Bash(python -m black --check sensors/tests/test_ocr_event_builder.py sensors/ocr_event_builder.py bootstrap_authentik.py)",
+      "Bash(python -m isort --check-only sensors/tests/test_ocr_event_builder.py bootstrap_authentik.py)",
+      "Bash(python -m ruff check sensors/tests/test_ocr_event_builder.py sensors/ocr_event_builder.py)",
+      "Bash(python3 -m black --check sensors/tests/test_ocr_event_builder.py sensors/ocr_event_builder.py bootstrap_authentik.py)",
+      "Bash(python3 -m isort --check-only sensors/tests/test_ocr_event_builder.py bootstrap_authentik.py)",
+      "Bash(python3 -m ruff check sensors/tests/test_ocr_event_builder.py sensors/ocr_event_builder.py)"
     ]
   }
 }

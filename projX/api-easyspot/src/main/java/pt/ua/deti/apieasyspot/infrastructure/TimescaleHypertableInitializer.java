@@ -27,6 +27,7 @@ public class TimescaleHypertableInitializer implements ApplicationRunner {
             prepareOccupancySnapshotTable();
             prepareParkingSessionsTable();
             prepareAlertsTable();
+            prepareOcrPlateReadsTable();
         } catch (Exception e) {
             log.warn("TimescaleDB base table initialization skipped: {}", e.getMessage());
             return;
@@ -120,11 +121,28 @@ public class TimescaleHypertableInitializer implements ApplicationRunner {
         }
     }
 
+    private void prepareOcrPlateReadsTable() {
+        jdbc.execute("""
+            create table if not exists ocr_plate_reads (
+                id          uuid        not null,
+                park_id     uuid        not null,
+                spot_id     uuid,
+                plate       varchar(20) not null,
+                confidence  double precision not null,
+                direction   varchar(10) not null,
+                occurred_at timestamptz not null,
+                extra       jsonb       not null default '{}',
+                primary key (id, occurred_at)
+            )
+            """);
+    }
+
     private void createHypertables() {
         boolean occupancyHypertable = createHypertable("occupancy_snapshots", "recorded_at");
         boolean parkingSessionsHypertable = createHypertable("parking_sessions", "entry_time");
         boolean alertsHypertable = createHypertable("alerts", "created_at");
-        if (!occupancyHypertable || !parkingSessionsHypertable || !alertsHypertable) {
+        boolean ocrReadsHypertable = createHypertable("ocr_plate_reads", "occurred_at");
+        if (!occupancyHypertable || !parkingSessionsHypertable || !alertsHypertable || !ocrReadsHypertable) {
             throw new IllegalStateException("One or more Timescale tables could not be converted to hypertables.");
         }
         log.info("TimescaleDB hypertables ready.");
