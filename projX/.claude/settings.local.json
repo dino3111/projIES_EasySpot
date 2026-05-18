@@ -19,7 +19,9 @@
       "Bash(python -m ruff check sensors/tests/test_ocr_event_builder.py sensors/ocr_event_builder.py)",
       "Bash(python3 -m black --check sensors/tests/test_ocr_event_builder.py sensors/ocr_event_builder.py bootstrap_authentik.py)",
       "Bash(python3 -m isort --check-only sensors/tests/test_ocr_event_builder.py bootstrap_authentik.py)",
-      "Bash(python3 -m ruff check sensors/tests/test_ocr_event_builder.py sensors/ocr_event_builder.py)"
+      "Bash(python3 -m ruff check sensors/tests/test_ocr_event_builder.py sensors/ocr_event_builder.py)",
+      "Bash(.venv/bin/python -m pytest tests/test_gate_simulator.py -v)",
+      "Bash(.venv/bin/python -m pytest tests/ -v --tb=short)"
     ]
   }
 }
