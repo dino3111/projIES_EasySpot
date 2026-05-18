@@ -5,7 +5,11 @@ import unittest
 sys.path.insert(0, ".")
 
 from event_builder import build_spot_event
-from ocr_event_builder import OcrEventGenerator, build_device_recovery_event, _ocr_sensor_id
+from ocr_event_builder import (
+    OcrEventGenerator,
+    build_device_recovery_event,
+    _ocr_sensor_id,
+)
 from state_machine import SpotStateMachine
 
 
@@ -191,7 +195,9 @@ class SpotEventPayloadTests(unittest.TestCase):
             fault_duration_seconds=120.0,
         )
         self.assertEqual(event["payload"]["recoveryType"], "TECHNICIAN_REPAIR")
-        self.assertAlmostEqual(event["payload"]["faultDurationSeconds"], 120.0, places=1)
+        self.assertAlmostEqual(
+            event["payload"]["faultDurationSeconds"], 120.0, places=1
+        )
 
     def test_non_recovery_event_has_no_recovery_metadata(self):
         event = build_spot_event(

@@ -8,7 +8,9 @@ def now_iso():
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
-def build_spot_event(spot, previous_status, new_status, reason, fault_duration_seconds=None):
+def build_spot_event(
+    spot, previous_status, new_status, reason, fault_duration_seconds=None
+):
     payload = {
         "parkName": spot["parkName"],
         "spotNumber": spot["spotNumber"],

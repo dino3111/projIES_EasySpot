@@ -171,7 +171,11 @@ def build_ocr_failure_event(
             "plate": plate,
             "confidence": round(confidence, 4),
             "direction": direction,
-            "failureMode": failure_mode.value if isinstance(failure_mode, OcrFailureMode) else str(failure_mode),
+            "failureMode": (
+                failure_mode.value
+                if isinstance(failure_mode, OcrFailureMode)
+                else str(failure_mode)
+            ),
         },
         "version": 1,
     }
@@ -250,19 +254,28 @@ class OcrEventGenerator:
             park_name = park_spots[0].get("parkName", "")
             if park_id not in self._camera_fault_start:
                 # Camera is operational — check for new fault
-                if self.fault_probability_per_tick > 0 and self.rng.random() < self.fault_probability_per_tick:
+                if (
+                    self.fault_probability_per_tick > 0
+                    and self.rng.random() < self.fault_probability_per_tick
+                ):
                     self._camera_fault_start[park_id] = now
-                    events.append((build_device_fault_event(park_id, park_name), park_id))
+                    events.append(
+                        (build_device_fault_event(park_id, park_name), park_id)
+                    )
             else:
                 # Camera is offline — always check for recovery
                 fault_duration = now - self._camera_fault_start[park_id]
                 recovered, recovery_type = self._check_camera_recovery(fault_duration)
                 if recovered:
                     del self._camera_fault_start[park_id]
-                    events.append((
-                        build_device_recovery_event(park_id, park_name, recovery_type, fault_duration),
-                        park_id,
-                    ))
+                    events.append(
+                        (
+                            build_device_recovery_event(
+                                park_id, park_name, recovery_type, fault_duration
+                            ),
+                            park_id,
+                        )
+                    )
 
         # Plate-read phase (skip parks with offline cameras)
         for spot in self.rng.sample(self.spots, k=max(1, len(self.spots) // 4)):
@@ -273,10 +286,14 @@ class OcrEventGenerator:
                 continue
 
             if spot_id in self.offline_spots:
-                events.append((
-                    build_ocr_failure_event(spot, OcrFailureMode.CAMERA_OFFLINE, direction="entry"),
-                    spot_id,
-                ))
+                events.append(
+                    (
+                        build_ocr_failure_event(
+                            spot, OcrFailureMode.CAMERA_OFFLINE, direction="entry"
+                        ),
+                        spot_id,
+                    )
+                )
                 continue
 
             parked_plate = self._plate_currently_at(spot_id)
@@ -335,12 +352,14 @@ class OcrEventGenerator:
         return self.rng.random() < self.failure_rate
 
     def _make_failure_event(self, spot: Dict, direction: str, plate: str) -> Dict:
-        mode = self.rng.choice([
-            OcrFailureMode.UNREADABLE,
-            OcrFailureMode.LOW_CONFIDENCE,
-            OcrFailureMode.WRONG_PLATE,
-            OcrFailureMode.CAMERA_DEGRADED,
-        ])
+        mode = self.rng.choice(
+            [
+                OcrFailureMode.UNREADABLE,
+                OcrFailureMode.LOW_CONFIDENCE,
+                OcrFailureMode.WRONG_PLATE,
+                OcrFailureMode.CAMERA_DEGRADED,
+            ]
+        )
         if mode == OcrFailureMode.LOW_CONFIDENCE:
             confidence = self.rng.uniform(0.0, 0.45)
             read_plate = plate
@@ -353,7 +372,9 @@ class OcrEventGenerator:
         else:  # CAMERA_DEGRADED
             confidence = self.rng.uniform(0.0, 0.45)
             read_plate = plate
-        return build_ocr_failure_event(spot, mode, plate=read_plate, confidence=confidence, direction=direction)
+        return build_ocr_failure_event(
+            spot, mode, plate=read_plate, confidence=confidence, direction=direction
+        )
 
     def _entry_confidence(self, spot_id: str) -> float:
         if spot_id in self.degraded_spots:
