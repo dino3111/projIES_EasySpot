@@ -95,8 +95,11 @@ class ParkGate:
             self._open_ticks += 1
             if self._open_ticks >= 2:
                 event = self._transition(
-                    park_id, park_name, GateState.CLOSED,
-                    GateEventType.GATE_CLOSED, "auto_close_timeout"
+                    park_id,
+                    park_name,
+                    GateState.CLOSED,
+                    GateEventType.GATE_CLOSED,
+                    "auto_close_timeout",
                 )
                 self._open_ticks = 0
                 events.append((event, park_id))
@@ -105,22 +108,31 @@ class ParkGate:
             roll = self._rng.random()
             if roll < self._P_STUCK_CLOSED:
                 event = self._transition(
-                    park_id, park_name, GateState.FAULT,
-                    GateEventType.GATE_FAULT, "stuck_closed"
+                    park_id,
+                    park_name,
+                    GateState.FAULT,
+                    GateEventType.GATE_FAULT,
+                    "stuck_closed",
                 )
                 events.append((event, park_id))
             elif roll < self._P_STUCK_CLOSED + self._P_FAULT:
                 event = self._transition(
-                    park_id, park_name, GateState.FAULT,
-                    GateEventType.GATE_FAULT, "hardware_fault"
+                    park_id,
+                    park_name,
+                    GateState.FAULT,
+                    GateEventType.GATE_FAULT,
+                    "hardware_fault",
                 )
                 events.append((event, park_id))
 
         elif self.state == GateState.BLOCKED:
             if self._rng.random() < 0.40:
                 event = self._transition(
-                    park_id, park_name, GateState.CLOSED,
-                    GateEventType.GATE_CLOSED, "block_timeout_reset"
+                    park_id,
+                    park_name,
+                    GateState.CLOSED,
+                    GateEventType.GATE_CLOSED,
+                    "block_timeout_reset",
                 )
                 events.append((event, park_id))
 
@@ -128,15 +140,21 @@ class ParkGate:
             self._fault_ticks += 1
             if self._rng.random() < self._P_RECOVERY:
                 event = self._transition(
-                    park_id, park_name, GateState.CLOSED,
-                    GateEventType.GATE_RECOVERED, "fault_recovered"
+                    park_id,
+                    park_name,
+                    GateState.CLOSED,
+                    GateEventType.GATE_RECOVERED,
+                    "fault_recovered",
                 )
                 self._fault_ticks = 0
                 events.append((event, park_id))
             elif self._rng.random() < self._P_STUCK_OPEN:
                 event = self._transition(
-                    park_id, park_name, GateState.OPEN,
-                    GateEventType.GATE_OPENED, "stuck_open"
+                    park_id,
+                    park_name,
+                    GateState.OPEN,
+                    GateEventType.GATE_OPENED,
+                    "stuck_open",
                 )
                 events.append((event, park_id))
 
