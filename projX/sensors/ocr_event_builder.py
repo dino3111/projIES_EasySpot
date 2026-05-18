@@ -2,11 +2,32 @@ import random
 import string
 import uuid
 from datetime import datetime, timezone
+from enum import Enum
 from typing import Dict, List, Optional, Tuple
 
 
 def now_iso():
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+class OcrFailureMode(str, Enum):
+    UNREADABLE = "UNREADABLE"
+    LOW_CONFIDENCE = "LOW_CONFIDENCE"
+    WRONG_PLATE = "WRONG_PLATE"
+    CAMERA_OFFLINE = "CAMERA_OFFLINE"
+    CAMERA_DEGRADED = "CAMERA_DEGRADED"
+
+
+def _garble_plate(rng: random.Random, plate: str) -> str:
+    """Return a plate-like string that does NOT match any valid PT format."""
+    chars = list(plate)
+    # flip a digit to a letter or vice versa at a random position to break format
+    idx = rng.randint(0, len(chars) - 1)
+    if chars[idx].isdigit():
+        chars[idx] = rng.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+    elif chars[idx].isalpha():
+        chars[idx] = str(rng.randint(0, 9))
+    return "".join(chars)
 
 
 def _random_pt_plate(rng: random.Random) -> str:
@@ -69,20 +90,76 @@ def build_ocr_event(
     }
 
 
+def build_ocr_failure_event(
+    spot: Dict,
+    failure_mode: OcrFailureMode,
+    event_direction: str = "entry",
+    plate: Optional[str] = None,
+    confidence: Optional[float] = None,
+) -> Dict:
+    """
+    Build an explicit OCR failure event.
+
+    - UNREADABLE: plate=None, confidence=0.0
+    - LOW_CONFIDENCE: plate present, confidence < 0.5
+    - WRONG_PLATE: plate present but malformed/invalid
+    - CAMERA_OFFLINE: plate=None, confidence=0.0, no camera signal
+    - CAMERA_DEGRADED: plate present, confidence degraded (0.3–0.6)
+
+    failureMode is always set in payload so consumers can distinguish from normal events.
+    """
+    payload: Dict = {
+        "plate": plate or "",
+        "confidence": round(confidence, 4) if confidence is not None else 0.0,
+        "direction": event_direction,
+        "parkName": spot["parkName"],
+        "spotNumber": spot["spotNumber"],
+        "zone": spot["zone"],
+        "row": spot["row"],
+        "col": spot["col"],
+        "failureMode": failure_mode.value,
+    }
+
+    return {
+        "eventId": str(uuid.uuid4()),
+        "eventType": "ocr.plate.failure",
+        "parkId": spot["parkId"],
+        "spotId": spot["spotId"],
+        "occurredAt": now_iso(),
+        "payload": payload,
+        "version": 1,
+    }
+
+
 class OcrEventGenerator:
     """Stateful generator: tracks which plates are inside each park to produce
-    consistent entry/exit sequences."""
+    consistent entry/exit sequences.
+
+    failure_rate controls the probability that any given event tick produces a
+    failure event instead of (or in addition to) a normal read.  Set to 0.0 to
+    disable failures entirely (default).
+
+    offline_spots is the set of spotIds whose cameras are currently OFFLINE.
+    degraded_spots is the set of spotIds whose cameras are DEGRADED.
+    Both sets are mutable at runtime to simulate recovery.
+    """
 
     def __init__(
         self,
         spots: List[Dict],
         seed: int = 42,
         registered_plates: Optional[List[str]] = None,
+        failure_rate: float = 0.0,
     ):
         self.spots = spots
         self.rng = random.Random(seed)
+        self.failure_rate = failure_rate
         # plate -> spotId of where the vehicle currently is (None = outside)
         self._parked: Dict[str, str] = {}
+        # mutable camera state sets — callers can add/remove spot IDs at runtime
+        self.offline_spots: set = set()
+        self.degraded_spots: set = set()
+
         if registered_plates is None:
             self._plate_pool = [
                 _random_pt_plate(self.rng) for _ in range(max(len(spots) * 2, 30))
@@ -97,26 +174,108 @@ class OcrEventGenerator:
         events = []
         for spot in self.rng.sample(self.spots, k=max(1, len(self.spots) // 4)):
             spot_id = spot["spotId"]
+
+            # camera offline — emit one failure event per tick, no plate read
+            if spot_id in self.offline_spots:
+                event = build_ocr_failure_event(
+                    spot, OcrFailureMode.CAMERA_OFFLINE, confidence=0.0
+                )
+                events.append((event, spot_id))
+                continue
+
             parked_plate = self._plate_currently_at(spot_id)
 
             if parked_plate:
-                # vehicle exits with high probability
                 if self.rng.random() < 0.55:
-                    confidence = self.rng.uniform(0.82, 0.99)
-                    event = build_ocr_event(spot, "exit", parked_plate, confidence)
-                    del self._parked[parked_plate]
+                    if self._should_fail():
+                        event = self._make_failure_event(spot, "exit", parked_plate)
+                        # do NOT remove from _parked — plate still inside, state unknown
+                    else:
+                        confidence = self._exit_confidence(spot_id)
+                        event = build_ocr_event(spot, "exit", parked_plate, confidence)
+                        del self._parked[parked_plate]
                     events.append((event, spot_id))
             else:
-                # new vehicle may enter
                 if self.rng.random() < 0.45:
                     plate = self._pick_free_plate()
                     if plate:
-                        confidence = self.rng.uniform(0.75, 0.99)
-                        event = build_ocr_event(spot, "entry", plate, confidence)
-                        self._parked[plate] = spot_id
+                        if self._should_fail():
+                            event = self._make_failure_event(spot, "entry", plate)
+                            # do NOT add to _parked — state of entry unknown
+                        else:
+                            confidence = self._entry_confidence(spot_id)
+                            event = build_ocr_event(spot, "entry", plate, confidence)
+                            self._parked[plate] = spot_id
                         events.append((event, spot_id))
 
         return events
+
+    # ------------------------------------------------------------------
+    # Camera state management (runtime recovery support)
+    # ------------------------------------------------------------------
+
+    def set_camera_offline(self, spot_id: str) -> None:
+        self.offline_spots.add(spot_id)
+        self.degraded_spots.discard(spot_id)
+
+    def set_camera_degraded(self, spot_id: str) -> None:
+        self.degraded_spots.add(spot_id)
+        self.offline_spots.discard(spot_id)
+
+    def recover_camera(self, spot_id: str) -> None:
+        """Bring camera back to normal operation."""
+        self.offline_spots.discard(spot_id)
+        self.degraded_spots.discard(spot_id)
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def _should_fail(self) -> bool:
+        return self.failure_rate > 0.0 and self.rng.random() < self.failure_rate
+
+    def _entry_confidence(self, spot_id: str) -> float:
+        if spot_id in self.degraded_spots:
+            return self.rng.uniform(0.30, 0.65)
+        return self.rng.uniform(0.75, 0.99)
+
+    def _exit_confidence(self, spot_id: str) -> float:
+        if spot_id in self.degraded_spots:
+            return self.rng.uniform(0.30, 0.65)
+        return self.rng.uniform(0.82, 0.99)
+
+    def _make_failure_event(
+        self, spot: Dict, direction: str, real_plate: str
+    ) -> Dict:
+        """Pick a random non-offline failure mode and build the event."""
+        non_offline_modes = [
+            OcrFailureMode.UNREADABLE,
+            OcrFailureMode.LOW_CONFIDENCE,
+            OcrFailureMode.WRONG_PLATE,
+            OcrFailureMode.CAMERA_DEGRADED,
+        ]
+        mode = self.rng.choice(non_offline_modes)
+
+        if mode == OcrFailureMode.UNREADABLE:
+            return build_ocr_failure_event(spot, mode, direction, plate=None, confidence=0.0)
+
+        if mode == OcrFailureMode.LOW_CONFIDENCE:
+            confidence = self.rng.uniform(0.10, 0.49)
+            return build_ocr_failure_event(
+                spot, mode, direction, plate=real_plate, confidence=confidence
+            )
+
+        if mode == OcrFailureMode.WRONG_PLATE:
+            garbled = _garble_plate(self.rng, real_plate)
+            return build_ocr_failure_event(
+                spot, mode, direction, plate=garbled, confidence=self.rng.uniform(0.50, 0.75)
+            )
+
+        # CAMERA_DEGRADED
+        confidence = self.rng.uniform(0.30, 0.65)
+        return build_ocr_failure_event(
+            spot, mode, direction, plate=real_plate, confidence=confidence
+        )
 
     def _plate_currently_at(self, spot_id: str) -> Optional[str]:
         for plate, sid in self._parked.items():
