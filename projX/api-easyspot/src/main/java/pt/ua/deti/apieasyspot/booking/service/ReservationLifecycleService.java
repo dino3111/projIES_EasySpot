@@ -119,6 +119,9 @@ public class ReservationLifecycleService {
     }
 
     private String deriveSpotStatus(ParkingSpot spot, Reservation reservation, OffsetDateTime now) {
+        if ("out_of_service".equalsIgnoreCase(spot.getStatus())) {
+            return "out_of_service";
+        }
         if (reservation == null || now.isAfter(reservation.getDepartureTime())) {
             return restoreTypeStatus(spot);
         }
@@ -129,9 +132,15 @@ public class ReservationLifecycleService {
     }
 
     private String restoreTypeStatus(ParkingSpot spot) {
+        String current = spot.getStatus();
+        if ("out_of_service".equalsIgnoreCase(current)) {
+            return "out_of_service";
+        }
+
         ZoneType zone = spot.getZone();
         if (zone == ZoneType.EV) return "ev";
         if (zone == ZoneType.ACCESSIBLE) return "accessible";
         return "free";
     }
+
 }

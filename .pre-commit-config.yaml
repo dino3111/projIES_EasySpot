@@ -30,6 +30,8 @@ repos:
     rev: v1.5.1
     hooks:
       - id: mypy
+        additional_dependencies:
+          - types-requests
 
   # SQL linter (sqlfluff) - configure dialect in repo .sqlfluff or args
   - repo: https://github.com/sqlfluff/sqlfluff

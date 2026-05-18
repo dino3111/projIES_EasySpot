@@ -11,12 +11,15 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
+import jakarta.servlet.http.HttpServletRequest;
 import pt.ua.deti.apieasyspot.analytics.service.TechnicianParkAssignmentService;
 import pt.ua.deti.apieasyspot.sensor.dto.SensorDetailDto;
 import pt.ua.deti.apieasyspot.sensor.dto.SensorStatusUpdateRequest;
 import pt.ua.deti.apieasyspot.sensor.dto.SensorSummaryDto;
 import pt.ua.deti.apieasyspot.sensor.service.SensorLogsService;
 import pt.ua.deti.apieasyspot.sensor.service.SensorNotFoundException;
+import pt.ua.deti.apieasyspot.sensor.dto.SensorBootstrapContextDto;
+import pt.ua.deti.apieasyspot.sensor.service.SensorBootstrapContextService;
 
 import java.util.List;
 import java.util.UUID;
@@ -30,6 +33,7 @@ public class SensorLogsController {
 
     private final SensorLogsService sensorLogsService;
     private final TechnicianParkAssignmentService assignmentService;
+    private final SensorBootstrapContextService sensorBootstrapContextService;
 
     @Operation(summary = "List sensors for the current technician's assigned parks")
     @ApiResponse(responseCode = "200", description = "Sensor list")
@@ -73,6 +77,13 @@ public class SensorLogsController {
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "Get read-only bootstrap context for virtual sensor pipeline")
+    @ApiResponse(responseCode = "200", description = "Consistent context snapshot")
+    @GetMapping("/context")
+    @PreAuthorize("hasAnyRole('TECHNICAL', 'MANAGER') or @sensorServiceAuth.hasValidKey(#request)")
+    public ResponseEntity<SensorBootstrapContextDto> getBootstrapContext(HttpServletRequest request) {
+        return ResponseEntity.ok(sensorBootstrapContextService.snapshot());
+    }
     @ExceptionHandler(SensorNotFoundException.class)
     ResponseEntity<Void> handleNotFound() {
         return ResponseEntity.notFound().build();

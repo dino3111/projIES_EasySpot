@@ -67,10 +67,10 @@ const futureReservation = {
   spotId: 'spot-1',
   spotNumber: 'A1',
   vehicleId: 'veh-1',
-  arrivalDateTime: futureArrival.toISOString(),
-  departureDateTime: futureDeparture.toISOString(),
+  arrivalDateTime: '2026-06-14T08:00:00Z',
+  departureDateTime: '2026-06-14T10:00:00Z',
   status: 'CONFIRMED' as const,
-  lockedUntil: lockedUntil.toISOString(),
+  lockedUntil: '2026-06-14T08:30:00Z',
   estimatedCost: 4.5,
 };
 
