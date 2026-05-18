@@ -8,12 +8,14 @@ import pt.ua.deti.apieasyspot.analytics.repository.AnalyticsRepository;
 import pt.ua.deti.apieasyspot.analytics.repository.TechnicianParkAssignmentRepository;
 import pt.ua.deti.apieasyspot.analytics.repository.TechnicianRepository;
 import pt.ua.deti.apieasyspot.auth.dto.*;
+import pt.ua.deti.apieasyspot.auth.model.DriverType;
 import pt.ua.deti.apieasyspot.auth.model.User;
 import pt.ua.deti.apieasyspot.auth.repository.ProfileRepository;
 import pt.ua.deti.apieasyspot.auth.repository.UserRepository;
 import pt.ua.deti.apieasyspot.booking.repository.UserFavoriteRepository;
 import pt.ua.deti.apieasyspot.common.exception.ResourceNotFoundException;
 
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -61,8 +63,8 @@ public class ProfileService {
     }
 
     private void validateRoleFields(ProfileUpdateRequest request, String jwtRole) {
-        if (request.driverType() != null && !"DRIVER".equals(jwtRole)) {
-            throw new IllegalArgumentException("driverType is only editable for DRIVER role");
+        if ((request.driverType() != null || request.driverTypes() != null) && !"DRIVER".equals(jwtRole)) {
+            throw new IllegalArgumentException("driverType/driverTypes is only editable for DRIVER role");
         }
     }
 
@@ -83,6 +85,14 @@ public class ProfileService {
         }
         if ("DRIVER".equals(jwtRole) && request.driverType() != null) {
             user.setDriverType(request.driverType());
+            user.setDriverTypes(EnumSet.of(request.driverType()));
+        }
+        if ("DRIVER".equals(jwtRole) && request.driverTypes() != null) {
+            Set<DriverType> requestedTypes = request.driverTypes().isEmpty()
+                ? EnumSet.of(DriverType.REGULAR)
+                : EnumSet.copyOf(request.driverTypes());
+            user.setDriverTypes(requestedTypes);
+            user.setDriverType(resolvePrimaryDriverType(requestedTypes));
         }
         user.setNotificationsEnabled(user.isPushNotificationsEnabled() || user.isEmailNotificationsEnabled());
     }
@@ -110,9 +120,28 @@ public class ProfileService {
         }
         return new DriverProfileResponse(
             user.getName(), user.getEmail(), user.getRole(), user.getPhotoUrl(),
-            user.getDriverType(), user.isNotificationsEnabled(),
+            resolvePrimaryDriverType(resolveEffectiveDriverTypes(user)),
+            resolveEffectiveDriverTypes(user),
+            user.isNotificationsEnabled(),
             user.isPushNotificationsEnabled(), user.isEmailNotificationsEnabled(),
             spending, favorites);
+    }
+
+    private Set<DriverType> resolveEffectiveDriverTypes(User user) {
+        if (user.getDriverTypes() != null && !user.getDriverTypes().isEmpty()) {
+            return EnumSet.copyOf(user.getDriverTypes());
+        }
+        if (user.getDriverType() != null) {
+            return EnumSet.of(user.getDriverType());
+        }
+        return EnumSet.of(DriverType.REGULAR);
+    }
+
+    private DriverType resolvePrimaryDriverType(Set<DriverType> driverTypes) {
+        if (driverTypes.contains(DriverType.REGULAR)) return DriverType.REGULAR;
+        if (driverTypes.contains(DriverType.EV)) return DriverType.EV;
+        if (driverTypes.contains(DriverType.REDUCED_MOBILITY)) return DriverType.REDUCED_MOBILITY;
+        return DriverType.REGULAR;
     }
 
     private DriverProfileResponse buildDriverProfile(User user) {

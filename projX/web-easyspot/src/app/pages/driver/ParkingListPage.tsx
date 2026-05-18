@@ -19,12 +19,13 @@ interface QueryState {
 }
 
 export function ParkingListPage() {
-  const { vehicles, driverType } = useProfile();
+  const { vehicles, driverTypes } = useProfile();
   const primaryVehicle = vehicles.find((v) => v.isPrimary) ?? vehicles[0] ?? null;
 
   const resolveProfileFilters = () => {
-    if (driverType === 'ev') return { evOnly: true, accessibleOnly: false };
-    if (driverType === 'reduced_mobility') return { evOnly: false, accessibleOnly: true };
+    const prefersEv = driverTypes.includes('ev');
+    const prefersAccessible = driverTypes.includes('reduced_mobility');
+    if (prefersEv || prefersAccessible) return { evOnly: prefersEv, accessibleOnly: prefersAccessible };
     return {
       evOnly: primaryVehicle?.isEV ?? false,
       accessibleOnly: primaryVehicle?.isAccessible ?? false,
@@ -47,8 +48,8 @@ export function ParkingListPage() {
     const vehicle = primaryVehicle;
     return {
       page: 1,
-      showEVOnly: driverType === 'ev' ? true : (vehicle?.isEV ?? false),
-      showAccessibleOnly: driverType === 'reduced_mobility' ? true : (vehicle?.isAccessible ?? false),
+      showEVOnly: profileFilters.evOnly || (vehicle?.isEV ?? false),
+      showAccessibleOnly: profileFilters.accessibleOnly || (vehicle?.isAccessible ?? false),
       showAvailableOnly: false,
       searchQuery: '',
       selectedDistrict: '',

@@ -10,7 +10,9 @@ import pt.ua.deti.apieasyspot.vehicle.model.Vehicle;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Data
@@ -50,6 +52,12 @@ public class User {
     @Enumerated(EnumType.STRING)
     @Column(length = 30)
     private DriverType driverType;
+
+    @ElementCollection(fetch = FetchType.EAGER, targetClass = DriverType.class)
+    @CollectionTable(name = "user_driver_types", joinColumns = @JoinColumn(name = "user_id"))
+    @Column(name = "driver_type", nullable = false, length = 30)
+    @Enumerated(EnumType.STRING)
+    private Set<DriverType> driverTypes = EnumSet.noneOf(DriverType.class);
 
     @Column(nullable = false, columnDefinition = "boolean default true")
     private boolean notificationsEnabled = true;

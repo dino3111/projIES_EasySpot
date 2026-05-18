@@ -75,6 +75,8 @@ export function Step1ParkHorario({
   exitTime, setExitTime,
   vehicles, selectedVehicleId, setSelectedVehicleId,
   parks,
+  autoFilterEV,
+  autoFilterAccessible,
   onNext,
 }: Readonly<{
   selectedParkId: string; setSelectedParkId: (id: string) => void;
@@ -82,13 +84,22 @@ export function Step1ParkHorario({
   exitTime: string; setExitTime: (t: string) => void;
   vehicles: Vehicle[]; selectedVehicleId: string; setSelectedVehicleId: (id: string) => void;
   parks: ParkingLot[];
+  autoFilterEV: boolean;
+  autoFilterAccessible: boolean;
   onNext: () => void;
 }>) {
   const [search, setSearch] = useState('');
   const [filterEV, setFilterEV] = useState(false);
   const [filterAccessible, setFilterAccessible] = useState(false);
+  const [userChangedFilters, setUserChangedFilters] = useState(false);
 
   const minTime = getMinArrivalTime();
+
+  useEffect(() => {
+    if (userChangedFilters) return;
+    setFilterEV(autoFilterEV);
+    setFilterAccessible(autoFilterAccessible);
+  }, [autoFilterEV, autoFilterAccessible, userChangedFilters]);
 
   const filtered = useMemo(() =>
     parks.filter(l => {
@@ -206,14 +217,14 @@ export function Step1ParkHorario({
                 </div>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => setFilterEV(!filterEV)}
+                    onClick={() => { setUserChangedFilters(true); setFilterEV(!filterEV); }}
                     className={`btn btn-xs rounded-full gap-1 ${filterEV ? 'btn-warning' : 'btn-outline border-base-300 text-base-content/60'}`}
                     aria-pressed={filterEV}
                   >
                     <i className="fa-solid fa-bolt" /> EV
                   </button>
                   <button
-                    onClick={() => setFilterAccessible(!filterAccessible)}
+                    onClick={() => { setUserChangedFilters(true); setFilterAccessible(!filterAccessible); }}
                     className={`btn btn-xs rounded-full gap-1 ${filterAccessible ? 'btn-info text-info-content' : 'btn-outline border-base-300 text-base-content/60'}`}
                     aria-pressed={filterAccessible}
                   >

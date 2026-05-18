@@ -1,3 +1,4 @@
+import os
 import threading
 
 from gate_runner import run_gates
@@ -30,9 +31,9 @@ def _run_gates_safe():
 
 
 if __name__ == "__main__":
-    ocr_thread = threading.Thread(target=_run_ocr_safe, daemon=False, name="ocr-runner")
+    ocr_thread = threading.Thread(target=_run_ocr_safe, daemon=True, name="ocr-runner")
     occupancy_thread = threading.Thread(
-        target=_run_occupancy_safe, daemon=False, name="occupancy-runner"
+        target=_run_occupancy_safe, daemon=True, name="occupancy-runner"
     )
     gates_thread = threading.Thread(
         target=_run_gates_safe, daemon=False, name="gates-runner"
@@ -48,8 +49,9 @@ if __name__ == "__main__":
         occupancy_thread.join(timeout=1.0)
         gates_thread.join(timeout=1.0)
         if not ocr_thread.is_alive():
-            raise RuntimeError("OCR runner thread terminated unexpectedly")
+            os._exit(1)
         if not occupancy_thread.is_alive():
             raise RuntimeError("Occupancy runner thread terminated unexpectedly")
         if not gates_thread.is_alive():
             raise RuntimeError("Gates runner thread terminated unexpectedly")
+            os._exit(1)

@@ -12,7 +12,9 @@ vi.mock('../../../context/ProfileContext', () => ({
     profile: 'DRIVER',
     accountType: 'DRIVER',
     driverType: 'ev',
+    driverTypes: ['ev'],
     setDriverType: vi.fn(),
+    setDriverTypes: vi.fn(),
     setProfile: vi.fn(),
     setAccountType: vi.fn(),
     vehicles: [
@@ -111,7 +113,7 @@ describe('Driver pages', () => {
   });
 
   it('ProfilePage renders main section', async () => {
-    apiServiceMock.profileApi.get.mockResolvedValue({ role: 'DRIVER', name: 'Ana Silva', email: 'ana@easyspot.pt', photoUrl: null, notificationsEnabled: true, driverType: 'ev', pushNotificationsEnabled: true, emailNotificationsEnabled: true, spending: { totalEuros: 0, sessionCount: 0, avgEuros: 0 }, favoritesCount: 1 });
+    apiServiceMock.profileApi.get.mockResolvedValue({ role: 'DRIVER', name: 'Ana Silva', email: 'ana@easyspot.pt', photoUrl: null, notificationsEnabled: true, driverType: 'ev', driverTypes: ['ev'], pushNotificationsEnabled: true, emailNotificationsEnabled: true, spending: { totalEuros: 0, sessionCount: 0, avgEuros: 0 }, favoritesCount: 1 });
     render(<MemoryRouter><ProfilePage /></MemoryRouter>);
     expect(await screen.findByText(/Ana Silva/i, {}, { timeout: 5000 })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /Perfil/i })).toBeInTheDocument();

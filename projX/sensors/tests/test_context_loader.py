@@ -87,6 +87,38 @@ class ContextLoaderTests(unittest.TestCase):
         self.assertEqual(spots[0]["status"], "occupied")
 
     @patch("context_loader.requests.get")
+    def test_load_spots_and_vehicle_plates_can_share_context(self, mock_get):
+        payload = {
+            "version": 1,
+            "generatedAt": "2026-05-16T12:00:00Z",
+            "parkingLots": [{"id": "park-1", "name": "Park One"}],
+            "parkingSpots": [
+                {
+                    "id": "spot-1",
+                    "parkingLotId": "park-1",
+                    "spotNumber": "A01",
+                    "zone": "EV",
+                    "row": 3,
+                    "col": 4,
+                    "status": "occupied",
+                }
+            ],
+            "sensors": [],
+            "users": [],
+            "vehicles": [{"plate": "aa-11-bb"}, {"plate": "AA-11-BB"}],
+            "activeReservations": [],
+        }
+        mock_get.return_value = self._response(payload)
+
+        context = context_loader.load_context()
+
+        spots = context_loader.spots_from_context(context)
+        plates = context_loader.vehicle_plates_from_context(context)
+
+        self.assertEqual(len(spots), 1)
+        self.assertEqual(plates, ["AA-11-BB"])
+
+    @patch("context_loader.requests.get")
     def test_load_context_raises_when_required_key_missing(self, mock_get):
         payload = {
             "version": 1,
