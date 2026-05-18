@@ -114,6 +114,7 @@ class DriverTypeControllerIT {
                 .content("{\"driverType\":\"reduced_mobility\"}"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.driverType").value("reduced_mobility"))
+            .andExpect(jsonPath("$.driverTypes[0]").value("reduced_mobility"))
             .andExpect(jsonPath("$.email").value("driver@test.com"))
             .andExpect(jsonPath("$.name").value("Test Driver"))
             .andExpect(jsonPath("$.role").value("DRIVER"))
@@ -121,6 +122,7 @@ class DriverTypeControllerIT {
 
         User updated = userRepository.findByAuthentikUserId(DRIVER_SUBJECT).orElseThrow();
         assertThat(updated.getDriverType()).isEqualTo(DriverType.REDUCED_MOBILITY);
+        assertThat(updated.getDriverTypes()).containsExactlyInAnyOrder(DriverType.REDUCED_MOBILITY);
     }
 
     @Test
@@ -137,9 +139,25 @@ class DriverTypeControllerIT {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"driverType\":\"ev\"}"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.driverType").value("ev"));
+            .andExpect(jsonPath("$.driverType").value("ev"))
+            .andExpect(jsonPath("$.driverTypes[0]").value("ev"));
 
         User updated = userRepository.findByAuthentikUserId(DRIVER_SUBJECT).orElseThrow();
         assertThat(updated.getDriverType()).isEqualTo(DriverType.EV);
+        assertThat(updated.getDriverTypes()).containsExactlyInAnyOrder(DriverType.EV);
+    }
+
+    @Test
+    @DisplayName("POST /api/driver/type - with driverTypes - stores multiple profiles")
+    void updateDriverType_withDriverTypes_storesMultipleProfiles() throws Exception {
+        mockMvc.perform(post("/api/driver/type")
+                .with(jwtWithRole(DRIVER_SUBJECT, "DRIVER"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"driverType\":\"ev\",\"driverTypes\":[\"ev\",\"reduced_mobility\"]}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.driverType").value("ev"));
+
+        User updated = userRepository.findByAuthentikUserId(DRIVER_SUBJECT).orElseThrow();
+        assertThat(updated.getDriverTypes()).containsExactlyInAnyOrder(DriverType.EV, DriverType.REDUCED_MOBILITY);
     }
 }

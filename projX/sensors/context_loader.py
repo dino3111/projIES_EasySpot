@@ -47,6 +47,10 @@ def load_context():
 
 def load_spots():
     context = load_context()
+    return spots_from_context(context)
+
+
+def spots_from_context(context):
     park_name_by_id = {
         str(park["id"]): park.get("name", "") for park in context["parkingLots"]
     }
@@ -68,6 +72,10 @@ def load_spots():
 
 def load_vehicle_plates():
     context = load_context()
+    return vehicle_plates_from_context(context)
+
+
+def vehicle_plates_from_context(context):
     plates = []
     for vehicle in context["vehicles"]:
         plate = vehicle.get("plate")

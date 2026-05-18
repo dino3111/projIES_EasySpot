@@ -107,9 +107,9 @@ def normalize_initial_status(status, zone):
     if current in ("occupied", "reserved", "out_of_service"):
         return current
     if zone == "EV":
-        return "free"
+        return "ev"
     if zone == "ACCESSIBLE":
-        return "free"
+        return "accessible"
     return "free"
 
 

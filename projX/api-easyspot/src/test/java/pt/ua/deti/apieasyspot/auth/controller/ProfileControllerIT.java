@@ -164,7 +164,20 @@ class ProfileControllerIT {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"driverType\":\"ev\"}"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.driverType").value("ev"));
+            .andExpect(jsonPath("$.driverType").value("ev"))
+            .andExpect(jsonPath("$.driverTypes[0]").value("ev"));
+    }
+
+    @Test
+    @DisplayName("PUT /api/profile - update driverTypes for DRIVER - persists multiple profiles")
+    void updateProfile_driverTypes_persistsForDriver() throws Exception {
+        mockMvc.perform(put("/api/profile")
+                .with(jwt().jwt(j -> j.subject(DRIVER_SUBJECT).claim("groups", List.of("DRIVER"))))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"driverTypes\":[\"ev\",\"reduced_mobility\"]}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.driverTypes[0]").value("ev"))
+            .andExpect(jsonPath("$.driverTypes[1]").value("reduced_mobility"));
     }
 
     @Test

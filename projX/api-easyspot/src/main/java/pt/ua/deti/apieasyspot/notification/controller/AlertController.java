@@ -29,6 +29,7 @@ import pt.ua.deti.apieasyspot.sensor.model.SensorRegistry;
 import pt.ua.deti.apieasyspot.sensor.model.SensorStatus;
 import pt.ua.deti.apieasyspot.sensor.repository.SensorRegistryRepository;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -55,6 +56,8 @@ public class AlertController {
         @RequestParam(required = false) UUID parkId,
         @RequestParam(required = false) StateAlert state,
         @RequestParam(required = false) SeverityAlert severity,
+        @RequestParam(required = false) OffsetDateTime from,
+        @RequestParam(required = false) OffsetDateTime to,
         @AuthenticationPrincipal Jwt jwt
     ) {
         List<String> groups = jwt.getClaimAsStringList("groups");
@@ -69,12 +72,12 @@ public class AlertController {
             }
             List<UUID> effectiveParkIds = parkId != null ? List.of(parkId) : assignedParkIds;
             return ResponseEntity.ok(
-                alertService.listAlertsByParks(effectiveParkIds, state, severity).stream()
+                alertService.listAlertsByParks(effectiveParkIds, state, severity, from, to).stream()
                     .map(AlertResponse::from)
                     .toList());
         }
 
-        return ResponseEntity.ok(alertService.listAlerts(parkId, state, severity).stream()
+        return ResponseEntity.ok(alertService.listAlerts(parkId, state, severity, from, to).stream()
             .map(AlertResponse::from)
             .toList());
     }

@@ -12,6 +12,7 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
@@ -26,6 +27,8 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.beans.factory.ObjectProvider;
+import pt.ua.deti.apieasyspot.sensor.security.SensorServiceAuth;
 
 import java.net.URI;
 import java.util.Arrays;
@@ -49,9 +52,14 @@ public class SecurityConfig {
     private String jwkSetUri;
 
     private final CustomJwtAuthenticationConverter customJwtAuthenticationConverter;
+    private final ObjectProvider<SensorServiceAuth> sensorServiceAuth;
 
-    public SecurityConfig(CustomJwtAuthenticationConverter customJwtAuthenticationConverter) {
+    public SecurityConfig(
+        CustomJwtAuthenticationConverter customJwtAuthenticationConverter,
+        ObjectProvider<SensorServiceAuth> sensorServiceAuth
+    ) {
         this.customJwtAuthenticationConverter = customJwtAuthenticationConverter;
+        this.sensorServiceAuth = sensorServiceAuth;
     }
 
     @Bean
@@ -82,7 +90,11 @@ public class SecurityConfig {
                 .requestMatchers("/api/test/token").permitAll()
                 .requestMatchers("/api/stripe/webhook").permitAll()
                 .requestMatchers("/api/parks/list", "/api/parks/*/details", "/api/parks/cities").permitAll()
-                .requestMatchers("/api/technician/sensors/context").permitAll()
+                .requestMatchers("/api/technician/sensors/context").access((authentication, context) ->
+                    new org.springframework.security.authorization.AuthorizationDecision(
+                        isAuthenticated(authentication.get())
+                            || hasValidSensorServiceKey(context.getRequest())
+                    ))
                 .requestMatchers("/api/test/**").authenticated()
                 .anyRequest().authenticated());
 
@@ -192,6 +204,17 @@ public class SecurityConfig {
         } catch (IllegalArgumentException ex) {
             return noTrailingSlash;
         }
+    }
+
+    private boolean hasValidSensorServiceKey(jakarta.servlet.http.HttpServletRequest request) {
+        SensorServiceAuth auth = sensorServiceAuth.getIfAvailable();
+        return auth != null && auth.hasValidKey(request);
+    }
+
+    private static boolean isAuthenticated(org.springframework.security.core.Authentication authentication) {
+        return authentication != null
+            && authentication.isAuthenticated()
+            && !(authentication instanceof AnonymousAuthenticationToken);
     }
 
     @Bean

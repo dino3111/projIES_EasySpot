@@ -192,6 +192,7 @@ interface BaseProfileResponse {
 export interface DriverProfileResponse extends BaseProfileResponse {
   role: 'DRIVER';
   driverType: 'regular' | 'ev' | 'reduced_mobility' | null;
+  driverTypes?: Array<'regular' | 'ev' | 'reduced_mobility'>;
   pushNotificationsEnabled: boolean;
   emailNotificationsEnabled: boolean;
   spending: SpendingSummaryResponse;
@@ -221,6 +222,7 @@ export type ProfileResponse = DriverProfileResponse | ManagerProfileResponse | T
 
 export interface ProfileUpdateRequest {
   driverType?: 'regular' | 'ev' | 'reduced_mobility' | null;
+  driverTypes?: Array<'regular' | 'ev' | 'reduced_mobility'>;
   notificationsEnabled?: boolean;
   pushNotificationsEnabled?: boolean;
   emailNotificationsEnabled?: boolean;
