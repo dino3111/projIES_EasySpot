@@ -163,7 +163,11 @@ class ParkGateFaultRecoveryTests(unittest.TestCase):
         gate.state = GateState.CLOSED
         # inject fault directly via _transition
         event = gate._transition(
-            "park-1", "Park", GateState.FAULT, GateEventType.GATE_FAULT, "hardware_fault"
+            "park-1",
+            "Park",
+            GateState.FAULT,
+            GateEventType.GATE_FAULT,
+            "hardware_fault",
         )
         self.assertEqual(event["eventType"], "gate.fault")
         self.assertEqual(gate.state, GateState.FAULT)
