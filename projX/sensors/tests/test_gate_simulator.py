@@ -31,7 +31,13 @@ def _gate(direction=GateDirection.ENTRY, seed=42):
     )
 
 
-def _ocr_event(park_id="park-1", direction="entry", confidence=0.95, plate="AB-12-CD", event_type="ocr.plate.read"):
+def _ocr_event(
+    park_id="park-1",
+    direction="entry",
+    confidence=0.95,
+    plate="AB-12-CD",
+    event_type="ocr.plate.read",
+):
     return {
         "eventId": "some-uuid",
         "eventType": event_type,
@@ -156,7 +162,9 @@ class ParkGateFaultRecoveryTests(unittest.TestCase):
         gate = ParkGate("g", GateDirection.ENTRY, random.Random(0))
         gate.state = GateState.CLOSED
         # inject fault directly via _transition
-        event = gate._transition("park-1", "Park", GateState.FAULT, GateEventType.GATE_FAULT, "hardware_fault")
+        event = gate._transition(
+            "park-1", "Park", GateState.FAULT, GateEventType.GATE_FAULT, "hardware_fault"
+        )
         self.assertEqual(event["eventType"], "gate.fault")
         self.assertEqual(gate.state, GateState.FAULT)
 

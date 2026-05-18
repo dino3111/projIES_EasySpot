@@ -34,7 +34,9 @@ if __name__ == "__main__":
     occupancy_thread = threading.Thread(
         target=_run_occupancy_safe, daemon=False, name="occupancy-runner"
     )
-    gates_thread = threading.Thread(target=_run_gates_safe, daemon=False, name="gates-runner")
+    gates_thread = threading.Thread(
+        target=_run_gates_safe, daemon=False, name="gates-runner"
+    )
 
     ocr_thread.start()
     occupancy_thread.start()

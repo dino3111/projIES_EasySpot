@@ -21,7 +21,11 @@
       "Bash(python3 -m isort --check-only sensors/tests/test_ocr_event_builder.py bootstrap_authentik.py)",
       "Bash(python3 -m ruff check sensors/tests/test_ocr_event_builder.py sensors/ocr_event_builder.py)",
       "Bash(.venv/bin/python -m pytest tests/test_gate_simulator.py -v)",
-      "Bash(.venv/bin/python -m pytest tests/ -v --tb=short)"
+      "Bash(.venv/bin/python -m pytest tests/ -v --tb=short)",
+      "Read(//home/claudino/ies2526-group-project-g703/**)",
+      "Bash(sqlfluff fix *)",
+      "Bash(python3 -m sqlfluff fix /home/claudino/ies2526-group-project-g703/projX/api-easyspot/src/main/resources/seed/us_gate_events_seed.sql --dialect postgres)",
+      "Bash(rtk pip *)"
     ]
   }
 }
