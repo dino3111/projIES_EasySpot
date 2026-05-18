@@ -61,6 +61,10 @@ describe('TasksTab', () => {
       <TasksTab
         orders={orders}
         sensors={sensors}
+        completedOrders={[]}
+        completedLoading={false}
+        weekOffset={-1}
+        onWeekChange={vi.fn()}
         onUpdate={vi.fn()}
         onNewOrder={vi.fn()}
       />,
