@@ -228,4 +228,5 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
         @Param("id") UUID id,
         @Param("userId") UUID userId
     );
+
 }

@@ -17,6 +17,13 @@ SIMULATION_SEED = int(os.getenv("SIMULATION_SEED", "42"))
 CONTEXT_LOAD_RETRIES = int(os.getenv("CONTEXT_LOAD_RETRIES", "20"))
 CONTEXT_RETRY_DELAY_SECONDS = float(os.getenv("CONTEXT_RETRY_DELAY_SECONDS", "3"))
 
+FAULT_MIN_DURATION_SECONDS = float(os.getenv("FAULT_MIN_DURATION_SECONDS", "30"))
+FAULT_MAX_DURATION_SECONDS = float(os.getenv("FAULT_MAX_DURATION_SECONDS", "300"))
+TECHNICIAN_REPAIR_PROBABILITY = float(os.getenv("TECHNICIAN_REPAIR_PROBABILITY", "0.3"))
+OCR_FAULT_PROBABILITY_PER_TICK = float(
+    os.getenv("OCR_FAULT_PROBABILITY_PER_TICK", "0.002")
+)
+
 # Per-state transition probabilities (must sum to <= 1.0; remainder falls back).
 P_FREE_TO_FREE = float(os.getenv("P_FREE_TO_FREE", "0.72"))
 P_FREE_TO_OCCUPIED = float(os.getenv("P_FREE_TO_OCCUPIED", "0.20"))

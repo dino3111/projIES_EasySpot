@@ -2,9 +2,20 @@ import random
 
 
 class SpotStateMachine:
-    def __init__(self, seed=42, transition_probs=None):
+    def __init__(
+        self,
+        seed=42,
+        transition_probs=None,
+        fault_min_duration=30.0,
+        fault_max_duration=3600.0,
+        technician_repair_probability=0.0,
+    ):
         self.rng = random.Random(seed)
         self.transition_probs = transition_probs or self._default_transition_probs()
+        self.fault_min_duration = fault_min_duration
+        self.fault_max_duration = fault_max_duration
+        self.technician_repair_probability = technician_repair_probability
+        self._fault_start: dict[str, float] = {}
 
     def _get_time_multipliers(self, current_hour):
         if current_hour is None:
@@ -30,56 +41,67 @@ class SpotStateMachine:
         row=0,
         col=0,
         has_pending_reservation=False,
+        spot_id=None,
+        now=None,
     ):
         current = (current_status or "free").strip().lower()
-
         if current in ("ev", "accessible"):
             current = "free"
 
-        # MTTR Logic: Deterministic recovery if repair time is reached
-        # handled by the runner or here if we pass a special flag.
-        # For now, let's stick to probability but with a high boost if aging.
-
         transitions = self.transition_probs.get(current)
         if not transitions:
-            return "free", "reset"
+            return "free", "reset", None
+
+        if current == "out_of_service" and spot_id is not None and now is not None:
+            if spot_id not in self._fault_start:
+                self._fault_start[spot_id] = now
+
+            fault_duration = now - self._fault_start[spot_id]
+
+            if fault_duration < self.fault_min_duration:
+                return "out_of_service", "still_faulty", None
+
+            if fault_duration >= self.fault_max_duration:
+                del self._fault_start[spot_id]
+                return "free", "TECHNICIAN_REPAIR", fault_duration
+
+            if self.rng.random() < self.technician_repair_probability:
+                del self._fault_start[spot_id]
+                return "free", "TECHNICIAN_REPAIR", fault_duration
+
+            if self.rng.random() < 0.30:
+                del self._fault_start[spot_id]
+                return "free", "AUTO_RECOVERY", fault_duration
+
+            return "out_of_service", "still_faulty", None
 
         entry_mult, exit_mult = self._get_time_multipliers(current_hour)
 
-        # 3. Hotspots & Spatial Preference
-        # Preference for spots near (0,0). Max boost of 2.0x, decaying with distance.
+        # Hotspots & Spatial Preference: preference for spots near (0,0).
         distance = (row**2 + col**2) ** 0.5
         spatial_mult = max(1.0, 2.0 / (1.0 + 0.1 * distance))
         if current == "free":
             entry_mult *= spatial_mult
 
-        # 2. State Aging (Occupied -> Free)
-        # 15 mins = 900 ticks. Sigmoid-like boost to exit_mult.
+        # State Aging (Occupied -> Free): sigmoid-like boost to exit probability.
         if current == "occupied":
-            # Probability is very low for first 5 mins, normal at
-            # 15 mins, high after 30 mins.
             aging_factor = 1.0 / (1.0 + pow(2.718, -(time_in_state - 900) / 300.0))
             exit_mult *= max(0.01, aging_factor * 2.0)
 
-        # 4. Reservation Integration
         if current == "free" and has_pending_reservation:
-            # Force reservation status
-            return "reserved", "reservation_triggered_by_backend"
+            return "reserved", "reservation_triggered_by_backend", None
 
         adjusted_transitions = []
         for status, reason, probability in transitions:
             adj_prob = probability
 
-            # Temporal & Logic adjustments
             if current == "free" and status in ("occupied", "reserved"):
                 adj_prob *= entry_mult
             elif current == "occupied" and status == "free":
                 adj_prob *= exit_mult
             elif current == "reserved" and status == "occupied":
-                # reserved spots have high arrival probability
                 adj_prob *= entry_mult * 2.0
 
-            # Zone adjustments
             if (
                 (zone or "").strip().upper() in ("EV", "ACCESSIBLE")
                 and current == "free"
@@ -92,8 +114,8 @@ class SpotStateMachine:
         next_status = self._weighted_choice(adjusted_transitions)
         for status, reason, _ in adjusted_transitions:
             if status == next_status:
-                return status, reason
-        return next_status, "state_changed"
+                return status, reason, None
+        return next_status, "state_changed", None
 
     def _weighted_choice(self, transitions):
         roll = self.rng.random()

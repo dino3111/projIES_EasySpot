@@ -29,9 +29,9 @@ import pt.ua.deti.apieasyspot.occupancy.model.Tariff;
 import pt.ua.deti.apieasyspot.occupancy.model.ZoneType;
 import pt.ua.deti.apieasyspot.occupancy.repository.TariffRepository;
 
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.time.Duration;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Objects;
@@ -273,8 +273,8 @@ public class BillingService {
             ? reservation.getEstimatedCost()
             : BigDecimal.ZERO;
 
-        BigDecimal finalRevenue = estimated;
         PaymentAdjustmentResult result = new PaymentAdjustmentResult(BigDecimal.ZERO, "NO_CHANGE", null, null);
+        BigDecimal finalRevenue = estimated;
 
         if (actualExitUtc.isAfter(plannedDeparture)) {
             ZoneType zone = reservation.getParkingSpot() != null
@@ -304,7 +304,6 @@ public class BillingService {
         if (tariffs.isEmpty()) {
             return BigDecimal.ZERO;
         }
-
         Tariff tariff = tariffs.stream()
             .filter(t -> t.getStatus() == pt.ua.deti.apieasyspot.occupancy.model.TariffStatus.ACTIVE)
             .filter(t -> t.getPricePerHour() != null)
@@ -318,7 +317,6 @@ public class BillingService {
         if (tariff == null || tariff.getPricePerHour() == null) {
             return BigDecimal.ZERO;
         }
-
         long minutes = Duration.between(entry, exit).toMinutes();
         BigDecimal hours = BigDecimal.valueOf(minutes).divide(BigDecimal.valueOf(60), 4, RoundingMode.HALF_UP);
         BigDecimal cost = tariff.getPricePerHour().multiply(hours).setScale(2, RoundingMode.HALF_UP);

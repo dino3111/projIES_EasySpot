@@ -12,6 +12,7 @@ import pt.ua.deti.apieasyspot.booking.repository.ReservationRepository;
 import pt.ua.deti.apieasyspot.ocr.dto.OcrPlateEvent;
 import pt.ua.deti.apieasyspot.ocr.model.OcrPlateRead;
 import pt.ua.deti.apieasyspot.ocr.repository.OcrPlateReadRepository;
+import pt.ua.deti.apieasyspot.sensor.service.SensorLogsService;
 
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -28,6 +29,7 @@ public class OcrPlateEventKafkaListener {
 
     private final ObjectMapper objectMapper;
     private final OcrPlateReadRepository repository;
+    private final SensorLogsService sensorLogsService;
     private final ReservationRepository reservationRepository;
     private final BillingService billingService;
 
@@ -43,17 +45,38 @@ public class OcrPlateEventKafkaListener {
         try {
             OcrPlateEvent event = objectMapper.readValue(payload, OcrPlateEvent.class);
 
-            if (event.parkId() == null || event.payload() == null) {
-                log.warn("Ignoring malformed OCR event: missing parkId or payload");
+            if (event.parkId() == null) {
+                log.warn("Ignoring malformed OCR event: missing parkId");
+                return;
+            }
+
+            if ("device.recovery".equals(event.eventType())) {
+                handleDeviceRecovery(event);
+                return;
+            }
+
+            if ("device.fault".equals(event.eventType())) {
+                handleDeviceFault(event);
+                return;
+            }
+
+            if ("ocr.plate.failure".equals(event.eventType())) {
+                OcrPlateEvent.OcrPayload fp = event.payload();
+                String failureMode = fp != null ? fp.failureMode() : null;
+                if (failureMode != null && VALID_FAILURE_MODES.contains(failureMode)) {
+                    handleFailure(event, fp, failureMode);
+                } else {
+                    log.debug("OCR plate failure event ignored (unknown/missing failureMode): eventId={}", event.eventId());
+                }
+                return;
+            }
+
+            if (event.payload() == null) {
+                log.warn("Ignoring malformed OCR event: missing payload");
                 return;
             }
 
             OcrPlateEvent.OcrPayload p = event.payload();
-
-            if (p.isFailure()) {
-                handleFailureEvent(event, p);
-                return;
-            }
 
             if (p.plate() == null || p.direction() == null) {
                 log.warn("Ignoring OCR event with missing plate or direction");
@@ -76,13 +99,38 @@ public class OcrPlateEventKafkaListener {
         }
     }
 
-    private void handleFailureEvent(OcrPlateEvent event, OcrPlateEvent.OcrPayload p) {
-        String mode = p.failureMode();
-        if (!VALID_FAILURE_MODES.contains(mode)) {
-            log.warn("Unknown OCR failureMode '{}': eventId={}", mode, event.eventId());
+    private void handleDeviceFault(OcrPlateEvent event) {
+        if (event.payload() == null || event.payload().extensions() == null) {
+            log.warn("device.fault event missing extensions: park={}", event.parkId());
             return;
         }
+        Map<String, Object> ext = event.payload().extensions();
+        Object deviceIdObj = ext.get("deviceId");
+        if (!(deviceIdObj instanceof String deviceId) || deviceId.isBlank()) {
+            log.warn("device.fault event missing deviceId: park={}", event.parkId());
+            return;
+        }
+        sensorLogsService.faultSensor(deviceId);
+        log.info("OCR device fault registered: deviceId={} park={}", deviceId, event.parkId());
+    }
 
+    private void handleDeviceRecovery(OcrPlateEvent event) {
+        if (event.payload() == null || event.payload().extensions() == null) {
+            log.warn("device.recovery event missing extensions: park={}", event.parkId());
+            return;
+        }
+        Map<String, Object> ext = event.payload().extensions();
+        Object deviceIdObj = ext.get("deviceId");
+        if (!(deviceIdObj instanceof String deviceId) || deviceId.isBlank()) {
+            log.warn("device.recovery event missing deviceId: park={}", event.parkId());
+            return;
+        }
+        String recoveryType = ext.get("recoveryType") instanceof String s ? s : "AUTO_RECOVERY";
+        sensorLogsService.recoverSensor(deviceId, recoveryType);
+        log.info("OCR device recovered: deviceId={} type={} park={}", deviceId, recoveryType, event.parkId());
+    }
+
+    private void handleFailure(OcrPlateEvent event, OcrPlateEvent.OcrPayload p, String mode) {
         OcrPlateRead read = buildRead(event, p);
         read.setFailureMode(mode);
         repository.save(read);

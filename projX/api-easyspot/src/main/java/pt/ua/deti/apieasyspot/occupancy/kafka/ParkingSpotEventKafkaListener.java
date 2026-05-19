@@ -13,6 +13,7 @@ import pt.ua.deti.apieasyspot.occupancy.model.ParkingSpot;
 import pt.ua.deti.apieasyspot.occupancy.model.ZoneType;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingSpotRepository;
 import pt.ua.deti.apieasyspot.occupancy.service.OccupancySnapshotIngestService;
+import pt.ua.deti.apieasyspot.sensor.service.SensorLogsService;
 
 import java.time.Instant;
 import java.util.Locale;
@@ -28,18 +29,18 @@ public class ParkingSpotEventKafkaListener {
     private static final String STATUS_RESERVED = "reserved";
     private static final String STATUS_OUT_OF_SERVICE = "out_of_service";
 
-
     private final ObjectMapper objectMapper;
     private final ParkingSpotRepository parkingSpotRepository;
-    private final OccupancyEventPublisher occupancyEventPublisher;
     private final OccupancySnapshotIngestService occupancySnapshotIngestService;
+    private final OccupancyEventPublisher occupancyEventPublisher;
+    private final SensorLogsService sensorLogsService;
 
     @KafkaListener(
         topics = {"${easyspot.occupancy.kafka.input-topic:parking-spot-events}"},
         groupId = "${easyspot.occupancy.kafka.group-id:easyspot-occupancy}"
     )
     @Transactional
-    public void onEvent(String payload){
+    public void onEvent(String payload) {
         try {
             ParkingSpotEvent event = objectMapper.readValue(payload, ParkingSpotEvent.class);
 
@@ -64,6 +65,7 @@ public class ParkingSpotEventKafkaListener {
             if (current.equals(normalized)) {
                 return;
             }
+
             if (!isPlausibleTransition(current, normalized)) {
                 log.warn("Ignoring implausible transition for spot {}: {} -> {}",
                     spot.getId(), current, normalized);
@@ -94,17 +96,42 @@ public class ParkingSpotEventKafkaListener {
                 spot.getSpotNumber(),
                 1
             );
-            TransactionSynchronizationManager.registerSynchronization(
-                new TransactionSynchronization() {
-                    @Override
-                    public void afterCommit() {
-                        occupancyEventPublisher.publish(occupancyEvent);
+            if (TransactionSynchronizationManager.isSynchronizationActive()) {
+                TransactionSynchronizationManager.registerSynchronization(
+                    new TransactionSynchronization() {
+                        @Override
+                        public void afterCommit() {
+                            occupancyEventPublisher.publish(occupancyEvent);
+                        }
                     }
+                );
+            } else {
+                occupancyEventPublisher.publish(occupancyEvent);
+            }
+
+            if (isRecoveryTransition(current, normalized)) {
+                String reason = extractReason(event);
+                if ("AUTO_RECOVERY".equals(reason) || "TECHNICIAN_REPAIR".equals(reason)) {
+                    sensorLogsService.recoverSensor(sensorIdFromSpotId(event.spotId()), reason);
                 }
-            );
+            }
         } catch (Exception ex) {
             log.warn("Invalid parking spot event ignored: {}", payload, ex);
         }
+    }
+
+    private boolean isRecoveryTransition(String previousNormalized, String newNormalized) {
+        return STATUS_OUT_OF_SERVICE.equals(previousNormalized) && STATUS_FREE.equals(newNormalized);
+    }
+
+    private String extractReason(ParkingSpotEvent event) {
+        if (event.payload() == null) return null;
+        Object reason = event.payload().get("reason");
+        return reason instanceof String s ? s : null;
+    }
+
+    private String sensorIdFromSpotId(UUID spotId) {
+        return "IR-" + spotId.toString().replace("-", "").substring(0, 16);
     }
 
     private boolean isAllowedStatus(String status) {
@@ -125,14 +152,13 @@ public class ParkingSpotEventKafkaListener {
     }
 
     private String toPersistedStatus(ParkingSpot spot, String status) {
-        if(STATUS_FREE.equals(status)) {
-            if(spot.getZone() == ZoneType.ACCESSIBLE) {
+        if (STATUS_FREE.equals(status)) {
+            if (spot.getZone() == ZoneType.ACCESSIBLE) {
                 return "accessible";
             }
             if (spot.getZone() == ZoneType.EV) {
                 return "ev";
             }
-
             return STATUS_FREE;
         }
         return status;
@@ -154,5 +180,4 @@ public class ParkingSpotEventKafkaListener {
         }
         return STATUS_FREE.equals(to);
     }
-
 }
