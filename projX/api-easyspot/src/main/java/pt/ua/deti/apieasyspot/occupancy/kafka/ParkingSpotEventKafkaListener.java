@@ -6,13 +6,17 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import pt.ua.deti.apieasyspot.occupancy.dto.ParkingSpotEvent;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingSpot;
 import pt.ua.deti.apieasyspot.occupancy.model.ZoneType;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingSpotRepository;
 import pt.ua.deti.apieasyspot.occupancy.service.OccupancySnapshotIngestService;
 
+import java.time.Instant;
 import java.util.Locale;
+import java.util.UUID;
 
 @Slf4j
 @Component
@@ -27,10 +31,11 @@ public class ParkingSpotEventKafkaListener {
 
     private final ObjectMapper objectMapper;
     private final ParkingSpotRepository parkingSpotRepository;
+    private final OccupancyEventPublisher occupancyEventPublisher;
     private final OccupancySnapshotIngestService occupancySnapshotIngestService;
 
     @KafkaListener(
-        topics = {"parking-spot-events"},
+        topics = {"${easyspot.occupancy.kafka.input-topic:parking-spot-events}"},
         groupId = "${easyspot.occupancy.kafka.group-id:easyspot-occupancy}"
     )
     @Transactional
@@ -65,7 +70,8 @@ public class ParkingSpotEventKafkaListener {
                 return;
             }
 
-            spot.setStatus(toPersistedStatus(spot, normalized));
+            String persisted = toPersistedStatus(spot, normalized);
+            spot.setStatus(persisted);
             parkingSpotRepository.save(spot);
             occupancySnapshotIngestService.captureLotSnapshotIfDue(spot.getParkingLot().getId());
 
@@ -73,7 +79,28 @@ public class ParkingSpotEventKafkaListener {
                 spot.getSpotNumber(),
                 spot.getParkingLot().getId(),
                 current,
-                normalized
+                persisted
+            );
+
+            OccupancyEvent occupancyEvent = new OccupancyEvent(
+                UUID.randomUUID(),
+                "occupancy.spot.changed",
+                spot.getParkingLot().getId(),
+                spot.getId(),
+                current,
+                persisted,
+                Instant.now(),
+                spot.getZone().name(),
+                spot.getSpotNumber(),
+                1
+            );
+            TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        occupancyEventPublisher.publish(occupancyEvent);
+                    }
+                }
             );
         } catch (Exception ex) {
             log.warn("Invalid parking spot event ignored: {}", payload, ex);
@@ -88,7 +115,13 @@ public class ParkingSpotEventKafkaListener {
     }
 
     public String normalize(String status) {
-        return status.trim().toLowerCase(Locale.ROOT);
+        String s = status.trim().toLowerCase(Locale.ROOT);
+        // "accessible" and "ev" are persisted forms of "free" for typed zones;
+        // treat them as free so transition logic stays consistent.
+        if ("accessible".equals(s) || "ev".equals(s)) {
+            return STATUS_FREE;
+        }
+        return s;
     }
 
     private String toPersistedStatus(ParkingSpot spot, String status) {

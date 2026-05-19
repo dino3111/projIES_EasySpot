@@ -22,7 +22,7 @@ public record OcrPlateEvent(
         String zone,
         Integer row,
         Integer col,
-        String failureMode,   // null for normal reads
+        String failureMode,   // null for normal reads; UNREADABLE | LOW_CONFIDENCE | WRONG_PLATE | CAMERA_OFFLINE | CAMERA_DEGRADED
         Map<String, Object> extensions  // reserved for future fields
     ) {
         public boolean isFailure() {
