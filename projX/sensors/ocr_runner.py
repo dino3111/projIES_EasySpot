@@ -1,6 +1,14 @@
 import time
 
-from config import KAFKA_TOPIC_OCR, SIMULATION_INTERVAL_SECONDS, SIMULATION_SEED
+from config import (
+    FAULT_MAX_DURATION_SECONDS,
+    FAULT_MIN_DURATION_SECONDS,
+    KAFKA_TOPIC_OCR,
+    OCR_FAULT_PROBABILITY_PER_TICK,
+    SIMULATION_INTERVAL_SECONDS,
+    SIMULATION_SEED,
+    TECHNICIAN_REPAIR_PROBABILITY,
+)
 from context_loader import load_context, spots_from_context, vehicle_plates_from_context
 from kafka_publisher import KafkaPublisher
 from ocr_event_builder import OcrEventGenerator
@@ -20,7 +28,13 @@ def run_ocr():
 
     publisher = KafkaPublisher()
     generator = OcrEventGenerator(
-        spots=spots, seed=SIMULATION_SEED, registered_plates=plates
+        spots=spots,
+        seed=SIMULATION_SEED,
+        registered_plates=plates,
+        fault_min_duration=FAULT_MIN_DURATION_SECONDS,
+        fault_max_duration=FAULT_MAX_DURATION_SECONDS,
+        fault_probability_per_tick=OCR_FAULT_PROBABILITY_PER_TICK,
+        technician_repair_probability=TECHNICIAN_REPAIR_PROBABILITY,
     )
 
     print(
@@ -29,8 +43,8 @@ def run_ocr():
     )
 
     while True:
-        for event, spot_id in generator.next_events():
-            publisher.publish(KAFKA_TOPIC_OCR, spot_id, event)
+        for event, key in generator.next_events():
+            publisher.publish(KAFKA_TOPIC_OCR, key, event)
 
         publisher.flush()
         if SIMULATION_INTERVAL_SECONDS > 0:

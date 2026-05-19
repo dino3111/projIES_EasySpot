@@ -10,9 +10,62 @@ KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
 KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "parking-spot-events")
 KAFKA_TOPIC_OCR = os.getenv("KAFKA_TOPIC_OCR", "parking-ocr-events")
 KAFKA_TOPIC_GATE = os.getenv("KAFKA_TOPIC_GATE", "parking-gate-events")
+KAFKA_TOPIC_GATE_COMMANDS = os.getenv("KAFKA_TOPIC_GATE_COMMANDS", "gate.commands")
+KAFKA_TOPIC_GATE_RESPONSES = os.getenv("KAFKA_TOPIC_GATE_RESPONSES", "gate.responses")
 
-# 0 means continuous generation (no artificial sleep between cycles).
-SIMULATION_INTERVAL_SECONDS = float(os.getenv("SIMULATION_INTERVAL_SECONDS", "0"))
+# 1 second between cycles to reduce CPU usage and maintain realism.
+SIMULATION_INTERVAL_SECONDS = float(os.getenv("SIMULATION_INTERVAL_SECONDS", "1.0"))
 SIMULATION_SEED = int(os.getenv("SIMULATION_SEED", "42"))
 CONTEXT_LOAD_RETRIES = int(os.getenv("CONTEXT_LOAD_RETRIES", "20"))
 CONTEXT_RETRY_DELAY_SECONDS = float(os.getenv("CONTEXT_RETRY_DELAY_SECONDS", "3"))
+
+FAULT_MIN_DURATION_SECONDS = float(os.getenv("FAULT_MIN_DURATION_SECONDS", "30"))
+FAULT_MAX_DURATION_SECONDS = float(os.getenv("FAULT_MAX_DURATION_SECONDS", "300"))
+TECHNICIAN_REPAIR_PROBABILITY = float(os.getenv("TECHNICIAN_REPAIR_PROBABILITY", "0.3"))
+OCR_FAULT_PROBABILITY_PER_TICK = float(
+    os.getenv("OCR_FAULT_PROBABILITY_PER_TICK", "0.002")
+)
+
+# IR sensor device-level fault simulation
+SENSOR_FAULT_DEGRADED_PROBABILITY = float(
+    os.getenv("SENSOR_FAULT_DEGRADED_PROBABILITY", "0.005")
+)
+SENSOR_FAULT_OFFLINE_PROBABILITY = float(
+    os.getenv("SENSOR_FAULT_OFFLINE_PROBABILITY", "0.002")
+)
+SENSOR_FAULT_MAINTENANCE_PROBABILITY = float(
+    os.getenv("SENSOR_FAULT_MAINTENANCE_PROBABILITY", "0.001")
+)
+SENSOR_FAULT_RECOVERY_PROBABILITY = float(
+    os.getenv("SENSOR_FAULT_RECOVERY_PROBABILITY", "0.15")
+)
+SENSOR_FAULT_DUPLICATE_PROBABILITY = float(
+    os.getenv("SENSOR_FAULT_DUPLICATE_PROBABILITY", "0.03")
+)
+SENSOR_FAULT_DELAY_PROBABILITY = float(
+    os.getenv("SENSOR_FAULT_DELAY_PROBABILITY", "0.05")
+)
+SENSOR_FAULT_DELAY_MAX_SECONDS = float(
+    os.getenv("SENSOR_FAULT_DELAY_MAX_SECONDS", "10.0")
+)
+SENSOR_FAULT_HISTORY_SIZE = int(os.getenv("SENSOR_FAULT_HISTORY_SIZE", "50"))
+
+# Per-state transition probabilities (must sum to <= 1.0; remainder falls back).
+P_FREE_TO_FREE = float(os.getenv("P_FREE_TO_FREE", "0.72"))
+P_FREE_TO_OCCUPIED = float(os.getenv("P_FREE_TO_OCCUPIED", "0.20"))
+P_FREE_TO_RESERVED = float(os.getenv("P_FREE_TO_RESERVED", "0.05"))
+P_FREE_TO_OUT_OF_SERVICE = float(os.getenv("P_FREE_TO_OUT_OF_SERVICE", "0.03"))
+
+P_OCCUPIED_TO_OCCUPIED = float(os.getenv("P_OCCUPIED_TO_OCCUPIED", "0.62"))
+P_OCCUPIED_TO_FREE = float(os.getenv("P_OCCUPIED_TO_FREE", "0.26"))
+P_OCCUPIED_TO_OUT_OF_SERVICE = float(os.getenv("P_OCCUPIED_TO_OUT_OF_SERVICE", "0.12"))
+
+P_RESERVED_TO_RESERVED = float(os.getenv("P_RESERVED_TO_RESERVED", "0.55"))
+P_RESERVED_TO_OCCUPIED = float(os.getenv("P_RESERVED_TO_OCCUPIED", "0.30"))
+P_RESERVED_TO_FREE = float(os.getenv("P_RESERVED_TO_FREE", "0.10"))
+P_RESERVED_TO_OUT_OF_SERVICE = float(os.getenv("P_RESERVED_TO_OUT_OF_SERVICE", "0.05"))
+
+P_OUT_OF_SERVICE_TO_OUT_OF_SERVICE = float(
+    os.getenv("P_OUT_OF_SERVICE_TO_OUT_OF_SERVICE", "0.70")
+)
+P_OUT_OF_SERVICE_TO_FREE = float(os.getenv("P_OUT_OF_SERVICE_TO_FREE", "0.30"))

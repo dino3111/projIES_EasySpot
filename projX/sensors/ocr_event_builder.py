@@ -1,5 +1,6 @@
 import random
 import string
+import time
 import uuid
 from datetime import datetime, timezone
 from enum import Enum
@@ -61,6 +62,12 @@ def _random_pt_plate(rng: random.Random) -> str:
     return f"{ll()}-{dd()}-{ll()}"
 
 
+def _ocr_sensor_id(park_id: str) -> str:
+    """Derive OCR camera sensor ID from park UUID — matches backend convention."""
+    park_key = park_id.replace("-", "")[:8].upper()
+    return f"OCR-{park_key}-ENT1"
+
+
 def build_ocr_event(
     spot: Dict, event_direction: str, plate: str, confidence: float
 ) -> Dict:
@@ -90,76 +97,115 @@ def build_ocr_event(
     }
 
 
+def build_device_fault_event(park_id: str, park_name: str) -> Dict:
+    return {
+        "eventId": str(uuid.uuid4()),
+        "eventType": "device.fault",
+        "parkId": park_id,
+        "spotId": None,
+        "occurredAt": now_iso(),
+        "payload": {
+            "plate": None,
+            "confidence": None,
+            "direction": None,
+            "parkName": park_name,
+            "spotNumber": None,
+            "zone": None,
+            "row": None,
+            "col": None,
+            "extensions": {
+                "deviceType": "OCR_CAMERA",
+                "deviceId": _ocr_sensor_id(park_id),
+            },
+        },
+        "version": 1,
+    }
+
+
+def build_device_recovery_event(
+    park_id: str,
+    park_name: str,
+    recovery_type: str,
+    fault_duration_seconds: float,
+) -> Dict:
+    return {
+        "eventId": str(uuid.uuid4()),
+        "eventType": "device.recovery",
+        "parkId": park_id,
+        "spotId": None,
+        "occurredAt": now_iso(),
+        "payload": {
+            "plate": None,
+            "confidence": None,
+            "direction": None,
+            "parkName": park_name,
+            "spotNumber": None,
+            "zone": None,
+            "row": None,
+            "col": None,
+            "extensions": {
+                "deviceType": "OCR_CAMERA",
+                "deviceId": _ocr_sensor_id(park_id),
+                "recoveryType": recovery_type,
+                "faultDurationSeconds": round(fault_duration_seconds, 2),
+            },
+        },
+        "version": 1,
+    }
+
+
 def build_ocr_failure_event(
     spot: Dict,
     failure_mode: OcrFailureMode,
-    event_direction: str = "entry",
-    plate: Optional[str] = None,
-    confidence: Optional[float] = None,
+    plate: str = "",
+    confidence: float = 0.0,
+    direction: str = "entry",
 ) -> Dict:
-    """
-    Build an explicit OCR failure event.
-
-    - UNREADABLE: plate=None, confidence=0.0
-    - LOW_CONFIDENCE: plate present, confidence < 0.5
-    - WRONG_PLATE: plate present but malformed/invalid
-    - CAMERA_OFFLINE: plate=None, confidence=0.0, no camera signal
-    - CAMERA_DEGRADED: plate present, confidence degraded (0.3–0.6)
-
-    failureMode is always set in payload so consumers can distinguish
-    from normal events.
-    """
-    payload: Dict = {
-        "plate": plate or "",
-        "confidence": round(confidence, 4) if confidence is not None else 0.0,
-        "direction": event_direction,
-        "parkName": spot["parkName"],
-        "spotNumber": spot["spotNumber"],
-        "zone": spot["zone"],
-        "row": spot["row"],
-        "col": spot["col"],
-        "failureMode": failure_mode.value,
-    }
-
     return {
         "eventId": str(uuid.uuid4()),
         "eventType": "ocr.plate.failure",
         "parkId": spot["parkId"],
-        "spotId": spot["spotId"],
+        "spotId": spot.get("spotId"),
         "occurredAt": now_iso(),
-        "payload": payload,
+        "payload": {
+            "plate": plate,
+            "confidence": round(confidence, 4),
+            "direction": direction,
+            "failureMode": (
+                failure_mode.value
+                if isinstance(failure_mode, OcrFailureMode)
+                else str(failure_mode)
+            ),
+        },
         "version": 1,
     }
 
 
 class OcrEventGenerator:
     """Stateful generator: tracks which plates are inside each park to produce
-    consistent entry/exit sequences.
-
-    failure_rate controls the probability that any given event tick produces a
-    failure event instead of (or in addition to) a normal read.  Set to 0.0 to
-    disable failures entirely (default).
-
-    offline_spots is the set of spotIds whose cameras are currently OFFLINE.
-    degraded_spots is the set of spotIds whose cameras are DEGRADED.
-    Both sets are mutable at runtime to simulate recovery.
-    """
+    consistent entry/exit sequences. Also simulates OCR camera fault/recovery."""
 
     def __init__(
         self,
         spots: List[Dict],
         seed: int = 42,
         registered_plates: Optional[List[str]] = None,
+        fault_min_duration: float = 30.0,
+        fault_max_duration: float = 300.0,
+        fault_probability_per_tick: float = 0.0,
+        technician_repair_probability: float = 0.3,
         failure_rate: float = 0.0,
     ):
         self.spots = spots
         self.rng = random.Random(seed)
+        self.fault_min_duration = fault_min_duration
+        self.fault_max_duration = fault_max_duration
+        self.fault_probability_per_tick = fault_probability_per_tick
+        self.technician_repair_probability = technician_repair_probability
         self.failure_rate = failure_rate
+
         # plate -> spotId of where the vehicle currently is (None = outside)
         self._parked: Dict[str, str] = {}
-        # mutable camera state sets — callers can add/remove spot IDs at runtime
-        self.offline_spots: set = set()
-        self.degraded_spots: set = set()
 
         if registered_plates is None:
             self._plate_pool = [
@@ -170,18 +216,84 @@ class OcrEventGenerator:
                 p.strip().upper() for p in registered_plates if p and p.strip()
             ]
 
-    def next_events(self) -> List[Tuple[Dict, str]]:
-        """Return a list of (event, spot_id) tuples for this simulation tick."""
+        # Group spots by park for camera-level fault tracking
+        self._spots_by_park: Dict[str, List[Dict]] = {}
+        for spot in spots:
+            self._spots_by_park.setdefault(spot["parkId"], []).append(spot)
+
+        # per park_id: fault start time when camera is offline; absent = operational
+        self._camera_fault_start: Dict[str, float] = {}
+
+        # per-spot camera state sets
+        self.offline_spots: set = set()
+        self.degraded_spots: set = set()
+
+    def set_camera_offline(self, spot_id: str) -> None:
+        self.offline_spots.add(spot_id)
+        self.degraded_spots.discard(spot_id)
+
+    def set_camera_degraded(self, spot_id: str) -> None:
+        self.degraded_spots.add(spot_id)
+        self.offline_spots.discard(spot_id)
+
+    def recover_camera(self, spot_id: str) -> None:
+        self.offline_spots.discard(spot_id)
+        self.degraded_spots.discard(spot_id)
+
+    def next_events(self, now: Optional[float] = None) -> List[Tuple[Dict, str]]:
+        """Return a list of (event, key) tuples for this simulation tick.
+        key is spot_id for plate reads, park_id for device fault/recovery events.
+        """
+        if now is None:
+            now = time.monotonic()
+
         events = []
+
+        # Camera fault/recovery phase (per park)
+        for park_id, park_spots in self._spots_by_park.items():
+            park_name = park_spots[0].get("parkName", "")
+            if park_id not in self._camera_fault_start:
+                # Camera is operational — check for new fault
+                if (
+                    self.fault_probability_per_tick > 0
+                    and self.rng.random() < self.fault_probability_per_tick
+                ):
+                    self._camera_fault_start[park_id] = now
+                    events.append(
+                        (build_device_fault_event(park_id, park_name), park_id)
+                    )
+            else:
+                # Camera is offline — always check for recovery
+                fault_duration = now - self._camera_fault_start[park_id]
+                recovered, recovery_type = self._check_camera_recovery(fault_duration)
+                if recovered:
+                    del self._camera_fault_start[park_id]
+                    events.append(
+                        (
+                            build_device_recovery_event(
+                                park_id, park_name, recovery_type, fault_duration
+                            ),
+                            park_id,
+                        )
+                    )
+
+        # Plate-read phase (skip parks with offline cameras)
         for spot in self.rng.sample(self.spots, k=max(1, len(self.spots) // 4)):
             spot_id = spot["spotId"]
+            park_id = spot["parkId"]
 
-            # camera offline — emit one failure event per tick, no plate read
+            if park_id in self._camera_fault_start:
+                continue
+
             if spot_id in self.offline_spots:
-                event = build_ocr_failure_event(
-                    spot, OcrFailureMode.CAMERA_OFFLINE, confidence=0.0
+                events.append(
+                    (
+                        build_ocr_failure_event(
+                            spot, OcrFailureMode.CAMERA_OFFLINE, direction="entry"
+                        ),
+                        spot_id,
+                    )
                 )
-                events.append((event, spot_id))
                 continue
 
             parked_plate = self._plate_currently_at(spot_id)
@@ -211,76 +323,17 @@ class OcrEventGenerator:
 
         return events
 
-    # ------------------------------------------------------------------
-    # Camera state management (runtime recovery support)
-    # ------------------------------------------------------------------
-
-    def set_camera_offline(self, spot_id: str) -> None:
-        self.offline_spots.add(spot_id)
-        self.degraded_spots.discard(spot_id)
-
-    def set_camera_degraded(self, spot_id: str) -> None:
-        self.degraded_spots.add(spot_id)
-        self.offline_spots.discard(spot_id)
-
-    def recover_camera(self, spot_id: str) -> None:
-        """Bring camera back to normal operation."""
-        self.offline_spots.discard(spot_id)
-        self.degraded_spots.discard(spot_id)
-
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
-
-    def _should_fail(self) -> bool:
-        return self.failure_rate > 0.0 and self.rng.random() < self.failure_rate
-
-    def _entry_confidence(self, spot_id: str) -> float:
-        if spot_id in self.degraded_spots:
-            return self.rng.uniform(0.30, 0.65)
-        return self.rng.uniform(0.75, 0.99)
-
-    def _exit_confidence(self, spot_id: str) -> float:
-        if spot_id in self.degraded_spots:
-            return self.rng.uniform(0.30, 0.65)
-        return self.rng.uniform(0.82, 0.99)
-
-    def _make_failure_event(self, spot: Dict, direction: str, real_plate: str) -> Dict:
-        """Pick a random non-offline failure mode and build the event."""
-        non_offline_modes = [
-            OcrFailureMode.UNREADABLE,
-            OcrFailureMode.LOW_CONFIDENCE,
-            OcrFailureMode.WRONG_PLATE,
-            OcrFailureMode.CAMERA_DEGRADED,
-        ]
-        mode = self.rng.choice(non_offline_modes)
-
-        if mode == OcrFailureMode.UNREADABLE:
-            return build_ocr_failure_event(
-                spot, mode, direction, plate=None, confidence=0.0
+    def _check_camera_recovery(self, fault_duration: float) -> Tuple[bool, str]:
+        if fault_duration >= self.fault_max_duration:
+            return True, "TECHNICIAN_REPAIR"
+        if fault_duration >= self.fault_min_duration and self.rng.random() < 0.30:
+            recovery_type = (
+                "TECHNICIAN_REPAIR"
+                if self.rng.random() < self.technician_repair_probability
+                else "AUTO_RECOVERY"
             )
-
-        if mode == OcrFailureMode.LOW_CONFIDENCE:
-            confidence = self.rng.uniform(0.10, 0.49)
-            return build_ocr_failure_event(
-                spot, mode, direction, plate=real_plate, confidence=confidence
-            )
-
-        if mode == OcrFailureMode.WRONG_PLATE:
-            garbled = _garble_plate(self.rng, real_plate)
-            return build_ocr_failure_event(
-                spot,
-                mode,
-                direction,
-                plate=garbled,
-                confidence=self.rng.uniform(0.50, 0.75),
-            )
-
-        # CAMERA_DEGRADED
-        confidence = self.rng.uniform(0.30, 0.65)
-        return build_ocr_failure_event(
-            spot, mode, direction, plate=real_plate, confidence=confidence
-        )
+            return True, recovery_type
+        return False, ""
 
     def _plate_currently_at(self, spot_id: str) -> Optional[str]:
         for plate, sid in self._parked.items():
@@ -294,3 +347,41 @@ class OcrEventGenerator:
         if not free:
             return None
         return self.rng.choice(free)
+
+    def _should_fail(self) -> bool:
+        return self.rng.random() < self.failure_rate
+
+    def _make_failure_event(self, spot: Dict, direction: str, plate: str) -> Dict:
+        mode = self.rng.choice(
+            [
+                OcrFailureMode.UNREADABLE,
+                OcrFailureMode.LOW_CONFIDENCE,
+                OcrFailureMode.WRONG_PLATE,
+                OcrFailureMode.CAMERA_DEGRADED,
+            ]
+        )
+        if mode == OcrFailureMode.LOW_CONFIDENCE:
+            confidence = self.rng.uniform(0.0, 0.45)
+            read_plate = plate
+        elif mode == OcrFailureMode.WRONG_PLATE:
+            confidence = self.rng.uniform(0.5, 0.75)
+            read_plate = _garble_plate(self.rng, plate) if plate else plate
+        elif mode == OcrFailureMode.UNREADABLE:
+            confidence = 0.0
+            read_plate = ""
+        else:  # CAMERA_DEGRADED
+            confidence = self.rng.uniform(0.0, 0.45)
+            read_plate = plate
+        return build_ocr_failure_event(
+            spot, mode, plate=read_plate, confidence=confidence, direction=direction
+        )
+
+    def _entry_confidence(self, spot_id: str) -> float:
+        if spot_id in self.degraded_spots:
+            return self.rng.uniform(0.30, 0.65)
+        return self.rng.uniform(0.75, 0.99)
+
+    def _exit_confidence(self, spot_id: str) -> float:
+        if spot_id in self.degraded_spots:
+            return self.rng.uniform(0.30, 0.65)
+        return self.rng.uniform(0.82, 0.99)

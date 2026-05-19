@@ -33,8 +33,8 @@ public class OcrPlateRead {
     @Column(nullable = false, length = 10)
     private String direction; // "entry" | "exit"
 
-    @Column(name = "failure_mode", length = 20)
-    private String failureMode; // null = normal read; otherwise one of OcrFailureMode values
+    @Column(name = "failure_mode", length = 30)
+    private String failureMode;
 
     @Column(name = "occurred_at", nullable = false)
     private Instant occurredAt;
