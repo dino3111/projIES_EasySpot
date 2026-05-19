@@ -1,7 +1,9 @@
+import threading
 import time
 
 from config import KAFKA_TOPIC_GATE, SIMULATION_INTERVAL_SECONDS, SIMULATION_SEED
 from context_loader import load_spots
+from gate_command_consumer import run_gate_command_consumer
 from gate_event_builder import GateSimulator
 from kafka_publisher import KafkaPublisher
 
@@ -25,6 +27,14 @@ def run_gates():
     simulator = GateSimulator(parks=parks, seed=SIMULATION_SEED)
 
     print(f"[gates] Simulating gates for {len(parks)} parks")
+
+    command_thread = threading.Thread(
+        target=run_gate_command_consumer,
+        args=(simulator, publisher),
+        daemon=True,
+        name="gate-command-consumer",
+    )
+    command_thread.start()
 
     while True:
         for event, park_id in simulator.tick():

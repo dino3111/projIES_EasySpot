@@ -25,8 +25,42 @@ class GateDirection(str, Enum):
     EXIT = "exit"
 
 
+class GateCommandType(str, Enum):
+    OPEN_GATE = "OPEN_GATE"
+    CLOSE_GATE = "CLOSE_GATE"
+
+
+class GateCommandStatus(str, Enum):
+    PENDING = "PENDING"
+    EXECUTED = "EXECUTED"
+    DENIED = "DENIED"
+
+
 def now_iso():
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def build_gate_command_response(
+    command_id: str,
+    gate_id: str,
+    park_id: str,
+    direction: GateDirection,
+    command_type: GateCommandType,
+    status: GateCommandStatus,
+    reason: str,
+    state: GateState,
+) -> Dict:
+    return {
+        "commandId": command_id,
+        "gateId": gate_id,
+        "parkId": park_id,
+        "direction": direction.value if isinstance(direction, Enum) else direction,
+        "commandType": command_type.value if isinstance(command_type, Enum) else command_type,
+        "status": status.value,
+        "reason": reason,
+        "gateState": state.value if isinstance(state, Enum) else state,
+        "respondedAt": now_iso(),
+    }
 
 
 def build_gate_event(
@@ -181,6 +215,37 @@ class ParkGate:
         )
         return event
 
+    def execute_command(
+        self,
+        command_id: str,
+        command_type: GateCommandType,
+        park_id: str,
+        park_name: str,
+    ) -> Tuple[GateCommandStatus, str, Optional[Dict]]:
+        """Apply a backend command. Returns (status, reason, optional gate_event)."""
+        if self.state == GateState.FAULT:
+            return GateCommandStatus.DENIED, "gate_in_fault", None
+
+        if command_type == GateCommandType.OPEN_GATE:
+            if self.state == GateState.OPEN:
+                return GateCommandStatus.DENIED, "already_open", None
+            raw = self._try_open(plate=None, reason="backend_command")
+            if raw is None:
+                return GateCommandStatus.DENIED, "open_rejected", None
+            raw["parkId"] = park_id
+            raw["payload"]["parkName"] = park_name
+            return GateCommandStatus.EXECUTED, "command_accepted", raw
+
+        if command_type == GateCommandType.CLOSE_GATE:
+            if self.state == GateState.CLOSED:
+                return GateCommandStatus.DENIED, "already_closed", None
+            event = self._transition(
+                park_id, park_name, GateState.CLOSED, GateEventType.GATE_CLOSED, "backend_command"
+            )
+            return GateCommandStatus.EXECUTED, "command_accepted", event
+
+        return GateCommandStatus.DENIED, "unknown_command", None
+
     def _block(self, plate: Optional[str], reason: str) -> Optional[Dict]:
         if self.state == GateState.FAULT:
             return None
@@ -287,6 +352,79 @@ class GateSimulator:
                 for event, pid in gate.tick(park_id, park.get("parkName", "")):
                     events.append((event, pid))
         return events
+
+    def on_gate_command(self, command: Dict) -> Tuple[Dict, str]:
+        """
+        Process a backend gate command.
+        Returns (response_dict, park_id) to publish to gate.responses.
+        Also returns any gate state-change event to publish to gate.events.
+        """
+        command_id = command.get("commandId", "")
+        park_id = str(command.get("parkId", ""))
+        direction = command.get("direction", "entry")
+        command_type_str = command.get("commandType", "")
+
+        try:
+            command_type = GateCommandType(command_type_str)
+        except ValueError:
+            response = build_gate_command_response(
+                command_id=command_id,
+                gate_id="",
+                park_id=park_id,
+                direction=GateDirection.ENTRY,
+                command_type=GateCommandType.OPEN_GATE,
+                status=GateCommandStatus.DENIED,
+                reason="unknown_command_type",
+                state=GateState.CLOSED,
+            )
+            return response, park_id, None
+
+        if park_id not in self._gates:
+            response = build_gate_command_response(
+                command_id=command_id,
+                gate_id="",
+                park_id=park_id,
+                direction=GateDirection.ENTRY,
+                command_type=command_type,
+                status=GateCommandStatus.DENIED,
+                reason="unknown_park",
+                state=GateState.CLOSED,
+            )
+            return response, park_id, None
+
+        gate = self._gates[park_id].get(direction)
+        if gate is None:
+            response = build_gate_command_response(
+                command_id=command_id,
+                gate_id="",
+                park_id=park_id,
+                direction=GateDirection(direction) if direction in ("entry", "exit") else GateDirection.ENTRY,
+                command_type=command_type,
+                status=GateCommandStatus.DENIED,
+                reason="unknown_direction",
+                state=GateState.CLOSED,
+            )
+            return response, park_id, None
+
+        park = self.parks[park_id]
+        status, reason, gate_event = gate.execute_command(
+            command_id=command_id,
+            command_type=command_type,
+            park_id=park_id,
+            park_name=park.get("parkName", ""),
+        )
+
+        response = build_gate_command_response(
+            command_id=command_id,
+            gate_id=gate.gate_id,
+            park_id=park_id,
+            direction=gate.direction,
+            command_type=command_type,
+            status=status,
+            reason=reason,
+            state=gate.state,
+        )
+        return response, park_id, gate_event
 
     def gate_states(self) -> Dict[str, Dict[str, str]]:
         return {
