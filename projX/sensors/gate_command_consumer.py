@@ -12,7 +12,9 @@ from gate_event_builder import GateSimulator
 from kafka_publisher import KafkaPublisher
 
 
-def run_gate_command_consumer(simulator: GateSimulator, publisher: KafkaPublisher) -> None:
+def run_gate_command_consumer(
+    simulator: GateSimulator, publisher: KafkaPublisher
+) -> None:
     consumer = KafkaConsumer(
         KAFKA_TOPIC_GATE_COMMANDS,
         bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
@@ -47,9 +49,11 @@ def run_gate_command_consumer(simulator: GateSimulator, publisher: KafkaPublishe
 
         if gate_event is not None:
             publisher.publish(KAFKA_TOPIC_GATE, response_key, gate_event)
+            event_type = gate_event["eventType"]
+            gate_id = gate_event["payload"].get("gateId")
             print(
-                f"[gate-commands] Gate event published eventType={gate_event['eventType']}"
-                f" gateId={gate_event['payload'].get('gateId')}"
+                f"[gate-commands] Gate event published"
+                f" eventType={event_type} gateId={gate_id}"
             )
 
         publisher.flush()

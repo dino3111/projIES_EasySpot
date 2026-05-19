@@ -55,7 +55,9 @@ def build_gate_command_response(
         "gateId": gate_id,
         "parkId": park_id,
         "direction": direction.value if isinstance(direction, Enum) else direction,
-        "commandType": command_type.value if isinstance(command_type, Enum) else command_type,
+        "commandType": (
+            command_type.value if isinstance(command_type, Enum) else command_type
+        ),
         "status": status.value,
         "reason": reason,
         "gateState": state.value if isinstance(state, Enum) else state,
@@ -240,7 +242,11 @@ class ParkGate:
             if self.state == GateState.CLOSED:
                 return GateCommandStatus.DENIED, "already_closed", None
             event = self._transition(
-                park_id, park_name, GateState.CLOSED, GateEventType.GATE_CLOSED, "backend_command"
+                park_id,
+                park_name,
+                GateState.CLOSED,
+                GateEventType.GATE_CLOSED,
+                "backend_command",
             )
             return GateCommandStatus.EXECUTED, "command_accepted", event
 
@@ -353,7 +359,7 @@ class GateSimulator:
                     events.append((event, pid))
         return events
 
-    def on_gate_command(self, command: Dict) -> Tuple[Dict, str]:
+    def on_gate_command(self, command: Dict) -> Tuple[Dict, str, Optional[Dict]]:
         """
         Process a backend gate command.
         Returns (response_dict, park_id) to publish to gate.responses.
@@ -398,7 +404,11 @@ class GateSimulator:
                 command_id=command_id,
                 gate_id="",
                 park_id=park_id,
-                direction=GateDirection(direction) if direction in ("entry", "exit") else GateDirection.ENTRY,
+                direction=(
+                    GateDirection(direction)
+                    if direction in ("entry", "exit")
+                    else GateDirection.ENTRY
+                ),
                 command_type=command_type,
                 status=GateCommandStatus.DENIED,
                 reason="unknown_direction",
