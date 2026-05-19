@@ -123,14 +123,19 @@ class SensorFaultSimulator:
         """
         if self.get_state(sensor_id) != SensorState.DEGRADED:
             return 0.0
+        if self.delay_max_seconds <= 0.0:
+            return 0.0
         if self.rng.random() < self.delay_probability:
-            return self.rng.uniform(0.5, self.delay_max_seconds)
+            min_delay = min(0.5, self.delay_max_seconds)
+            return self.rng.uniform(min_delay, self.delay_max_seconds)
         return 0.0
 
     def force_state(
         self, sensor_id: str, state: SensorState, now: Optional[float] = None
     ) -> None:
         """Directly set sensor device state — useful for tests and manual overrides."""
+        if state == self.get_state(sensor_id):
+            return
         if now is None:
             now = time.monotonic()
         if state in (
