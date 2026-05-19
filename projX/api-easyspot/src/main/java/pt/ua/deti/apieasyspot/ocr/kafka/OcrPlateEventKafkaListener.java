@@ -35,10 +35,6 @@ public class OcrPlateEventKafkaListener {
         "UNREADABLE", "LOW_CONFIDENCE", "WRONG_PLATE", "CAMERA_OFFLINE", "CAMERA_DEGRADED"
     );
 
-    private static final java.util.Set<String> VALID_FAILURE_MODES = java.util.Set.of(
-        "UNREADABLE", "LOW_CONFIDENCE", "WRONG_PLATE", "CAMERA_OFFLINE", "CAMERA_DEGRADED"
-    );
-
     @KafkaListener(
         topics = {"${easyspot.ocr.kafka.topic:parking-ocr-events}"},
         groupId = "${easyspot.ocr.kafka.group-id:easyspot-ocr}"
@@ -61,13 +57,10 @@ public class OcrPlateEventKafkaListener {
 
             if (p.plate() == null || p.direction() == null) {
                 log.warn("Ignoring OCR event with missing plate or direction");
-            if (!isValidDirection(p.direction())) {
-                log.warn("Ignoring OCR event with invalid direction '{}': eventId={}", p.direction(), event.eventId());
                 return;
             }
-
-            if (p.isFailure()) {
-                handleFailureEvent(event, p);
+            if (!isValidDirection(p.direction())) {
+                log.warn("Ignoring OCR event with invalid direction '{}': eventId={}", p.direction(), event.eventId());
                 return;
             }
 
@@ -89,10 +82,6 @@ public class OcrPlateEventKafkaListener {
             log.warn("Unknown OCR failureMode '{}': eventId={}", mode, event.eventId());
             return;
         }
-
-        OcrPlateRead read = buildRead(event, p);
-        read.setFailureMode(mode);
-        repository.save(read);
 
         OcrPlateRead read = buildRead(event, p);
         read.setFailureMode(mode);
