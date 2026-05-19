@@ -32,7 +32,6 @@ import pt.ua.deti.apieasyspot.occupancy.repository.TariffRepository;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.time.Duration;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Objects;
@@ -275,6 +274,7 @@ public class BillingService {
             : BigDecimal.ZERO;
 
         PaymentAdjustmentResult result = new PaymentAdjustmentResult(BigDecimal.ZERO, "NO_CHANGE", null, null);
+        BigDecimal finalRevenue = estimated;
 
         if (actualExitUtc.isAfter(plannedDeparture)) {
             BigDecimal actualCost = calculateCost(

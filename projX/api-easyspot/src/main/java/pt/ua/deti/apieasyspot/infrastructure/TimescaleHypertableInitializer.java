@@ -136,14 +136,14 @@ public class TimescaleHypertableInitializer implements ApplicationRunner {
                 plate       varchar(20) not null,
                 confidence  double precision not null,
                 direction   varchar(10) not null,
-                failure_mode varchar(20),
+                failure_mode varchar(30),
                 occurred_at timestamptz not null,
                 extra       jsonb       not null default '{}',
                 primary key (id, occurred_at)
             )
             """);
         try {
-            jdbc.execute("alter table ocr_plate_reads add column if not exists failure_mode varchar(20)");
+            jdbc.execute("alter table ocr_plate_reads add column if not exists failure_mode varchar(30)");
         } catch (Exception exception) {
             log.debug("ocr_plate_reads.failure_mode column already exists: {}", exception.getMessage());
         }

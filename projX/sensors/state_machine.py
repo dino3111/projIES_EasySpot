@@ -3,9 +3,19 @@ import time
 
 
 class SpotStateMachine:
-    def __init__(self, seed=42, transition_probs=None):
+    def __init__(
+        self,
+        seed=42,
+        transition_probs=None,
+        fault_min_duration=30.0,
+        fault_max_duration=3600.0,
+        technician_repair_probability=0.0,
+    ):
         self.rng = random.Random(seed)
         self.transition_probs = transition_probs or self._default_transition_probs()
+        self.fault_min_duration = fault_min_duration
+        self.fault_max_duration = fault_max_duration
+        self.technician_repair_probability = technician_repair_probability
 
     def _get_time_multipliers(self, current_hour):
         if current_hour is None:

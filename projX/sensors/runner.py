@@ -42,8 +42,6 @@ def run():
     while True:
         current_hour = datetime.now().hour
         now_ts = datetime.now(timezone.utc)
-        now_mono = time.monotonic()
-
 
         # Load active reservations to check for pending ones
         try:
@@ -51,6 +49,18 @@ def run():
         except Exception as exc:
             print(f"Warning: could not load reservations: {exc}")
             active_res = []
+
+        pending_spot_ids: set[str] = set()
+        for res in active_res:
+            if res["status"] != "CONFIRMED":
+                continue
+            try:
+                arrival = datetime.fromisoformat(res["arrival"].replace("Z", "+00:00"))
+                diff_mins = (arrival - now_ts).total_seconds() / 60.0
+                if 0 <= diff_mins <= 15:
+                    pending_spot_ids.add(res["spotId"])
+            except (ValueError, TypeError):
+                pass
 
         for spot in spots:
             spot_id = spot["spotId"]
@@ -73,21 +83,6 @@ def run():
             else:
                 meta["target_repair_ticks"] = None
 
-                # Check for reservations starting in the next 15 minutes
-                has_pending = False
-                for res in active_res:
-                    if res["spotId"] == spot_id and res["status"] == "CONFIRMED":
-                        try:
-                            arrival = datetime.fromisoformat(
-                                res["arrival"].replace("Z", "+00:00")
-                            )
-                            diff_mins = (arrival - now_ts).total_seconds() / 60.0
-                            if 0 <= diff_mins <= 15:
-                                has_pending = True
-                                break
-                        except (ValueError, TypeError):
-                            pass
-
                 next_status, reason = machine.next_status(
                     current,
                     zone=spot.get("zone"),
@@ -95,10 +90,15 @@ def run():
                     time_in_state=meta["time_in_state"],
                     row=spot.get("row", 0),
                     col=spot.get("col", 0),
-                    has_pending_reservation=has_pending,
+                    has_pending_reservation=spot_id in pending_spot_ids,
                 )
 
             if next_status != current:
+                fault_duration = (
+                    meta["time_in_state"] * SIMULATION_INTERVAL_SECONDS
+                    if current == "out_of_service"
+                    else None
+                )
                 meta["status"] = next_status
                 meta["time_in_state"] = 0
 
