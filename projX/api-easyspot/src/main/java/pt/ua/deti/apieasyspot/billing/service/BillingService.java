@@ -32,6 +32,7 @@ import pt.ua.deti.apieasyspot.occupancy.repository.TariffRepository;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.time.Duration;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Objects;
@@ -230,7 +231,11 @@ public class BillingService {
         OffsetDateTime exit  = reservation.getDepartureTime().withOffsetSameInstant(ZoneOffset.UTC);
 
         ParkingSession session = new ParkingSession();
-        if (reservation.getUser() != null) session.setUserId(reservation.getUser().getId());
+        session.setId(reservation.getId());
+        session.setReservationId(reservation.getId());
+        if (reservation.getUser() != null) {
+            session.setUserId(reservation.getUser().getId());
+        }
         session.setParkingLotId(reservation.getParkingLot().getId());
         if (reservation.getVehicle() != null) session.setVehicleId(reservation.getVehicle().getId());
         session.setZoneType(zone);
@@ -241,6 +246,7 @@ public class BillingService {
         parkingSessionRepository.save(session);
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void registerReservationEntry(Reservation reservation, OffsetDateTime actualEntry) {
         if (reservation == null || actualEntry == null) {
             return;
@@ -278,10 +284,11 @@ public class BillingService {
             );
             if (actualCost.compareTo(estimated) > 0) {
                 result = adjustPaymentForReservation(reservation, estimated, actualCost, customerEmail);
+                finalRevenue = actualCost;
             }
         }
 
-        parkingSessionRepository.updateExitAndRevenueByReservationId(reservation.getId(), actualExitUtc, estimated);
+        parkingSessionRepository.updateExitAndRevenueByReservationId(reservation.getId(), actualExitUtc, finalRevenue);
         return result;
     }
 

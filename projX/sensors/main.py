@@ -36,7 +36,7 @@ if __name__ == "__main__":
         target=_run_occupancy_safe, daemon=True, name="occupancy-runner"
     )
     gates_thread = threading.Thread(
-        target=_run_gates_safe, daemon=False, name="gates-runner"
+        target=_run_gates_safe, daemon=True, name="gates-runner"
     )
 
     ocr_thread.start()
@@ -51,7 +51,6 @@ if __name__ == "__main__":
         if not ocr_thread.is_alive():
             os._exit(1)
         if not occupancy_thread.is_alive():
-            raise RuntimeError("Occupancy runner thread terminated unexpectedly")
+            os._exit(1)
         if not gates_thread.is_alive():
-            raise RuntimeError("Gates runner thread terminated unexpectedly")
             os._exit(1)

@@ -183,6 +183,23 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
 
     Optional<Reservation> findByIdAndUserId(UUID id, UUID userId);
 
+    @Query("""
+        SELECT r FROM Reservation r
+        LEFT JOIN FETCH r.user
+        LEFT JOIN FETCH r.vehicle
+        LEFT JOIN FETCH r.parkingLot
+        LEFT JOIN FETCH r.parkingSpot
+        WHERE r.parkingLot.id = :parkId
+          AND UPPER(r.vehicle.plate) = UPPER(:plate)
+          AND r.status IN :statuses
+        ORDER BY r.departureTime ASC
+        """)
+    List<Reservation> findByParkIdAndVehiclePlateAndStatusInOrderByDepartureTimeAsc(
+        @Param("parkId") UUID parkId,
+        @Param("plate") String plate,
+        @Param("statuses") List<ReservationStatus> statuses
+    );
+
     @Query("SELECT COUNT(s) > 0 FROM ParkingSpot s WHERE s.id = :spotId AND s.parkingLot.id = :parkId")
     boolean spotBelongsToPark(@Param("spotId") UUID spotId, @Param("parkId") UUID parkId);
 

@@ -37,7 +37,7 @@ export function Step2SpotChoice({
   }, [floor]);
 
   const freeCounts = useMemo(() => {
-    if (!floor) return { free: 0, ev: 0, accessible: 0, occupied: 0, reserved: 0 };
+    if (!floor) return { free: 0, ev: 0, accessible: 0, occupied: 0, reserved: 0, out_of_service: 0 };
     return floor.spots.reduce((acc, s) => {
       acc[s.status] = (acc[s.status] || 0) + 1;
       return acc;
@@ -67,7 +67,7 @@ export function Step2SpotChoice({
     if (spotFilter === 'todos') return true;
     if (spotFilter === 'ev') return spot.status === 'ev';
     if (spotFilter === 'accessible') return spot.status === 'accessible';
-    if (spotFilter === 'standard') return spot.status === 'free' || spot.status === 'occupied' || spot.status === 'reserved';
+    if (spotFilter === 'standard') return spot.status === 'free' || spot.status === 'occupied' || spot.status === 'reserved' || spot.status === 'out_of_service';
     return true;
   };
 
@@ -110,6 +110,7 @@ export function Step2SpotChoice({
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-success border border-success-content/30 inline-block" /> Livre ({freeCounts.free || 0})</span>
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-error border border-error-content/30 inline-block" /> Ocupado ({freeCounts.occupied || 0})</span>
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm inline-block" style={{background:'#d97706'}} /> Reservado ({freeCounts.reserved || 0})</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm inline-block" style={{background:'#374151'}} /> Avariado ({freeCounts.out_of_service || 0})</span>
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-warning border border-warning-content/30 inline-block" /> EV ({freeCounts.ev || 0})</span>
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-info border border-info-content/30 inline-block" /> Acessível ({freeCounts.accessible || 0})</span>
               <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-primary inline-block" /> Selecionado</span>

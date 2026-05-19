@@ -109,7 +109,7 @@ function formatFloorName(floorId: string): string {
 }
 
 function resolveSpotStatus(apiStatus: ParkingSpot['status'], zone: string): ParkingSpot['status'] {
-  if (apiStatus === 'occupied' || apiStatus === 'reserved') return apiStatus;
+  if (apiStatus === 'occupied' || apiStatus === 'reserved' || apiStatus === 'out_of_service') return apiStatus;
   const z = (zone ?? '').toUpperCase().trim();
   if (z === 'EV' || z.includes('ELECTRIC') || z.includes('CHARG')) return 'ev';
   if (
@@ -186,13 +186,16 @@ export type FetchParksQuery = {
   accessibleOnly?: boolean;
   availableOnly?: boolean;
 };
+type FetchOptions = {
+  background?: boolean;
+};
 
 export type PagedParks = {
   items: ParkingLot[];
   pagination: ParkListResponse['pagination'];
 };
 
-export async function fetchParksList(query: FetchParksQuery = {}): Promise<PagedParks> {
+export async function fetchParksList(query: FetchParksQuery = {}, options: FetchOptions = {}): Promise<PagedParks> {
   const params = new URLSearchParams({
     page: String(query.page ?? 1),
     pageSize: String(query.pageSize ?? 20),
@@ -206,9 +209,10 @@ export async function fetchParksList(query: FetchParksQuery = {}): Promise<Paged
   if (query.accessibleOnly) filters.push('ACCESSIBLE');
   for (const f of filters) params.append('filters', f);
   const token = getAccessToken();
-  const resp = await withGlobalLoading(() => fetch(`${API_BASE}/api/parks/list?${params.toString()}`, {
+  const request = () => fetch(`${API_BASE}/api/parks/list?${params.toString()}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-  }));
+  });
+  const resp = options.background ? await request() : await withGlobalLoading(request);
   if (!resp.ok) throw new Error(`Failed to fetch parks list (${resp.status})`);
   const data = (await resp.json()) as ParkListResponse;
 
@@ -253,12 +257,13 @@ export async function fetchParkCities(): Promise<string[]> {
   return (await resp.json()) as string[];
 }
 
-export async function fetchParkDetails(parkId: string): Promise<ParkingLot> {
+export async function fetchParkDetails(parkId: string, options: FetchOptions = {}): Promise<ParkingLot> {
   const token = getAccessToken();
-  const resp = await withGlobalLoading(() => fetch(`${API_BASE}/api/parks/${parkId}/details`, {
+  const request = () => fetch(`${API_BASE}/api/parks/${parkId}/details`, {
     cache: 'no-store',
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-  }));
+  });
+  const resp = options.background ? await request() : await withGlobalLoading(request);
   if (!resp.ok) throw new Error(`Failed to fetch park details (${resp.status})`);
   const data = (await resp.json()) as ParkDetailsResponse;
   const lotCounts = normalizeAvailabilityCounts(data.totalSpaces, data.freeSpaces);
