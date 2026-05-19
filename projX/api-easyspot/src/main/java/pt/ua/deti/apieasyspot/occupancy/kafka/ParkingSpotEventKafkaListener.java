@@ -6,6 +6,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import pt.ua.deti.apieasyspot.occupancy.dto.ParkingSpotEvent;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingSpot;
 import pt.ua.deti.apieasyspot.occupancy.model.ZoneType;
@@ -80,7 +82,7 @@ public class ParkingSpotEventKafkaListener {
                 persisted
             );
 
-            occupancyEventPublisher.publish(new OccupancyEvent(
+            OccupancyEvent occupancyEvent = new OccupancyEvent(
                 UUID.randomUUID(),
                 "occupancy.spot.changed",
                 spot.getParkingLot().getId(),
@@ -91,7 +93,15 @@ public class ParkingSpotEventKafkaListener {
                 spot.getZone().name(),
                 spot.getSpotNumber(),
                 1
-            ));
+            );
+            TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        occupancyEventPublisher.publish(occupancyEvent);
+                    }
+                }
+            );
         } catch (Exception ex) {
             log.warn("Invalid parking spot event ignored: {}", payload, ex);
         }
@@ -105,7 +115,13 @@ public class ParkingSpotEventKafkaListener {
     }
 
     public String normalize(String status) {
-        return status.trim().toLowerCase(Locale.ROOT);
+        String s = status.trim().toLowerCase(Locale.ROOT);
+        // "accessible" and "ev" are persisted forms of "free" for typed zones;
+        // treat them as free so transition logic stays consistent.
+        if ("accessible".equals(s) || "ev".equals(s)) {
+            return STATUS_FREE;
+        }
+        return s;
     }
 
     private String toPersistedStatus(ParkingSpot spot, String status) {
