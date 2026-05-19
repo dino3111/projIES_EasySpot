@@ -112,8 +112,6 @@ class OcrPlateEventKafkaListenerTest {
     @Test
     void onEvent_unreadable_persistsWithFailureMode() {
         UUID parkId = UUID.randomUUID();
-    @Test
-    void onEvent_failureInvalidDirection_doesNotPersist() {
         String payload = """
             {
               "eventId": "%s",
@@ -242,18 +240,37 @@ class OcrPlateEventKafkaListenerTest {
         ArgumentCaptor<OcrPlateRead> captor = ArgumentCaptor.forClass(OcrPlateRead.class);
         verify(repository).save(captor.capture());
         assertThat(captor.getValue().getFailureMode()).isEqualTo("CAMERA_DEGRADED");
+    }
+
+    @Test
+    void onEvent_failureAnyDirection_persistsWithFailureMode() {
+        // Failure events are diagnostic records; direction validation is skipped for them
+        UUID parkId = UUID.randomUUID();
+        String payload = """
+            {
+              "eventId": "%s",
+              "eventType": "ocr.plate.failure",
+              "parkId": "%s",
+              "occurredAt": "2026-05-17T20:15:30Z",
+              "version": 1,
+              "payload": {
+                "plate": "",
+                "confidence": 0.0,
                 "direction": "sideways",
                 "failureMode": "UNREADABLE"
               }
             }
-            """.formatted(UUID.randomUUID(), UUID.randomUUID());
+            """.formatted(UUID.randomUUID(), parkId);
+
         listener.onEvent(payload);
-        verify(repository, never()).save(org.mockito.ArgumentMatchers.any(OcrPlateRead.class));
+
+        ArgumentCaptor<OcrPlateRead> captor = ArgumentCaptor.forClass(OcrPlateRead.class);
+        verify(repository).save(captor.capture());
+        assertThat(captor.getValue().getFailureMode()).isEqualTo("UNREADABLE");
     }
 
     @Test
     void onEvent_unknownFailureMode_doesNotPersist() {
-        UUID parkId = UUID.randomUUID();
         String payload = """
             {
               "eventId": "%s",
@@ -269,7 +286,9 @@ class OcrPlateEventKafkaListenerTest {
               }
             }
             """.formatted(UUID.randomUUID(), UUID.randomUUID());
+
         listener.onEvent(payload);
+
         verify(repository, never()).save(org.mockito.ArgumentMatchers.any(OcrPlateRead.class));
     }
 
@@ -300,14 +319,11 @@ class OcrPlateEventKafkaListenerTest {
 
     @Test
     void onEvent_missingParkId_doesNotPersist() {
-    void onEvent_validFailure_persistsWithFailureMode() {
         String payload = """
             {
               "eventId": "%s",
               "eventType": "ocr.plate.failure",
               "occurredAt": "2026-05-18T10:07:00Z",
-              "parkId": "%s",
-              "occurredAt": "2026-05-17T20:15:30Z",
               "version": 1,
               "payload": {
                 "plate": "",
@@ -321,10 +337,5 @@ class OcrPlateEventKafkaListenerTest {
         listener.onEvent(payload);
 
         verify(repository, never()).save(org.mockito.ArgumentMatchers.any(OcrPlateRead.class));
-            """.formatted(UUID.randomUUID(), UUID.randomUUID());
-        listener.onEvent(payload);
-        ArgumentCaptor<OcrPlateRead> captor = ArgumentCaptor.forClass(OcrPlateRead.class);
-        verify(repository).save(captor.capture());
-        assertThat(captor.getValue().getFailureMode()).isEqualTo("UNREADABLE");
     }
 }
