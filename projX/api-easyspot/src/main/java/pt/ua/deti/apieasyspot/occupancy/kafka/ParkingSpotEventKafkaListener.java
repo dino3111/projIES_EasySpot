@@ -11,7 +11,9 @@ import pt.ua.deti.apieasyspot.occupancy.model.ParkingSpot;
 import pt.ua.deti.apieasyspot.occupancy.model.ZoneType;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingSpotRepository;
 
+import java.time.Instant;
 import java.util.Locale;
+import java.util.UUID;
 
 @Slf4j
 @Component
@@ -26,9 +28,10 @@ public class ParkingSpotEventKafkaListener {
 
     private final ObjectMapper objectMapper;
     private final ParkingSpotRepository parkingSpotRepository;
+    private final OccupancyEventPublisher occupancyEventPublisher;
 
     @KafkaListener(
-        topics = {"parking-spot-events"},
+        topics = {"${easyspot.occupancy.kafka.input-topic:parking-spot-events}"},
         groupId = "${easyspot.occupancy.kafka.group-id:easyspot-occupancy}"
     )
     @Transactional
@@ -50,6 +53,7 @@ public class ParkingSpotEventKafkaListener {
             ParkingSpot spot = parkingSpotRepository.findById(event.spotId()).orElse(null);
             if (spot == null) {
                 log.warn("Ignoring event for unknown spotId={}", event.spotId());
+                return;
             }
 
             String current = normalize(spot.getStatus());
@@ -66,6 +70,19 @@ public class ParkingSpotEventKafkaListener {
                 current,
                 normalized
             );
+
+            occupancyEventPublisher.publish(new OccupancyEvent(
+                UUID.randomUUID(),
+                "occupancy.spot.changed",
+                spot.getParkingLot().getId(),
+                spot.getId(),
+                current,
+                normalized,
+                Instant.now(),
+                spot.getZone().name(),
+                spot.getSpotNumber(),
+                1
+            ));
         } catch (Exception ex) {
             log.warn("Invalid parking spot event ignored: {}", payload, ex);
         }
