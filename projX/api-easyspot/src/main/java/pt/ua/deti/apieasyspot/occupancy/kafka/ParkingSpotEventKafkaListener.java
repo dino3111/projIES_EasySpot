@@ -79,10 +79,15 @@ public class ParkingSpotEventKafkaListener {
                 normalized
             );
 
-            if (isRecoveryTransition(current, normalized)) {
+            String sensorId = sensorIdFromSpotId(event.spotId());
+            sensorLogsService.touchSensor(sensorId);
+
+            if (STATUS_OUT_OF_SERVICE.equals(normalized)) {
+                sensorLogsService.faultSensor(sensorId);
+            } else if (isRecoveryTransition(current, normalized)) {
                 String reason = extractReason(event);
                 if ("AUTO_RECOVERY".equals(reason) || "TECHNICIAN_REPAIR".equals(reason)) {
-                    sensorLogsService.recoverSensor(sensorIdFromSpotId(event.spotId()), reason);
+                    sensorLogsService.recoverSensor(sensorId, reason);
                 }
             }
         } catch (Exception ex) {
