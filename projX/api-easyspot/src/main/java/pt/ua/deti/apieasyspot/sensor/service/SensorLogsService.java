@@ -1,6 +1,7 @@
 package pt.ua.deti.apieasyspot.sensor.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -22,6 +23,7 @@ import pt.ua.deti.apieasyspot.sensor.repository.SensorRegistryRepository;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SensorLogsService {
@@ -113,6 +115,50 @@ public class SensorLogsService {
             case OFFLINE -> "Sensor " + sensorId + " offline.";
             default -> "Estado do sensor " + sensorId + " alterado para " + status.name().toLowerCase();
         };
+    }
+
+    public void faultSensor(String sensorId) {
+        sensorRegistryRepository.findById(sensorId).ifPresent(sensor -> {
+            sensor.setStatus(SensorStatus.OFFLINE);
+            sensorRegistryRepository.save(sensor);
+
+            alertRepository.findOpenBySensorId(sensorId).ifPresentOrElse(
+                alert -> {},
+                () -> {
+                    Alert alert = new Alert();
+                    alert.setParkingLotId(sensor.getParkingLot().getId());
+                    alert.setParkingLotName(sensor.getParkingLot().getName());
+                    alert.setType(AlertType.SENSOR);
+                    alert.setSeverity(SeverityAlert.CRITICAL);
+                    alert.setState(StateAlert.OPEN);
+                    alert.setZone(sensor.getZone());
+                    alert.setSensorId(sensorId);
+                    alert.setDescription("Sensor " + sensorId + " offline.");
+                    alert.setReportedBy("system");
+                    alert.setAttributedTo(null);
+                    alert.setNotes(null);
+                    alert.setCreatedAt(OffsetDateTime.now(ZoneOffset.UTC));
+                    alertRepository.save(alert);
+                }
+            );
+            log.info("Sensor {} marked OFFLINE via device.fault", sensorId);
+        });
+    }
+
+    public void recoverSensor(String sensorId, String recoveryType) {
+        sensorRegistryRepository.findById(sensorId).ifPresent(sensor -> {
+            sensor.setStatus(SensorStatus.OPERATIONAL);
+            sensorRegistryRepository.save(sensor);
+
+            alertRepository.findOpenBySensorId(sensorId).ifPresent(alert -> {
+                alert.setState(StateAlert.RESOLVED);
+                alert.setResolvedAt(OffsetDateTime.now(ZoneOffset.UTC));
+                alert.setNotes("Recovered via " + recoveryType);
+                alertRepository.save(alert);
+            });
+
+            log.info("Sensor {} recovered via {}", sensorId, recoveryType);
+        });
     }
 
     private String blankToNull(String value) {
