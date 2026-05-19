@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import pt.ua.deti.apieasyspot.gate.service.PaymentGateOrchestrator;
 import pt.ua.deti.apieasyspot.ocr.model.OcrPlateRead;
 import pt.ua.deti.apieasyspot.ocr.repository.OcrPlateReadRepository;
 
@@ -24,8 +25,9 @@ class OcrPlateEventKafkaListenerTest {
     @BeforeEach
     void setUp() {
         repository = mock(OcrPlateReadRepository.class);
+        PaymentGateOrchestrator paymentGateOrchestrator = mock(PaymentGateOrchestrator.class);
         ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
-        listener = new OcrPlateEventKafkaListener(objectMapper, repository);
+        listener = new OcrPlateEventKafkaListener(objectMapper, repository, paymentGateOrchestrator);
     }
 
     @Test

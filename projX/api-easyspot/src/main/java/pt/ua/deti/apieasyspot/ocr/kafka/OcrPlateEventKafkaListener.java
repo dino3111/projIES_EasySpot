@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
+import pt.ua.deti.apieasyspot.gate.service.PaymentGateOrchestrator;
 import pt.ua.deti.apieasyspot.ocr.dto.OcrPlateEvent;
 import pt.ua.deti.apieasyspot.ocr.model.OcrPlateRead;
 import pt.ua.deti.apieasyspot.ocr.repository.OcrPlateReadRepository;
@@ -20,6 +21,7 @@ public class OcrPlateEventKafkaListener {
 
     private final ObjectMapper objectMapper;
     private final OcrPlateReadRepository repository;
+    private final PaymentGateOrchestrator paymentGateOrchestrator;
 
     private static final java.util.Set<String> VALID_FAILURE_MODES = java.util.Set.of(
         "UNREADABLE", "LOW_CONFIDENCE", "WRONG_PLATE", "CAMERA_OFFLINE", "CAMERA_DEGRADED"
@@ -60,6 +62,10 @@ public class OcrPlateEventKafkaListener {
 
             log.debug("OCR read persisted: plate={} direction={} park={} spot={}",
                 read.getPlate(), read.getDirection(), read.getParkId(), read.getSpotId());
+
+            if ("exit".equals(p.direction().toLowerCase())) {
+                paymentGateOrchestrator.onExitOcrEvent(event);
+            }
 
         } catch (Exception ex) {
             log.warn("Invalid OCR plate event ignored: {}", payload, ex);
