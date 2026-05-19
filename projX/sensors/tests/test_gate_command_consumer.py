@@ -5,15 +5,21 @@ from datetime import datetime, timezone
 
 sys.path.insert(0, ".")
 
-from gate_event_builder import GateSimulator, GateState, GateCommandType  # noqa: E402
+from gate_event_builder import GateSimulator, GateState  # noqa: E402
 
 
 def _parks(n=2):
     return [{"parkId": f"park-{i}", "parkName": f"Park {i}"} for i in range(1, n + 1)]
 
 
-def _command(command_type, park_id="park-1", gate_id=None, plate="AB-12-CD",
-             direction="exit", reservation_id=None):
+def _command(
+    command_type,
+    park_id="park-1",
+    gate_id=None,
+    plate="AB-12-CD",
+    direction="exit",
+    reservation_id=None,
+):
     return {
         "commandId": "cmd-uuid-001",
         "commandType": command_type,
