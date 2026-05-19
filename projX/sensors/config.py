@@ -9,6 +9,7 @@ SIMULATION_SERVICE_TOKEN = os.getenv("SIMULATION_SERVICE_TOKEN", "")
 KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
 KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "parking-spot-events")
 KAFKA_TOPIC_OCR = os.getenv("KAFKA_TOPIC_OCR", "parking-ocr-events")
+KAFKA_TOPIC_GATE = os.getenv("KAFKA_TOPIC_GATE", "parking-gate-events")
 
 # 1 second between cycles to reduce CPU usage and maintain realism.
 SIMULATION_INTERVAL_SECONDS = float(os.getenv("SIMULATION_INTERVAL_SECONDS", "1.0"))

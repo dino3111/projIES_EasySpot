@@ -50,23 +50,21 @@ public class OcrPlateEventKafkaListener {
 
             OcrPlateEvent.OcrPayload p = event.payload();
 
-            if (!isValidDirection(p.direction())) {
-                log.warn("Ignoring OCR event with invalid direction '{}': eventId={}", p.direction(), event.eventId());
-                return;
-            }
-
             if (p.isFailure()) {
                 handleFailureEvent(event, p);
                 return;
             }
 
-            if (p.plate() == null) {
+            if (p.plate() == null || p.direction() == null) {
                 log.warn("Ignoring OCR event with missing plate or direction");
+                return;
+            }
+            if (!isValidDirection(p.direction())) {
+                log.warn("Ignoring OCR event with invalid direction '{}': eventId={}", p.direction(), event.eventId());
                 return;
             }
 
             OcrPlateRead read = buildRead(event, p);
-
             repository.save(read);
 
             log.debug("OCR read persisted: plate={} direction={} park={} spot={}",
@@ -84,6 +82,7 @@ public class OcrPlateEventKafkaListener {
             log.warn("Unknown OCR failureMode '{}': eventId={}", mode, event.eventId());
             return;
         }
+
         OcrPlateRead read = buildRead(event, p);
         read.setFailureMode(mode);
         repository.save(read);
