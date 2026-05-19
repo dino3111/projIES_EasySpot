@@ -244,6 +244,79 @@ class SensorLogsServiceTest {
     }
 
     @Test
+    @DisplayName("faultSensor sets sensor to OFFLINE and opens alert when none exists")
+    void faultSensor_setsOfflineAndCreatesAlert() {
+        UUID parkId = UUID.randomUUID();
+        ParkingLot lot = new ParkingLot();
+        lot.setId(parkId);
+        lot.setName("Parque Test");
+
+        SensorRegistry sensor = new SensorRegistry();
+        sensor.setSensorId("OCR-TEST-ENT1");
+        sensor.setParkingLot(lot);
+        sensor.setZone("Entrada");
+        sensor.setStatus(SensorStatus.OPERATIONAL);
+        sensor.setLastSeenAt(LocalDateTime.now());
+        sensor.setCreatedAt(LocalDateTime.now());
+
+        when(sensorRegistryRepository.findById("OCR-TEST-ENT1")).thenReturn(Optional.of(sensor));
+        when(alertRepository.findOpenBySensorId("OCR-TEST-ENT1")).thenReturn(Optional.empty());
+
+        service.faultSensor("OCR-TEST-ENT1");
+
+        verify(sensorRegistryRepository).save(sensor);
+        assertThat(sensor.getStatus()).isEqualTo(SensorStatus.OFFLINE);
+        verify(alertRepository).save(argThat(alert ->
+            alert.getType() == AlertType.SENSOR
+                && alert.getSeverity() == SeverityAlert.CRITICAL
+                && alert.getState() == StateAlert.OPEN
+                && "OCR-TEST-ENT1".equals(alert.getSensorId())
+        ));
+    }
+
+    @Test
+    @DisplayName("faultSensor does not open a second alert when one is already open")
+    void faultSensor_existingOpenAlert_doesNotCreateDuplicate() {
+        UUID parkId = UUID.randomUUID();
+        ParkingLot lot = new ParkingLot();
+        lot.setId(parkId);
+        lot.setName("Parque Test");
+
+        SensorRegistry sensor = new SensorRegistry();
+        sensor.setSensorId("OCR-TEST-ENT2");
+        sensor.setParkingLot(lot);
+        sensor.setZone("Entrada");
+        sensor.setStatus(SensorStatus.DEGRADED);
+        sensor.setLastSeenAt(LocalDateTime.now());
+        sensor.setCreatedAt(LocalDateTime.now());
+
+        Alert existingAlert = new Alert();
+        existingAlert.setId(UUID.randomUUID());
+        existingAlert.setState(StateAlert.OPEN);
+        existingAlert.setCreatedAt(OffsetDateTime.now(ZoneOffset.UTC));
+
+        when(sensorRegistryRepository.findById("OCR-TEST-ENT2")).thenReturn(Optional.of(sensor));
+        when(alertRepository.findOpenBySensorId("OCR-TEST-ENT2")).thenReturn(Optional.of(existingAlert));
+
+        service.faultSensor("OCR-TEST-ENT2");
+
+        verify(sensorRegistryRepository).save(sensor);
+        assertThat(sensor.getStatus()).isEqualTo(SensorStatus.OFFLINE);
+        verify(alertRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("faultSensor for unknown sensor does nothing gracefully")
+    void faultSensor_unknownSensor_doesNothing() {
+        when(sensorRegistryRepository.findById("UNKNOWN-OCR")).thenReturn(Optional.empty());
+
+        service.faultSensor("UNKNOWN-OCR");
+
+        verify(sensorRegistryRepository, never()).save(any());
+        verify(alertRepository, never()).save(any());
+    }
+
+    @Test
     @DisplayName("recoverSensor sets sensor to OPERATIONAL and closes open alert")
     void recoverSensor_setsOperationalAndClosesAlert() {
         UUID parkId = UUID.randomUUID();

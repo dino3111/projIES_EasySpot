@@ -170,9 +170,10 @@ class OcrPlateEventKafkaListenerTest {
     }
 
     @Test
-    @DisplayName("device.fault event is acknowledged without persisting or recovering")
-    void onEvent_deviceFault_doesNothing() {
+    @DisplayName("device.fault event marks sensor offline without persisting a plate read")
+    void onEvent_deviceFault_callsFaultSensorAndSkipsPersist() {
         UUID parkId = UUID.randomUUID();
+        String deviceId = "OCR-TEST-ENT1";
 
         String payload = """
             {
@@ -185,7 +186,35 @@ class OcrPlateEventKafkaListenerTest {
               "payload": {
                 "extensions": {
                   "deviceType": "OCR_CAMERA",
-                  "deviceId": "OCR-TEST-ENT1"
+                  "deviceId": "%s"
+                }
+              }
+            }
+            """.formatted(UUID.randomUUID(), parkId, deviceId);
+
+        listener.onEvent(payload);
+
+        verify(sensorLogsService).faultSensor(deviceId);
+        verify(repository, never()).save(any(OcrPlateRead.class));
+        verify(sensorLogsService, never()).recoverSensor(any(), any());
+    }
+
+    @Test
+    @DisplayName("device.fault with missing deviceId is silently ignored")
+    void onEvent_deviceFault_missingDeviceId_ignored() {
+        UUID parkId = UUID.randomUUID();
+
+        String payload = """
+            {
+              "eventId": "%s",
+              "eventType": "device.fault",
+              "parkId": "%s",
+              "spotId": null,
+              "occurredAt": "2026-05-18T10:00:00Z",
+              "version": 1,
+              "payload": {
+                "extensions": {
+                  "deviceType": "OCR_CAMERA"
                 }
               }
             }
@@ -193,7 +222,36 @@ class OcrPlateEventKafkaListenerTest {
 
         listener.onEvent(payload);
 
+        verify(sensorLogsService, never()).faultSensor(any());
         verify(repository, never()).save(any(OcrPlateRead.class));
+    }
+
+    @Test
+    @DisplayName("ocr.plate.failure event is ignored and not persisted as plate read")
+    void onEvent_plateFailure_isIgnored() {
+        UUID parkId = UUID.randomUUID();
+
+        String payload = """
+            {
+              "eventId": "%s",
+              "eventType": "ocr.plate.failure",
+              "parkId": "%s",
+              "spotId": null,
+              "occurredAt": "2026-05-18T10:00:00Z",
+              "version": 1,
+              "payload": {
+                "plate": "",
+                "confidence": 0.0,
+                "direction": "entry",
+                "failureMode": "UNREADABLE"
+              }
+            }
+            """.formatted(UUID.randomUUID(), parkId);
+
+        listener.onEvent(payload);
+
+        verify(repository, never()).save(any(OcrPlateRead.class));
+        verify(sensorLogsService, never()).faultSensor(any());
         verify(sensorLogsService, never()).recoverSensor(any(), any());
     }
 

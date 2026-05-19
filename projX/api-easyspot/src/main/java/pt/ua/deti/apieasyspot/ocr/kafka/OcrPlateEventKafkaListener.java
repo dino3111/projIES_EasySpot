@@ -42,7 +42,12 @@ public class OcrPlateEventKafkaListener {
             }
 
             if ("device.fault".equals(event.eventType())) {
-                log.info("OCR device fault reported for park={}", event.parkId());
+                handleDeviceFault(event);
+                return;
+            }
+
+            if ("ocr.plate.failure".equals(event.eventType())) {
+                log.debug("OCR plate failure event ignored: eventId={}", event.eventId());
                 return;
             }
 
@@ -81,6 +86,21 @@ public class OcrPlateEventKafkaListener {
         } catch (Exception ex) {
             log.warn("Invalid OCR plate event ignored: {}", payload, ex);
         }
+    }
+
+    private void handleDeviceFault(OcrPlateEvent event) {
+        if (event.payload() == null || event.payload().extensions() == null) {
+            log.warn("device.fault event missing extensions: park={}", event.parkId());
+            return;
+        }
+        Map<String, Object> ext = event.payload().extensions();
+        Object deviceIdObj = ext.get("deviceId");
+        if (!(deviceIdObj instanceof String deviceId) || deviceId.isBlank()) {
+            log.warn("device.fault event missing deviceId: park={}", event.parkId());
+            return;
+        }
+        sensorLogsService.faultSensor(deviceId);
+        log.info("OCR device fault registered: deviceId={} park={}", deviceId, event.parkId());
     }
 
     private void handleDeviceRecovery(OcrPlateEvent event) {
