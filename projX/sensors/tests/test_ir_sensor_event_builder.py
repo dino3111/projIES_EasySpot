@@ -1,11 +1,10 @@
+# isort: skip_file
 import sys
-import os
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-
 import unittest
 
-from ir_sensor_event_builder import (
+sys.path.insert(0, ".")
+
+from ir_sensor_event_builder import (  # noqa: E402
     SensorEventType,
     build_absence_event,
     build_heartbeat_event,
