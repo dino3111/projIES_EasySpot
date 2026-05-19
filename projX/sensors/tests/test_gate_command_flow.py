@@ -69,6 +69,7 @@ class BuildGateCommandResponseTests(unittest.TestCase):
 class ParkGateExecuteCommandTests(unittest.TestCase):
     def _gate(self, direction=GateDirection.ENTRY):
         import random
+
         return ParkGate("gate-test", direction, random.Random(42))
 
     def test_open_command_executes_from_closed(self):

@@ -1,7 +1,5 @@
 import json
 
-from kafka import KafkaConsumer
-
 from config import (
     KAFKA_BOOTSTRAP_SERVERS,
     KAFKA_TOPIC_GATE,
@@ -9,6 +7,7 @@ from config import (
     KAFKA_TOPIC_GATE_RESPONSES,
 )
 from gate_event_builder import GateSimulator
+from kafka import KafkaConsumer
 from kafka_publisher import KafkaPublisher
 
 
