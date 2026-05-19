@@ -69,7 +69,9 @@ public class OcrPlateEventKafkaListener {
                 return;
             }
 
-            if (!isValidDirection(p.direction())) {
+            String direction = p.direction().toLowerCase(java.util.Locale.ROOT);
+
+            if (!isValidDirection(direction)) {
                 log.warn("Ignoring OCR event with invalid direction '{}': eventId={}", p.direction(), event.eventId());
                 return;
             }
@@ -80,7 +82,7 @@ public class OcrPlateEventKafkaListener {
             read.setSpotId(event.spotId());
             read.setPlate(p.plate().toUpperCase());
             read.setConfidence(p.confidence() != null ? p.confidence() : 0.0);
-            read.setDirection(p.direction().toLowerCase());
+            read.setDirection(direction);
             read.setOccurredAt(event.occurredAt() != null ? event.occurredAt() : Instant.now());
             read.setExtra(p.extensions() != null ? p.extensions() : Map.of());
 
@@ -89,7 +91,7 @@ public class OcrPlateEventKafkaListener {
             log.debug("OCR read persisted: plate={} direction={} park={} spot={}",
                 read.getPlate(), read.getDirection(), read.getParkId(), read.getSpotId());
 
-            if ("exit".equals(p.direction().toLowerCase())) {
+            if ("exit".equals(direction)) {
                 paymentGateOrchestrator.onExitOcrEvent(event);
             }
 

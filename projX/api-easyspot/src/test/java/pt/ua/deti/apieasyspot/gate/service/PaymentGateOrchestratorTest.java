@@ -222,7 +222,7 @@ class PaymentGateOrchestratorTest {
     private OcrPlateEvent buildOcrExitEvent(UUID parkId, String plate, double confidence) {
         OcrPlateEvent.OcrPayload payload = new OcrPlateEvent.OcrPayload(
             plate, confidence, "exit", "Park Test", "A1", "STANDARD",
-            1, 1, null, null
+            1, 1, null
         );
         return new OcrPlateEvent(UUID.randomUUID(), "ocr.plate.read", parkId, null, Instant.now(), payload, 1);
     }

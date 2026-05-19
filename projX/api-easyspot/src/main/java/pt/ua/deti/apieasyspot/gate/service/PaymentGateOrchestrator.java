@@ -112,7 +112,7 @@ public class PaymentGateOrchestrator {
             UUID.randomUUID(),
             "BLOCK_GATE",
             parkId,
-            gateId != null ? gateId : "gate-" + parkId.toString().substring(0, 8) + "-exit",
+            gateId != null ? gateId : gateIdFor(parkId),
             "exit",
             plate,
             reservationId,

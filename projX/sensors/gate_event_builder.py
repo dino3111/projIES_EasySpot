@@ -29,6 +29,7 @@ class GateDirection(str, Enum):
 class GateCommandType(str, Enum):
     OPEN_GATE = "OPEN_GATE"
     CLOSE_GATE = "CLOSE_GATE"
+    BLOCK_GATE = "BLOCK_GATE"
 
 
 class GateCommandStatus(str, Enum):
@@ -224,6 +225,7 @@ class ParkGate:
         command_type: GateCommandType,
         park_id: str,
         park_name: str,
+        plate: Optional[str] = None,
     ) -> Tuple[GateCommandStatus, str, Optional[Dict]]:
         """Apply a backend command. Returns (status, reason, optional gate_event)."""
         if self.state == GateState.FAULT:
@@ -232,7 +234,7 @@ class ParkGate:
         if command_type == GateCommandType.OPEN_GATE:
             if self.state == GateState.OPEN:
                 return GateCommandStatus.DENIED, "already_open", None
-            raw = self._try_open(plate=None, reason="backend_command")
+            raw = self._try_open(plate=plate, reason="backend_command")
             if raw is None:
                 return GateCommandStatus.DENIED, "open_rejected", None
             raw["parkId"] = park_id
@@ -250,6 +252,16 @@ class ParkGate:
                 "backend_command",
             )
             return GateCommandStatus.EXECUTED, "command_accepted", event
+
+        if command_type == GateCommandType.BLOCK_GATE:
+            if self.state == GateState.BLOCKED:
+                return GateCommandStatus.DENIED, "already_blocked", None
+            raw = self._block(plate=plate, reason="payment_rejected")
+            if raw is None:
+                return GateCommandStatus.DENIED, "block_rejected", None
+            raw["parkId"] = park_id
+            raw["payload"]["parkName"] = park_name
+            return GateCommandStatus.EXECUTED, "payment_rejected", raw
 
         return GateCommandStatus.DENIED, "unknown_command", None
 
@@ -373,6 +385,7 @@ class GateSimulator:
         park_id = str(command.get("parkId", ""))
         direction = command.get("direction", "entry")
         command_type_str = command.get("commandType", "")
+        plate = command.get("plate")
 
         try:
             command_type = GateCommandType(command_type_str)
@@ -423,6 +436,7 @@ class GateSimulator:
                 command_type=command_type,
                 park_id=park_id,
                 park_name=park.get("parkName", ""),
+                plate=plate,
             )
 
             response = build_gate_command_response(

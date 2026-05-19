@@ -10,6 +10,7 @@ public record GateCommandResponse(
     String gateId,
     String direction,
     String plate,
+    UUID reservationId,
     String reason,
     Instant respondedAt
 ) {}
