@@ -65,9 +65,8 @@ if __name__ == "__main__":
         if not ocr_thread.is_alive():
             os._exit(1)
         if not occupancy_thread.is_alive():
-            raise RuntimeError("Occupancy runner thread terminated unexpectedly")
+            os._exit(1)
         if not gates_thread.is_alive():
-            raise RuntimeError("Gates runner thread terminated unexpectedly")
             os._exit(1)
         if not ir_sensors_thread.is_alive():
-            raise RuntimeError("IR sensors runner thread terminated unexpectedly")
+            os._exit(1)

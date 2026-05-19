@@ -176,8 +176,8 @@ class TestEventsForTransition(unittest.TestCase):
         self.assertEqual(len(evts), 1)
         self.assertEqual(evts[0]["eventType"], SensorEventType.ABSENCE.value)
 
-    def test_out_of_service_to_occupied_returns_presence(self):
-        # sensor recovered directly onto an occupied spot
+    def test_out_of_service_to_occupied_returns_absence(self):
+        # offline→any recovery always emits ABSENCE ("sensor back, spot readable")
         evts = events_for_transition(_SPOT, "out_of_service", "occupied")
         self.assertEqual(len(evts), 1)
         self.assertEqual(evts[0]["eventType"], SensorEventType.ABSENCE.value)

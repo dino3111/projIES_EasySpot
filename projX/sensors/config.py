@@ -12,7 +12,7 @@ KAFKA_TOPIC_OCR = os.getenv("KAFKA_TOPIC_OCR", "parking-ocr-events")
 KAFKA_TOPIC_GATE = os.getenv("KAFKA_TOPIC_GATE", "parking-gate-events")
 KAFKA_TOPIC_GATE_COMMANDS = os.getenv("KAFKA_TOPIC_GATE_COMMANDS", "gate.commands")
 KAFKA_TOPIC_GATE_RESPONSES = os.getenv("KAFKA_TOPIC_GATE_RESPONSES", "gate.responses")
-KAFKA_TOPIC_SENSOR = os.getenv("KAFKA_TOPIC_SENSOR", "parking-ir-events")
+KAFKA_TOPIC_SENSOR = os.getenv("KAFKA_TOPIC_IR_SENSOR", "parking-ir-events")
 
 SENSOR_HEARTBEAT_INTERVAL_SECONDS = float(
     os.getenv("SENSOR_HEARTBEAT_INTERVAL_SECONDS", "30.0")
