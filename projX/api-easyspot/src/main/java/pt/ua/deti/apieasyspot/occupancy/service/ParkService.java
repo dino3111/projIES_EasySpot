@@ -333,14 +333,15 @@ public class ParkService {
         }
         String normalized = currentStatus.trim().toLowerCase();
         return switch (normalized) {
-            case STATUS_FREE, STATUS_RESERVED, STATUS_OCCUPIED, "ev", "accessible" -> normalized;
+            case STATUS_FREE, STATUS_RESERVED, STATUS_OCCUPIED -> normalized;
+            // In the persisted spot status, "ev"/"accessible" can represent a free themed spot.
+            // For occupancy math we normalize them to free and keep zone semantics separately.
+            case "ev", "accessible" -> STATUS_FREE;
             default -> STATUS_FREE;
         };
     }
 
     private String restoreSpotBaseStatus(ParkingSpot spot) {
-        if (spot.getZone() == ZoneType.EV) return STATUS_OCCUPIED;
-        if (spot.getZone() == ZoneType.ACCESSIBLE) return STATUS_OCCUPIED;
         return normalizeSpotStatus(spot.getStatus());
     }
 

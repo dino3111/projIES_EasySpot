@@ -12,7 +12,10 @@ import { TabTariffs } from './TabTariffs';
 import { fetchParkDetails, fetchParkFavoriteStatus, toggleParkFavorite } from '../../../services/parksApi';
 
 type Tab = 'general' | 'map' | 'ev' | 'accessibility' | 'tariffs';
-const REALTIME_REFRESH_MS = 8000;
+const realtimeRefreshFromEnv = Number(import.meta.env.VITE_REALTIME_REFRESH_MS ?? 1000);
+const REALTIME_REFRESH_MS = Number.isFinite(realtimeRefreshFromEnv) && realtimeRefreshFromEnv >= 1000
+  ? realtimeRefreshFromEnv
+  : 1000;
 
 function getOccupancyStatus(availableSpots: number, totalSpots: number) {
   const safeTotal = Math.max(0, totalSpots);

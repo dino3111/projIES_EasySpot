@@ -17,7 +17,10 @@ interface QueryState {
   selectedDistrict: string;
   selectedVehicleId: string | null;
 }
-const REALTIME_REFRESH_MS = 8000;
+const realtimeRefreshFromEnv = Number(import.meta.env.VITE_REALTIME_REFRESH_MS ?? 1000);
+const REALTIME_REFRESH_MS = Number.isFinite(realtimeRefreshFromEnv) && realtimeRefreshFromEnv >= 1000
+  ? realtimeRefreshFromEnv
+  : 1000;
 
 export function ParkingListPage() {
   const { vehicles, driverTypes } = useProfile();

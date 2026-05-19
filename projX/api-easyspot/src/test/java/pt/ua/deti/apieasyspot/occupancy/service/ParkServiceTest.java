@@ -226,7 +226,7 @@ class ParkServiceTest {
     }
 
     @Test
-    void getDetails_sensorOccupancyMarksEvAsOccupied() {
+    void getDetails_normalizesEvSpotStatusAsFreeForOccupancyMath() {
         when(parkingLotRepository.findById(lotId)).thenReturn(Optional.of(lot));
         when(reservationRepository.findActiveWithSpotByParkId(lotId)).thenReturn(List.of());
         when(timescaleOccupancySnapshotRepository.latestByLot(lotId)).thenReturn(List.of(
@@ -248,9 +248,9 @@ class ParkServiceTest {
         ParkingLotDetailsResponse response = parkService.getDetails(lotId);
 
         assertThat(response.spotMap()).hasSize(1);
-        assertThat(response.spotMap().get(0).status()).isEqualTo("occupied");
-        assertThat(response.freeSpaces()).isZero();
-        assertThat(response.zones().get(0).occupancyPercent()).isEqualTo(100);
+        assertThat(response.spotMap().get(0).status()).isEqualTo("free");
+        assertThat(response.freeSpaces()).isEqualTo(1);
+        assertThat(response.zones().get(0).occupancyPercent()).isZero();
     }
 
     @Test
