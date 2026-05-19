@@ -100,6 +100,15 @@ public class TimescaleOccupancySnapshotRepository {
         );
     }
 
+    public Instant latestRecordedAt(UUID parkingLotId) {
+        Timestamp ts = jdbc.queryForObject(
+            "select max(recorded_at) from occupancy_snapshots where parking_lot_id = ?",
+            Timestamp.class,
+            parkingLotId
+        );
+        return ts != null ? ts.toInstant() : null;
+    }
+
     public Map<UUID, List<HourlyOccupancyPoint>> hourlyOccupancyLast7Days(Collection<UUID> lotIds) {
         if (lotIds == null || lotIds.isEmpty()) return Map.of();
         String placeholders = lotIds.stream().map(id -> "?").collect(Collectors.joining(","));

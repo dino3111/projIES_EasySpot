@@ -277,10 +277,14 @@ public class BillingService {
         PaymentAdjustmentResult result = new PaymentAdjustmentResult(BigDecimal.ZERO, "NO_CHANGE", null, null);
 
         if (actualExitUtc.isAfter(plannedDeparture)) {
+            ZoneType zone = reservation.getParkingSpot() != null
+                ? reservation.getParkingSpot().getZone()
+                : ZoneType.STANDARD;
             BigDecimal actualCost = calculateCost(
                 reservation.getParkingLot().getId(),
                 reservation.getArrivalTime().withOffsetSameInstant(ZoneOffset.UTC),
-                actualExitUtc
+                actualExitUtc,
+                zone
             );
             if (actualCost.compareTo(estimated) > 0) {
                 result = adjustPaymentForReservation(reservation, estimated, actualCost, customerEmail);
@@ -292,7 +296,7 @@ public class BillingService {
         return result;
     }
 
-    private BigDecimal calculateCost(UUID parkingLotId, OffsetDateTime entry, OffsetDateTime exit) {
+    private BigDecimal calculateCost(UUID parkingLotId, OffsetDateTime entry, OffsetDateTime exit, ZoneType zoneType) {
         if (parkingLotId == null || entry == null || exit == null || !exit.isAfter(entry)) {
             return BigDecimal.ZERO;
         }
@@ -302,10 +306,16 @@ public class BillingService {
         }
 
         Tariff tariff = tariffs.stream()
+            .filter(t -> t.getStatus() == pt.ua.deti.apieasyspot.occupancy.model.TariffStatus.ACTIVE)
             .filter(t -> t.getPricePerHour() != null)
-            .min((a, b) -> a.getPricePerHour().compareTo(b.getPricePerHour()))
-            .orElse(tariffs.get(0));
-        if (tariff.getPricePerHour() == null) {
+            .filter(t -> isTariffCompatibleWithZone(t, zoneType))
+            .findFirst()
+            .orElseGet(() -> tariffs.stream()
+                .filter(t -> t.getStatus() == pt.ua.deti.apieasyspot.occupancy.model.TariffStatus.ACTIVE)
+                .filter(t -> t.getPricePerHour() != null)
+                .findFirst()
+                .orElse(null));
+        if (tariff == null || tariff.getPricePerHour() == null) {
             return BigDecimal.ZERO;
         }
 
@@ -316,6 +326,18 @@ public class BillingService {
             cost = tariff.getMaxDaily();
         }
         return cost;
+    }
+
+    private boolean isTariffCompatibleWithZone(Tariff tariff, ZoneType zoneType) {
+        if (tariff == null || zoneType == null || tariff.getName() == null) {
+            return true;
+        }
+        String name = tariff.getName().toLowerCase();
+        return switch (zoneType) {
+            case EV -> name.contains("ev");
+            case ACCESSIBLE -> name.contains("accessible");
+            default -> !(name.contains("ev") || name.contains("accessible"));
+        };
     }
 
     /**
