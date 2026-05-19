@@ -27,12 +27,11 @@ def run():
         technician_repair_probability=TECHNICIAN_REPAIR_PROBABILITY,
     )
 
-    # State metadata: status, time_in_state (ticks), target_repair_ticks
+    # State metadata: status, time_in_state (ticks)
     meta_by_spot = {
         spot["spotId"]: {
             "status": normalize_initial_status(spot["status"], spot["zone"]),
             "time_in_state": 0,
-            "target_repair_ticks": None,
         }
         for spot in spots
     }
@@ -42,6 +41,7 @@ def run():
     while True:
         current_hour = datetime.now().hour
         now_ts = datetime.now(timezone.utc)
+        now_mono = time.monotonic()
 
         # Load active reservations to check for pending ones
         try:
@@ -67,38 +67,19 @@ def run():
             meta = meta_by_spot[spot_id]
             current = meta["status"]
 
-            # MTTR Logic: Overrides state machine if repair is still in progress
-            if current == "out_of_service":
-                if meta["target_repair_ticks"] is None:
-                    # Set a repair time between 2 and 8 hours (7200 to 28800 ticks)
-                    meta["target_repair_ticks"] = machine.rng.randint(7200, 28800)
-
-                if meta["time_in_state"] < meta["target_repair_ticks"]:
-                    # Still repairing, skip state machine
-                    meta["time_in_state"] += 1
-                    continue
-                else:
-                    # Repair finished, force recovery
-                    next_status, reason = "free", "repair_completed"
-            else:
-                meta["target_repair_ticks"] = None
-
-                next_status, reason = machine.next_status(
-                    current,
-                    zone=spot.get("zone"),
-                    current_hour=current_hour,
-                    time_in_state=meta["time_in_state"],
-                    row=spot.get("row", 0),
-                    col=spot.get("col", 0),
-                    has_pending_reservation=spot_id in pending_spot_ids,
-                )
+            next_status, reason, fault_duration = machine.next_status(
+                current,
+                zone=spot.get("zone"),
+                current_hour=current_hour,
+                time_in_state=meta["time_in_state"],
+                row=spot.get("row", 0),
+                col=spot.get("col", 0),
+                has_pending_reservation=spot_id in pending_spot_ids,
+                spot_id=spot_id,
+                now=now_mono,
+            )
 
             if next_status != current:
-                fault_duration = (
-                    meta["time_in_state"] * SIMULATION_INTERVAL_SECONDS
-                    if current == "out_of_service"
-                    else None
-                )
                 meta["status"] = next_status
                 meta["time_in_state"] = 0
 
