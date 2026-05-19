@@ -20,7 +20,7 @@ def run_gate_command_consumer(
         value_deserializer=lambda v: json.loads(v.decode("utf-8")),
         group_id="gate-simulator-command-consumer",
         auto_offset_reset="latest",
-        enable_auto_commit=True,
+        enable_auto_commit=False,
     )
 
     print(f"[gate-commands] Listening on topic '{KAFKA_TOPIC_GATE_COMMANDS}'")
@@ -56,3 +56,4 @@ def run_gate_command_consumer(
             )
 
         publisher.flush()
+        consumer.commit()

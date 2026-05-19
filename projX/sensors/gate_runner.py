@@ -37,6 +37,9 @@ def run_gates():
     command_thread.start()
 
     while True:
+        if not command_thread.is_alive():
+            raise RuntimeError("gate-command-consumer thread terminated unexpectedly")
+
         for event, park_id in simulator.tick():
             publisher.publish(KAFKA_TOPIC_GATE, park_id, event)
 

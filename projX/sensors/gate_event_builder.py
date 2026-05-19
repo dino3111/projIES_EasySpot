@@ -362,8 +362,9 @@ class GateSimulator:
     def on_gate_command(self, command: Dict) -> Tuple[Dict, str, Optional[Dict]]:
         """
         Process a backend gate command.
-        Returns (response_dict, park_id) to publish to gate.responses.
-        Also returns any gate state-change event to publish to gate.events.
+        Returns (response_dict, park_id, gate_event), where response_dict is
+        published to gate.responses and gate_event is any gate state-change
+        event to publish to gate.events, or None if no event was generated.
         """
         command_id = command.get("commandId", "")
         park_id = str(command.get("parkId", ""))
