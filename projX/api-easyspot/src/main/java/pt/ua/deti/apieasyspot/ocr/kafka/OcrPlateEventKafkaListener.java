@@ -61,7 +61,13 @@ public class OcrPlateEventKafkaListener {
             }
 
             if ("ocr.plate.failure".equals(event.eventType())) {
-                log.debug("OCR plate failure event ignored: eventId={}", event.eventId());
+                OcrPlateEvent.OcrPayload fp = event.payload();
+                String failureMode = fp != null ? fp.failureMode() : null;
+                if (failureMode != null && VALID_FAILURE_MODES.contains(failureMode)) {
+                    handleFailure(event, fp, failureMode);
+                } else {
+                    log.debug("OCR plate failure event ignored (unknown/missing failureMode): eventId={}", event.eventId());
+                }
                 return;
             }
 

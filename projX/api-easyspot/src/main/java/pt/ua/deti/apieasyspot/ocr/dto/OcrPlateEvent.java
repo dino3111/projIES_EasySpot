@@ -22,6 +22,7 @@ public record OcrPlateEvent(
         String zone,
         Integer row,
         Integer col,
-        Map<String, Object> extensions  // reserved for future fields
+        Map<String, Object> extensions,
+        String failureMode
     ) {}
 }

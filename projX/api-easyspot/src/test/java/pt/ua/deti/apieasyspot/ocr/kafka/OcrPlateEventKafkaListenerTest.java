@@ -233,33 +233,6 @@ class OcrPlateEventKafkaListenerTest {
     }
 
     @Test
-    @DisplayName("ocr.plate.failure event is ignored and not persisted as plate read")
-    void onEvent_plateFailure_isIgnored() {
-        UUID parkId = UUID.randomUUID();
-
-        String payload = """
-            {
-              "eventId": "%s",
-              "eventType": "ocr.plate.failure",
-              "parkId": "%s",
-              "spotId": null,
-              "occurredAt": "2026-05-18T10:00:00Z",
-              "version": 1,
-              "payload": {
-                "plate": "",
-                "confidence": 0.0,
-                "direction": "sideways",
-                "failureMode": "UNREADABLE"
-              }
-            }
-            """.formatted(UUID.randomUUID(), parkId);
-
-        listener.onEvent(payload);
-
-        verify(repository, never()).save(any(OcrPlateRead.class));
-    }
-
-    @Test
     void onEvent_failureAnyDirection_persistsWithFailureMode() {
         UUID parkId = UUID.randomUUID();
 
@@ -300,7 +273,7 @@ class OcrPlateEventKafkaListenerTest {
                 "plate": "",
                 "confidence": 0.0,
                 "direction": "entry",
-                "failureMode": "UNREADABLE"
+                "failureMode": "COMPLETELY_MADE_UP_MODE"
               }
             }
             """.formatted(UUID.randomUUID(), UUID.randomUUID());

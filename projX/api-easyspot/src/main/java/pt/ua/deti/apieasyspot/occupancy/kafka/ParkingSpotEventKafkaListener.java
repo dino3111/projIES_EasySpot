@@ -96,14 +96,18 @@ public class ParkingSpotEventKafkaListener {
                 spot.getSpotNumber(),
                 1
             );
-            TransactionSynchronizationManager.registerSynchronization(
-                new TransactionSynchronization() {
-                    @Override
-                    public void afterCommit() {
-                        occupancyEventPublisher.publish(occupancyEvent);
+            if (TransactionSynchronizationManager.isSynchronizationActive()) {
+                TransactionSynchronizationManager.registerSynchronization(
+                    new TransactionSynchronization() {
+                        @Override
+                        public void afterCommit() {
+                            occupancyEventPublisher.publish(occupancyEvent);
+                        }
                     }
-                }
-            );
+                );
+            } else {
+                occupancyEventPublisher.publish(occupancyEvent);
+            }
 
             if (isRecoveryTransition(current, normalized)) {
                 String reason = extractReason(event);
