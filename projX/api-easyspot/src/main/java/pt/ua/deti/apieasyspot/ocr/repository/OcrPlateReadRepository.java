@@ -52,7 +52,7 @@ public class OcrPlateReadRepository {
     public List<Map<String, Object>> findRecentByPark(UUID parkId, int limit) {
         return jdbc.queryForList(
             """
-            select id, park_id, spot_id, plate, confidence, direction, occurred_at
+            select id, park_id, spot_id, plate, confidence, direction, failure_mode, occurred_at
             from ocr_plate_reads
             where park_id = ?::uuid
             order by occurred_at desc

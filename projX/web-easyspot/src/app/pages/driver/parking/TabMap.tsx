@@ -37,6 +37,7 @@ export function TabMap({
               <MapLegend hex="#22c55e" label="Livre" />
               <MapLegend hex="#ef4444" label="Ocup." />
               <MapLegend hex="#d97706" label="Reserv." />
+              <MapLegend hex="#374151" label="Avariado" />
               <MapLegend hex="#7357ec" label="EV" />
               <MapLegend hex="#0ea5e9" label="Acess." />
             </div>

@@ -10,6 +10,7 @@ import pt.ua.deti.apieasyspot.occupancy.dto.ParkingSpotEvent;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingSpot;
 import pt.ua.deti.apieasyspot.occupancy.model.ZoneType;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingSpotRepository;
+import pt.ua.deti.apieasyspot.occupancy.service.OccupancySnapshotIngestService;
 
 import java.time.Instant;
 import java.util.Locale;
@@ -29,6 +30,7 @@ public class ParkingSpotEventKafkaListener {
     private final ObjectMapper objectMapper;
     private final ParkingSpotRepository parkingSpotRepository;
     private final OccupancyEventPublisher occupancyEventPublisher;
+    private final OccupancySnapshotIngestService occupancySnapshotIngestService;
 
     @KafkaListener(
         topics = {"${easyspot.occupancy.kafka.input-topic:parking-spot-events}"},
@@ -60,9 +62,15 @@ public class ParkingSpotEventKafkaListener {
             if (current.equals(normalized)) {
                 return;
             }
+            if (!isPlausibleTransition(current, normalized)) {
+                log.warn("Ignoring implausible transition for spot {}: {} -> {}",
+                    spot.getId(), current, normalized);
+                return;
+            }
 
             spot.setStatus(toPersistedStatus(spot, normalized));
             parkingSpotRepository.save(spot);
+            occupancySnapshotIngestService.captureLotSnapshotIfDue(spot.getParkingLot().getId());
 
             log.info("Updated spot {} in park {} from {} to {}",
                 spot.getSpotNumber(),
@@ -111,6 +119,23 @@ public class ParkingSpotEventKafkaListener {
             return STATUS_FREE;
         }
         return status;
+    }
+
+    private boolean isPlausibleTransition(String from, String to) {
+        if (from.equals(to)) return true;
+        if (STATUS_FREE.equals(from)) {
+            return STATUS_OCCUPIED.equals(to) || STATUS_RESERVED.equals(to) || STATUS_OUT_OF_SERVICE.equals(to);
+        }
+        if (STATUS_OCCUPIED.equals(from)) {
+            return STATUS_FREE.equals(to) || STATUS_OUT_OF_SERVICE.equals(to);
+        }
+        if (STATUS_RESERVED.equals(from)) {
+            return STATUS_OCCUPIED.equals(to) || STATUS_FREE.equals(to) || STATUS_OUT_OF_SERVICE.equals(to);
+        }
+        if (STATUS_OUT_OF_SERVICE.equals(from)) {
+            return STATUS_FREE.equals(to) || STATUS_OUT_OF_SERVICE.equals(to);
+        }
+        return STATUS_FREE.equals(to);
     }
 
 }

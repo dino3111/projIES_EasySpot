@@ -28,6 +28,7 @@ import pt.ua.deti.apieasyspot.booking.model.ReservationStatus;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingSpot;
 import pt.ua.deti.apieasyspot.occupancy.model.ZoneType;
+import pt.ua.deti.apieasyspot.occupancy.repository.TariffRepository;
 import pt.ua.deti.apieasyspot.vehicle.model.Vehicle;
 
 import java.math.BigDecimal;
@@ -54,6 +55,8 @@ class BillingServiceTest {
 
     @Mock
     private UserRepository userRepository;
+    @Mock
+    private TariffRepository tariffRepository;
 
     @InjectMocks
     private BillingService billingService;
