@@ -68,7 +68,8 @@ public class ParkingSpotEventKafkaListener {
                 return;
             }
 
-            spot.setStatus(toPersistedStatus(spot, normalized));
+            String persisted = toPersistedStatus(spot, normalized);
+            spot.setStatus(persisted);
             parkingSpotRepository.save(spot);
             occupancySnapshotIngestService.captureLotSnapshotIfDue(spot.getParkingLot().getId());
 
@@ -76,7 +77,7 @@ public class ParkingSpotEventKafkaListener {
                 spot.getSpotNumber(),
                 spot.getParkingLot().getId(),
                 current,
-                normalized
+                persisted
             );
 
             occupancyEventPublisher.publish(new OccupancyEvent(
@@ -85,7 +86,7 @@ public class ParkingSpotEventKafkaListener {
                 spot.getParkingLot().getId(),
                 spot.getId(),
                 current,
-                normalized,
+                persisted,
                 Instant.now(),
                 spot.getZone().name(),
                 spot.getSpotNumber(),

@@ -261,8 +261,10 @@ class GateSimulator:
         if gate is None:
             return []
 
+        failure_mode = ocr_event.get("payload", {}).get("failureMode")
         is_failure = (
-            event_type_ocr in ("ocr.plate.unreadable", "ocr.camera.offline")
+            event_type_ocr in ("ocr.plate.failure", "ocr.plate.unreadable", "ocr.camera.offline")
+            or failure_mode is not None
             or confidence < 0.70
         )
 

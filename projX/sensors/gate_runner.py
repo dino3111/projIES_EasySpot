@@ -31,5 +31,5 @@ def run_gates():
             publisher.publish(KAFKA_TOPIC_GATE, park_id, event)
 
         publisher.flush()
-        delay = SIMULATION_INTERVAL_SECONDS if SIMULATION_INTERVAL_SECONDS > 0 else 1.0
-        time.sleep(delay)
+        if SIMULATION_INTERVAL_SECONDS > 0:
+            time.sleep(SIMULATION_INTERVAL_SECONDS)
