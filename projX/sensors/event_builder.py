@@ -9,7 +9,12 @@ def now_iso():
 
 
 def build_spot_event(
-    spot, previous_status, new_status, reason, fault_duration_seconds=None, confidence=None
+    spot,
+    previous_status,
+    new_status,
+    reason,
+    fault_duration_seconds=None,
+    confidence=None,
 ):
     payload = {
         "parkName": spot["parkName"],

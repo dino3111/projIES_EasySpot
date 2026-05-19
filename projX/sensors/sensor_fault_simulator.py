@@ -92,7 +92,7 @@ class SensorFaultSimulator:
         return self._states.get(sensor_id, SensorState.OPERATIONAL)
 
     def should_emit(self, sensor_id: str) -> bool:
-        """Return False when the sensor is OFFLINE or in MAINTENANCE — suppress event."""
+        """Return False when sensor is OFFLINE or MAINTENANCE — suppress event."""
         return self.get_state(sensor_id) not in (
             SensorState.OFFLINE,
             SensorState.MAINTENANCE,
@@ -117,7 +117,7 @@ class SensorFaultSimulator:
         return self.rng.random() < self.duplicate_probability
 
     def get_delay(self, sensor_id: str) -> float:
-        """Return extra seconds to delay before publishing this reading (0.0 = no delay).
+        """Return extra seconds to delay before publishing (0.0 = no delay).
 
         Only applies to DEGRADED sensors — simulates delayed transmissions.
         """
@@ -178,7 +178,10 @@ class SensorFaultSimulator:
             self._fault_start[sensor_id] = now
             return SensorState.OFFLINE
 
-        if elapsed >= self.fault_min_duration and self.rng.random() < self.recovery_probability:
+        if (
+            elapsed >= self.fault_min_duration
+            and self.rng.random() < self.recovery_probability
+        ):
             self._fault_start.pop(sensor_id, None)
             return SensorState.OPERATIONAL
 

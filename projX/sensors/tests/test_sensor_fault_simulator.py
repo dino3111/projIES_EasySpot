@@ -17,7 +17,12 @@ class SensorStateDefaultTests(unittest.TestCase):
         self.assertTrue(sim.should_emit("s1"))
 
     def test_tick_returns_state(self):
-        sim = SensorFaultSimulator(seed=42, offline_probability=0.0, degraded_probability=0.0, maintenance_probability=0.0)
+        sim = SensorFaultSimulator(
+            seed=42,
+            offline_probability=0.0,
+            degraded_probability=0.0,
+            maintenance_probability=0.0,
+        )
         state = sim.tick("s1", now=0.0)
         self.assertEqual(state, SensorState.OPERATIONAL)
 
@@ -146,23 +151,31 @@ class SensorDuplicateTests(unittest.TestCase):
 
 class SensorDelayTests(unittest.TestCase):
     def test_operational_has_no_delay(self):
-        sim = SensorFaultSimulator(seed=42, delay_probability=1.0, delay_max_seconds=10.0)
+        sim = SensorFaultSimulator(
+            seed=42, delay_probability=1.0, delay_max_seconds=10.0
+        )
         self.assertEqual(sim.get_delay("s1"), 0.0)
 
     def test_offline_has_no_delay(self):
-        sim = SensorFaultSimulator(seed=42, delay_probability=1.0, delay_max_seconds=10.0)
+        sim = SensorFaultSimulator(
+            seed=42, delay_probability=1.0, delay_max_seconds=10.0
+        )
         sim.force_state("s1", SensorState.OFFLINE, now=0.0)
         self.assertEqual(sim.get_delay("s1"), 0.0)
 
     def test_degraded_can_have_delay(self):
-        sim = SensorFaultSimulator(seed=42, delay_probability=1.0, delay_max_seconds=10.0)
+        sim = SensorFaultSimulator(
+            seed=42, delay_probability=1.0, delay_max_seconds=10.0
+        )
         sim.force_state("s1", SensorState.DEGRADED, now=0.0)
         delay = sim.get_delay("s1")
         self.assertGreater(delay, 0.0)
         self.assertLessEqual(delay, 10.0)
 
     def test_degraded_no_delay_when_probability_zero(self):
-        sim = SensorFaultSimulator(seed=42, delay_probability=0.0, delay_max_seconds=10.0)
+        sim = SensorFaultSimulator(
+            seed=42, delay_probability=0.0, delay_max_seconds=10.0
+        )
         sim.force_state("s1", SensorState.DEGRADED, now=0.0)
         self.assertEqual(sim.get_delay("s1"), 0.0)
 
