@@ -5,6 +5,14 @@ from config import (
     FAULT_MAX_DURATION_SECONDS,
     FAULT_MIN_DURATION_SECONDS,
     KAFKA_TOPIC,
+    SENSOR_FAULT_DELAY_MAX_SECONDS,
+    SENSOR_FAULT_DELAY_PROBABILITY,
+    SENSOR_FAULT_DEGRADED_PROBABILITY,
+    SENSOR_FAULT_DUPLICATE_PROBABILITY,
+    SENSOR_FAULT_HISTORY_SIZE,
+    SENSOR_FAULT_MAINTENANCE_PROBABILITY,
+    SENSOR_FAULT_OFFLINE_PROBABILITY,
+    SENSOR_FAULT_RECOVERY_PROBABILITY,
     SIMULATION_INTERVAL_SECONDS,
     SIMULATION_SEED,
     TECHNICIAN_REPAIR_PROBABILITY,
@@ -12,7 +20,12 @@ from config import (
 from context_loader import load_reservations, load_spots
 from event_builder import build_spot_event
 from kafka_publisher import KafkaPublisher
+from sensor_fault_simulator import SensorFaultSimulator
 from state_machine import SpotStateMachine
+
+
+def _sensor_id_from_spot(spot_id: str) -> str:
+    return "IR-" + spot_id.replace("-", "")[:16]
 
 
 def run():
@@ -26,6 +39,19 @@ def run():
         fault_max_duration=FAULT_MAX_DURATION_SECONDS,
         technician_repair_probability=TECHNICIAN_REPAIR_PROBABILITY,
     )
+    fault_simulator = SensorFaultSimulator(
+        seed=SIMULATION_SEED + 1,
+        degraded_probability=SENSOR_FAULT_DEGRADED_PROBABILITY,
+        offline_probability=SENSOR_FAULT_OFFLINE_PROBABILITY,
+        maintenance_probability=SENSOR_FAULT_MAINTENANCE_PROBABILITY,
+        recovery_probability=SENSOR_FAULT_RECOVERY_PROBABILITY,
+        fault_min_duration=FAULT_MIN_DURATION_SECONDS,
+        fault_max_duration=FAULT_MAX_DURATION_SECONDS,
+        duplicate_probability=SENSOR_FAULT_DUPLICATE_PROBABILITY,
+        delay_probability=SENSOR_FAULT_DELAY_PROBABILITY,
+        delay_max_seconds=SENSOR_FAULT_DELAY_MAX_SECONDS,
+        history_size=SENSOR_FAULT_HISTORY_SIZE,
+    )
 
     meta_by_spot = {
         spot["spotId"]: {
@@ -35,12 +61,24 @@ def run():
         for spot in spots
     }
 
+    # Events queued due to delayed transmission: list of (event, key, publish_at_mono)
+    pending_delayed = []
+
     print(f"Loaded {len(spots)} spots")
 
     while True:
         current_hour = datetime.now().hour
         now_ts = datetime.now(timezone.utc)
         now_mono = time.monotonic()
+
+        # Flush delayed events whose publish time has arrived
+        still_pending = []
+        for event, key, publish_at in pending_delayed:
+            if now_mono >= publish_at:
+                publisher.publish(KAFKA_TOPIC, key, event)
+            else:
+                still_pending.append((event, key, publish_at))
+        pending_delayed = still_pending
 
         try:
             active_res = load_reservations()
@@ -52,6 +90,9 @@ def run():
             spot_id = spot["spotId"]
             meta = meta_by_spot[spot_id]
             current = meta["status"]
+
+            sensor_id = _sensor_id_from_spot(spot_id)
+            fault_simulator.tick(sensor_id, now=now_mono)
 
             has_pending = False
             for res in active_res:
@@ -83,14 +124,25 @@ def run():
                 meta["status"] = next_status
                 meta["time_in_state"] = 0
 
-                event = build_spot_event(
-                    spot=spot,
-                    previous_status=current,
-                    new_status=next_status,
-                    reason=reason,
-                    fault_duration_seconds=fault_duration,
-                )
-                publisher.publish(KAFKA_TOPIC, spot_id, event)
+                if fault_simulator.should_emit(sensor_id):
+                    confidence = fault_simulator.confidence_modifier(sensor_id)
+                    event = build_spot_event(
+                        spot=spot,
+                        previous_status=current,
+                        new_status=next_status,
+                        reason=reason,
+                        fault_duration_seconds=fault_duration,
+                        confidence=confidence,
+                    )
+
+                    delay = fault_simulator.get_delay(sensor_id)
+                    if delay > 0:
+                        pending_delayed.append((event, spot_id, now_mono + delay))
+                    else:
+                        publisher.publish(KAFKA_TOPIC, spot_id, event)
+
+                    if fault_simulator.should_duplicate(sensor_id):
+                        publisher.publish(KAFKA_TOPIC, spot_id, event)
             else:
                 meta["time_in_state"] += 1
 

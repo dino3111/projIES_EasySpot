@@ -9,7 +9,7 @@ def now_iso():
 
 
 def build_spot_event(
-    spot, previous_status, new_status, reason, fault_duration_seconds=None
+    spot, previous_status, new_status, reason, fault_duration_seconds=None, confidence=None
 ):
     payload = {
         "parkName": spot["parkName"],
@@ -22,6 +22,8 @@ def build_spot_event(
     if reason in _RECOVERY_REASONS and fault_duration_seconds is not None:
         payload["recoveryType"] = reason
         payload["faultDurationSeconds"] = round(fault_duration_seconds, 2)
+    if confidence is not None:
+        payload["confidence"] = round(confidence, 4)
 
     return {
         "eventId": str(uuid.uuid4()),
