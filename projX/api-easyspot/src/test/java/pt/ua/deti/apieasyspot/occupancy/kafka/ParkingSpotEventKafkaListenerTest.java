@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingSpot;
 import pt.ua.deti.apieasyspot.occupancy.model.ZoneType;
+import pt.ua.deti.apieasyspot.occupancy.kafka.OccupancyEventPublisher;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingSpotRepository;
 import pt.ua.deti.apieasyspot.occupancy.service.OccupancySnapshotIngestService;
 import pt.ua.deti.apieasyspot.sensor.service.SensorLogsService;
@@ -21,6 +22,7 @@ class ParkingSpotEventKafkaListenerTest {
 
     private ParkingSpotRepository parkingSpotRepository;
     private OccupancySnapshotIngestService occupancySnapshotIngestService;
+    private OccupancyEventPublisher occupancyEventPublisher;
     private SensorLogsService sensorLogsService;
     private ParkingSpotEventKafkaListener listener;
 
@@ -28,10 +30,11 @@ class ParkingSpotEventKafkaListenerTest {
     void setUp() {
         parkingSpotRepository = mock(ParkingSpotRepository.class);
         occupancySnapshotIngestService = mock(OccupancySnapshotIngestService.class);
+        occupancyEventPublisher = mock(OccupancyEventPublisher.class);
         sensorLogsService = mock(SensorLogsService.class);
         ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
         listener = new ParkingSpotEventKafkaListener(
-            objectMapper, parkingSpotRepository, occupancySnapshotIngestService, sensorLogsService
+            objectMapper, parkingSpotRepository, occupancySnapshotIngestService, occupancyEventPublisher, sensorLogsService
         );
     }
 
