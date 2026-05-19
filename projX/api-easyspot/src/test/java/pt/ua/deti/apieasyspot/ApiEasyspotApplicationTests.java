@@ -26,7 +26,8 @@ import pt.ua.deti.apieasyspot.infrastructure.TimescaleHypertableInitializer;
     "cors.allowed-origins=http://localhost:5173",
     "timescale.datasource.url=jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE",
     "timescale.datasource.username=sa",
-    "timescale.datasource.password="
+    "timescale.datasource.password=",
+    "spring.kafka.bootstrap-servers=localhost:9092"
 })
 class ApiEasyspotApplicationTests {
 
