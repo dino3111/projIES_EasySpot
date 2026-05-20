@@ -7,7 +7,7 @@ import { KpiCard, AlertRow, OccBar } from './components/shared';
 import { IssueModal } from './components/IssueModal';
 import type { IssueReport } from '../../data/gestorData';
 import { useOptionalWs } from '../../context/WsContext';
-import { useAuth } from '../../context/AuthContext';
+import { useOptionalAuth } from '../../context/AuthContext';
 import {
   fetchManagerDashboard,
   type ManagerDashboardResponse,
@@ -19,6 +19,10 @@ import {
 } from '../../services/managerApi';
 
 type ChartTab = 'entradas' | 'receita';
+const backgroundRefreshFromEnv = Number(import.meta.env.VITE_REALTIME_REFRESH_MS ?? 5000);
+const BACKGROUND_REFRESH_MS = Number.isFinite(backgroundRefreshFromEnv) && backgroundRefreshFromEnv >= 1000
+  ? backgroundRefreshFromEnv
+  : 5000;
 
 const ZONE_COLORS: Record<string, string> = {
   standard: '#7357ec',
@@ -82,7 +86,8 @@ function formatVariation(variation: number) {
 
 export function DashboardManagerPage() {
   const { client, status } = useOptionalWs();
-  const { user } = useAuth();
+  const auth = useOptionalAuth();
+  const user = auth?.user;
   const [chartTab, setChartTab] = useState<ChartTab>('entradas');
   const [selectedIssue, setSelectedIssue] = useState<IssueReport | null>(null);
   const [data, setData] = useState<ManagerDashboardResponse | null>(null);
@@ -106,8 +111,12 @@ export function DashboardManagerPage() {
       }
     };
     void load();
+    const intervalId = globalThis.setInterval(() => {
+      void load(true);
+    }, BACKGROUND_REFRESH_MS);
     return () => {
       mounted = false;
+      globalThis.clearInterval(intervalId);
     };
   }, []);
 
