@@ -103,10 +103,10 @@ class ParkGate:
     """State machine for a single entry or exit gate."""
 
     # Probabilities for fault scenarios
-    _P_STUCK_CLOSED = 0.05
-    _P_STUCK_OPEN = 0.03
-    _P_FAULT = 0.04
-    _P_RECOVERY = 0.60
+    _P_STUCK_CLOSED = 0.002
+    _P_STUCK_OPEN = 0.001
+    _P_FAULT = 0.001
+    _P_RECOVERY = 0.30
 
     def __init__(self, gate_id: str, direction: GateDirection, rng: random.Random):
         self.gate_id = gate_id
