@@ -79,8 +79,9 @@ class GateEventKafkaListenerTest {
     @DisplayName("missing parkId is ignored without throwing")
     void missingParkId_ignoredSafely() {
         String payload = """
-            {"eventId":"%s","gateId":"gate-test","direction":"entry","eventType":"gate.opened",
-             "state":"OPEN","previousState":"CLOSED","reason":"test","occurredAt":"%s"}
+            {"eventId":"%s","eventType":"gate.opened","occurredAt":"%s","version":1,
+             "payload":{"gateId":"gate-test","direction":"entry","state":"OPEN",
+             "previousState":"CLOSED","reason":"test"}}
             """.formatted(UUID.randomUUID(), Instant.now()).strip();
 
         listener.onEvent(payload);
@@ -93,8 +94,8 @@ class GateEventKafkaListenerTest {
     @DisplayName("missing gateId is ignored without throwing")
     void missingGateId_ignoredSafely() {
         String payload = """
-            {"eventId":"%s","parkId":"%s","direction":"entry","eventType":"gate.opened",
-             "state":"OPEN","previousState":"CLOSED","reason":"test","occurredAt":"%s"}
+            {"eventId":"%s","parkId":"%s","eventType":"gate.opened","occurredAt":"%s","version":1,
+             "payload":{"direction":"entry","state":"OPEN","previousState":"CLOSED","reason":"test"}}
             """.formatted(UUID.randomUUID(), UUID.randomUUID(), Instant.now()).strip();
 
         listener.onEvent(payload);
@@ -114,13 +115,15 @@ class GateEventKafkaListenerTest {
 
     private String gatePayload(String eventType, String state, String previousState, String plate, String reason) {
         return """
-            {"eventId":"%s","parkId":"%s","gateId":"gate-test-entry","direction":"entry",
-             "eventType":"%s","state":"%s","previousState":"%s","plate":%s,"reason":"%s","occurredAt":"%s"}
+            {"eventId":"%s","parkId":"%s","eventType":"%s","occurredAt":"%s","version":1,
+             "payload":{"gateId":"gate-test-entry","direction":"entry","state":"%s",
+             "previousState":"%s","plate":%s,"reason":"%s"}}
             """.formatted(
             UUID.randomUUID(), UUID.randomUUID(),
-            eventType, state, previousState,
+            eventType, Instant.now(),
+            state, previousState,
             plate != null ? "\"" + plate + "\"" : "null",
-            reason, Instant.now()
+            reason
         ).strip();
     }
 }
