@@ -39,6 +39,7 @@ public class ParkingSeedInitializer implements ApplicationRunner {
         execute(relationalDataSource, "seed/us13_infrastructure_test_data.sql", "US13 infrastructure mapping seed (postgres)");
         execute(relationalDataSource, "seed/sensor_logs_postgres.sql", "Sensor registry seed (postgres)");
         execute(relationalDataSource, "seed/us14_sensor_repair_postgres.sql", "US14 sensor repair seed (postgres)");
+        execute(timescaleDataSource, "seed/us_gate_events_seed.sql", "Gate events table init and seed (timescale)");
         execute(timescaleDataSource, "seed/parking_seed_timescale.sql", "Timescale occupancy seed");
         execute(timescaleDataSource, "seed/spending_sessions_timescale.sql", "Spending sessions seed (timescale)");
         execute(timescaleDataSource, "seed/test_driver_sessions_timescale.sql", "Test driver sessions seed (timescale)");

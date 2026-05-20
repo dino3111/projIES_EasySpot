@@ -264,6 +264,34 @@ select
 from parking_spots as ps
 on conflict (sensor_id) do nothing;
 
+-- Garante automaticamente 1 sensor de portão por parque (entrada e saída).
+-- O ID segue o padrão do simulador: gate-{park_id[:8]}-entry / gate-{park_id[:8]}-exit
+insert into sensor_registry (
+    sensor_id, parking_lot_id, zone, status, last_seen_at, created_at
+)
+select
+    'gate-' || substring(pl.id::text from 1 for 8) || '-entry' as sensor_id,
+    pl.id as parking_lot_id,
+    'Portão de Entrada' as zone,
+    'OPERATIONAL' as status,
+    now() as last_seen_at,
+    now() as created_at
+from parking_lots as pl
+on conflict (sensor_id) do nothing;
+
+insert into sensor_registry (
+    sensor_id, parking_lot_id, zone, status, last_seen_at, created_at
+)
+select
+    'gate-' || substring(pl.id::text from 1 for 8) || '-exit' as sensor_id,
+    pl.id as parking_lot_id,
+    'Portão de Saída' as zone,
+    'OPERATIONAL' as status,
+    now() as last_seen_at,
+    now() as created_at
+from parking_lots as pl
+on conflict (sensor_id) do nothing;
+
 -- Garante automaticamente 2 câmaras OCR por parque (entrada e saída).
 insert into sensor_registry (
     sensor_id, parking_lot_id, zone, status, last_seen_at, created_at
