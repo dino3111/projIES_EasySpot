@@ -1,7 +1,13 @@
 import threading
 import time
 
-from config import KAFKA_TOPIC_GATE, SIMULATION_INTERVAL_SECONDS, SIMULATION_SEED
+from config import (
+    KAFKA_TOPIC_GATE,
+    KAFKA_TOPIC_GATE_COMMANDS,
+    KAFKA_TOPIC_GATE_RESPONSES,
+    SIMULATION_INTERVAL_SECONDS,
+    SIMULATION_SEED,
+)
 from context_loader import load_spots
 from gate_command_consumer import run_gate_command_consumer
 from gate_event_builder import GateSimulator
@@ -27,6 +33,8 @@ def run_gates():
     simulator = GateSimulator(parks=parks, seed=SIMULATION_SEED)
 
     print(f"[gates] Simulating gates for {len(parks)} parks")
+    print(f"[gates] Consuming commands from {KAFKA_TOPIC_GATE_COMMANDS}")
+    print(f"[gates] Publishing responses to {KAFKA_TOPIC_GATE_RESPONSES}")
 
     command_thread = threading.Thread(
         target=run_gate_command_consumer,

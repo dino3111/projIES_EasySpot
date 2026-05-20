@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
+import pt.ua.deti.apieasyspot.gate.service.PaymentGateOrchestrator;
 import pt.ua.deti.apieasyspot.ocr.dto.OcrPlateEvent;
 import pt.ua.deti.apieasyspot.ocr.model.OcrPlateRead;
 import pt.ua.deti.apieasyspot.ocr.repository.OcrPlateReadRepository;
@@ -21,6 +22,11 @@ public class OcrPlateEventKafkaListener {
 
     private final ObjectMapper objectMapper;
     private final OcrPlateReadRepository repository;
+    private final PaymentGateOrchestrator paymentGateOrchestrator;
+
+    private static final java.util.Set<String> VALID_FAILURE_MODES = java.util.Set.of(
+        "UNREADABLE", "LOW_CONFIDENCE", "WRONG_PLATE", "CAMERA_OFFLINE", "CAMERA_DEGRADED"
+    );
     private final SensorLogsService sensorLogsService;
 
     @KafkaListener(
@@ -47,7 +53,16 @@ public class OcrPlateEventKafkaListener {
             }
 
             if ("ocr.plate.failure".equals(event.eventType())) {
-                log.debug("OCR plate failure event ignored: eventId={}", event.eventId());
+                String failureMode = null;
+                if (event.payload() != null && event.payload().extensions() != null) {
+                    Object fm = event.payload().extensions().get("failureMode");
+                    if (fm instanceof String s) failureMode = s;
+                }
+                if (failureMode != null && !VALID_FAILURE_MODES.contains(failureMode)) {
+                    log.warn("OCR plate failure event with unknown failureMode '{}': eventId={}", failureMode, event.eventId());
+                } else {
+                    log.debug("OCR plate failure event (mode={}): eventId={}", failureMode, event.eventId());
+                }
                 return;
             }
 
@@ -63,7 +78,9 @@ public class OcrPlateEventKafkaListener {
                 return;
             }
 
-            if (!isValidDirection(p.direction())) {
+            String direction = p.direction().toLowerCase(java.util.Locale.ROOT);
+
+            if (!isValidDirection(direction)) {
                 log.warn("Ignoring OCR event with invalid direction '{}': eventId={}", p.direction(), event.eventId());
                 return;
             }
@@ -74,7 +91,7 @@ public class OcrPlateEventKafkaListener {
             read.setSpotId(event.spotId());
             read.setPlate(p.plate().toUpperCase());
             read.setConfidence(p.confidence() != null ? p.confidence() : 0.0);
-            read.setDirection(p.direction().toLowerCase());
+            read.setDirection(direction);
             read.setOccurredAt(event.occurredAt() != null ? event.occurredAt() : Instant.now());
             read.setExtra(p.extensions() != null ? p.extensions() : Map.of());
 
@@ -82,6 +99,10 @@ public class OcrPlateEventKafkaListener {
 
             log.debug("OCR read persisted: plate={} direction={} park={} spot={}",
                 read.getPlate(), read.getDirection(), read.getParkId(), read.getSpotId());
+
+            if ("exit".equals(direction)) {
+                paymentGateOrchestrator.onExitOcrEvent(event);
+            }
 
         } catch (Exception ex) {
             log.warn("Invalid OCR plate event ignored: {}", payload, ex);

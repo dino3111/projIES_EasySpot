@@ -5,6 +5,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import pt.ua.deti.apieasyspot.gate.service.PaymentGateOrchestrator;
 import pt.ua.deti.apieasyspot.ocr.model.OcrPlateRead;
 import pt.ua.deti.apieasyspot.ocr.repository.OcrPlateReadRepository;
 import pt.ua.deti.apieasyspot.sensor.service.SensorLogsService;
@@ -20,14 +21,16 @@ class OcrPlateEventKafkaListenerTest {
 
     private OcrPlateReadRepository repository;
     private SensorLogsService sensorLogsService;
+    private PaymentGateOrchestrator paymentGateOrchestrator;
     private OcrPlateEventKafkaListener listener;
 
     @BeforeEach
     void setUp() {
         repository = mock(OcrPlateReadRepository.class);
         sensorLogsService = mock(SensorLogsService.class);
+        paymentGateOrchestrator = mock(PaymentGateOrchestrator.class);
         ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
-        listener = new OcrPlateEventKafkaListener(objectMapper, repository, sensorLogsService);
+        listener = new OcrPlateEventKafkaListener(objectMapper, repository, paymentGateOrchestrator, sensorLogsService);
     }
 
     @Test
@@ -279,5 +282,70 @@ class OcrPlateEventKafkaListenerTest {
         listener.onEvent(payload);
 
         verify(sensorLogsService, never()).recoverSensor(any(), any());
+    }
+
+    @Test
+    @DisplayName("exit OCR event triggers PaymentGateOrchestrator")
+    void onEvent_exitDirection_triggersPaymentGateOrchestrator() {
+        UUID parkId = UUID.randomUUID();
+        UUID spotId = UUID.randomUUID();
+
+        String payload = """
+            {
+              "eventId": "%s",
+              "eventType": "ocr.plate.read",
+              "parkId": "%s",
+              "spotId": "%s",
+              "occurredAt": "2026-05-17T20:15:30Z",
+              "version": 1,
+              "payload": {
+                "plate": "AB-12-CD",
+                "confidence": 0.95,
+                "direction": "exit",
+                "parkName": "Parque A",
+                "spotNumber": "A1",
+                "zone": "STANDARD",
+                "row": 1,
+                "col": 1
+              }
+            }
+            """.formatted(UUID.randomUUID(), parkId, spotId);
+
+        listener.onEvent(payload);
+
+        verify(repository).save(any(OcrPlateRead.class));
+        verify(paymentGateOrchestrator).onExitOcrEvent(any());
+    }
+
+    @Test
+    @DisplayName("entry OCR event does not trigger PaymentGateOrchestrator")
+    void onEvent_entryDirection_doesNotTriggerPaymentGateOrchestrator() {
+        UUID parkId = UUID.randomUUID();
+
+        String payload = """
+            {
+              "eventId": "%s",
+              "eventType": "ocr.plate.read",
+              "parkId": "%s",
+              "spotId": null,
+              "occurredAt": "2026-05-17T20:15:30Z",
+              "version": 1,
+              "payload": {
+                "plate": "AB-12-CD",
+                "confidence": 0.95,
+                "direction": "entry",
+                "parkName": "Parque A",
+                "spotNumber": "A1",
+                "zone": "STANDARD",
+                "row": 1,
+                "col": 1
+              }
+            }
+            """.formatted(UUID.randomUUID(), parkId);
+
+        listener.onEvent(payload);
+
+        verify(repository).save(any(OcrPlateRead.class));
+        verify(paymentGateOrchestrator, never()).onExitOcrEvent(any());
     }
 }
