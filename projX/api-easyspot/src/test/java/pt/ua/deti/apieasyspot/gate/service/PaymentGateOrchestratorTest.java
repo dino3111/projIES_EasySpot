@@ -11,7 +11,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import pt.ua.deti.apieasyspot.billing.model.PaymentRecord;
 import pt.ua.deti.apieasyspot.billing.model.PaymentStatus;
 import pt.ua.deti.apieasyspot.billing.repository.PaymentRecordRepository;
+import pt.ua.deti.apieasyspot.billing.service.BillingService;
 import pt.ua.deti.apieasyspot.booking.model.Reservation;
+import pt.ua.deti.apieasyspot.booking.model.ReservationStatus;
 import pt.ua.deti.apieasyspot.booking.repository.ReservationRepository;
 import pt.ua.deti.apieasyspot.gate.dto.GateCommand;
 import pt.ua.deti.apieasyspot.gate.kafka.GateCommandKafkaProducer;
@@ -19,7 +21,10 @@ import pt.ua.deti.apieasyspot.ocr.dto.OcrPlateEvent;
 import pt.ua.deti.apieasyspot.vehicle.model.Vehicle;
 import pt.ua.deti.apieasyspot.vehicle.repository.VehicleRepository;
 
+import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -36,6 +41,7 @@ class PaymentGateOrchestratorTest {
     @Mock ReservationRepository reservationRepository;
     @Mock PaymentRecordRepository paymentRecordRepository;
     @Mock GateCommandKafkaProducer gateCommandProducer;
+    @Mock BillingService billingService;
 
     @InjectMocks PaymentGateOrchestrator orchestrator;
 
@@ -64,8 +70,13 @@ class PaymentGateOrchestratorTest {
         reservation.setParkingLot(parkingLot);
         reservation.setVehicle(vehicle);
         reservation.setBookingCode("TEST-001");
+        reservation.setStatus(ReservationStatus.CONFIRMED);
 
         exitEvent = buildOcrExitEvent(parkId, "AB-12-CD", 0.95);
+
+        // default: settlement returns no change (lenient to avoid UnnecessaryStubbingException in early-exit paths)
+        lenient().when(billingService.settleReservationOnExit(any(), any(), any()))
+            .thenReturn(new BillingService.PaymentAdjustmentResult(BigDecimal.ZERO, "NO_CHANGE", null, null));
     }
 
     @Test
@@ -76,9 +87,9 @@ class PaymentGateOrchestratorTest {
         record.setStatus(PaymentStatus.COMPLETED);
 
         when(vehicleRepository.findByPlate("AB-12-CD")).thenReturn(Optional.of(vehicle));
-        when(reservationRepository.findActiveByVehicleIdAndParkId(vehicleId, parkId))
+        when(reservationRepository.findActiveByVehicleIdAndParkId(eq(vehicleId), eq(parkId), any(OffsetDateTime.class)))
             .thenReturn(List.of(reservation));
-        when(paymentRecordRepository.findTopByReservationIdOrderByCreatedAtDesc(reservationId))
+        when(paymentRecordRepository.findFirstByReservationIdAndStatusInOrderByCreatedAtDesc(eq(reservationId), any(Collection.class)))
             .thenReturn(Optional.of(record));
 
         orchestrator.onExitOcrEvent(exitEvent);
@@ -96,47 +107,40 @@ class PaymentGateOrchestratorTest {
     }
 
     @Test
-    @DisplayName("Payment PENDING -> BLOCK_GATE command issued for exit gate")
-    void pendingPayment_blocksExitGate() {
-        PaymentRecord record = new PaymentRecord();
-        record.setReservationId(reservationId);
-        record.setStatus(PaymentStatus.PENDING);
+    @DisplayName("Payment PENDING (most recent) but prior COMPLETED exists -> OPEN_GATE")
+    void pendingMostRecent_butCompletedExists_opensGate() {
+        PaymentRecord completedRecord = new PaymentRecord();
+        completedRecord.setReservationId(reservationId);
+        completedRecord.setStatus(PaymentStatus.COMPLETED);
 
         when(vehicleRepository.findByPlate("AB-12-CD")).thenReturn(Optional.of(vehicle));
-        when(reservationRepository.findActiveByVehicleIdAndParkId(vehicleId, parkId))
+        when(reservationRepository.findActiveByVehicleIdAndParkId(eq(vehicleId), eq(parkId), any(OffsetDateTime.class)))
             .thenReturn(List.of(reservation));
-        when(paymentRecordRepository.findTopByReservationIdOrderByCreatedAtDesc(reservationId))
-            .thenReturn(Optional.of(record));
+        when(paymentRecordRepository.findFirstByReservationIdAndStatusInOrderByCreatedAtDesc(eq(reservationId), any(Collection.class)))
+            .thenReturn(Optional.of(completedRecord));
 
         orchestrator.onExitOcrEvent(exitEvent);
 
         ArgumentCaptor<GateCommand> captor = ArgumentCaptor.forClass(GateCommand.class);
         verify(gateCommandProducer).send(captor.capture());
-        GateCommand command = captor.getValue();
-
-        assertThat(command.commandType()).isEqualTo("BLOCK_GATE");
-        assertThat(command.direction()).isEqualTo("exit");
-        assertThat(command.reason()).contains("pending");
+        assertThat(captor.getValue().commandType()).isEqualTo("OPEN_GATE");
     }
 
     @Test
-    @DisplayName("Payment FAILED -> BLOCK_GATE command issued for exit gate")
-    void failedPayment_blocksExitGate() {
-        PaymentRecord record = new PaymentRecord();
-        record.setReservationId(reservationId);
-        record.setStatus(PaymentStatus.FAILED);
-
+    @DisplayName("No COMPLETED payment record -> BLOCK_GATE")
+    void noCompletedPayment_blocksExitGate() {
         when(vehicleRepository.findByPlate("AB-12-CD")).thenReturn(Optional.of(vehicle));
-        when(reservationRepository.findActiveByVehicleIdAndParkId(vehicleId, parkId))
+        when(reservationRepository.findActiveByVehicleIdAndParkId(eq(vehicleId), eq(parkId), any(OffsetDateTime.class)))
             .thenReturn(List.of(reservation));
-        when(paymentRecordRepository.findTopByReservationIdOrderByCreatedAtDesc(reservationId))
-            .thenReturn(Optional.of(record));
+        when(paymentRecordRepository.findFirstByReservationIdAndStatusInOrderByCreatedAtDesc(eq(reservationId), any(Collection.class)))
+            .thenReturn(Optional.empty());
 
         orchestrator.onExitOcrEvent(exitEvent);
 
         ArgumentCaptor<GateCommand> captor = ArgumentCaptor.forClass(GateCommand.class);
         verify(gateCommandProducer).send(captor.capture());
         assertThat(captor.getValue().commandType()).isEqualTo("BLOCK_GATE");
+        assertThat(captor.getValue().reason()).isEqualTo("no_payment_record");
     }
 
     @Test
@@ -153,10 +157,10 @@ class PaymentGateOrchestratorTest {
     }
 
     @Test
-    @DisplayName("No active reservation -> BLOCK_GATE with reason no_active_reservation")
+    @DisplayName("No active reservation in temporal window -> BLOCK_GATE with reason no_active_reservation")
     void noActiveReservation_blocksGate() {
         when(vehicleRepository.findByPlate("AB-12-CD")).thenReturn(Optional.of(vehicle));
-        when(reservationRepository.findActiveByVehicleIdAndParkId(vehicleId, parkId))
+        when(reservationRepository.findActiveByVehicleIdAndParkId(eq(vehicleId), eq(parkId), any(OffsetDateTime.class)))
             .thenReturn(List.of());
 
         orchestrator.onExitOcrEvent(exitEvent);
@@ -168,27 +172,26 @@ class PaymentGateOrchestratorTest {
     }
 
     @Test
-    @DisplayName("No payment record -> BLOCK_GATE with reason no_payment_record")
-    void noPaymentRecord_blocksGate() {
+    @DisplayName("Reservation already COMPLETED (Kafka re-delivery) -> OPEN_GATE without re-billing")
+    void alreadyCompletedReservation_idempotentRedelivery_opensGate() {
+        reservation.setStatus(ReservationStatus.COMPLETED);
+
         when(vehicleRepository.findByPlate("AB-12-CD")).thenReturn(Optional.of(vehicle));
-        when(reservationRepository.findActiveByVehicleIdAndParkId(vehicleId, parkId))
+        when(reservationRepository.findActiveByVehicleIdAndParkId(eq(vehicleId), eq(parkId), any(OffsetDateTime.class)))
             .thenReturn(List.of(reservation));
-        when(paymentRecordRepository.findTopByReservationIdOrderByCreatedAtDesc(reservationId))
-            .thenReturn(Optional.empty());
 
         orchestrator.onExitOcrEvent(exitEvent);
 
         ArgumentCaptor<GateCommand> captor = ArgumentCaptor.forClass(GateCommand.class);
         verify(gateCommandProducer).send(captor.capture());
-        assertThat(captor.getValue().commandType()).isEqualTo("BLOCK_GATE");
-        assertThat(captor.getValue().reason()).isEqualTo("no_payment_record");
+        assertThat(captor.getValue().commandType()).isEqualTo("OPEN_GATE");
+        // billing must NOT be called again on re-delivery
+        verify(billingService, never()).settleReservationOnExit(any(), any(), any());
     }
 
     @Test
     @DisplayName("Entry OCR event is ignored by orchestrator")
     void entryOcrEvent_isNotTriggeredByOrchestrator() {
-        // Entry events are filtered before orchestrator.onExitOcrEvent() is called —
-        // this test verifies the orchestrator itself does nothing if called with null payload.
         OcrPlateEvent badEvent = new OcrPlateEvent(UUID.randomUUID(), "ocr.plate.read",
             null, null, Instant.now(), null, 1);
         orchestrator.onExitOcrEvent(badEvent);
@@ -203,9 +206,9 @@ class PaymentGateOrchestratorTest {
         record.setStatus(PaymentStatus.COMPLETED);
 
         when(vehicleRepository.findByPlate("AB-12-CD")).thenReturn(Optional.of(vehicle));
-        when(reservationRepository.findActiveByVehicleIdAndParkId(vehicleId, parkId))
+        when(reservationRepository.findActiveByVehicleIdAndParkId(eq(vehicleId), eq(parkId), any(OffsetDateTime.class)))
             .thenReturn(List.of(reservation));
-        when(paymentRecordRepository.findTopByReservationIdOrderByCreatedAtDesc(reservationId))
+        when(paymentRecordRepository.findFirstByReservationIdAndStatusInOrderByCreatedAtDesc(eq(reservationId), any(Collection.class)))
             .thenReturn(Optional.of(record));
 
         orchestrator.onExitOcrEvent(exitEvent);
@@ -217,6 +220,24 @@ class PaymentGateOrchestratorTest {
         assertThat(command.commandId()).isNotNull();
         assertThat(command.reservationId()).isEqualTo(reservationId);
         assertThat(command.issuedAt()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("settleReservationOnExit is called on valid exit flow")
+    void exitFlow_callsSettleReservationOnExit() {
+        PaymentRecord record = new PaymentRecord();
+        record.setReservationId(reservationId);
+        record.setStatus(PaymentStatus.COMPLETED);
+
+        when(vehicleRepository.findByPlate("AB-12-CD")).thenReturn(Optional.of(vehicle));
+        when(reservationRepository.findActiveByVehicleIdAndParkId(eq(vehicleId), eq(parkId), any(OffsetDateTime.class)))
+            .thenReturn(List.of(reservation));
+        when(paymentRecordRepository.findFirstByReservationIdAndStatusInOrderByCreatedAtDesc(eq(reservationId), any(Collection.class)))
+            .thenReturn(Optional.of(record));
+
+        orchestrator.onExitOcrEvent(exitEvent);
+
+        verify(billingService).settleReservationOnExit(eq(reservation), any(OffsetDateTime.class), any());
     }
 
     private OcrPlateEvent buildOcrExitEvent(UUID parkId, String plate, double confidence) {

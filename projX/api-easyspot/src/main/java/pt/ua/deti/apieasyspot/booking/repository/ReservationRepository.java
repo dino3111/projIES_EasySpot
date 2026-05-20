@@ -190,11 +190,14 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
         WHERE r.vehicle.id = :vehicleId
           AND r.parkingLot.id = :parkId
           AND r.status NOT IN ('CANCELLED', 'EXPIRED', 'COMPLETED')
+          AND r.arrivalTime <= :now
+          AND r.departureTime >= :now
         ORDER BY r.arrivalTime DESC
         """)
     List<Reservation> findActiveByVehicleIdAndParkId(
         @Param("vehicleId") UUID vehicleId,
-        @Param("parkId") UUID parkId
+        @Param("parkId") UUID parkId,
+        @Param("now") OffsetDateTime now
     );
 
     Optional<Reservation> findByIdAndUserId(UUID id, UUID userId);

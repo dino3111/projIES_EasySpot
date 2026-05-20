@@ -6,7 +6,9 @@ import org.springframework.stereotype.Service;
 import pt.ua.deti.apieasyspot.billing.model.PaymentRecord;
 import pt.ua.deti.apieasyspot.billing.model.PaymentStatus;
 import pt.ua.deti.apieasyspot.billing.repository.PaymentRecordRepository;
+import pt.ua.deti.apieasyspot.billing.service.BillingService;
 import pt.ua.deti.apieasyspot.booking.model.Reservation;
+import pt.ua.deti.apieasyspot.booking.model.ReservationStatus;
 import pt.ua.deti.apieasyspot.booking.repository.ReservationRepository;
 import pt.ua.deti.apieasyspot.gate.dto.GateCommand;
 import pt.ua.deti.apieasyspot.gate.kafka.GateCommandKafkaProducer;
@@ -15,6 +17,7 @@ import pt.ua.deti.apieasyspot.vehicle.model.Vehicle;
 import pt.ua.deti.apieasyspot.vehicle.repository.VehicleRepository;
 
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -24,13 +27,14 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PaymentGateOrchestrator {
 
-    private static final List<PaymentStatus> APPROVED_STATUSES =
+    private static final List<PaymentStatus> COMPLETED_STATUSES =
         List.of(PaymentStatus.COMPLETED);
 
     private final VehicleRepository vehicleRepository;
     private final ReservationRepository reservationRepository;
     private final PaymentRecordRepository paymentRecordRepository;
     private final GateCommandKafkaProducer gateCommandProducer;
+    private final BillingService billingService;
 
     public void onExitOcrEvent(OcrPlateEvent event) {
         if (event.parkId() == null || event.payload() == null) {
@@ -57,39 +61,60 @@ public class PaymentGateOrchestrator {
         }
 
         Vehicle vehicle = vehicleOpt.get();
+        OffsetDateTime now = OffsetDateTime.now();
+        // Bug 1 fix: filter by temporal window matching the OCR event time
         List<Reservation> activeReservations =
-            reservationRepository.findActiveByVehicleIdAndParkId(vehicle.getId(), parkId);
+            reservationRepository.findActiveByVehicleIdAndParkId(vehicle.getId(), parkId, now);
 
         if (activeReservations.isEmpty()) {
-            log.warn("No active reservation for plate {} at park {} — blocking gate", normalizedPlate, parkId);
+            log.warn("No active reservation for plate {} at park {} at {} — blocking gate", normalizedPlate, parkId, now);
             issueBlockCommand(parkId, null, normalizedPlate, null, "no_active_reservation");
             return;
         }
 
         Reservation reservation = activeReservations.get(0);
-        Optional<PaymentRecord> paymentRecordOpt =
-            paymentRecordRepository.findTopByReservationIdOrderByCreatedAtDesc(reservation.getId());
 
-        if (paymentRecordOpt.isEmpty()) {
-            log.warn("No payment record for reservation {} plate {} — blocking exit gate",
-                reservation.getBookingCode(), normalizedPlate);
+        // Bug 5 fix: idempotency — if reservation already COMPLETED, just open gate (re-delivery)
+        if (reservation.getStatus() == ReservationStatus.COMPLETED) {
+            log.info("Reservation {} already COMPLETED (re-delivery) — opening exit gate at park {}",
+                reservation.getBookingCode(), parkId);
+            issueOpenCommand(parkId, gateIdFor(parkId), normalizedPlate, reservation.getId());
+            return;
+        }
+
+        // Bug 4 fix: settle billing at exit time, calculate real duration cost
+        String customerEmail = reservation.getUser() != null ? reservation.getUser().getEmail() : null;
+        BillingService.PaymentAdjustmentResult settlementResult = null;
+        try {
+            settlementResult = billingService.settleReservationOnExit(reservation, now, customerEmail);
+        } catch (Exception ex) {
+            log.warn("Billing settlement failed for reservation {} plate {} — proceeding with existing payment record: {}",
+                reservation.getBookingCode(), normalizedPlate, ex.getMessage());
+        }
+
+        // Bug 2 fix: look for any COMPLETED record, not just the most recent (which may be an adjustment/refund)
+        Optional<PaymentRecord> completedPayment =
+            paymentRecordRepository.findFirstByReservationIdAndStatusInOrderByCreatedAtDesc(
+                reservation.getId(), COMPLETED_STATUSES);
+
+        if (completedPayment.isEmpty()) {
+            log.warn("No COMPLETED payment for reservation {} plate {} — blocking exit gate at park {}",
+                reservation.getBookingCode(), normalizedPlate, parkId);
             issueBlockCommand(parkId, gateIdFor(parkId), normalizedPlate, reservation.getId(), "no_payment_record");
             return;
         }
 
-        PaymentRecord paymentRecord = paymentRecordOpt.get();
-        boolean approved = APPROVED_STATUSES.contains(paymentRecord.getStatus());
-
-        if (approved) {
-            log.info("Payment APPROVED for reservation {} plate {} — opening exit gate at park {}",
-                reservation.getBookingCode(), normalizedPlate, parkId);
-            issueOpenCommand(parkId, gateIdFor(parkId), normalizedPlate, reservation.getId());
-        } else {
-            log.warn("Payment NOT approved (status={}) for reservation {} plate {} — blocking exit gate at park {}",
-                paymentRecord.getStatus(), reservation.getBookingCode(), normalizedPlate, parkId);
-            issueBlockCommand(parkId, gateIdFor(parkId), normalizedPlate, reservation.getId(),
-                "payment_status_" + paymentRecord.getStatus().name().toLowerCase());
+        // Mark reservation COMPLETED before opening gate
+        try {
+            reservation.setStatus(ReservationStatus.COMPLETED);
+            reservationRepository.save(reservation);
+        } catch (Exception ex) {
+            log.warn("Failed to mark reservation {} as COMPLETED: {}", reservation.getBookingCode(), ex.getMessage());
         }
+
+        log.info("Payment COMPLETED for reservation {} plate {} — opening exit gate at park {}",
+            reservation.getBookingCode(), normalizedPlate, parkId);
+        issueOpenCommand(parkId, gateIdFor(parkId), normalizedPlate, reservation.getId());
     }
 
     private void issueOpenCommand(UUID parkId, String gateId, String plate, UUID reservationId) {
