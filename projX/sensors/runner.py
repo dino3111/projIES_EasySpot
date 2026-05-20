@@ -2,6 +2,7 @@ import time
 from datetime import datetime, timezone
 
 from config import (
+    FAULT_CHECK_INTERVAL_SECONDS,
     FAULT_MAX_DURATION_SECONDS,
     FAULT_MIN_DURATION_SECONDS,
     KAFKA_TOPIC,
@@ -61,6 +62,7 @@ def run():
 
     # Events queued due to delayed transmission: list of (event, key, publish_at_mono)
     pending_delayed = []
+    last_fault_check = time.monotonic()
 
     print(f"Loaded {len(spots)} spots")
 
@@ -73,6 +75,10 @@ def run():
             pending_delayed, publisher, KAFKA_TOPIC, now_mono
         )
 
+        run_fault_check = (now_mono - last_fault_check) >= FAULT_CHECK_INTERVAL_SECONDS
+        if run_fault_check:
+            last_fault_check = now_mono
+
         try:
             active_res = load_reservations()
         except Exception as exc:
@@ -84,7 +90,8 @@ def run():
             meta = meta_by_spot[spot_id]
             current = meta["status"]
 
-            fault_simulator.tick(spot_id, now=now_mono)
+            if run_fault_check:
+                fault_simulator.tick(spot_id, now=now_mono)
 
             has_pending = False
             for res in active_res:

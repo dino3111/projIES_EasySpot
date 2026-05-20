@@ -18,37 +18,41 @@ SENSOR_HEARTBEAT_INTERVAL_SECONDS = float(
     os.getenv("SENSOR_HEARTBEAT_INTERVAL_SECONDS", "30.0")
 )
 
-# 1 second between cycles to reduce CPU usage and maintain realism.
+# 1 second between occupancy cycles (keeps parking state lively).
 SIMULATION_INTERVAL_SECONDS = float(os.getenv("SIMULATION_INTERVAL_SECONDS", "1.0"))
+# 60 seconds between fault-check cycles — with hundreds of sensors even tiny probabilities add up fast.
+FAULT_CHECK_INTERVAL_SECONDS = float(os.getenv("FAULT_CHECK_INTERVAL_SECONDS", "60.0"))
 SIMULATION_SEED = int(os.getenv("SIMULATION_SEED", "42"))
 CONTEXT_LOAD_RETRIES = int(os.getenv("CONTEXT_LOAD_RETRIES", "20"))
 CONTEXT_RETRY_DELAY_SECONDS = float(os.getenv("CONTEXT_RETRY_DELAY_SECONDS", "3"))
 
 FAULT_MIN_DURATION_SECONDS = float(os.getenv("FAULT_MIN_DURATION_SECONDS", "30"))
 FAULT_MAX_DURATION_SECONDS = float(os.getenv("FAULT_MAX_DURATION_SECONDS", "300"))
-TECHNICIAN_REPAIR_PROBABILITY = float(os.getenv("TECHNICIAN_REPAIR_PROBABILITY", "0.05"))
+TECHNICIAN_REPAIR_PROBABILITY = float(os.getenv("TECHNICIAN_REPAIR_PROBABILITY", "0.001"))
 OCR_FAULT_PROBABILITY_PER_TICK = float(
-    os.getenv("OCR_FAULT_PROBABILITY_PER_TICK", "0.0002")
+    os.getenv("OCR_FAULT_PROBABILITY_PER_TICK", "0.000005")
 )
 
 # IR sensor device-level fault simulation
+# With 1s ticks and ~300 sensors: 0.000005 → ~1 fault every ~10 minutes across all sensors
 SENSOR_FAULT_DEGRADED_PROBABILITY = float(
-    os.getenv("SENSOR_FAULT_DEGRADED_PROBABILITY", "0.0005")
+    os.getenv("SENSOR_FAULT_DEGRADED_PROBABILITY", "0.000005")
 )
 SENSOR_FAULT_OFFLINE_PROBABILITY = float(
-    os.getenv("SENSOR_FAULT_OFFLINE_PROBABILITY", "0.0002")
+    os.getenv("SENSOR_FAULT_OFFLINE_PROBABILITY", "0.000002")
 )
 SENSOR_FAULT_MAINTENANCE_PROBABILITY = float(
-    os.getenv("SENSOR_FAULT_MAINTENANCE_PROBABILITY", "0.0001")
+    os.getenv("SENSOR_FAULT_MAINTENANCE_PROBABILITY", "0.000001")
 )
+# High recovery so faults resolve quickly and don't pile up as OPEN alerts
 SENSOR_FAULT_RECOVERY_PROBABILITY = float(
-    os.getenv("SENSOR_FAULT_RECOVERY_PROBABILITY", "0.05")
+    os.getenv("SENSOR_FAULT_RECOVERY_PROBABILITY", "0.50")
 )
 SENSOR_FAULT_DUPLICATE_PROBABILITY = float(
-    os.getenv("SENSOR_FAULT_DUPLICATE_PROBABILITY", "0.003")
+    os.getenv("SENSOR_FAULT_DUPLICATE_PROBABILITY", "0.0001")
 )
 SENSOR_FAULT_DELAY_PROBABILITY = float(
-    os.getenv("SENSOR_FAULT_DELAY_PROBABILITY", "0.01")
+    os.getenv("SENSOR_FAULT_DELAY_PROBABILITY", "0.0005")
 )
 SENSOR_FAULT_DELAY_MAX_SECONDS = float(
     os.getenv("SENSOR_FAULT_DELAY_MAX_SECONDS", "10.0")

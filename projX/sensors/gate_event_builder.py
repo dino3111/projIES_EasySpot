@@ -103,10 +103,10 @@ class ParkGate:
     """State machine for a single entry or exit gate."""
 
     # Probabilities for fault scenarios
-    _P_STUCK_CLOSED = 0.002
-    _P_STUCK_OPEN = 0.001
-    _P_FAULT = 0.001
-    _P_RECOVERY = 0.30
+    _P_STUCK_CLOSED = 0.0000005
+    _P_STUCK_OPEN = 0.0000002
+    _P_FAULT = 0.0000002
+    _P_RECOVERY = 0.0050
 
     def __init__(self, gate_id: str, direction: GateDirection, rng: random.Random):
         self.gate_id = gate_id
@@ -125,8 +125,10 @@ class ParkGate:
         """Called when OCR read fails. Gate should block."""
         return self._block(plate, reason="ocr_failure")
 
-    def tick(self, park_id: str, park_name: str) -> List[Tuple[Dict, str]]:
-        """Periodic tick: auto-close open gates, maybe inject faults/recovery."""
+    def tick(self, park_id: str, park_name: str, fault_check: bool = True) -> List[Tuple[Dict, str]]:
+        """Periodic tick: auto-close open gates, maybe inject faults/recovery.
+        fault_check=False skips fault/recovery logic for this tick.
+        """
         events = []
 
         if self.state == GateState.OPEN:
@@ -142,7 +144,7 @@ class ParkGate:
                 self._open_ticks = 0
                 events.append((event, park_id))
 
-        elif self.state == GateState.CLOSED:
+        elif self.state == GateState.CLOSED and fault_check:
             roll = self._rng.random()
             if roll < self._P_STUCK_CLOSED:
                 event = self._transition(
@@ -163,7 +165,7 @@ class ParkGate:
                 )
                 events.append((event, park_id))
 
-        elif self.state == GateState.BLOCKED:
+        elif self.state == GateState.BLOCKED and fault_check:
             if self._rng.random() < 0.40:
                 event = self._transition(
                     park_id,
@@ -174,7 +176,7 @@ class ParkGate:
                 )
                 events.append((event, park_id))
 
-        elif self.state == GateState.FAULT:
+        elif self.state == GateState.FAULT and fault_check:
             self._fault_ticks += 1
             if self._rng.random() < self._P_RECOVERY:
                 event = self._transition(
@@ -367,13 +369,13 @@ class GateSimulator:
         raw["payload"]["parkName"] = park.get("parkName", "")
         return [(raw, park_id)]
 
-    def tick(self) -> List[Tuple[Dict, str]]:
+    def tick(self, fault_check: bool = True) -> List[Tuple[Dict, str]]:
         """Periodic tick for all gates. Returns list of (gate_event, park_id)."""
         events = []
         with self._lock:
             for park_id, park in self.parks.items():
                 for gate in self._gates[park_id].values():
-                    for event, pid in gate.tick(park_id, park.get("parkName", "")):
+                    for event, pid in gate.tick(park_id, park.get("parkName", ""), fault_check=fault_check):
                         events.append((event, pid))
         return events
 

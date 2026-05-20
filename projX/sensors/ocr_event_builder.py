@@ -240,9 +240,10 @@ class OcrEventGenerator:
         self.offline_spots.discard(spot_id)
         self.degraded_spots.discard(spot_id)
 
-    def next_events(self, now: Optional[float] = None) -> List[Tuple[Dict, str]]:
+    def next_events(self, now: Optional[float] = None, fault_check: bool = True) -> List[Tuple[Dict, str]]:
         """Return a list of (event, key) tuples for this simulation tick.
         key is spot_id for plate reads, park_id for device fault/recovery events.
+        fault_check controls whether fault/recovery logic runs this tick.
         """
         if now is None:
             now = time.monotonic()
@@ -255,7 +256,8 @@ class OcrEventGenerator:
             if park_id not in self._camera_fault_start:
                 # Camera is operational — check for new fault
                 if (
-                    self.fault_probability_per_tick > 0
+                    fault_check
+                    and self.fault_probability_per_tick > 0
                     and self.rng.random() < self.fault_probability_per_tick
                 ):
                     self._camera_fault_start[park_id] = now

@@ -1,6 +1,7 @@
 import time
 
 from config import (
+    FAULT_CHECK_INTERVAL_SECONDS,
     FAULT_MAX_DURATION_SECONDS,
     FAULT_MIN_DURATION_SECONDS,
     KAFKA_TOPIC_OCR,
@@ -42,8 +43,15 @@ def run_ocr():
         "registered plates for OCR simulation"
     )
 
+    last_fault_check = time.monotonic()
+
     while True:
-        for event, key in generator.next_events():
+        now_mono = time.monotonic()
+        run_fault_check = (now_mono - last_fault_check) >= FAULT_CHECK_INTERVAL_SECONDS
+        if run_fault_check:
+            last_fault_check = now_mono
+
+        for event, key in generator.next_events(fault_check=run_fault_check):
             publisher.publish(KAFKA_TOPIC_OCR, key, event)
 
         publisher.flush()
