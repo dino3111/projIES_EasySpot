@@ -21,7 +21,7 @@ import {
   type WorkOrder,
 } from '../../services/technicianApi';
 import { useOptionalWs } from '../../context/WsContext';
-import { useAuth } from '../../context/AuthContext';
+import { useOptionalAuth } from '../../context/AuthContext';
 
 const STATUS_TO_API: Record<string, string> = {
   operacional: 'operational',
@@ -155,7 +155,8 @@ const TAB_TO_PARAM: Record<PageTab, string | null> = {
 
 export function MaintenancePage() {
   const { client, status } = useOptionalWs();
-  const { user } = useAuth();
+  const auth = useOptionalAuth();
+  const user = auth?.user;
   const [searchParams, setSearchParams] = useSearchParams();
   const tab: PageTab = TAB_PARAM_MAP[searchParams.get('tab') ?? ''] ?? 'ocorrencias';
   function setTab(t: PageTab) {

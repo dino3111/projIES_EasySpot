@@ -10,7 +10,11 @@ import {
 } from '../../services/technicianApi';
 import { KpiCard } from './components/shared';
 import { useOptionalWs } from '../../context/WsContext';
-import { useAuth } from '../../context/AuthContext';
+import { useOptionalAuth } from '../../context/AuthContext';
+const backgroundRefreshFromEnv = Number(import.meta.env.VITE_REALTIME_REFRESH_MS ?? 5000);
+const BACKGROUND_REFRESH_MS = Number.isFinite(backgroundRefreshFromEnv) && backgroundRefreshFromEnv >= 1000
+  ? backgroundRefreshFromEnv
+  : 5000;
 
 const STATUS_COLOR: Record<string, string> = {
   operational: '#22c55e',
@@ -21,7 +25,8 @@ const STATUS_COLOR: Record<string, string> = {
 
 export function DashboardTechnicianPage() {
   const { client, status } = useOptionalWs();
-  const { user } = useAuth();
+  const auth = useOptionalAuth();
+  const user = auth?.user;
   const [dashboard, setDashboard] = useState<TechnicianDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState<string | null>(null);
@@ -50,8 +55,12 @@ export function DashboardTechnicianPage() {
       }
     };
     void load();
+    const intervalId = globalThis.setInterval(() => {
+      void load(true);
+    }, BACKGROUND_REFRESH_MS);
     return () => {
       mounted = false;
+      globalThis.clearInterval(intervalId);
     };
   }, []);
 
