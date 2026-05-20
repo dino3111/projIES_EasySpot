@@ -200,6 +200,160 @@ class ParkingSpotEventKafkaListenerTest {
     }
 
     @Test
+    @DisplayName("spot going out_of_service faults the corresponding IR sensor")
+    void onEvent_spotFault_callsFaultSensorAndTouchSensor() {
+        UUID spotId = UUID.randomUUID();
+        ParkingSpot spot = spotWithStatus(spotId, "free");
+        when(parkingSpotRepository.findById(spotId)).thenReturn(Optional.of(spot));
+
+        String expectedSensorId = "IR-" + spotId.toString().replace("-", "").substring(0, 16);
+
+        String payload = """
+            {
+              "eventId": "%s",
+              "eventType": "spot.status.changed",
+              "parkId": "%s",
+              "spotId": "%s",
+              "previousStatus": "free",
+              "status": "out_of_service",
+              "occurredAt": "2026-05-18T10:00:00Z",
+              "version": 1,
+              "payload": {
+                "reason": "temporary_failure"
+              }
+            }
+            """.formatted(UUID.randomUUID(), UUID.randomUUID(), spotId);
+
+        listener.onEvent(payload);
+
+        verify(sensorLogsService).faultSensor(expectedSensorId);
+        verify(sensorLogsService).touchSensor(expectedSensorId);
+        verify(sensorLogsService, never()).recoverSensor(any(), any());
+    }
+
+    @Test
+    @DisplayName("second fault for same sensor does not call faultSensor again (idempotency handled by service)")
+    void onEvent_secondFault_stillCallsFaultSensor() {
+        UUID spotId = UUID.randomUUID();
+        // spot was already out_of_service — same status, listener returns early (idempotent)
+        ParkingSpot spot = spotWithStatus(spotId, "out_of_service");
+        when(parkingSpotRepository.findById(spotId)).thenReturn(Optional.of(spot));
+
+        String payload = """
+            {
+              "eventId": "%s",
+              "eventType": "spot.status.changed",
+              "parkId": "%s",
+              "spotId": "%s",
+              "status": "out_of_service",
+              "occurredAt": "2026-05-18T11:00:00Z",
+              "version": 1,
+              "payload": {
+                "reason": "still_faulty"
+              }
+            }
+            """.formatted(UUID.randomUUID(), UUID.randomUUID(), spotId);
+
+        listener.onEvent(payload);
+
+        // same status → early return, no save, no sensor service calls
+        verify(parkingSpotRepository, never()).save(any());
+        verify(sensorLogsService, never()).faultSensor(any());
+        verify(sensorLogsService, never()).touchSensor(any());
+    }
+
+    @Test
+    @DisplayName("normal status change updates lastSeenAt via touchSensor")
+    void onEvent_normalTransition_touchesSensor() {
+        UUID spotId = UUID.randomUUID();
+        ParkingSpot spot = spotWithStatus(spotId, "free");
+        when(parkingSpotRepository.findById(spotId)).thenReturn(Optional.of(spot));
+
+        String expectedSensorId = "IR-" + spotId.toString().replace("-", "").substring(0, 16);
+
+        String payload = """
+            {
+              "eventId": "%s",
+              "eventType": "spot.status.changed",
+              "parkId": "%s",
+              "spotId": "%s",
+              "previousStatus": "free",
+              "status": "occupied",
+              "occurredAt": "2026-05-18T10:00:00Z",
+              "version": 1,
+              "payload": {
+                "reason": "vehicle_entered"
+              }
+            }
+            """.formatted(UUID.randomUUID(), UUID.randomUUID(), spotId);
+
+        listener.onEvent(payload);
+
+        verify(sensorLogsService).touchSensor(expectedSensorId);
+        verify(sensorLogsService, never()).faultSensor(any());
+        verify(sensorLogsService, never()).recoverSensor(any(), any());
+    }
+
+    @Test
+    @DisplayName("unknown spot produces no sensor service interactions")
+    void onEvent_unknownSpot_noSensorInteraction() {
+        UUID spotId = UUID.randomUUID();
+        when(parkingSpotRepository.findById(spotId)).thenReturn(Optional.empty());
+
+        String payload = """
+            {
+              "eventId": "%s",
+              "eventType": "spot.status.changed",
+              "parkId": "%s",
+              "spotId": "%s",
+              "status": "out_of_service",
+              "occurredAt": "2026-05-18T10:00:00Z",
+              "version": 1,
+              "payload": {}
+            }
+            """.formatted(UUID.randomUUID(), UUID.randomUUID(), spotId);
+
+        listener.onEvent(payload);
+
+        verify(sensorLogsService, never()).faultSensor(any());
+        verify(sensorLogsService, never()).touchSensor(any());
+        verify(sensorLogsService, never()).recoverSensor(any(), any());
+    }
+
+    @Test
+    @DisplayName("recovery event touches sensor AND recovers it")
+    void onEvent_recovery_touchesSensorAndRecoversSensor() {
+        UUID spotId = UUID.randomUUID();
+        ParkingSpot spot = spotWithStatus(spotId, "out_of_service");
+        when(parkingSpotRepository.findById(spotId)).thenReturn(Optional.of(spot));
+
+        String expectedSensorId = "IR-" + spotId.toString().replace("-", "").substring(0, 16);
+
+        String payload = """
+            {
+              "eventId": "%s",
+              "eventType": "spot.status.changed",
+              "parkId": "%s",
+              "spotId": "%s",
+              "previousStatus": "out_of_service",
+              "status": "free",
+              "occurredAt": "2026-05-18T10:00:00Z",
+              "version": 1,
+              "payload": {
+                "reason": "AUTO_RECOVERY",
+                "faultDurationSeconds": 55.0
+              }
+            }
+            """.formatted(UUID.randomUUID(), UUID.randomUUID(), spotId);
+
+        listener.onEvent(payload);
+
+        verify(sensorLogsService).touchSensor(expectedSensorId);
+        verify(sensorLogsService).recoverSensor(expectedSensorId, "AUTO_RECOVERY");
+        verify(sensorLogsService, never()).faultSensor(any());
+    }
+
+    @Test
     @DisplayName("backend reflects operational state after recovery: spot set to free")
     void onEvent_recovery_backendReflectsOperationalStatus() {
         UUID spotId = UUID.randomUUID();

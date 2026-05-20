@@ -21,6 +21,7 @@ import pt.ua.deti.apieasyspot.sensor.repository.SensorLogsRepository;
 import pt.ua.deti.apieasyspot.sensor.repository.SensorRegistryRepository;
 
 import java.time.OffsetDateTime;
+import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 
 @Slf4j
@@ -115,6 +116,13 @@ public class SensorLogsService {
             case OFFLINE -> "Sensor " + sensorId + " offline.";
             default -> "Estado do sensor " + sensorId + " alterado para " + status.name().toLowerCase();
         };
+    }
+
+    public void touchSensor(String sensorId) {
+        sensorRegistryRepository.findById(sensorId).ifPresent(sensor -> {
+            sensor.setLastSeenAt(LocalDateTime.now(ZoneOffset.UTC));
+            sensorRegistryRepository.save(sensor);
+        });
     }
 
     public void faultSensor(String sensorId) {
