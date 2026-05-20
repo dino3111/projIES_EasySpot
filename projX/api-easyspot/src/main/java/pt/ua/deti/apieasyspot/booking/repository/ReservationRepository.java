@@ -181,6 +181,25 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
 
     boolean existsByBookingCode(String bookingCode);
 
+    @Query("""
+        SELECT r FROM Reservation r
+        LEFT JOIN FETCH r.parkingLot
+        LEFT JOIN FETCH r.parkingSpot
+        LEFT JOIN FETCH r.vehicle
+        LEFT JOIN FETCH r.user
+        WHERE r.vehicle.id = :vehicleId
+          AND r.parkingLot.id = :parkId
+          AND r.status NOT IN ('CANCELLED', 'EXPIRED', 'COMPLETED')
+          AND r.arrivalTime <= :now
+          AND r.departureTime >= :now
+        ORDER BY r.arrivalTime DESC
+        """)
+    List<Reservation> findActiveByVehicleIdAndParkId(
+        @Param("vehicleId") UUID vehicleId,
+        @Param("parkId") UUID parkId,
+        @Param("now") OffsetDateTime now
+    );
+
     Optional<Reservation> findByIdAndUserId(UUID id, UUID userId);
 
     @Query("""
