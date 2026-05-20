@@ -15,6 +15,7 @@ public interface PaymentRecordRepository extends JpaRepository<PaymentRecord, UU
     Optional<PaymentRecord> findByStripeSessionId(String stripeSessionId);
     Optional<PaymentRecord> findByPaymentIntentId(String paymentIntentId);
     Optional<PaymentRecord> findTopByReservationIdOrderByCreatedAtDesc(UUID reservationId);
+    Optional<PaymentRecord> findFirstByReservationIdAndStatusInOrderByCreatedAtDesc(UUID reservationId, Collection<PaymentStatus> statuses);
     Optional<PaymentRecord> findTopByReservationIdAndPaymentIntentIdIsNotNullAndAmountGreaterThanAndStatusInOrderByCreatedAtDesc(
         UUID reservationId,
         BigDecimal amount,

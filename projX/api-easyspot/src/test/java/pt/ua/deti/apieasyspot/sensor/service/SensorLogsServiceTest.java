@@ -244,6 +244,39 @@ class SensorLogsServiceTest {
     }
 
     @Test
+    @DisplayName("touchSensor updates lastSeenAt for a known sensor")
+    void touchSensor_updatesLastSeenAt() {
+        UUID parkId = UUID.randomUUID();
+        ParkingLot lot = new ParkingLot();
+        lot.setId(parkId);
+        lot.setName("Parque Test");
+
+        SensorRegistry sensor = new SensorRegistry();
+        sensor.setSensorId("IR-TEST-TOUCH");
+        sensor.setParkingLot(lot);
+        sensor.setStatus(SensorStatus.OPERATIONAL);
+        sensor.setLastSeenAt(LocalDateTime.now().minusHours(2));
+        sensor.setCreatedAt(LocalDateTime.now().minusDays(1));
+
+        when(sensorRegistryRepository.findById("IR-TEST-TOUCH")).thenReturn(Optional.of(sensor));
+
+        service.touchSensor("IR-TEST-TOUCH");
+
+        verify(sensorRegistryRepository).save(sensor);
+        assertThat(sensor.getLastSeenAt()).isAfter(LocalDateTime.now().minusMinutes(1));
+    }
+
+    @Test
+    @DisplayName("touchSensor for unknown sensor does nothing gracefully")
+    void touchSensor_unknownSensor_doesNothing() {
+        when(sensorRegistryRepository.findById("UNKNOWN-TOUCH")).thenReturn(Optional.empty());
+
+        service.touchSensor("UNKNOWN-TOUCH");
+
+        verify(sensorRegistryRepository, never()).save(any());
+    }
+
+    @Test
     @DisplayName("faultSensor sets sensor to OFFLINE and opens alert when none exists")
     void faultSensor_setsOfflineAndCreatesAlert() {
         UUID parkId = UUID.randomUUID();
