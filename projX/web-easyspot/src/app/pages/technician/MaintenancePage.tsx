@@ -20,6 +20,8 @@ import {
   type AlertResponse,
   type WorkOrder,
 } from '../../services/technicianApi';
+import { useOptionalWs } from '../../context/WsContext';
+import { useAuth } from '../../context/AuthContext';
 
 const STATUS_TO_API: Record<string, string> = {
   operacional: 'operational',
@@ -152,6 +154,8 @@ const TAB_TO_PARAM: Record<PageTab, string | null> = {
 };
 
 export function MaintenancePage() {
+  const { client, status } = useOptionalWs();
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const tab: PageTab = TAB_PARAM_MAP[searchParams.get('tab') ?? ''] ?? 'ocorrencias';
   function setTab(t: PageTab) {
@@ -179,9 +183,11 @@ export function MaintenancePage() {
     setTimeout(() => setToast(null), 4000);
   };
 
-  const loadAll = useCallback(async () => {
-    setLoading(true);
-    setApiError(null);
+  const loadAll = useCallback(async (background = false) => {
+    if (!background) {
+      setLoading(true);
+      setApiError(null);
+    }
     try {
       const [apiSensors, openAlerts, inProgressAlerts, resolvedAlerts] = await Promise.all([
         fetchSensorList(),
@@ -195,9 +201,9 @@ export function MaintenancePage() {
       setIssues(allAlerts.map(alertToIssue));
       setOrders(activeAlerts.map(alertToWorkOrder));
     } catch (err: unknown) {
-      setApiError(err instanceof Error ? err.message : 'Erro ao carregar dados.');
+      if (!background) setApiError(err instanceof Error ? err.message : 'Erro ao carregar dados.');
     } finally {
-      setLoading(false);
+      if (!background) setLoading(false);
     }
   }, []);
 
@@ -225,7 +231,17 @@ export function MaintenancePage() {
     }
   }, []);
 
-  useEffect(() => { loadAll(); }, [loadAll]);
+  useEffect(() => {
+    void loadAll();
+  }, [loadAll]);
+
+  useEffect(() => {
+    if (status !== 'connected' || !client || !user?.sub) return;
+    const subscription = client.subscribe(`/topic/alerts/${user.sub}`, () => {
+      void loadAll(true);
+    });
+    return () => subscription.unsubscribe();
+  }, [client, status, user?.sub, loadAll]);
   useEffect(() => {
     if (tab === 'tarefas') loadCompleted(weekOffset);
   }, [loadCompleted, weekOffset, tab]);

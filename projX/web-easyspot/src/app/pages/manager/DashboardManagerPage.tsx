@@ -6,6 +6,8 @@ import {
 import { KpiCard, AlertRow, OccBar } from './components/shared';
 import { IssueModal } from './components/IssueModal';
 import type { IssueReport } from '../../data/gestorData';
+import { useOptionalWs } from '../../context/WsContext';
+import { useAuth } from '../../context/AuthContext';
 import {
   fetchManagerDashboard,
   type ManagerDashboardResponse,
@@ -79,6 +81,8 @@ function formatVariation(variation: number) {
 }
 
 export function DashboardManagerPage() {
+  const { client, status } = useOptionalWs();
+  const { user } = useAuth();
   const [chartTab, setChartTab] = useState<ChartTab>('entradas');
   const [selectedIssue, setSelectedIssue] = useState<IssueReport | null>(null);
   const [data, setData] = useState<ManagerDashboardResponse | null>(null);
@@ -86,11 +90,34 @@ export function DashboardManagerPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchManagerDashboard()
-      .then(setData)
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : 'Erro ao carregar dados'))
-      .finally(() => setLoading(false));
+    let mounted = true;
+    const load = async (background = false) => {
+      try {
+        if (!background) setLoading(true);
+        const dashboard = await fetchManagerDashboard();
+        if (!mounted) return;
+        setData(dashboard);
+        setError(null);
+      } catch (e: unknown) {
+        if (!mounted) return;
+        if (!background) setError(e instanceof Error ? e.message : 'Erro ao carregar dados');
+      } finally {
+        if (mounted && !background) setLoading(false);
+      }
+    };
+    void load();
+    return () => {
+      mounted = false;
+    };
   }, []);
+
+  useEffect(() => {
+    if (status !== 'connected' || !client || !user?.sub) return;
+    const subscription = client.subscribe(`/topic/alerts/${user.sub}`, () => {
+      void fetchManagerDashboard().then(setData).catch(() => {});
+    });
+    return () => subscription.unsubscribe();
+  }, [client, status, user?.sub]);
 
   if (loading) {
     return (

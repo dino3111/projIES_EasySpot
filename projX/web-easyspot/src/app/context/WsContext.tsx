@@ -77,3 +77,8 @@ export function useWs() {
   }
   return context;
 }
+
+export function useOptionalWs(): WsContextType {
+  const context = useContext(WsContext);
+  return context ?? { client: null, status: 'disconnected' };
+}

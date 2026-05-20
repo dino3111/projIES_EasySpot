@@ -9,6 +9,8 @@ import {
   type WorkOrder,
 } from '../../services/technicianApi';
 import { KpiCard } from './components/shared';
+import { useOptionalWs } from '../../context/WsContext';
+import { useAuth } from '../../context/AuthContext';
 
 const STATUS_COLOR: Record<string, string> = {
   operational: '#22c55e',
@@ -18,31 +20,48 @@ const STATUS_COLOR: Record<string, string> = {
 
 
 export function DashboardTechnicianPage() {
+  const { client, status } = useOptionalWs();
+  const { user } = useAuth();
   const [dashboard, setDashboard] = useState<TechnicianDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState<string | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    fetchTechnicianDashboard()
-      .then((data) => {
+    let mounted = true;
+    const load = async (background = false) => {
+      try {
+        if (!background) {
+          setLoading(true);
+          setError(null);
+        }
+        const data = await fetchTechnicianDashboard();
         console.info('[TECH-FE] dashboard page data', {
           totalSensors: data.kpis.totalSensors,
           operationalSensors: data.kpis.operationalSensors,
           urgentWorkOrders: data.urgentWorkOrders.length,
         });
-        if (!cancelled) { setDashboard(data); setLoading(false); }
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Erro ao carregar dados.');
-          setLoading(false);
-        }
-      });
-    return () => { cancelled = true; };
+        if (!mounted) return;
+        setDashboard(data);
+      } catch (err: unknown) {
+        if (!mounted) return;
+        if (!background) setError(err instanceof Error ? err.message : 'Erro ao carregar dados.');
+      } finally {
+        if (mounted && !background) setLoading(false);
+      }
+    };
+    void load();
+    return () => {
+      mounted = false;
+    };
   }, []);
+
+  useEffect(() => {
+    if (status !== 'connected' || !client || !user?.sub) return;
+    const subscription = client.subscribe(`/topic/alerts/${user.sub}`, () => {
+      void fetchTechnicianDashboard().then(setDashboard).catch(() => {});
+    });
+    return () => subscription.unsubscribe();
+  }, [client, status, user?.sub]);
 
 
 
