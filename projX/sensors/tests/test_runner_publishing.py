@@ -4,7 +4,11 @@ import unittest
 
 sys.path.insert(0, ".")
 
-from publishing import flush_pending, schedule_publish  # noqa: E402
+from publishing import (  # noqa: E402
+    NetworkFaultInjector,
+    flush_pending,
+    schedule_publish,
+)
 from sensor_fault_simulator import SensorFaultSimulator, SensorState  # noqa: E402
 
 TOPIC = "parking-spot-events"
@@ -142,6 +146,32 @@ class OfflineSensorSuppressesPublishTests(unittest.TestCase):
 
         self.assertEqual(pub.calls, [])
         self.assertEqual(pending, [])
+
+
+class NetworkFaultInjectorTests(unittest.TestCase):
+    def test_out_of_order_reorders_due_events(self):
+        pub = _MockPublisher()
+        pending = [
+            ({"eventId": "1"}, "s1", 0.0),
+            ({"eventId": "2"}, "s2", 0.0),
+            ({"eventId": "3"}, "s3", 0.0),
+        ]
+        faults = NetworkFaultInjector(seed=1, out_of_order_probability=1.0)
+        flush_pending(pending, pub, TOPIC, now_mono=1.0, network_faults=faults)
+        order = [c[2]["eventId"] for c in pub.calls]
+        self.assertNotEqual(order, ["1", "2", "3"])
+
+    def test_drop_burst_temporarily_loses_signal(self):
+        faults = NetworkFaultInjector(
+            seed=2,
+            drop_probability=0.0,
+            drop_burst_min_seconds=5.0,
+            drop_burst_max_seconds=5.0,
+        )
+        faults._drop_until["spot-1"] = 15.0
+        self.assertTrue(faults.should_drop("spot-1", 10.0))
+        self.assertTrue(faults.should_drop("spot-1", 12.0))
+        self.assertFalse(faults.should_drop("spot-1", 16.0))
 
 
 class SensorIdCollisionTests(unittest.TestCase):
