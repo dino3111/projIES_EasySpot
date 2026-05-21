@@ -41,12 +41,12 @@ values
     '5e1e1d9c-c0db-4078-8c4a-42c9fedfb31a',
     '4731819f-a806-5c1f-be8c-a478d4276840',
     'Fórum Aveiro',
-    'SENSOR', 'CRITICAL', 'OPEN',
+    'SENSOR', 'CRITICAL', 'RESOLVED',
     'Piso 0 – Zona B', 'B07', 'IR-AV1-B07', null,
     'Sensor infravermelho sem leituras há mais de 2 horas.',
     null, 'Test Technical', 'Test Technical',
-    'A aguardar substituição de sensor.',
-    null,
+    'Sensor substituído e operacional.',
+    '2026-05-08T14:00:00Z',
     '2026-05-08T08:14:00Z'
 ),
 (
@@ -65,12 +65,12 @@ values
     '27c4f782-89af-4ca6-9e1c-e37ef0ef7cc6',
     '070b4f4d-9a9e-5c4a-92bd-eae711ecb6b3',
     'Europa',
-    'SYSTEM', 'CRITICAL', 'OPEN',
+    'SYSTEM', 'CRITICAL', 'RESOLVED',
     'Entrada Principal', null, null, null,
     'Leitor OCR da entrada principal sem comunicação.',
     null, 'Test Technical', 'Test Technical',
-    'Técnico destacado para intervenção no local.',
-    null,
+    'Cabo de rede recolocado. Leitor OCR operacional.',
+    '2026-05-08T10:30:00Z',
     '2026-05-08T06:50:00Z'
 ),
 (

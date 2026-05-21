@@ -2,6 +2,7 @@ import threading
 import time
 
 from config import (
+    FAULT_CHECK_INTERVAL_SECONDS,
     KAFKA_TOPIC_GATE,
     KAFKA_TOPIC_GATE_COMMANDS,
     KAFKA_TOPIC_GATE_RESPONSES,
@@ -43,12 +44,18 @@ def run_gates():
         name="gate-command-consumer",
     )
     command_thread.start()
+    last_fault_check = time.monotonic()
 
     while True:
         if not command_thread.is_alive():
             raise RuntimeError("gate-command-consumer thread terminated unexpectedly")
 
-        for event, park_id in simulator.tick():
+        now_mono = time.monotonic()
+        run_fault_check = (now_mono - last_fault_check) >= FAULT_CHECK_INTERVAL_SECONDS
+        if run_fault_check:
+            last_fault_check = now_mono
+
+        for event, park_id in simulator.tick(fault_check=run_fault_check):
             publisher.publish(KAFKA_TOPIC_GATE, park_id, event)
 
         publisher.flush()

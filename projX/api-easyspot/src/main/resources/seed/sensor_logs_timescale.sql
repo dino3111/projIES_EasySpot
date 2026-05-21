@@ -21,17 +21,17 @@ values
 
 -- ══ Estádio Cidade de Coimbra ════════════════════════════════════════════
 
--- IR-CO1-MR02: falha total ativa
+-- IR-CO1-MR02: falha total resolvida
 (
     gen_random_uuid(),
     'b231a846-7d40-5100-ba29-b9c0ca0ef9aa',
     'Estádio Cidade de Coimbra',
-    'SENSOR', 'CRITICAL', 'OPEN',
+    'SENSOR', 'CRITICAL', 'RESOLVED',
     'Piso -1 – Mobilidade Reduzida', 'MR-02', 'IR-CO1-MR02',
     null,
     'Falha total do sensor MR-02. Lugar sem monitorização ativa.',
-    null, null, null,
-    now() - interval '2 hours', null
+    null, null, 'Sensor substituído e operacional.',
+    now() - interval '2 hours', now() - interval '1 hour'
 ),
 
 -- IR-CO1-MR02: falso-negativo resolvido
@@ -93,18 +93,18 @@ values
 
 -- ══ CoimbraShopping ══════════════════════════════════════════════════════
 
--- OCR-CO2-SAI1: câmara sem sinal ativa
+-- OCR-CO2-SAI1: câmara sem sinal resolvida
 (
     gen_random_uuid(),
     '452ed8eb-d0a3-5d61-8428-572e946614a5',
     'CoimbraShopping',
-    'SENSOR', 'CRITICAL', 'OPEN',
+    'SENSOR', 'CRITICAL', 'RESOLVED',
     'Saída Principal', null, 'OCR-CO2-SAI1',
     null,
     'Câmara OCR de saída sem sinal de vídeo desde as 19h30.'
     ' Alimentação ou cabo de vídeo a verificar.',
-    null, null, null,
-    now() - interval '14 hours', null
+    null, 'Test Technical', 'Cabo de vídeo recolocado. Câmara operacional.',
+    now() - interval '14 hours', now() - interval '10 hours'
 ),
 
 -- OCR-CO2-SAI1: leitura de matrícula falhou
@@ -211,18 +211,18 @@ values
 
 -- ══ Glicínias Plaza ══════════════════════════════════════════════════════
 
--- IR-AV2-P1-02: sinal degradado ativo
+-- IR-AV2-P1-02: sinal degradado resolvido
 (
     gen_random_uuid(),
     'd8085d8f-7aaa-5eb4-b47d-2e2fe79bfe43',
     'Glicínias Plaza',
-    'SENSOR', 'WARNING', 'OPEN',
+    'SENSOR', 'WARNING', 'RESOLVED',
     'Piso -1', 'P1-02', 'IR-AV2-P1-02',
     null,
     'Sinal IR instável.'
     ' Taxa de falsos-positivos subiu para 18% nas últimas 2h.',
-    null, null, null,
-    now() - interval '30 minutes', null
+    null, null, 'Sensor recalibrado automaticamente.',
+    now() - interval '30 minutes', now() - interval '10 minutes'
 ),
 
 -- IR-AV2-P1-02: interrupção breve resolvida
@@ -256,18 +256,18 @@ values
 
 -- ══ Europa – Leiria ══════════════════════════════════════════════════════
 
--- IR-LE1-A02: offline ativo
+-- IR-LE1-A02: offline resolvido
 (
     gen_random_uuid(),
     '070b4f4d-9a9e-5c4a-92bd-eae711ecb6b3',
     'Europa',
-    'SENSOR', 'CRITICAL', 'OPEN',
+    'SENSOR', 'CRITICAL', 'RESOLVED',
     'Piso 0 – Zona A', 'A02', 'IR-LE1-A02',
     null,
     'Sensor IR-LE1-A02 sem resposta há >5h.'
     ' Possível falha de alimentação.',
-    null, null, null,
-    now() - interval '5 hours', null
+    null, 'Test Technical', 'Fonte de alimentação substituída.',
+    now() - interval '5 hours', now() - interval '3 hours'
 ),
 
 -- IR-LE1-A02: falso-positivo resolvido
