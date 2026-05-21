@@ -13,10 +13,10 @@ import pt.ua.deti.apieasyspot.occupancy.model.ParkingSpot;
 import pt.ua.deti.apieasyspot.occupancy.model.ZoneType;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingSpotRepository;
 import pt.ua.deti.apieasyspot.occupancy.service.OccupancySnapshotIngestService;
+import pt.ua.deti.apieasyspot.occupancy.service.SpotStateResolver;
 import pt.ua.deti.apieasyspot.sensor.service.SensorLogsService;
 
 import java.time.Instant;
-import java.util.Locale;
 import java.util.UUID;
 
 @Slf4j
@@ -34,6 +34,7 @@ public class ParkingSpotEventKafkaListener {
     private final OccupancySnapshotIngestService occupancySnapshotIngestService;
     private final OccupancyEventPublisher occupancyEventPublisher;
     private final SensorLogsService sensorLogsService;
+    private final SpotStateResolver spotStateResolver;
 
     @KafkaListener(
         topics = {"${easyspot.occupancy.kafka.input-topic:parking-spot-events}"},
@@ -48,31 +49,25 @@ public class ParkingSpotEventKafkaListener {
                 return;
             }
 
-            String normalized = normalize(event.status());
-
-            if (!isAllowedStatus(normalized)) {
-                log.warn("Ignoring invalid spot status event: {}", payload);
-                return;
-            }
-
             ParkingSpot spot = parkingSpotRepository.findById(event.spotId()).orElse(null);
             if (spot == null) {
                 log.warn("Ignoring event for unknown spotId={}", event.spotId());
                 return;
             }
 
-            String current = normalize(spot.getStatus());
-            if (current.equals(normalized)) {
+            String current = spotStateResolver.normalize(spot.getStatus());
+            SpotStateResolver.Resolution resolution =
+                spotStateResolver.resolve(current, event.status(), event.payload());
+            if (!resolution.accepted()) {
+                log.warn("Ignoring spot event for spotId={} reason={}", event.spotId(), resolution.reasonCode());
+                return;
+            }
+            String resolved = resolution.finalStatus();
+            if (current.equals(resolved)) {
                 return;
             }
 
-            if (!isPlausibleTransition(current, normalized)) {
-                log.warn("Ignoring implausible transition for spot {}: {} -> {}",
-                    spot.getId(), current, normalized);
-                return;
-            }
-
-            String persisted = toPersistedStatus(spot, normalized);
+            String persisted = toPersistedStatus(spot, resolved);
             spot.setStatus(persisted);
             parkingSpotRepository.save(spot);
             occupancySnapshotIngestService.captureLotSnapshotIfDue(spot.getParkingLot().getId());
@@ -112,11 +107,11 @@ public class ParkingSpotEventKafkaListener {
             String sensorId = sensorIdFromSpotId(event.spotId());
             sensorLogsService.touchSensor(sensorId);
 
-            if (STATUS_OUT_OF_SERVICE.equals(normalized)) {
+            if (STATUS_OUT_OF_SERVICE.equals(resolved)) {
                 sensorLogsService.faultSensor(sensorId);
             }
 
-            if (isRecoveryTransition(current, normalized)) {
+            if (isRecoveryTransition(current, resolved)) {
                 String reason = extractReason(event);
                 if ("AUTO_RECOVERY".equals(reason) || "TECHNICIAN_REPAIR".equals(reason)) {
                     sensorLogsService.recoverSensor(sensorId, reason);
@@ -141,23 +136,6 @@ public class ParkingSpotEventKafkaListener {
         return "IR-" + spotId.toString().replace("-", "").substring(0, 16);
     }
 
-    private boolean isAllowedStatus(String status) {
-        return STATUS_FREE.equals(status)
-            || STATUS_OCCUPIED.equals(status)
-            || STATUS_RESERVED.equals(status)
-            || STATUS_OUT_OF_SERVICE.equals(status);
-    }
-
-    public String normalize(String status) {
-        String s = status.trim().toLowerCase(Locale.ROOT);
-        // "accessible" and "ev" are persisted forms of "free" for typed zones;
-        // treat them as free so transition logic stays consistent.
-        if ("accessible".equals(s) || "ev".equals(s)) {
-            return STATUS_FREE;
-        }
-        return s;
-    }
-
     private String toPersistedStatus(ParkingSpot spot, String status) {
         if (STATUS_FREE.equals(status)) {
             if (spot.getZone() == ZoneType.ACCESSIBLE) {
@@ -171,20 +149,4 @@ public class ParkingSpotEventKafkaListener {
         return status;
     }
 
-    private boolean isPlausibleTransition(String from, String to) {
-        if (from.equals(to)) return true;
-        if (STATUS_FREE.equals(from)) {
-            return STATUS_OCCUPIED.equals(to) || STATUS_RESERVED.equals(to) || STATUS_OUT_OF_SERVICE.equals(to);
-        }
-        if (STATUS_OCCUPIED.equals(from)) {
-            return STATUS_FREE.equals(to) || STATUS_OUT_OF_SERVICE.equals(to);
-        }
-        if (STATUS_RESERVED.equals(from)) {
-            return STATUS_OCCUPIED.equals(to) || STATUS_FREE.equals(to) || STATUS_OUT_OF_SERVICE.equals(to);
-        }
-        if (STATUS_OUT_OF_SERVICE.equals(from)) {
-            return STATUS_FREE.equals(to) || STATUS_OUT_OF_SERVICE.equals(to);
-        }
-        return STATUS_FREE.equals(to);
-    }
 }

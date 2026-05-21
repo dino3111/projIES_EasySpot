@@ -11,6 +11,7 @@ import pt.ua.deti.apieasyspot.notification.model.SeverityAlert;
 import pt.ua.deti.apieasyspot.notification.model.StateAlert;
 import pt.ua.deti.apieasyspot.occupancy.model.TechnicianParkAssignment;
 import pt.ua.deti.apieasyspot.notification.repository.TimescaleAlertRepository;
+import pt.ua.deti.apieasyspot.notification.repository.AlertStateHistoryRepository;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingLotRepository;
 import pt.ua.deti.apieasyspot.occupancy.repository.TechnicianParkAssignmentRepository;
@@ -23,6 +24,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import pt.ua.deti.apieasyspot.notification.dto.AlertStateHistoryEntry;
 
 @Service
 @RequiredArgsConstructor
@@ -32,6 +34,7 @@ public class AlertService {
     private final ParkingLotRepository parkingLotRepository;
     private final TechnicianParkAssignmentRepository technicianParkAssignmentRepository;
     private final UserRepository userRepository;
+    private final AlertStateHistoryRepository alertStateHistoryRepository;
 
     public List<Alert> listAlerts(UUID parkId, StateAlert state, SeverityAlert severity,
                                    OffsetDateTime from, OffsetDateTime to) {
@@ -57,6 +60,7 @@ public class AlertService {
         boolean becomingResolved = newState == StateAlert.RESOLVED && alert.getState() != StateAlert.RESOLVED;
         boolean leavingResolved = newState != StateAlert.RESOLVED && alert.getState() == StateAlert.RESOLVED;
 
+        StateAlert previousState = alert.getState();
         alert.setState(newState);
         if (notes != null && !notes.isBlank()) {
             alert.setNotes(notes);
@@ -68,6 +72,14 @@ public class AlertService {
         }
 
         alertRepository.save(alert);
+        alertStateHistoryRepository.save(
+            alert.getId(),
+            previousState != null ? previousState.name() : null,
+            newState.name(),
+            "manual",
+            notes,
+            Timestamp.from(OffsetDateTime.now(ZoneOffset.UTC).toInstant())
+        );
     }
 
     public Alert createSensorAlert(UUID parkingLotId, String parkingLotName, String zone, String sensorId, String description, String notes, SeverityAlert severity) {
@@ -83,6 +95,10 @@ public class AlertService {
         alert.setNotes(notes);
         alert.setCreatedAt(OffsetDateTime.now(ZoneOffset.UTC));
         return alertRepository.save(alert);
+    }
+
+    public List<AlertStateHistoryEntry> history(UUID alertId) {
+        return alertStateHistoryRepository.findByAlertId(alertId);
     }
 
     private StateAlert parseState(String rawState) {

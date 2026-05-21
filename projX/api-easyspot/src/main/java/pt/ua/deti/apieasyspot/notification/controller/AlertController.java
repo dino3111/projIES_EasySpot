@@ -14,6 +14,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.*;
 import pt.ua.deti.apieasyspot.notification.dto.AlertResponse;
+import pt.ua.deti.apieasyspot.notification.dto.AlertStateHistoryEntry;
 import pt.ua.deti.apieasyspot.notification.dto.AlertSubscriptionResponse;
 import pt.ua.deti.apieasyspot.notification.dto.AlertStateUpdate;
 import pt.ua.deti.apieasyspot.notification.dto.CreateSensorTaskRequest;
@@ -112,6 +113,12 @@ public class AlertController {
     ) {
         alertService.updateState(id, body.state(), body.notes());
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}/history")
+    @PreAuthorize("hasAnyRole('TECHNICAL', 'MANAGER')")
+    public ResponseEntity<List<AlertStateHistoryEntry>> stateHistory(@PathVariable UUID id) {
+        return ResponseEntity.ok(alertService.history(id));
     }
 
     @Operation(summary = "Create a sensor alert when a technician needs to open a task from a failed sensor")

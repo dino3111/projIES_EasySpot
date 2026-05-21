@@ -103,10 +103,10 @@ class ParkGate:
     """State machine for a single entry or exit gate."""
 
     # Probabilities for fault scenarios
-    _P_STUCK_CLOSED = 0.0000005
-    _P_STUCK_OPEN = 0.0000002
-    _P_FAULT = 0.0000002
-    _P_RECOVERY = 0.0050
+    _P_STUCK_CLOSED = 0.0050
+    _P_STUCK_OPEN = 0.0020
+    _P_FAULT = 0.0030
+    _P_RECOVERY = 0.1200
 
     def __init__(self, gate_id: str, direction: GateDirection, rng: random.Random):
         self.gate_id = gate_id
@@ -125,7 +125,9 @@ class ParkGate:
         """Called when OCR read fails. Gate should block."""
         return self._block(plate, reason="ocr_failure")
 
-    def tick(self, park_id: str, park_name: str, fault_check: bool = True) -> List[Tuple[Dict, str]]:
+    def tick(
+        self, park_id: str, park_name: str, fault_check: bool = True
+    ) -> List[Tuple[Dict, str]]:
         """Periodic tick: auto-close open gates, maybe inject faults/recovery.
         fault_check=False skips fault/recovery logic for this tick.
         """
@@ -375,7 +377,9 @@ class GateSimulator:
         with self._lock:
             for park_id, park in self.parks.items():
                 for gate in self._gates[park_id].values():
-                    for event, pid in gate.tick(park_id, park.get("parkName", ""), fault_check=fault_check):
+                    for event, pid in gate.tick(
+                        park_id, park.get("parkName", ""), fault_check=fault_check
+                    ):
                         events.append((event, pid))
         return events
 

@@ -19,6 +19,7 @@ import pt.ua.deti.apieasyspot.sensor.model.SensorRegistry;
 import pt.ua.deti.apieasyspot.sensor.model.SensorStatus;
 import pt.ua.deti.apieasyspot.sensor.repository.SensorLogsRepository;
 import pt.ua.deti.apieasyspot.sensor.repository.SensorRegistryRepository;
+import pt.ua.deti.apieasyspot.sensor.repository.BackendDecisionHistoryRepository;
 
 import java.time.OffsetDateTime;
 import java.time.LocalDateTime;
@@ -32,6 +33,7 @@ public class SensorLogsService {
     private final SensorLogsRepository sensorLogsRepository;
     private final SensorRegistryRepository sensorRegistryRepository;
     private final TimescaleAlertRepository alertRepository;
+    private final BackendDecisionHistoryRepository backendDecisionHistoryRepository;
 
     public List<SensorSummaryDto> listAllSensors() {
         return sensorLogsRepository.findAllSensors();
@@ -74,6 +76,7 @@ public class SensorLogsService {
 
         sensor.setStatus(newStatus);
         sensorRegistryRepository.save(sensor);
+        recordDecision("sensor", sensorId, "STATUS_UPDATE", "api", "status=" + newStatus.name());
 
         alertRepository.findOpenBySensorId(sensorId).ifPresentOrElse(alert -> {
             applySensorStatusToAlert(alert, newStatus, request.notes());
@@ -150,6 +153,7 @@ public class SensorLogsService {
                 }
             );
             log.info("Sensor {} marked OFFLINE via device.fault", sensorId);
+            recordDecision("sensor", sensorId, "FAULT", "device", "status=OFFLINE");
         });
     }
 
@@ -166,10 +170,26 @@ public class SensorLogsService {
             });
 
             log.info("Sensor {} recovered via {}", sensorId, recoveryType);
+            recordDecision("sensor", sensorId, "RECOVER", recoveryType, "status=OPERATIONAL");
         });
+    }
+
+    public List<pt.ua.deti.apieasyspot.sensor.dto.BackendDecisionHistoryEntry> decisionHistory(String sensorId) {
+        return backendDecisionHistoryRepository.findByEntity("sensor", sensorId);
     }
 
     private String blankToNull(String value) {
         return value != null && !value.isBlank() ? value : null;
+    }
+
+    private void recordDecision(String entityType, String entityId, String decisionType, String source, String details) {
+        backendDecisionHistoryRepository.save(
+            entityType,
+            entityId,
+            decisionType,
+            source,
+            details,
+            java.sql.Timestamp.from(OffsetDateTime.now(ZoneOffset.UTC).toInstant())
+        );
     }
 }

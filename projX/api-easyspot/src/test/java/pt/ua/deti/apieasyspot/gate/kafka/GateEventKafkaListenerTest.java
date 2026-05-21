@@ -113,6 +113,31 @@ class GateEventKafkaListenerTest {
         verifyNoInteractions(sensorLogsService);
     }
 
+    @Test
+    @DisplayName("duplicate gate.fault events are processed without backend failure")
+    void duplicateGateFault_processedSafely() {
+        String payload = gatePayload("gate.fault", "FAULT", "CLOSED", null, "hardware_fault");
+
+        listener.onEvent(payload);
+        listener.onEvent(payload);
+
+        verify(gateEventRepository, times(2)).save(any());
+        verify(sensorLogsService, times(2)).faultSensor("gate-test-entry");
+    }
+
+    @Test
+    @DisplayName("gate fault followed by recovered triggers expected transition calls")
+    void gateFaultThenRecovered_callsFaultThenRecover() {
+        String faultPayload = gatePayload("gate.fault", "FAULT", "CLOSED", null, "hardware_fault");
+        String recoveryPayload = gatePayload("gate.recovered", "CLOSED", "FAULT", null, "TECHNICIAN_REPAIR");
+
+        listener.onEvent(faultPayload);
+        listener.onEvent(recoveryPayload);
+
+        verify(sensorLogsService).faultSensor("gate-test-entry");
+        verify(sensorLogsService).recoverSensor("gate-test-entry", "TECHNICIAN_REPAIR");
+    }
+
     private String gatePayload(String eventType, String state, String previousState, String plate, String reason) {
         return """
             {"eventId":"%s","parkId":"%s","eventType":"%s","occurredAt":"%s","version":1,

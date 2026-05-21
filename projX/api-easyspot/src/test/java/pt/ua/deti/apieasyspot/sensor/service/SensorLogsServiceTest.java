@@ -19,6 +19,7 @@ import pt.ua.deti.apieasyspot.notification.model.SeverityAlert;
 import pt.ua.deti.apieasyspot.notification.model.StateAlert;
 import pt.ua.deti.apieasyspot.sensor.repository.SensorLogsRepository;
 import pt.ua.deti.apieasyspot.sensor.repository.SensorRegistryRepository;
+import pt.ua.deti.apieasyspot.sensor.repository.BackendDecisionHistoryRepository;
 
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
@@ -44,11 +45,19 @@ class SensorLogsServiceTest {
     @Mock
     private TimescaleAlertRepository alertRepository;
 
+    @Mock
+    private BackendDecisionHistoryRepository backendDecisionHistoryRepository;
+
     private SensorLogsService service;
 
     @BeforeEach
     void setUp() {
-        service = new SensorLogsService(sensorLogsRepository, sensorRegistryRepository, alertRepository);
+        service = new SensorLogsService(
+            sensorLogsRepository,
+            sensorRegistryRepository,
+            alertRepository,
+            backendDecisionHistoryRepository
+        );
     }
 
     @Test

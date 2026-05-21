@@ -10,6 +10,7 @@ import pt.ua.deti.apieasyspot.occupancy.model.ZoneType;
 import pt.ua.deti.apieasyspot.occupancy.kafka.OccupancyEventPublisher;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingSpotRepository;
 import pt.ua.deti.apieasyspot.occupancy.service.OccupancySnapshotIngestService;
+import pt.ua.deti.apieasyspot.occupancy.service.SpotStateResolver;
 import pt.ua.deti.apieasyspot.sensor.service.SensorLogsService;
 
 import java.util.Optional;
@@ -34,7 +35,7 @@ class ParkingSpotEventKafkaListenerTest {
         sensorLogsService = mock(SensorLogsService.class);
         ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
         listener = new ParkingSpotEventKafkaListener(
-            objectMapper, parkingSpotRepository, occupancySnapshotIngestService, occupancyEventPublisher, sensorLogsService
+            objectMapper, parkingSpotRepository, occupancySnapshotIngestService, occupancyEventPublisher, sensorLogsService, new SpotStateResolver()
         );
     }
 
