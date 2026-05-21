@@ -27,6 +27,8 @@ public class TimescaleHypertableInitializer implements ApplicationRunner {
             prepareOccupancySnapshotTable();
             prepareParkingSessionsTable();
             prepareAlertsTable();
+            prepareAlertStateHistoryTable();
+            prepareBackendDecisionHistoryTable();
             prepareOcrPlateReadsTable();
         } catch (Exception e) {
             log.warn("TimescaleDB base table initialization skipped: {}", e.getMessage());
@@ -153,11 +155,44 @@ public class TimescaleHypertableInitializer implements ApplicationRunner {
         boolean occupancyHypertable = createHypertable("occupancy_snapshots", "recorded_at");
         boolean parkingSessionsHypertable = createHypertable("parking_sessions", "entry_time");
         boolean alertsHypertable = createHypertable("alerts", "created_at");
+        boolean alertHistoryHypertable = createHypertable("alert_state_history", "changed_at");
+        boolean decisionHistoryHypertable = createHypertable("backend_decision_history", "decided_at");
         boolean ocrReadsHypertable = createHypertable("ocr_plate_reads", "occurred_at");
-        if (!occupancyHypertable || !parkingSessionsHypertable || !alertsHypertable || !ocrReadsHypertable) {
+        if (!occupancyHypertable || !parkingSessionsHypertable || !alertsHypertable
+            || !alertHistoryHypertable || !decisionHistoryHypertable || !ocrReadsHypertable) {
             throw new IllegalStateException("One or more Timescale tables could not be converted to hypertables.");
         }
         log.info("TimescaleDB hypertables ready.");
+    }
+
+    private void prepareAlertStateHistoryTable() {
+        jdbc.execute("""
+            create table if not exists alert_state_history (
+                id uuid not null,
+                alert_id uuid not null,
+                previous_state text,
+                new_state text not null,
+                changed_by text,
+                notes text,
+                changed_at timestamptz not null,
+                primary key (id, changed_at)
+            )
+            """);
+    }
+
+    private void prepareBackendDecisionHistoryTable() {
+        jdbc.execute("""
+            create table if not exists backend_decision_history (
+                id uuid not null,
+                entity_type text not null,
+                entity_id text not null,
+                decision_type text not null,
+                decision_source text not null,
+                details text,
+                decided_at timestamptz not null,
+                primary key (id, decided_at)
+            )
+            """);
     }
 
     private boolean createHypertable(String tableName, String timeColumn) {
