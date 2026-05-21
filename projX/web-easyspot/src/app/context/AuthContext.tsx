@@ -343,9 +343,29 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
     setAccessToken(null);
 
     const params = new URLSearchParams({ post_logout_redirect_uri: LOGOUT_REDIRECT_URI });
+    // Authentik invalidation flows reliably honor `next`; keep both for compatibility.
+    params.set('next', LOGOUT_REDIRECT_URI);
     if (CLIENT_ID) params.set('client_id', CLIENT_ID);
     if (idToken) params.set('id_token_hint', idToken);
-    globalThis.location.href = `${LOGOUT_URL}?${params.toString()}`;
+    const logoutHref = `${LOGOUT_URL}?${params.toString()}`;
+
+    // Avoid landing users on Authentik's default invalidation page while still
+    // terminating the provider session. Call end-session in background and
+    // always return to the app's post-logout route.
+    void (async () => {
+      try {
+        await fetch(logoutHref, {
+          method: 'GET',
+          credentials: 'include',
+          redirect: 'follow',
+          cache: 'no-store',
+        });
+      } catch (error) {
+        console.warn('[AUTH] provider logout request failed; continuing local logout', error);
+      } finally {
+        globalThis.location.href = LOGOUT_REDIRECT_URI;
+      }
+    })();
   }, []);
 
   return (

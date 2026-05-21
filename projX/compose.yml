@@ -100,7 +100,7 @@ services:
       sh -c "pip install --quiet requests && python bootstrap_authentik.py"
     environment:
       AUTHENTIK_URL: http://authentik-server:9000/authentik
-      AUTHENTIK_TOKEN: ${AUTHENTIK_BOOTSTRAP_TOKEN:-}
+      AUTHENTIK_TOKEN: ${AUTHENTIK_TOKEN:-}
       APP_FRONTEND_URL: ${APP_FRONTEND_URL:-http://localhost/}
       REDIRECT_URI: ${VITE_AUTHENTIK_REDIRECT_URI:-http://localhost/callback}
       LOGOUT_REDIRECT_URI: ${VITE_AUTHENTIK_LOGOUT_REDIRECT_URI:-http://localhost/welcome}

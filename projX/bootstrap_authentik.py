@@ -406,16 +406,28 @@ def get_default_scope_mappings() -> list[str]:
 
 
 def _build_redirect_uris(*candidates: str) -> list[dict]:
-    uris = {
-        "http://localhost",
-        "http://localhost:5173",
-    }
-    for candidate in candidates:
-        if not candidate:
+    uris = set(_expand_uri_candidates(*candidates))
+    uris.update({"http://localhost", "http://localhost:5173"})
+    return [{"matching_mode": "strict", "url": u} for u in sorted(uris) if u]
+
+
+def _expand_uri_candidates(*candidates: str) -> list[str]:
+    expanded: set[str] = set()
+    for raw in candidates:
+        if not raw:
             continue
-        uris.add(candidate)
-        uris.add(candidate.replace(":5173", ""))
-    return [{"matching_mode": "strict", "url": u} for u in uris if u]
+        uri = raw.strip()
+        if not uri:
+            continue
+
+        expanded.add(uri)
+        if uri.endswith("/"):
+            expanded.add(uri.rstrip("/"))
+        else:
+            expanded.add(f"{uri}/")
+
+        expanded.add(uri.replace(":5173", ""))
+    return sorted(u for u in expanded if u)
 
 
 def get_default_flow(designation: str) -> str:
@@ -488,9 +500,44 @@ def create_provider(groups_mapping_pk: str) -> str:
     if not pk:
         sys.exit("Failed to get provider pk")
     pk_str = str(pk)
+    _configure_provider_logout_redirects(pk_str)
     client_id = provider.get("client_id", "(see Authentik UI)")
     print(f"  Provider pk={pk_str}, client_id={client_id}")
     return pk_str
+
+
+def _configure_provider_logout_redirects(provider_pk: str) -> None:
+    """
+    Configure post-logout redirect URIs across Authentik API variants.
+
+    Different Authentik versions expose this as:
+      - post_logout_redirect_uris (preferred)
+      - post_logout_uris
+      - logout_redirect_uris
+    """
+    logout_uris = _expand_uri_candidates(LOGOUT_REDIRECT_URI, APP_FRONTEND_URL)
+    fields = (
+        "post_logout_redirect_uris",
+        "post_logout_uris",
+        "logout_redirect_uris",
+    )
+
+    for field in fields:
+        try:
+            api(
+                "PATCH",
+                f"/providers/oauth2/{provider_pk}/",
+                json={field: logout_uris},
+            )
+            print(f"  Provider logout redirects configured via '{field}'")
+            return
+        except requests.HTTPError:
+            continue
+
+    print(
+        "  Warning: could not configure explicit post-logout URI field via API; "
+        "continuing with redirect_uris fallback"
+    )
 
 
 def create_application(provider_pk: str) -> dict:
@@ -511,6 +558,96 @@ def create_application(provider_pk: str) -> dict:
         app = api("POST", "/core/applications/", json=payload)
     print(f"  Application slug='{app['slug']}'")
     return app
+
+
+def ensure_provider_invalidation_logs_out_authentik() -> None:
+    """
+    Ensure provider-triggered logout also terminates the Authentik SSO session.
+
+    By default, Authentik's provider invalidation flow usually only invalidates
+    the application session. Adding a User Logout stage to the
+    `default-provider-invalidation-flow` makes logout end both app and SSO
+    sessions.
+    """
+    print("Ensuring provider invalidation flow terminates Authentik session...")
+
+    stage, _ = get_or_create(
+        "/stages/user_logout/",
+        "/stages/user_logout/",
+        "name",
+        "easyspot-provider-user-logout",
+        {"name": "easyspot-provider-user-logout"},
+    )
+    stage_pk = str(stage.get("pk") or "")
+    if not stage_pk:
+        sys.exit("Failed to resolve User Logout stage pk")
+
+    flow_resp = api("GET", "/flows/instances/?slug=default-provider-invalidation-flow")
+    flow_results = flow_resp.get("results", [])
+    if not flow_results:
+        # Fallback for older/different setups where slug differs.
+        flow_resp = api("GET", "/flows/instances/?designation=invalidation")
+        flow_results = [
+            f
+            for f in flow_resp.get("results", [])
+            if "provider" in str(f.get("slug", "")).lower()
+            or "provider" in str(f.get("name", "")).lower()
+        ]
+    if not flow_results:
+        print(
+            "  Warning: provider invalidation flow not found;"
+            " skipping User Logout binding"
+        )
+        return
+
+    flow_pk = str(flow_results[0].get("pk") or "")
+    if not flow_pk:
+        print(
+            "  Warning: provider invalidation flow has no pk;"
+            " skipping User Logout binding"
+        )
+        return
+
+    _bind_stage(flow_pk, stage_pk, order=100)
+    print("  Provider invalidation flow now includes User Logout stage")
+
+
+def ensure_invalidation_redirect() -> None:
+    """
+    Ensure invalidation flows end with an explicit redirect to frontend.
+
+    Some Authentik versions/flows ignore query-string redirect hints in logout
+    and render the default "You've logged out" page instead. A redirect stage
+    bound at the end of invalidation flows makes post-logout navigation stable.
+    """
+    print("Ensuring invalidation flows end with frontend redirect...")
+
+    stage_name = "easyspot-invalidation-redirect"
+    stage_payload = {
+        "name": stage_name,
+        "mode": "static",
+        "target_static": LOGOUT_REDIRECT_URI,
+        "keep_context": False,
+    }
+    existing_stage = api("GET", f"/stages/redirect/?name={stage_name}")
+    if existing_stage.get("results"):
+        redirect_stage_pk = existing_stage["results"][0]["pk"]
+        api("PATCH", f"/stages/redirect/{redirect_stage_pk}/", json=stage_payload)
+    else:
+        created = api("POST", "/stages/redirect/", json=stage_payload)
+        redirect_stage_pk = created["pk"]
+
+    flow_slugs = ("default-provider-invalidation-flow", "default-invalidation-flow")
+    for slug in flow_slugs:
+        flow_resp = api("GET", f"/flows/instances/?slug={slug}")
+        results = flow_resp.get("results", [])
+        if not results:
+            print(f"  Warning: flow '{slug}' not found; skipping redirect binding")
+            continue
+        flow_pk = str(results[0]["pk"])
+        _bind_stage(flow_pk, str(redirect_stage_pk), order=999)
+
+    print("  Invalidation redirect stage configured")
 
 
 def create_test_users(group_ids: dict[str, str]) -> None:
@@ -1068,6 +1205,8 @@ def main() -> None:
     groups_mapping_pk = create_groups_property_mapping()
     provider_pk = create_provider(groups_mapping_pk)
     create_application(provider_pk)
+    ensure_provider_invalidation_logs_out_authentik()
+    ensure_invalidation_redirect()
     create_enrollment_flow()
     provider_resp = api("GET", f"/providers/oauth2/{provider_pk}/")
     client_id = provider_resp.get("client_id", "")
