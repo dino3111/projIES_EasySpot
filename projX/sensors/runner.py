@@ -18,7 +18,7 @@ from config import (
     SIMULATION_SEED,
     TECHNICIAN_REPAIR_PROBABILITY,
 )
-from context_loader import load_reservations, load_spots
+from context_loader import load_cached_context, load_reservations, load_spots
 from event_builder import build_spot_event
 from kafka_publisher import KafkaPublisher
 from publishing import flush_pending, schedule_publish
@@ -27,6 +27,7 @@ from state_machine import SpotStateMachine
 
 
 def run():
+    context = load_cached_context()
     spots = load_spots()
     if not spots:
         raise RuntimeError("No parking spots returned by backend context endpoint")
@@ -65,6 +66,7 @@ def run():
     last_fault_check = time.monotonic()
 
     print(f"Loaded {len(spots)} spots")
+    print(f"Loaded {len(context.get('vehicles', []))} vehicles in cached context")
 
     while True:
         current_hour = datetime.now().hour
@@ -80,10 +82,12 @@ def run():
             last_fault_check = now_mono
 
         try:
-            active_res = load_reservations()
+            active_res_by_spot = {}
+            for res in load_reservations():
+                active_res_by_spot.setdefault(res["spotId"], []).append(res)
         except Exception as exc:
             print(f"Warning: could not load reservations: {exc}")
-            active_res = []
+            active_res_by_spot = {}
 
         for spot in spots:
             spot_id = spot["spotId"]
@@ -94,18 +98,19 @@ def run():
                 fault_simulator.tick(spot_id, now=now_mono)
 
             has_pending = False
-            for res in active_res:
-                if res["spotId"] == spot_id and res["status"] == "CONFIRMED":
-                    try:
-                        arrival = datetime.fromisoformat(
-                            res["arrival"].replace("Z", "+00:00")
-                        )
-                        diff_mins = (arrival - now_ts).total_seconds() / 60.0
-                        if 0 <= diff_mins <= 15:
-                            has_pending = True
-                            break
-                    except (ValueError, TypeError):
-                        pass
+            for res in active_res_by_spot.get(spot_id, []):
+                if res["status"] != "CONFIRMED":
+                    continue
+                try:
+                    arrival = datetime.fromisoformat(
+                        res["arrival"].replace("Z", "+00:00")
+                    )
+                    diff_mins = (arrival - now_ts).total_seconds() / 60.0
+                    if 0 <= diff_mins <= 15:
+                        has_pending = True
+                        break
+                except (ValueError, TypeError):
+                    pass
 
             next_status, reason, fault_duration = machine.next_status(
                 current,

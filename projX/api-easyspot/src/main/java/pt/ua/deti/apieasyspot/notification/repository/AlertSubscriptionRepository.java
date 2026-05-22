@@ -15,4 +15,9 @@ public interface AlertSubscriptionRepository extends JpaRepository<AlertSubscrip
 
     @EntityGraph(attributePaths = {"user"})
     List<AlertSubscription> findByEnabledTrueAndAlertType(AlertSubscriptionType alertType);
+
+    @EntityGraph(attributePaths = {"user"})
+    List<AlertSubscription> findByEnabledTrueAndAlertTypeAndScheduleTimeIsNotNullAndScheduleTimezoneIsNotNull(
+        AlertSubscriptionType alertType
+    );
 }

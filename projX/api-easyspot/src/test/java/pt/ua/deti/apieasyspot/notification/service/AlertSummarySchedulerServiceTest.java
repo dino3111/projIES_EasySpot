@@ -36,7 +36,9 @@ class AlertSummarySchedulerServiceTest {
     @Test
     void runDueSummaries_sendsOncePerSlot() {
         AlertSubscription subscription = subscription();
-        when(alertSubscriptionRepository.findByEnabledTrueAndAlertType(AlertSubscriptionType.DAILY_SUMMARY))
+        when(alertSubscriptionRepository.findByEnabledTrueAndAlertTypeAndScheduleTimeIsNotNullAndScheduleTimezoneIsNotNull(
+            AlertSubscriptionType.DAILY_SUMMARY
+        ))
             .thenReturn(List.of(subscription));
         when(emailDeliveryDedupService.sendOnce(
             anyString(),
@@ -56,7 +58,9 @@ class AlertSummarySchedulerServiceTest {
     @Test
     void runDueSummaries_skipsDuplicateSlotWhenDeliveryServiceDeclines() {
         AlertSubscription subscription = subscription();
-        when(alertSubscriptionRepository.findByEnabledTrueAndAlertType(AlertSubscriptionType.DAILY_SUMMARY))
+        when(alertSubscriptionRepository.findByEnabledTrueAndAlertTypeAndScheduleTimeIsNotNullAndScheduleTimezoneIsNotNull(
+            AlertSubscriptionType.DAILY_SUMMARY
+        ))
             .thenReturn(List.of(subscription));
         when(emailDeliveryDedupService.sendOnce(
             anyString(),

@@ -15,6 +15,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -90,8 +91,8 @@ class TechnicianServiceTest {
         when(technicianRepository.countFailuresYesterday(anyList())).thenReturn(1L);
         when(technicianRepository.avgMttrCurrentWeekMinutes(anyList())).thenReturn(90.0);
         when(technicianRepository.avgMttrHistoricalMinutes(anyList())).thenReturn(120.0);
-        when(technicianRepository.uptimeLast7Days(anyList())).thenReturn(List.of());
-        when(technicianRepository.sensorDistribution(anyList())).thenReturn(List.of());
+        when(technicianRepository.uptimeLast7Days(anyList(), anyInt())).thenReturn(List.of());
+        when(technicianRepository.sensorDistribution(anyList(), anyInt())).thenReturn(List.of());
         when(technicianRepository.urgentWorkOrders(anyList())).thenReturn(List.of());
 
         TechnicianDashboardResponse response = service.buildDashboard(List.of());
@@ -115,8 +116,8 @@ class TechnicianServiceTest {
         when(technicianRepository.countFailuresYesterday(anyList())).thenReturn(0L);
         when(technicianRepository.avgMttrCurrentWeekMinutes(anyList())).thenReturn(null);
         when(technicianRepository.avgMttrHistoricalMinutes(anyList())).thenReturn(null);
-        when(technicianRepository.uptimeLast7Days(anyList())).thenReturn(List.of());
-        when(technicianRepository.sensorDistribution(anyList())).thenReturn(List.of());
+        when(technicianRepository.uptimeLast7Days(anyList(), anyInt())).thenReturn(List.of());
+        when(technicianRepository.sensorDistribution(anyList(), anyInt())).thenReturn(List.of());
         when(technicianRepository.urgentWorkOrders(anyList())).thenReturn(List.of());
 
         TechnicianDashboardResponse response = service.buildDashboard(List.of());

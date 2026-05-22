@@ -249,6 +249,38 @@ class SensorLogsControllerIT {
             .andExpect(jsonPath("$.sensors").isArray());
     }
 
+    @Test
+    @DisplayName("GET /api/technician/sensors/context/base - service token header - returns 200 with base snapshot")
+    void baseContext_serviceToken_returnsSnapshot() throws Exception {
+        mockMvc.perform(get("/api/technician/sensors/context/base")
+                .header("X-Simulation-Token", "test-sensors-token"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.version").value(1))
+            .andExpect(jsonPath("$.generatedAt").exists())
+            .andExpect(jsonPath("$.parkingLots").isArray())
+            .andExpect(jsonPath("$.parkingSpots").isArray())
+            .andExpect(jsonPath("$.vehicles").isArray())
+            .andExpect(jsonPath("$.sensors").doesNotExist())
+            .andExpect(jsonPath("$.users").doesNotExist())
+            .andExpect(jsonPath("$.activeReservations").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("GET /api/technician/sensors/context/reservations - service token header - returns 200 with reservations only")
+    void reservationsContext_serviceToken_returnsSnapshot() throws Exception {
+        mockMvc.perform(get("/api/technician/sensors/context/reservations")
+                .header("X-Simulation-Token", "test-sensors-token"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.version").value(1))
+            .andExpect(jsonPath("$.generatedAt").exists())
+            .andExpect(jsonPath("$.activeReservations").isArray())
+            .andExpect(jsonPath("$.activeReservations.length()").value(1))
+            .andExpect(jsonPath("$.activeReservations[0].spotId").exists())
+            .andExpect(jsonPath("$.activeReservations[0].status").value("CONFIRMED"))
+            .andExpect(jsonPath("$.parkingSpots").doesNotExist())
+            .andExpect(jsonPath("$.vehicles").doesNotExist());
+    }
+
     // ── Happy path ────────────────────────────────────────────────────────────
 
     @Test

@@ -10,13 +10,17 @@ from config import (
     SIMULATION_SEED,
     TECHNICIAN_REPAIR_PROBABILITY,
 )
-from context_loader import load_context, spots_from_context, vehicle_plates_from_context
+from context_loader import (
+    load_cached_context,
+    spots_from_context,
+    vehicle_plates_from_context,
+)
 from kafka_publisher import KafkaPublisher
 from ocr_event_builder import OcrEventGenerator
 
 
 def run_ocr():
-    context = load_context()
+    context = load_cached_context()
     spots = spots_from_context(context)
     if not spots:
         raise RuntimeError("No parking spots returned by backend context endpoint")

@@ -109,7 +109,7 @@ public class TechnicianRepository {
 
     // ── uptime chart ──────────────────────────────────────────────────────────
 
-    public List<DailyUptimeDto> uptimeLast7Days(List<UUID> parkIds) {
+    public List<DailyUptimeDto> uptimeLast7Days(List<UUID> parkIds, int totalSensors) {
         String failSql = """
             SELECT cast(created_at as date) as day,
                    count(distinct sensor_id) as failed
@@ -127,8 +127,6 @@ public class TechnicianRepository {
             (rs, rowNum) -> Map.entry(rs.getString("day"), rs.getLong("failed"))
         ).stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
-        int total = countTotalSensors(parkIds);
-
         return timescaleJdbc.query(
             """
             SELECT generate_series(
@@ -140,8 +138,8 @@ public class TechnicianRepository {
             (rs, rowNum) -> {
                 LocalDate date = rs.getDate("day").toLocalDate();
                 long failed = failedByDay.getOrDefault(date.toString(), 0L);
-                double uptime = total > 0
-                    ? Math.round(Math.max(total - failed, 0) * 1000.0 / total) / 10.0
+                double uptime = totalSensors > 0
+                    ? Math.round(Math.max(totalSensors - failed, 0) * 1000.0 / totalSensors) / 10.0
                     : 0.0;
                 return new DailyUptimeDto(
                     date.toString(),
@@ -152,8 +150,7 @@ public class TechnicianRepository {
 
     // ── sensor distribution ───────────────────────────────────────────────────
 
-    public List<SensorStatusDto> sensorDistribution(List<UUID> parkIds) {
-        int total = countTotalSensors(parkIds);
+    public List<SensorStatusDto> sensorDistribution(List<UUID> parkIds, int totalSensors) {
         String sql = "SELECT status, count(*) AS cnt FROM sensor_registry WHERE 1=1"
             + parkFilter(parkIds, "parking_lot_id") + " GROUP BY status";
         return jdbc.query(
@@ -162,7 +159,7 @@ public class TechnicianRepository {
             (rs, rowNum) -> {
                 int count = rs.getInt("cnt");
                 String status = rs.getString("status");
-                double pct = total > 0 ? Math.round(count * 1000.0 / total) / 10.0 : 0.0;
+                double pct = totalSensors > 0 ? Math.round(count * 1000.0 / totalSensors) / 10.0 : 0.0;
                 return new SensorStatusDto(status.toLowerCase(Locale.ROOT), statusLabel(status), count, pct);
             });
     }
@@ -170,10 +167,17 @@ public class TechnicianRepository {
     // ── urgent work orders ────────────────────────────────────────────────────
 
     public List<WorkOrderSummary> urgentWorkOrders(List<UUID> parkIds) {
-        Map<UUID, String> parkNames = jdbc.query(
-            "SELECT id, name FROM parking_lots",
-            (rs, rowNum) -> Map.entry(UUID.fromString(rs.getString("id")), rs.getString("name"))
-        ).stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        Map<UUID, String> parkNames;
+        if (parkIds == null || parkIds.isEmpty()) {
+            parkNames = Map.of();
+        } else {
+            String inClause = parkIds.stream().map(id -> "?::uuid").collect(Collectors.joining(","));
+            parkNames = jdbc.query(
+                "SELECT id, name FROM parking_lots WHERE id IN (" + inClause + ")",
+                parkIds.stream().map(UUID::toString).toArray(),
+                (rs, rowNum) -> Map.entry(UUID.fromString(rs.getString("id")), rs.getString("name"))
+            ).stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        }
 
         String sql = """
             SELECT a.id, a.type, a.parking_lot_id, a.zone, a.sensor_id,

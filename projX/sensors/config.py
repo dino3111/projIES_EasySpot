@@ -2,7 +2,7 @@ import os
 
 BACKEND_BASE_URL = os.getenv("BACKEND_BASE_URL", "http://localhost:8080")
 SENSOR_CONTEXT_ENDPOINT = os.getenv(
-    "SENSOR_CONTEXT_ENDPOINT", "/api/technician/sensors/context"
+    "SENSOR_CONTEXT_ENDPOINT", "/api/technician/sensors/context/base"
 )
 SIMULATION_SERVICE_TOKEN = os.getenv("SIMULATION_SERVICE_TOKEN", "")
 
@@ -20,7 +20,7 @@ SENSOR_HEARTBEAT_INTERVAL_SECONDS = float(
 
 # 1 second between occupancy cycles (keeps parking state lively).
 SIMULATION_INTERVAL_SECONDS = float(os.getenv("SIMULATION_INTERVAL_SECONDS", "1.0"))
-# 60 seconds between fault-check cycles — with hundreds of sensors even tiny probabilities add up fast.
+# 60 seconds between fault-check cycles; tiny probabilities add up fast.
 FAULT_CHECK_INTERVAL_SECONDS = float(os.getenv("FAULT_CHECK_INTERVAL_SECONDS", "60.0"))
 SIMULATION_SEED = int(os.getenv("SIMULATION_SEED", "42"))
 CONTEXT_LOAD_RETRIES = int(os.getenv("CONTEXT_LOAD_RETRIES", "20"))
@@ -28,13 +28,15 @@ CONTEXT_RETRY_DELAY_SECONDS = float(os.getenv("CONTEXT_RETRY_DELAY_SECONDS", "3"
 
 FAULT_MIN_DURATION_SECONDS = float(os.getenv("FAULT_MIN_DURATION_SECONDS", "30"))
 FAULT_MAX_DURATION_SECONDS = float(os.getenv("FAULT_MAX_DURATION_SECONDS", "300"))
-TECHNICIAN_REPAIR_PROBABILITY = float(os.getenv("TECHNICIAN_REPAIR_PROBABILITY", "0.001"))
+TECHNICIAN_REPAIR_PROBABILITY = float(
+    os.getenv("TECHNICIAN_REPAIR_PROBABILITY", "0.001")
+)
 OCR_FAULT_PROBABILITY_PER_TICK = float(
     os.getenv("OCR_FAULT_PROBABILITY_PER_TICK", "0.000005")
 )
 
 # IR sensor device-level fault simulation
-# With 1s ticks and ~300 sensors: 0.000005 → ~1 fault every ~10 minutes across all sensors
+# With 1s ticks and ~300 sensors, 0.000005 is about 1 fault every 10 minutes.
 SENSOR_FAULT_DEGRADED_PROBABILITY = float(
     os.getenv("SENSOR_FAULT_DEGRADED_PROBABILITY", "0.000005")
 )

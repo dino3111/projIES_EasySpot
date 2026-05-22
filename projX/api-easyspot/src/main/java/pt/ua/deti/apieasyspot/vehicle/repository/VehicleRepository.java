@@ -1,6 +1,7 @@
 package pt.ua.deti.apieasyspot.vehicle.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.EntityGraph;
 import pt.ua.deti.apieasyspot.vehicle.model.Vehicle;
 
 import java.util.List;
@@ -8,6 +9,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface VehicleRepository extends JpaRepository<Vehicle, UUID> {
+    @EntityGraph(attributePaths = {"user"})
+    List<Vehicle> findAll();
     List<Vehicle> findByUserId(UUID userId);
     Optional<Vehicle> findByIdAndUserId(UUID id, UUID userId);
     Optional<Vehicle> findByPlate(String plate);

@@ -53,10 +53,7 @@ public class ParkService {
     public ParkingLotSummaryResponse searchParks(String textQuery, Integer minAvailableSpaces, String city, List<String> filters, int page, int pageSize) {
         boolean filterEV = filters != null && filters.contains("EV");
         boolean filterAcc = filters != null && filters.contains("ACCESSIBLE");
-        List<ParkingLot> allLots = parkingLotRepository.findAll().stream()
-            .filter(lot -> matchesText(lot, textQuery))
-            .filter(lot -> matchesCity(lot, city))
-            .toList();
+        List<ParkingLot> allLots = parkingLotRepository.searchByTextAndCity(textQuery, city);
         List<UUID> lotIds = allLots.stream().map(ParkingLot::getId).toList();
 
         Map<UUID, List<ParkingSpot>> spotsByLot = parkingSpotRepository.findByParkingLotIdIn(lotIds).stream()
@@ -68,10 +65,10 @@ public class ParkService {
         OffsetDateTime now = OffsetDateTime.now();
 
         Set<UUID> lotsWithEV = filterEV
-            ? evChargerRepository.findAll().stream().map(c -> c.getParkingLot().getId()).collect(java.util.stream.Collectors.toSet())
+            ? new java.util.HashSet<>(evChargerRepository.findDistinctParkingLotIds())
             : Set.of();
         Set<UUID> lotsWithAcc = filterAcc
-            ? accessibleSpotRepository.findAll().stream().map(a -> a.getParkingLot().getId()).collect(java.util.stream.Collectors.toSet())
+            ? new java.util.HashSet<>(accessibleSpotRepository.findDistinctParkingLotIds())
             : Set.of();
 
         List<ParkingLotSummaryResponse.ParkingLotSummary> filtered = allLots.stream()
@@ -186,19 +183,6 @@ public class ParkService {
             .filter(snapshot -> snapshot.zoneType() == zoneType)
             .mapToInt(extractor)
             .sum();
-    }
-
-    private boolean matchesText(ParkingLot lot, String textQuery) {
-        if (textQuery == null || textQuery.isBlank()) return true;
-        String query = textQuery.toLowerCase();
-        return lot.getName().toLowerCase().contains(query)
-            || lot.getCity().toLowerCase().contains(query)
-            || lot.getAddress().toLowerCase().contains(query);
-    }
-
-    private boolean matchesCity(ParkingLot lot, String city) {
-        if (city == null || city.isBlank()) return true;
-        return lot.getCity().equalsIgnoreCase(city.trim());
     }
 
     private String classifyAvailability(int free, int total) {

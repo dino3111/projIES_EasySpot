@@ -46,7 +46,7 @@ def load_context():
 
 
 def load_spots():
-    context = load_context()
+    context = load_cached_context()
     return spots_from_context(context)
 
 
@@ -71,7 +71,7 @@ def spots_from_context(context):
 
 
 def load_vehicle_plates():
-    context = load_context()
+    context = load_cached_context()
     return vehicle_plates_from_context(context)
 
 
@@ -95,7 +95,7 @@ def vehicle_plates_from_context(context):
 
 
 def load_reservations():
-    context = load_context()
+    context = load_context_reservations()
     return [
         {
             "reservationId": res["reservationId"],
@@ -109,16 +109,53 @@ def load_reservations():
     ]
 
 
+_cached_context = None
+_cached_reservations_context = None
+
+
+def load_cached_context():
+    global _cached_context
+    if _cached_context is None:
+        _cached_context = load_context()
+    return _cached_context
+
+
+def load_context_reservations():
+    global _cached_reservations_context
+    if _cached_reservations_context is None:
+        last_error = None
+        endpoint = f"{BACKEND_BASE_URL}/api/technician/sensors/context/reservations"
+
+        for attempt in range(1, CONTEXT_LOAD_RETRIES + 1):
+            try:
+                response = requests.get(
+                    endpoint,
+                    headers=_headers(),
+                    timeout=30,
+                )
+                response.raise_for_status()
+                context = response.json()
+                _validate_reservations_context(context)
+                _cached_reservations_context = context
+                break
+            except requests.RequestException as exc:
+                last_error = exc
+                if attempt == CONTEXT_LOAD_RETRIES:
+                    raise ContextLoadError(
+                        "Failed to load reservations context after "
+                        f"{CONTEXT_LOAD_RETRIES} attempts"
+                    ) from last_error
+                time.sleep(CONTEXT_RETRY_DELAY_SECONDS)
+    return _cached_reservations_context
+
+
 def _validate_context(context):
     required_top_level = [
         "version",
         "generatedAt",
         "parkingLots",
         "parkingSpots",
-        "sensors",
-        "users",
         "vehicles",
-        "activeReservations",
     ]
     missing = [key for key in required_top_level if key not in context]
     if missing:
@@ -139,3 +176,15 @@ def _validate_context(context):
         ):
             if key not in spot:
                 raise ContextLoadError(f"Missing '{key}' in parkingSpots[{idx}]")
+
+
+def _validate_reservations_context(context):
+    required_top_level = ["version", "generatedAt", "activeReservations"]
+    missing = [key for key in required_top_level if key not in context]
+    if missing:
+        raise ContextLoadError(
+            f"Missing reservations context keys: {', '.join(missing)}"
+        )
+
+    if not isinstance(context["activeReservations"], list):
+        raise ContextLoadError("'activeReservations' must be a list")

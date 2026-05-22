@@ -60,7 +60,7 @@ class ParkServiceTest {
     @Test
     void searchParks_returnsItemsFromJdbc() {
         lot.setCity("Aveiro");
-        when(parkingLotRepository.findAll()).thenReturn(List.of(lot));
+        when(parkingLotRepository.searchByTextAndCity("Test", null)).thenReturn(List.of(lot));
         when(timescaleOccupancySnapshotRepository.latestByLot(lotId)).thenReturn(List.of(
             new ZoneSnapshot(ZoneType.STANDARD, 80, 100, Instant.now()),
             new ZoneSnapshot(ZoneType.EV, 5, 10, Instant.now())
@@ -73,7 +73,7 @@ class ParkServiceTest {
         evCharger.setType("Type 2");
         evCharger.setSpeed("Fast");
         evCharger.setAvailable(true);
-        when(evChargerRepository.findAll()).thenReturn(List.of(evCharger));
+        when(evChargerRepository.findDistinctParkingLotIds()).thenReturn(List.of(lotId));
 
         ParkingLotSummaryResponse response = parkService.searchParks("Test", 10, null, List.of("EV"), 1, 10);
 
@@ -87,7 +87,7 @@ class ParkServiceTest {
     @Test
     void searchParks_futureReservedSpotIsNotReportedAsFree() {
         lot.setCity("Coimbra");
-        when(parkingLotRepository.findAll()).thenReturn(List.of(lot));
+        when(parkingLotRepository.searchByTextAndCity(null, null)).thenReturn(List.of(lot));
         when(timescaleOccupancySnapshotRepository.latestByLot(lotId)).thenReturn(List.of(
             new ZoneSnapshot(ZoneType.STANDARD, 0, 2, Instant.now())
         ));
@@ -124,7 +124,7 @@ class ParkServiceTest {
 
     @Test
     void searchParks_noFilters_callsJdbc() {
-        when(parkingLotRepository.findAll()).thenReturn(List.of());
+        when(parkingLotRepository.searchByTextAndCity(null, null)).thenReturn(List.of());
         ParkingLotSummaryResponse response = parkService.searchParks(null, null, null, null, 1, 20);
 
         assertThat(response.items()).isEmpty();
@@ -134,7 +134,7 @@ class ParkServiceTest {
 
     @Test
     void searchParks_page2_usesCorrectOffset() {
-        when(parkingLotRepository.findAll()).thenReturn(List.of());
+        when(parkingLotRepository.searchByTextAndCity(null, null)).thenReturn(List.of());
         ParkingLotSummaryResponse response = parkService.searchParks(null, null, null, null, 2, 10);
 
         assertThat(response.pagination().page()).isEqualTo(2);

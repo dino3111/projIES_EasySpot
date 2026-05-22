@@ -37,8 +37,8 @@ public class TechnicianService {
 
         return new TechnicianDashboardResponse(
             kpis,
-            technicianRepository.uptimeLast7Days(parkIds),
-            technicianRepository.sensorDistribution(parkIds),
+            technicianRepository.uptimeLast7Days(parkIds, total),
+            technicianRepository.sensorDistribution(parkIds, total),
             technicianRepository.urgentWorkOrders(parkIds)
         );
     }

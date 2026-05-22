@@ -20,4 +20,18 @@ public record SensorBootstrapContextDto(
     public record UserItem(UUID id, String authentikUserId, String role) {}
     public record VehicleItem(UUID id, UUID userId, String plate, boolean isEv, boolean isAccessible) {}
     public record ReservationItem(UUID id, UUID userId, UUID parkingLotId, UUID parkingSpotId, UUID vehicleId, String status, OffsetDateTime arrivalTime, OffsetDateTime departureTime) {}
+
+    public record ReservationSnapshotDto(
+        int version,
+        OffsetDateTime generatedAt,
+        List<ReservationItem> activeReservations
+    ) {}
+
+    public record BaseSnapshotDto(
+        int version,
+        OffsetDateTime generatedAt,
+        List<ParkItem> parkingLots,
+        List<SpotItem> parkingSpots,
+        List<VehicleItem> vehicles
+    ) {}
 }

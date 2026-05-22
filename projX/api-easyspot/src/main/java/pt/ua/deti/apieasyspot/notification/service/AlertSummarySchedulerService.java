@@ -33,7 +33,9 @@ public class AlertSummarySchedulerService {
 
     public int runDueSummaries(Instant now) {
         List<AlertSubscription> subscriptions = alertSubscriptionRepository
-            .findByEnabledTrueAndAlertType(AlertSubscriptionType.DAILY_SUMMARY);
+            .findByEnabledTrueAndAlertTypeAndScheduleTimeIsNotNullAndScheduleTimezoneIsNotNull(
+                AlertSubscriptionType.DAILY_SUMMARY
+            );
         int sent = 0;
         for (AlertSubscription subscription : subscriptions) {
             if (!isDue(subscription, now)) {

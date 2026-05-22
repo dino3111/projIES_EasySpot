@@ -140,7 +140,13 @@ public class AlertService {
             return technicianNameByParkId;
         }
 
-        Map<UUID, User> usersById = userRepository.findAll().stream()
+        List<UUID> technicianIds = unresolvedParkIds.stream()
+            .flatMap(parkId -> technicianParkAssignmentRepository.findByParkingLotId(parkId).stream())
+            .map(TechnicianParkAssignment::getTechnicianId)
+            .distinct()
+            .toList();
+
+        Map<UUID, User> usersById = userRepository.findAllById(technicianIds).stream()
             .collect(Collectors.toMap(User::getId, u -> u));
 
         for (UUID parkId : unresolvedParkIds) {

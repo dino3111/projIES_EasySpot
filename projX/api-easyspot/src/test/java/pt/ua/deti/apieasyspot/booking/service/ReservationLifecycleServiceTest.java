@@ -21,6 +21,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -109,5 +110,41 @@ class ReservationLifecycleServiceTest {
         assertThat(changed).isEqualTo(1);
         assertThat(reservation.getStatus()).isEqualTo(ReservationStatus.CONFIRMED);
         assertThat(spot.getStatus()).isEqualTo("reserved");
+    }
+
+    @Test
+    void reconcileLifecycle_doesNotPersistReservationsWhenNothingChanged() {
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+
+        ParkingLot lot = new ParkingLot();
+        lot.setId(UUID.randomUUID());
+
+        ParkingSpot spot = new ParkingSpot();
+        spot.setId(UUID.randomUUID());
+        spot.setParkingLot(lot);
+        spot.setSpotNumber("A3");
+        spot.setZone(ZoneType.STANDARD);
+        spot.setSpotRow(1);
+        spot.setSpotCol(3);
+        spot.setStatus("free");
+
+        Reservation reservation = new Reservation();
+        reservation.setId(UUID.randomUUID());
+        reservation.setParkingLot(lot);
+        reservation.setParkingSpot(spot);
+        reservation.setArrivalTime(now.minusMinutes(10));
+        reservation.setDepartureTime(now.plusMinutes(10));
+        reservation.setStatus(ReservationStatus.CONFIRMED);
+
+        when(reservationRepository.expireTimedOutLocks(any(), eq(ReservationStatus.CONFIRMED), eq(ReservationStatus.EXPIRED)))
+            .thenReturn(0);
+        when(reservationRepository.findAllActiveWithSpot()).thenReturn(List.of(reservation));
+        when(parkingSpotRepository.findAll()).thenReturn(List.of(spot));
+
+        int changed = lifecycleService.reconcileLifecycle(now);
+
+        assertThat(changed).isZero();
+        verify(reservationRepository, never()).saveAll(any());
+        verify(parkingSpotRepository, never()).saveAll(any());
     }
 }

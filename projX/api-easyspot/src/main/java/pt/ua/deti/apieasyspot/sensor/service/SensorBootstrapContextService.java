@@ -61,4 +61,43 @@ public class SensorBootstrapContextService {
             )).toList()
         );
     }
+
+    @Transactional(readOnly = true)
+    public SensorBootstrapContextDto.BaseSnapshotDto baseSnapshot() {
+        var lots = parkingLotRepository.findAll();
+        var spots = parkingSpotRepository.findAll();
+        var vehicles = vehicleRepository.findAll();
+
+        return new SensorBootstrapContextDto.BaseSnapshotDto(
+            1,
+            OffsetDateTime.now(),
+            lots.stream().map(l -> new SensorBootstrapContextDto.ParkItem(l.getId(), l.getName(), l.getCity())).toList(),
+            spots.stream().map(s -> new SensorBootstrapContextDto.SpotItem(
+                s.getId(), s.getParkingLot().getId(), s.getSpotNumber(), s.getZone().name(), s.getSpotRow(), s.getSpotCol(), s.getStatus()
+            )).toList(),
+            vehicles.stream().map(v -> new SensorBootstrapContextDto.VehicleItem(
+                v.getId(), v.getUser().getId(), v.getPlate(), v.isEv(), v.isAccessible()
+            )).toList()
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public SensorBootstrapContextDto.ReservationSnapshotDto reservationsSnapshot() {
+        var activeReservations = reservationRepository.findAllActiveWithSpot();
+
+        return new SensorBootstrapContextDto.ReservationSnapshotDto(
+            1,
+            OffsetDateTime.now(),
+            activeReservations.stream().map(r -> new SensorBootstrapContextDto.ReservationItem(
+                r.getId(),
+                r.getUser().getId(),
+                r.getParkingLot().getId(),
+                r.getParkingSpot() != null ? r.getParkingSpot().getId() : null,
+                r.getVehicle() != null ? r.getVehicle().getId() : null,
+                r.getStatus().name(),
+                r.getArrivalTime(),
+                r.getDepartureTime()
+            )).toList()
+        );
+    }
 }

@@ -84,6 +84,23 @@ public class SensorLogsController {
     public ResponseEntity<SensorBootstrapContextDto> getBootstrapContext(HttpServletRequest request) {
         return ResponseEntity.ok(sensorBootstrapContextService.snapshot());
     }
+
+    @Operation(summary = "Get lightweight bootstrap context for simulators")
+    @ApiResponse(responseCode = "200", description = "Base context snapshot")
+    @GetMapping("/context/base")
+    @PreAuthorize("hasAnyRole('TECHNICAL', 'MANAGER') or @sensorServiceAuth.hasValidKey(#request)")
+    public ResponseEntity<SensorBootstrapContextDto.BaseSnapshotDto> getBaseBootstrapContext(HttpServletRequest request) {
+        return ResponseEntity.ok(sensorBootstrapContextService.baseSnapshot());
+    }
+
+    @Operation(summary = "Get only the active reservations for the virtual sensor pipeline")
+    @ApiResponse(responseCode = "200", description = "Active reservations snapshot")
+    @GetMapping("/context/reservations")
+    @PreAuthorize("hasAnyRole('TECHNICAL', 'MANAGER') or @sensorServiceAuth.hasValidKey(#request)")
+    public ResponseEntity<SensorBootstrapContextDto.ReservationSnapshotDto> getReservationsSnapshot(HttpServletRequest request) {
+        return ResponseEntity.ok(sensorBootstrapContextService.reservationsSnapshot());
+    }
+
     @ExceptionHandler(SensorNotFoundException.class)
     ResponseEntity<Void> handleNotFound() {
         return ResponseEntity.notFound().build();

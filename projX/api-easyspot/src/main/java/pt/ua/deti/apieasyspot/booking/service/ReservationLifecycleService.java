@@ -42,7 +42,7 @@ public class ReservationLifecycleService {
         UpdateReservationsResult result = updateReservations(activeReservations, now);
         changedReservations += result.changedCount();
 
-        if (!activeReservations.isEmpty()) {
+        if (result.changedCount() > 0) {
             reservationRepository.saveAll(activeReservations);
         }
 
