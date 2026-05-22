@@ -276,14 +276,20 @@ select
     'gate-' || substring(pl.id::text from 1 for 8) || '-entry' as sensor_id,
     pl.id as parking_lot_id,
     coalesce(
-        (select regexp_replace(ps.spot_number, '^(f-[^-]+-p0):.*', '\1') || ':ENT'
-         from parking_spots ps
-         where ps.parking_lot_id = pl.id and ps.spot_number ~ '^f-[^-]+-p0:'
-         limit 1),
-        (select regexp_replace(ps.spot_number, '^(p0):.*', '\1') || ':ENT'
-         from parking_spots ps
-         where ps.parking_lot_id = pl.id and ps.spot_number ~ '^p0:'
-         limit 1),
+        (
+            select regexp_replace(ps.spot_number, '^(f-[^-]+-p0):.*', '\1') || ':ENT'
+            from parking_spots as ps
+            where ps.parking_lot_id = pl.id and ps.spot_number ~ '^f-[^-]+-p0:'
+            order by ps.spot_number
+            limit 1
+        ),
+        (
+            select regexp_replace(ps.spot_number, '^(p0):.*', '\1') || ':ENT'
+            from parking_spots as ps
+            where ps.parking_lot_id = pl.id and ps.spot_number ~ '^p0:'
+            order by ps.spot_number
+            limit 1
+        ),
         'p0:ENT'
     ) as zone,
     'OPERATIONAL' as status,
@@ -299,14 +305,20 @@ select
     'gate-' || substring(pl.id::text from 1 for 8) || '-exit' as sensor_id,
     pl.id as parking_lot_id,
     coalesce(
-        (select regexp_replace(ps.spot_number, '^(f-[^-]+-p0):.*', '\1') || ':ENT'
-         from parking_spots ps
-         where ps.parking_lot_id = pl.id and ps.spot_number ~ '^f-[^-]+-p0:'
-         limit 1),
-        (select regexp_replace(ps.spot_number, '^(p0):.*', '\1') || ':ENT'
-         from parking_spots ps
-         where ps.parking_lot_id = pl.id and ps.spot_number ~ '^p0:'
-         limit 1),
+        (
+            select regexp_replace(ps.spot_number, '^(f-[^-]+-p0):.*', '\1') || ':ENT'
+            from parking_spots as ps
+            where ps.parking_lot_id = pl.id and ps.spot_number ~ '^f-[^-]+-p0:'
+            order by ps.spot_number
+            limit 1
+        ),
+        (
+            select regexp_replace(ps.spot_number, '^(p0):.*', '\1') || ':ENT'
+            from parking_spots as ps
+            where ps.parking_lot_id = pl.id and ps.spot_number ~ '^p0:'
+            order by ps.spot_number
+            limit 1
+        ),
         'p0:ENT'
     ) as zone,
     'OPERATIONAL' as status,
@@ -323,14 +335,20 @@ select
     'OCR-' || upper(substring(replace(pl.id::text, '-', '') from 1 for 8)) || '-ENT1' as sensor_id,
     pl.id as parking_lot_id,
     coalesce(
-        (select regexp_replace(ps.spot_number, '^(f-[^-]+-p0):.*', '\1') || ':ENT'
-         from parking_spots ps
-         where ps.parking_lot_id = pl.id and ps.spot_number ~ '^f-[^-]+-p0:'
-         limit 1),
-        (select regexp_replace(ps.spot_number, '^(p0):.*', '\1') || ':ENT'
-         from parking_spots ps
-         where ps.parking_lot_id = pl.id and ps.spot_number ~ '^p0:'
-         limit 1),
+        (
+            select regexp_replace(ps.spot_number, '^(f-[^-]+-p0):.*', '\1') || ':ENT'
+            from parking_spots as ps
+            where ps.parking_lot_id = pl.id and ps.spot_number ~ '^f-[^-]+-p0:'
+            order by ps.spot_number
+            limit 1
+        ),
+        (
+            select regexp_replace(ps.spot_number, '^(p0):.*', '\1') || ':ENT'
+            from parking_spots as ps
+            where ps.parking_lot_id = pl.id and ps.spot_number ~ '^p0:'
+            order by ps.spot_number
+            limit 1
+        ),
         'p0:ENT'
     ) as zone,
     'OPERATIONAL' as status,
@@ -346,14 +364,20 @@ select
     'OCR-' || upper(substring(replace(pl.id::text, '-', '') from 1 for 8)) || '-SAI1' as sensor_id,
     pl.id as parking_lot_id,
     coalesce(
-        (select regexp_replace(ps.spot_number, '^(f-[^-]+-p0):.*', '\1') || ':ENT'
-         from parking_spots ps
-         where ps.parking_lot_id = pl.id and ps.spot_number ~ '^f-[^-]+-p0:'
-         limit 1),
-        (select regexp_replace(ps.spot_number, '^(p0):.*', '\1') || ':ENT'
-         from parking_spots ps
-         where ps.parking_lot_id = pl.id and ps.spot_number ~ '^p0:'
-         limit 1),
+        (
+            select regexp_replace(ps.spot_number, '^(f-[^-]+-p0):.*', '\1') || ':ENT'
+            from parking_spots as ps
+            where ps.parking_lot_id = pl.id and ps.spot_number ~ '^f-[^-]+-p0:'
+            order by ps.spot_number
+            limit 1
+        ),
+        (
+            select regexp_replace(ps.spot_number, '^(p0):.*', '\1') || ':ENT'
+            from parking_spots as ps
+            where ps.parking_lot_id = pl.id and ps.spot_number ~ '^p0:'
+            order by ps.spot_number
+            limit 1
+        ),
         'p0:ENT'
     ) as zone,
     'OPERATIONAL' as status,
