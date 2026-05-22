@@ -113,6 +113,8 @@ public class SensorLogsService {
         if (newStatus == SensorStatus.OPERATIONAL) {
             alert.setState(StateAlert.RESOLVED);
             alert.setResolvedAt(OffsetDateTime.now(ZoneOffset.UTC));
+        } else if (newStatus == SensorStatus.MAINTENANCE && alert.getState() == StateAlert.OPEN) {
+            alert.setState(StateAlert.IN_PROGRESS);
         }
     }
 

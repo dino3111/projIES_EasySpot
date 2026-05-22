@@ -352,9 +352,8 @@ test('Confirmar atualização de status chama API e mostra toast', async ({ page
   await page.getByRole('button', { name: /confirmar atualização/i }).click();
 
   // Toast should appear
-  const toast = page.getByRole('status');
+  const toast = page.locator('div[role="status"]:has-text("IR-AV1-B07")');
   await expect(toast).toBeVisible();
-  await expect(toast).toContainText('IR-AV1-B07');
 
   expect(statusPatchCalled).toBe(true);
 });

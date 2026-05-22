@@ -6,9 +6,7 @@ import org.springframework.stereotype.Repository;
 import pt.ua.deti.apieasyspot.analytics.dto.*;
 
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.format.TextStyle;
 import java.util.List;
@@ -30,34 +28,36 @@ public class AnalyticsRepository {
         this.timescaleJdbc = timescaleJdbc;
     }
 
+    private static final String TZ = "Europe/Lisbon";
+
     public long countEntriesToday() {
         return timescaleJdbc.queryForObject(
-            "select COUNT(*) from parking_sessions where entry_time >= current_date and entry_time < current_date + interval '1 day'",
-            Long.class);
+            "select COUNT(*) from parking_sessions where entry_time >= current_date at time zone ? and entry_time < (current_date + interval '1 day') at time zone ?",
+            Long.class, TZ, TZ);
     }
 
     public Long countEntriesYesterday() {
         return timescaleJdbc.queryForObject(
-            "select count(*) from parking_sessions where entry_time >= current_date - interval '1 day' and entry_time < current_date",
-            Long.class);
+            "select count(*) from parking_sessions where entry_time >= (current_date - interval '1 day') at time zone ? and entry_time < current_date at time zone ?",
+            Long.class, TZ, TZ);
     }
 
     public BigDecimal revenueToday() {
         return timescaleJdbc.queryForObject(
-            "select coalesce(sum(revenue_euros), 0) from parking_sessions where exit_time >= current_date AND exit_time < current_date + interval '1 day'",
-            BigDecimal.class);
+            "select coalesce(sum(revenue_euros), 0) from parking_sessions where exit_time >= current_date at time zone ? and exit_time < (current_date + interval '1 day') at time zone ?",
+            BigDecimal.class, TZ, TZ);
     }
 
     public BigDecimal revenueYesterday() {
         return timescaleJdbc.queryForObject(
-            "select coalesce(sum(revenue_euros), 0) from parking_sessions where exit_time >= current_date - interval '1 day' and exit_time < current_date",
-            BigDecimal.class);
+            "select coalesce(sum(revenue_euros), 0) from parking_sessions where exit_time >= (current_date - interval '1 day') at time zone ? and exit_time < current_date at time zone ?",
+            BigDecimal.class, TZ, TZ);
     }
 
     public Double avgSessionDurationMinutes() {
         return timescaleJdbc.queryForObject(
-            "select avg(extract(epoch from (exit_time - entry_time)) / 60) from parking_sessions where exit_time >= current_date and exit_time < current_date + interval '1 day' and exit_time is not null",
-            Double.class);
+            "select avg(extract(epoch from (exit_time - entry_time)) / 60) from parking_sessions where exit_time >= current_date at time zone ? and exit_time < (current_date + interval '1 day') at time zone ? and exit_time is not null",
+            Double.class, TZ, TZ);
     }
 
     public long countOpenAlerts() {
@@ -89,12 +89,12 @@ public class AnalyticsRepository {
     public List<DailyMetric> last7DaysMetrics() {
         return timescaleJdbc.query(
             """
-            select date(entry_time) as day,
+            select date(entry_time at time zone 'Europe/Lisbon') as day,
                    count(*) as entries,
                    coalesce(sum(revenue_euros), 0) as revenue
             from parking_sessions
-            where entry_time >= current_date - interval '6 days'
-            group by date(entry_time)
+            where entry_time >= (current_date - interval '6 days') at time zone 'Europe/Lisbon'
+            group by date(entry_time at time zone 'Europe/Lisbon')
             order by day
             """,
             (rs, rowNum) -> {
@@ -124,17 +124,16 @@ public class AnalyticsRepository {
     public List<HourlyOccupancyDto> hourlyOccupancy() {
         return timescaleJdbc.query(
             """
-            select date_trunc('hour', recorded_at) as hour_bucket,
+            select date_trunc('hour', recorded_at at time zone 'Europe/Lisbon') as hour_bucket,
                    avg(fn_occupancy_pct(occupied_count, total_count)) as occupancy_pct
             from occupancy_snapshots
-            where recorded_at >= current_date
-              and recorded_at < current_date + interval '1 day'
-            group by date_trunc('hour', recorded_at)
+            where recorded_at >= current_date at time zone 'Europe/Lisbon'
+              and recorded_at < (current_date + interval '1 day') at time zone 'Europe/Lisbon'
+            group by date_trunc('hour', recorded_at at time zone 'Europe/Lisbon')
             order by hour_bucket
             """,
             (rs, rowNum) -> {
-                Instant hourStart = rs.getTimestamp("hour_bucket").toInstant();
-                int hour = hourStart.atZone(ZoneId.of("Europe/Lisbon")).getHour();
+                int hour = rs.getTimestamp("hour_bucket").toLocalDateTime().getHour();
                 return new HourlyOccupancyDto(String.format("%02dh", hour), (int) Math.round(rs.getDouble("occupancy_pct")));
             });
     }
@@ -184,8 +183,8 @@ public class AnalyticsRepository {
                    count(*) as entries,
                    coalesce(sum(revenue_euros), 0) as revenue
             from parking_sessions
-            where entry_time >= current_date
-              and entry_time < current_date + interval '1 day'
+            where entry_time >= current_date at time zone 'Europe/Lisbon'
+              and entry_time < (current_date + interval '1 day') at time zone 'Europe/Lisbon'
             group by parking_lot_id
             """,
             (rs, rowNum) -> new SessionAgg(

@@ -22,6 +22,7 @@ public class PostgresIndexInitializer implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         try {
             ensureAlertsTable();
+            fixSensorRegistryStatusConstraint();
             createPaymentIndexes();
             createReservationConstraints();
             log.info("PostgreSQL index initialization complete.");
@@ -59,6 +60,11 @@ public class PostgresIndexInitializer implements ApplicationRunner {
             on alerts (created_at desc, parking_lot_id)
             where state in ('OPEN', 'IN_PROGRESS')
             """);
+    }
+
+    private void fixSensorRegistryStatusConstraint() {
+        exec("ALTER TABLE sensor_registry DROP CONSTRAINT IF EXISTS sensor_registry_status_check");
+        exec("ALTER TABLE sensor_registry ADD CONSTRAINT sensor_registry_status_check CHECK (status::text = ANY (ARRAY['OPERATIONAL', 'DEGRADED', 'OFFLINE', 'MAINTENANCE']::text[]))");
     }
 
     private void createPaymentIndexes() {

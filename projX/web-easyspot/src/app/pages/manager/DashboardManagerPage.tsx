@@ -19,10 +19,6 @@ import {
 } from '../../services/managerApi';
 
 type ChartTab = 'entradas' | 'receita';
-const backgroundRefreshFromEnv = Number(import.meta.env.VITE_REALTIME_REFRESH_MS ?? 5000);
-const BACKGROUND_REFRESH_MS = Number.isFinite(backgroundRefreshFromEnv) && backgroundRefreshFromEnv >= 1000
-  ? backgroundRefreshFromEnv
-  : 5000;
 
 const ZONE_COLORS: Record<string, string> = {
   standard: '#7357ec',
@@ -111,12 +107,8 @@ export function DashboardManagerPage() {
       }
     };
     void load();
-    const intervalId = globalThis.setInterval(() => {
-      void load(true);
-    }, BACKGROUND_REFRESH_MS);
     return () => {
       mounted = false;
-      globalThis.clearInterval(intervalId);
     };
   }, []);
 
