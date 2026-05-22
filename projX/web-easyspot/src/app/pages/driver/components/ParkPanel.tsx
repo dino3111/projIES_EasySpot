@@ -95,7 +95,7 @@ export function ParkPanel({ lot, onClose, getStatusInfo, desktop = false }: Park
             href={`https://www.openstreetmap.org/directions?from=&to=${lot.latitude},${lot.longitude}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="btn btn-outline btn-sm font-bold flex-none gap-1 border-border text-muted-foreground hover:bg-muted"
+            className="btn btn-outline btn-sm font-bold flex-none gap-1 border-border text-muted-foreground hover:bg-muted rounded-full"
             aria-label="Obter percurso"
           >
             <i className="fas fa-location-arrow text-[10px]" aria-hidden="true" />
@@ -103,7 +103,7 @@ export function ParkPanel({ lot, onClose, getStatusInfo, desktop = false }: Park
           </a>
           <Link
             to={`/parking/${lot.id}`}
-            className="btn btn-primary btn-sm font-bold flex-1 gap-1"
+            className="btn btn-primary btn-sm font-bold flex-1 gap-1 rounded-full"
             aria-label={`Mais informações sobre ${lot.name}`}
           >
             <i className="fas fa-circle-info text-[10px]" aria-hidden="true" />

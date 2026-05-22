@@ -149,7 +149,7 @@ export function Step3Confirmation({
       {onAddPaymentMethod ? (
         <div className="card bg-base-200 shadow-md">
           <div className="card-body p-4">
-            <button type="button" className="btn btn-outline btn-primary btn-sm w-fit" onClick={onAddPaymentMethod}>
+            <button type="button" className="btn btn-outline btn-primary btn-sm w-fit rounded-full" onClick={onAddPaymentMethod}>
               <i className="fa-solid fa-credit-card mr-2" />
               Adicionar método de pagamento
             </button>

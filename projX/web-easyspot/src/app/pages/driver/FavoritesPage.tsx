@@ -76,7 +76,7 @@ export function FavoritesPage() {
         <section aria-label="Lista de favoritos">
           <div className="mb-3 flex items-center gap-2">
             <button
-              className="btn btn-sm btn-outline"
+              className="btn btn-sm btn-outline rounded-full"
               disabled={subscribingAll}
               onClick={async () => {
                 try {
