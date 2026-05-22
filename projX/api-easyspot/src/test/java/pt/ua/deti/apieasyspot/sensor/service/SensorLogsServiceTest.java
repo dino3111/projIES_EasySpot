@@ -52,6 +52,7 @@ class SensorLogsServiceTest {
 
     @BeforeEach
     void setUp() {
+        lenient().when(alertRepository.findOpenBySensorId(anyString())).thenReturn(Optional.empty());
         service = new SensorLogsService(
             sensorLogsRepository,
             sensorRegistryRepository,
@@ -158,7 +159,6 @@ class SensorLogsServiceTest {
         sensor.setCreatedAt(LocalDateTime.now());
 
         when(sensorRegistryRepository.findById("IR-TEST-01")).thenReturn(Optional.of(sensor));
-        when(alertRepository.findOpenBySensorId("IR-TEST-01")).thenReturn(Optional.empty());
 
         service.updateSensorStatus("IR-TEST-01", new SensorStatusUpdateRequest("operational", "Reparação concluída."));
 
