@@ -20,11 +20,12 @@ public record ParkingLotSummaryResponse(
         int totalSpaces,
         int freeSpaces,
         CountInfo evChargers,
-        CountInfo accessibleSpaces,
+        AccessibleInfo accessibleSpaces,
         String currentAvailabilityStatus
     ) {}
 
     public record CountInfo(int available, int total) {}
+    public record AccessibleInfo(int available, int total, Integer minDistanceMeters) {}
 
     public record PaginationInfo(
         int page,

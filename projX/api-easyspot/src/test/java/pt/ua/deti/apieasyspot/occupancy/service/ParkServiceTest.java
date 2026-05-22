@@ -74,6 +74,7 @@ class ParkServiceTest {
         evCharger.setSpeed("Fast");
         evCharger.setAvailable(true);
         when(evChargerRepository.findDistinctParkingLotIdsWithAvailableChargers()).thenReturn(List.of(lotId));
+        when(timescaleOccupancySnapshotRepository.findLotIdsWithAvailableZone(ZoneType.EV)).thenReturn(List.of());
 
         ParkingLotSummaryResponse response = parkService.searchParks("Test", 10, null, List.of("EV"), 1, 10);
 
@@ -306,6 +307,7 @@ class ParkServiceTest {
         when(reservationRepository.findActiveWithSpotByParkIds(anyList())).thenReturn(List.of());
         // Park has accessible spots but none available — lot is filtered out before toSummary is called
         when(accessibleSpotRepository.findDistinctParkingLotIdsWithAvailableSpots()).thenReturn(List.of());
+        when(timescaleOccupancySnapshotRepository.findLotIdsWithAvailableZone(ZoneType.ACCESSIBLE)).thenReturn(List.of());
 
         ParkingLotSummaryResponse response = parkService.searchParks(null, null, null, List.of("ACCESSIBLE"), 1, 10);
 
@@ -322,6 +324,7 @@ class ParkServiceTest {
         when(reservationRepository.countActiveReservationsForLot(any(UUID.class), any(OffsetDateTime.class))).thenReturn(0L);
         when(tariffRepository.findByParkingLotId(lotId)).thenReturn(List.of());
         when(accessibleSpotRepository.findDistinctParkingLotIdsWithAvailableSpots()).thenReturn(List.of(lotId));
+        when(timescaleOccupancySnapshotRepository.findLotIdsWithAvailableZone(ZoneType.ACCESSIBLE)).thenReturn(List.of());
 
         ParkingLotSummaryResponse response = parkService.searchParks(null, null, null, List.of("ACCESSIBLE"), 1, 10);
 
@@ -354,6 +357,7 @@ class ParkServiceTest {
         when(tariffRepository.findByParkingLotId(eq(lotId))).thenReturn(List.of());
         // Only lot has available accessible spots; lot2 has none
         when(accessibleSpotRepository.findDistinctParkingLotIdsWithAvailableSpots()).thenReturn(List.of(lotId));
+        when(timescaleOccupancySnapshotRepository.findLotIdsWithAvailableZone(ZoneType.ACCESSIBLE)).thenReturn(List.of());
 
         // Filter: ACCESSIBLE + minAvailableSpaces=1
         ParkingLotSummaryResponse response = parkService.searchParks(null, 1, null, List.of("ACCESSIBLE"), 1, 10);
@@ -370,6 +374,7 @@ class ParkServiceTest {
         when(reservationRepository.findActiveWithSpotByParkIds(anyList())).thenReturn(List.of());
         // Park has EV chargers but none available — lot is filtered out before toSummary is called
         when(evChargerRepository.findDistinctParkingLotIdsWithAvailableChargers()).thenReturn(List.of());
+        when(timescaleOccupancySnapshotRepository.findLotIdsWithAvailableZone(ZoneType.EV)).thenReturn(List.of());
 
         ParkingLotSummaryResponse response = parkService.searchParks(null, null, null, List.of("EV"), 1, 10);
 

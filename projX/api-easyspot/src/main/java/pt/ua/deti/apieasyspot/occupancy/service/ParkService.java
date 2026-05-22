@@ -62,6 +62,10 @@ public class ParkService {
             ? Map.of()
             : reservationRepository.findActiveWithSpotByParkIds(lotIds).stream()
                 .collect(Collectors.groupingBy(reservation -> reservation.getParkingLot().getId()));
+        Map<UUID, List<pt.ua.deti.apieasyspot.occupancy.model.AccessibleSpot>> accessibleSpotsByLot = lotIds.isEmpty()
+            ? Map.of()
+            : accessibleSpotRepository.findByParkingLotIdIn(lotIds).stream()
+                .collect(Collectors.groupingBy(pt.ua.deti.apieasyspot.occupancy.model.AccessibleSpot::getParkingLotId));
         OffsetDateTime now = OffsetDateTime.now();
 
         Set<UUID> lotsWithEV;
@@ -87,6 +91,7 @@ public class ParkService {
                 timescaleOccupancySnapshotRepository.latestByLot(lot.getId()),
                 spotsByLot.getOrDefault(lot.getId(), List.of()),
                 reservationsByLot.getOrDefault(lot.getId(), List.of()),
+                accessibleSpotsByLot.getOrDefault(lot.getId(), List.of()),
                 now
             ))
             .filter(summary -> minAvailableSpaces == null || summary.freeSpaces() >= minAvailableSpaces)
@@ -118,9 +123,16 @@ public class ParkService {
         List<ZoneSnapshot> snapshots,
         List<ParkingSpot> spots,
         List<Reservation> reservations,
+        List<pt.ua.deti.apieasyspot.occupancy.model.AccessibleSpot> accessibleSpots,
         OffsetDateTime now
     ) {
-        Availability availability = availabilityFor(lot, snapshots, spots, reservations, now);
+        Availability availability = availabilityFor(lot, snapshots, spots, reservations, accessibleSpots, now);
+        Integer minDist = accessibleSpots.stream()
+            .filter(pt.ua.deti.apieasyspot.occupancy.model.AccessibleSpot::isAvailable)
+            .map(pt.ua.deti.apieasyspot.occupancy.model.AccessibleSpot::getDistanceToEntranceMeters)
+            .filter(Objects::nonNull)
+            .min(Integer::compareTo)
+            .orElse(null);
         return new ParkingLotSummaryResponse.ParkingLotSummary(
             lot.getId(),
             lot.getName(),
@@ -133,7 +145,7 @@ public class ParkService {
             availability.totalSpaces(),
             availability.freeSpaces(),
             new ParkingLotSummaryResponse.CountInfo(availability.evFree(), availability.evTotal()),
-            new ParkingLotSummaryResponse.CountInfo(availability.accFree(), availability.accTotal()),
+            new ParkingLotSummaryResponse.AccessibleInfo(availability.accFree(), availability.accTotal(), minDist),
             classifyAvailability(availability.freeSpaces(), availability.totalSpaces())
         );
     }
@@ -151,6 +163,7 @@ public class ParkService {
         List<ZoneSnapshot> snapshots,
         List<ParkingSpot> spots,
         List<Reservation> reservations,
+        List<pt.ua.deti.apieasyspot.occupancy.model.AccessibleSpot> accessibleSpots,
         OffsetDateTime now
     ) {
         if (!spots.isEmpty()) {
@@ -169,7 +182,9 @@ public class ParkService {
 
         if (snapshots.isEmpty()) {
             int free = Math.max(0, lot.getTotalSpaces() - (int) activeRes);
-            return new Availability(lot.getTotalSpaces(), free, 0, 0, 0, 0);
+            int accTotal = accessibleSpots.size();
+            int accFree = (int) accessibleSpots.stream().filter(pt.ua.deti.apieasyspot.occupancy.model.AccessibleSpot::isAvailable).count();
+            return new Availability(lot.getTotalSpaces(), free, 0, 0, accTotal, accFree);
         }
 
         int totalSpaces = snapshots.stream().mapToInt(ZoneSnapshot::totalCount).sum();
@@ -182,6 +197,12 @@ public class ParkService {
 
         int accTotal = sumForZone(snapshots, ZoneType.ACCESSIBLE, ZoneSnapshot::totalCount);
         int accFree = sumForZone(snapshots, ZoneType.ACCESSIBLE, s -> Math.max(0, s.totalCount() - s.occupiedCount()));
+
+        // Fallback: if no ACCESSIBLE snapshot, use accessible_spots table
+        if (accTotal == 0 && !accessibleSpots.isEmpty()) {
+            accTotal = accessibleSpots.size();
+            accFree = (int) accessibleSpots.stream().filter(pt.ua.deti.apieasyspot.occupancy.model.AccessibleSpot::isAvailable).count();
+        }
 
         return new Availability(totalSpaces, freeSpaces, evTotal, evFree, accTotal, accFree);
     }
@@ -208,7 +229,8 @@ public class ParkService {
         List<ParkingSpot> spots = parkingSpotRepository.findByParkingLotId(id);
         List<Reservation> activeReservations = reservationRepository.findActiveWithSpotByParkId(id);
         List<ZoneSnapshot> snapshots = timescaleOccupancySnapshotRepository.latestByLot(id);
-        Availability availability = availabilityFor(lot, snapshots, spots, activeReservations, now);
+        List<pt.ua.deti.apieasyspot.occupancy.model.AccessibleSpot> accessibleSpots = accessibleSpotRepository.findByParkingLotId(id);
+        Availability availability = availabilityFor(lot, snapshots, spots, activeReservations, accessibleSpots, now);
         Map<UUID, String> statusBySpot = buildStatusBySpot(spots, activeReservations, snapshots, now);
 
         List<ParkingLotDetailsResponse.ZoneResponse> zones = buildZonesFromSpotStatuses(spots, statusBySpot);

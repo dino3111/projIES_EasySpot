@@ -35,7 +35,7 @@ type ParkListResponse = {
     totalSpaces: number;
     freeSpaces: number;
     evChargers: { available: number; total: number };
-    accessibleSpaces: { available: number; total: number };
+    accessibleSpaces: { available: number; total: number; minDistanceMeters?: number | null };
   }>;
   pagination: {
     page: number;
@@ -162,13 +162,14 @@ function buildPlaceholderEvChargers(total: number, available: number): EVCharger
   }));
 }
 
-function buildPlaceholderAccessible(total: number, available: number): AccessibleSpot[] {
+function buildPlaceholderAccessible(total: number, available: number, minDistanceMeters?: number | null): AccessibleSpot[] {
+  const baseDistance = minDistanceMeters ?? 0;
   return Array.from({ length: total }).map((_, idx) => ({
     id: `acc-${idx + 1}`,
     zone: `Zona ${idx + 1}`,
     available: idx < available,
     monitored: false,
-    distanceToEntrance: 0,
+    distanceToEntrance: baseDistance + idx * 8,
     hasRampSpace: false,
     dimensions: '3.5m x 5.0m',
     sensorStatus: 'online',
@@ -233,7 +234,7 @@ export async function fetchParksList(query: FetchParksQuery = {}, options: Fetch
     latitude: item.latitude,
     longitude: item.longitude,
     evChargers: buildPlaceholderEvChargers(item.evChargers.total, item.evChargers.available),
-    accessibleSpots: buildPlaceholderAccessible(item.accessibleSpaces.total, item.accessibleSpaces.available),
+    accessibleSpots: buildPlaceholderAccessible(item.accessibleSpaces.total, item.accessibleSpaces.available, item.accessibleSpaces.minDistanceMeters),
     rating: 0,
     reviewCount: 0,
     openingHours: item.openingHours ?? '',

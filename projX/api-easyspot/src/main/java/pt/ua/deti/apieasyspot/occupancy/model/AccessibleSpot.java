@@ -14,6 +14,9 @@ public class AccessibleSpot {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @Column(name = "parking_lot_id", insertable = false, updatable = false)
+    private UUID parkingLotId;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parking_lot_id", nullable = false)
     private ParkingLot parkingLot;

@@ -93,11 +93,15 @@ public class TimescaleOccupancySnapshotRepository {
     public List<UUID> findLotIdsWithAvailableZone(ZoneType zoneType) {
         return jdbc.query(
             """
-            SELECT DISTINCT ON (parking_lot_id) parking_lot_id
-            FROM occupancy_snapshots
-            WHERE zone_type = ?
+            SELECT parking_lot_id
+            FROM (
+                SELECT parking_lot_id, total_count, occupied_count,
+                       row_number() OVER (PARTITION BY parking_lot_id ORDER BY recorded_at DESC) AS rn
+                FROM occupancy_snapshots
+                WHERE zone_type = ?
+            ) latest
+            WHERE rn = 1
               AND (total_count - occupied_count) > 0
-            ORDER BY parking_lot_id, recorded_at DESC
             """,
             (rs, rowNum) -> UUID.fromString(rs.getString("parking_lot_id")),
             zoneType.name()
