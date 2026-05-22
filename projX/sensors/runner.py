@@ -14,6 +14,10 @@ from config import (
     SENSOR_FAULT_MAINTENANCE_PROBABILITY,
     SENSOR_FAULT_OFFLINE_PROBABILITY,
     SENSOR_FAULT_RECOVERY_PROBABILITY,
+    SENSOR_NETWORK_DROP_BURST_MAX_SECONDS,
+    SENSOR_NETWORK_DROP_BURST_MIN_SECONDS,
+    SENSOR_NETWORK_DROP_PROBABILITY,
+    SENSOR_NETWORK_OUT_OF_ORDER_PROBABILITY,
     SIMULATION_INTERVAL_SECONDS,
     SIMULATION_SEED,
     TECHNICIAN_REPAIR_PROBABILITY,
@@ -21,7 +25,7 @@ from config import (
 from context_loader import load_cached_context, load_reservations, load_spots
 from event_builder import build_spot_event
 from kafka_publisher import KafkaPublisher
-from publishing import flush_pending, schedule_publish
+from publishing import NetworkFaultInjector, flush_pending, schedule_publish
 from sensor_fault_simulator import SensorFaultSimulator
 from state_machine import SpotStateMachine
 
@@ -63,6 +67,13 @@ def run():
 
     # Events queued due to delayed transmission: list of (event, key, publish_at_mono)
     pending_delayed = []
+    network_faults = NetworkFaultInjector(
+        seed=SIMULATION_SEED + 3,
+        out_of_order_probability=SENSOR_NETWORK_OUT_OF_ORDER_PROBABILITY,
+        drop_probability=SENSOR_NETWORK_DROP_PROBABILITY,
+        drop_burst_min_seconds=SENSOR_NETWORK_DROP_BURST_MIN_SECONDS,
+        drop_burst_max_seconds=SENSOR_NETWORK_DROP_BURST_MAX_SECONDS,
+    )
     last_fault_check = time.monotonic()
 
     print(f"Loaded {len(spots)} spots")
@@ -74,7 +85,7 @@ def run():
         now_mono = time.monotonic()
 
         pending_delayed = flush_pending(
-            pending_delayed, publisher, KAFKA_TOPIC, now_mono
+            pending_delayed, publisher, KAFKA_TOPIC, now_mono, network_faults
         )
 
         run_fault_check = (now_mono - last_fault_check) >= FAULT_CHECK_INTERVAL_SECONDS
@@ -147,6 +158,7 @@ def run():
                         publisher,
                         pending_delayed,
                         now_mono,
+                        network_faults,
                     )
             else:
                 meta["time_in_state"] += 1

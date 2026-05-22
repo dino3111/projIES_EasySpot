@@ -14,8 +14,10 @@ if "requests" not in sys.modules:
     fake_requests.RequestException = FakeRequestException
     sys.modules["requests"] = fake_requests
 
-import context_loader
-from context_loader import ContextLoadError
+sys.path.insert(0, ".")
+
+import context_loader  # noqa: E402
+from context_loader import ContextLoadError  # noqa: E402
 
 
 class ContextLoaderTests(unittest.TestCase):
@@ -120,7 +122,13 @@ class ContextLoaderTests(unittest.TestCase):
                     "status": "occupied",
                 },
             ],
+            "sensors": [],
+            "users": [
+                {"id": "user-1", "name": "Maria"},
+                {"id": "user-2", "name": "Joao"},
+            ],
             "vehicles": [{"plate": "11-aa-22"}],
+            "activeReservations": [],
         }
         mock_get.return_value = self._response(payload)
 
@@ -129,6 +137,7 @@ class ContextLoaderTests(unittest.TestCase):
 
         self.assertEqual(context["parkingLots"], payload["parkingLots"])
         self.assertEqual(context["vehicles"], payload["vehicles"])
+        self.assertEqual(context["users"], payload["users"])
         self.assertEqual({s["spotId"] for s in spots}, {"spot-1", "spot-2"})
         self.assertEqual({s["parkId"] for s in spots}, {"park-1", "park-2"})
         self.assertTrue(
@@ -153,7 +162,10 @@ class ContextLoaderTests(unittest.TestCase):
                     "status": "occupied",
                 }
             ],
+            "sensors": [],
+            "users": [{"id": "user-1"}],
             "vehicles": [],
+            "activeReservations": [],
         }
 
         baseline = context_loader.spots_from_context(context)

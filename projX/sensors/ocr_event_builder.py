@@ -240,7 +240,9 @@ class OcrEventGenerator:
         self.offline_spots.discard(spot_id)
         self.degraded_spots.discard(spot_id)
 
-    def next_events(self, now: Optional[float] = None, fault_check: bool = True) -> List[Tuple[Dict, str]]:
+    def next_events(
+        self, now: Optional[float] = None, fault_check: bool = True
+    ) -> List[Tuple[Dict, str]]:
         """Return a list of (event, key) tuples for this simulation tick.
         key is spot_id for plate reads, park_id for device fault/recovery events.
         fault_check controls whether fault/recovery logic runs this tick.

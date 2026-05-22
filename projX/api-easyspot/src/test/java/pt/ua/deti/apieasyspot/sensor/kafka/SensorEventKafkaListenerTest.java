@@ -102,4 +102,36 @@ class SensorEventKafkaListenerTest {
         listener.onEvent("{not valid json}");
         verifyNoInteractions(sensorLogsService);
     }
+
+    @Test
+    @DisplayName("duplicate sensor.fault events are processed safely")
+    void duplicateFaultEvents_processedWithoutCrash() {
+        String payload = """
+            {"eventId":"%s","eventType":"sensor.fault","parkId":"%s","sensorId":"IR-dup-01","version":1}
+            """.formatted(UUID.randomUUID(), UUID.randomUUID()).strip();
+
+        listener.onEvent(payload);
+        listener.onEvent(payload);
+
+        verify(sensorLogsService, times(2)).faultSensor("IR-dup-01");
+        verify(sensorLogsService, never()).recoverSensor(any(), any());
+    }
+
+    @Test
+    @DisplayName("fault followed by recovery restores expected state transition calls")
+    void faultThenRecovery_callsBothServiceTransitions() {
+        String faultPayload = """
+            {"eventId":"%s","eventType":"sensor.fault","parkId":"%s","sensorId":"IR-seq-01","version":1}
+            """.formatted(UUID.randomUUID(), UUID.randomUUID()).strip();
+        String recoveryPayload = """
+            {"eventId":"%s","eventType":"sensor.recovered","parkId":"%s","sensorId":"IR-seq-01",
+             "payload":{"recoveryType":"TECHNICIAN_REPAIR"},"version":1}
+            """.formatted(UUID.randomUUID(), UUID.randomUUID()).strip();
+
+        listener.onEvent(faultPayload);
+        listener.onEvent(recoveryPayload);
+
+        verify(sensorLogsService).faultSensor("IR-seq-01");
+        verify(sensorLogsService).recoverSensor("IR-seq-01", "TECHNICIAN_REPAIR");
+    }
 }

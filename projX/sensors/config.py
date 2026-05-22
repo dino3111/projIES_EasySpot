@@ -20,7 +20,8 @@ SENSOR_HEARTBEAT_INTERVAL_SECONDS = float(
 
 # 1 second between occupancy cycles (keeps parking state lively).
 SIMULATION_INTERVAL_SECONDS = float(os.getenv("SIMULATION_INTERVAL_SECONDS", "1.0"))
-# 60 seconds between fault-check cycles; tiny probabilities add up fast.
+# 60 seconds between fault-check cycles.
+# With hundreds of sensors, even tiny probabilities add up fast.
 FAULT_CHECK_INTERVAL_SECONDS = float(os.getenv("FAULT_CHECK_INTERVAL_SECONDS", "60.0"))
 SIMULATION_SEED = int(os.getenv("SIMULATION_SEED", "42"))
 CONTEXT_LOAD_RETRIES = int(os.getenv("CONTEXT_LOAD_RETRIES", "20"))
@@ -36,7 +37,8 @@ OCR_FAULT_PROBABILITY_PER_TICK = float(
 )
 
 # IR sensor device-level fault simulation
-# With 1s ticks and ~300 sensors, 0.000005 is about 1 fault every 10 minutes.
+# With 1s ticks and ~300 sensors:
+# 0.000005 -> around 1 fault every ~10 minutes across all sensors.
 SENSOR_FAULT_DEGRADED_PROBABILITY = float(
     os.getenv("SENSOR_FAULT_DEGRADED_PROBABILITY", "0.000005")
 )
@@ -60,6 +62,18 @@ SENSOR_FAULT_DELAY_MAX_SECONDS = float(
     os.getenv("SENSOR_FAULT_DELAY_MAX_SECONDS", "10.0")
 )
 SENSOR_FAULT_HISTORY_SIZE = int(os.getenv("SENSOR_FAULT_HISTORY_SIZE", "50"))
+SENSOR_NETWORK_OUT_OF_ORDER_PROBABILITY = float(
+    os.getenv("SENSOR_NETWORK_OUT_OF_ORDER_PROBABILITY", "0.0005")
+)
+SENSOR_NETWORK_DROP_PROBABILITY = float(
+    os.getenv("SENSOR_NETWORK_DROP_PROBABILITY", "0.0002")
+)
+SENSOR_NETWORK_DROP_BURST_MIN_SECONDS = float(
+    os.getenv("SENSOR_NETWORK_DROP_BURST_MIN_SECONDS", "3.0")
+)
+SENSOR_NETWORK_DROP_BURST_MAX_SECONDS = float(
+    os.getenv("SENSOR_NETWORK_DROP_BURST_MAX_SECONDS", "12.0")
+)
 
 # Per-state transition probabilities (must sum to <= 1.0; remainder falls back).
 P_FREE_TO_FREE = float(os.getenv("P_FREE_TO_FREE", "0.72"))

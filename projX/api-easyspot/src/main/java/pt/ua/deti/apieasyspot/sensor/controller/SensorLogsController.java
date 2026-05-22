@@ -19,6 +19,7 @@ import pt.ua.deti.apieasyspot.sensor.dto.SensorSummaryDto;
 import pt.ua.deti.apieasyspot.sensor.service.SensorLogsService;
 import pt.ua.deti.apieasyspot.sensor.service.SensorNotFoundException;
 import pt.ua.deti.apieasyspot.sensor.dto.SensorBootstrapContextDto;
+import pt.ua.deti.apieasyspot.sensor.dto.BackendDecisionHistoryEntry;
 import pt.ua.deti.apieasyspot.sensor.service.SensorBootstrapContextService;
 
 import java.util.List;
@@ -60,6 +61,12 @@ public class SensorLogsController {
     @PreAuthorize("hasRole('TECHNICAL')")
     public ResponseEntity<SensorDetailDto> getSensorLogs(@PathVariable String sensorId) {
         return ResponseEntity.ok(sensorLogsService.getSensorDetail(sensorId));
+    }
+
+    @GetMapping("/{sensorId}/decisions")
+    @PreAuthorize("hasRole('TECHNICAL')")
+    public ResponseEntity<List<BackendDecisionHistoryEntry>> getSensorDecisionHistory(@PathVariable String sensorId) {
+        return ResponseEntity.ok(sensorLogsService.decisionHistory(sensorId));
     }
 
     @Operation(summary = "Update sensor status after repair")

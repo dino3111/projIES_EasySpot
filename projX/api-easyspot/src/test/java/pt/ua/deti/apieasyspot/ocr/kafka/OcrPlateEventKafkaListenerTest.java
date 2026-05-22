@@ -261,6 +261,28 @@ class OcrPlateEventKafkaListenerTest {
     }
 
     @Test
+    @DisplayName("duplicate device.fault events do not crash and remain non-persistent")
+    void onEvent_duplicateDeviceFault_safeAndNonPersistent() {
+        UUID parkId = UUID.randomUUID();
+        String deviceId = "OCR-DUP-ENT1";
+        String payload = """
+            {
+              "eventId": "%s",
+              "eventType": "device.fault",
+              "parkId": "%s",
+              "version": 1,
+              "payload": { "extensions": { "deviceId": "%s" } }
+            }
+            """.formatted(UUID.randomUUID(), parkId, deviceId);
+
+        listener.onEvent(payload);
+        listener.onEvent(payload);
+
+        verify(sensorLogsService, times(2)).faultSensor(deviceId);
+        verify(repository, never()).save(any(OcrPlateRead.class));
+    }
+
+    @Test
     void onEvent_unknownFailureMode_doesNotPersist() {
         String payload = """
             {
