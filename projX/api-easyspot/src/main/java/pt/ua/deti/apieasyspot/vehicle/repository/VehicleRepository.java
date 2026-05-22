@@ -9,6 +9,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface VehicleRepository extends JpaRepository<Vehicle, UUID> {
+    @Override
     @EntityGraph(attributePaths = {"user"})
     List<Vehicle> findAll();
     List<Vehicle> findByUserId(UUID userId);

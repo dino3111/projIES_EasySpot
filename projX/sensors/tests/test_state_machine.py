@@ -145,6 +145,6 @@ def test_state_aging_effect():
 
 def test_reservation_integration():
     machine = SpotStateMachine()
-    status, reason = machine.next_status("free", has_pending_reservation=True)
+    status, reason, _ = machine.next_status("free", has_pending_reservation=True)
     assert status == "reserved"
     assert "backend" in reason

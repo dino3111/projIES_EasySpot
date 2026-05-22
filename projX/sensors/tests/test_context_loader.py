@@ -17,7 +17,6 @@ if "requests" not in sys.modules:
 sys.path.insert(0, ".")
 
 import context_loader  # noqa: E402
-from context_loader import ContextLoadError  # noqa: E402
 
 
 class ContextLoaderTests(unittest.TestCase):
@@ -214,7 +213,7 @@ class ContextLoaderTests(unittest.TestCase):
         }
         mock_get.return_value = self._response(payload)
 
-        with self.assertRaises(ContextLoadError):
+        with self.assertRaises(context_loader.ContextLoadError):
             context_loader.load_context()
 
     @patch("context_loader.requests.get")

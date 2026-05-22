@@ -121,7 +121,9 @@ def run():
                         has_pending = True
                         break
                 except (ValueError, TypeError):
-                    pass
+                    # Ignore malformed or missing arrival timestamps and continue
+                    # evaluating other reservations for the same spot.
+                    continue
 
             next_status, reason, fault_duration = machine.next_status(
                 current,

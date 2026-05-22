@@ -17,6 +17,7 @@ import java.util.UUID;
 
 public interface ParkingSpotRepository extends JpaRepository<ParkingSpot, UUID> {
 
+    @Override
     @EntityGraph(attributePaths = {"parkingLot"})
     List<ParkingSpot> findAll();
 

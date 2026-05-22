@@ -5,6 +5,7 @@ import {
   calcCost,
   EV_CHARGING_KWH_PER_HOUR,
 } from '../reservation/reservationHelpers';
+// calcParkingCost is also used as a reference in calcCost tests above
 import type { ParkingLot } from '../../../data/parkingTypes';
 
 function makeLot(overrides: Partial<ParkingLot> = {}): ParkingLot {
@@ -44,7 +45,8 @@ describe('calcParkingCost', () => {
     expect(calcParkingCost(lot, 2)).toBeCloseTo(3.0);
   });
 
-  it('aplica teto de dailyMax', () => {
+  it('aplica teto de dailyMax dentro do mesmo dia', () => {
+    // 10h × 1.50 = 15.00, capped per day at 12.00
     const lot = makeLot({ hourlyRate: 1.5, dailyMax: 12 });
     expect(calcParkingCost(lot, 10)).toBeCloseTo(12.0);
   });
@@ -52,6 +54,29 @@ describe('calcParkingCost', () => {
   it('retorna 0 com 0 horas', () => {
     const lot = makeLot({ hourlyRate: 1.5, dailyMax: 12 });
     expect(calcParkingCost(lot, 0)).toBe(0);
+  });
+
+  it('7 dias: aplica dailyMax por dia, não ao total (regressão bug)', () => {
+    // 7 × 12.00 = 84.00 — antes do fix retornava 12.00
+    const lot = makeLot({ hourlyRate: 1.5, dailyMax: 12 });
+    expect(calcParkingCost(lot, 7 * 24)).toBeCloseTo(84.0);
+  });
+
+  it('28 dias: aplica dailyMax por dia, não ao total (regressão bug)', () => {
+    // 28 × 12.00 = 336.00 — antes do fix retornava 12.00
+    const lot = makeLot({ hourlyRate: 1.5, dailyMax: 12 });
+    expect(calcParkingCost(lot, 28 * 24)).toBeCloseTo(336.0);
+  });
+
+  it('1 dia + 2 horas: 1 dia capped + 2h ao preço horário', () => {
+    // 24h capped at 12.00 + 2h × 1.50 = 12.00 + 3.00 = 15.00
+    const lot = makeLot({ hourlyRate: 1.5, dailyMax: 12 });
+    expect(calcParkingCost(lot, 26)).toBeCloseTo(15.0);
+  });
+
+  it('sem dailyMax: cobra apenas à tarifa horária', () => {
+    const lot = makeLot({ hourlyRate: 1.5, dailyMax: 0 });
+    expect(calcParkingCost(lot, 10)).toBeCloseTo(15.0);
   });
 });
 
@@ -88,7 +113,7 @@ describe('calcCost', () => {
   it('lugar EV: parking + carregamento combinados', () => {
     const lot = makeLot({ hourlyRate: 1.5, dailyMax: 12, evChargingRate: 0.35, hasEVCharger: true });
     const hours = 2;
-    const expectedParking = Math.min(1.5 * hours, 12);
+    const expectedParking = calcParkingCost(lot, hours); // 2h × 1.50 = 3.00, below dailyMax
     const expectedCharging = 0.35 * EV_CHARGING_KWH_PER_HOUR * hours;
     expect(calcCost(lot, hours, true)).toBeCloseTo(expectedParking + expectedCharging);
   });
@@ -101,7 +126,7 @@ describe('calcCost', () => {
   it('aplica dailyMax mesmo com carregamento EV', () => {
     const lot = makeLot({ hourlyRate: 1.5, dailyMax: 12, evChargingRate: 0.35, hasEVCharger: true });
     const hours = 10;
-    const parking = 12.0;
+    const parking = calcParkingCost(lot, hours); // 10h in same day, capped at 12.00
     const charging = 0.35 * EV_CHARGING_KWH_PER_HOUR * hours;
     expect(calcCost(lot, hours, true)).toBeCloseTo(parking + charging);
   });

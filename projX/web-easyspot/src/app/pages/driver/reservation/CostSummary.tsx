@@ -82,10 +82,10 @@ export function CostSummary({
               </span>
               <span>€{lot.hourlyRate.toFixed(2)}/h × {fmtDuration(hours)}</span>
             </div>
-            {lot.hourlyRate * hours > lot.dailyMax && (
+            {lot.dailyMax > 0 && lot.hourlyRate * Math.min(hours, 24) > lot.dailyMax && (
               <div className="flex justify-between text-success text-xs">
                 <span><i className="fa-solid fa-tag mr-1" /> Máx. diário aplicado</span>
-                <span>— €{(lot.hourlyRate * hours - lot.dailyMax).toFixed(2)}</span>
+                <span>— €{(lot.hourlyRate * hours - parkingCost).toFixed(2)}</span>
               </div>
             )}
             <div className="flex justify-between text-base-content/60 text-xs">
