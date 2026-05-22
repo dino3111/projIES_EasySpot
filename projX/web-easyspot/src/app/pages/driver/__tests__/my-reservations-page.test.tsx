@@ -8,7 +8,6 @@ const futureArrival = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 const futureDeparture = new Date(now.getTime() + 26 * 60 * 60 * 1000);
 const pastArrival = new Date(now.getTime() - 48 * 60 * 60 * 1000);
 const pastDeparture = new Date(now.getTime() - 46 * 60 * 60 * 1000);
-const lockedUntil = new Date(now.getTime() + 25 * 60 * 60 * 1000);
 
 const toastMock = vi.hoisted(() => ({
   success: vi.fn(),

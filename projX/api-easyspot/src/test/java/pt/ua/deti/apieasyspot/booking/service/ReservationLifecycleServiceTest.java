@@ -126,7 +126,7 @@ class ReservationLifecycleServiceTest {
         spot.setZone(ZoneType.STANDARD);
         spot.setSpotRow(1);
         spot.setSpotCol(3);
-        spot.setStatus("free");
+        spot.setStatus("occupied"); // reservation is active now, spot already occupied
 
         Reservation reservation = new Reservation();
         reservation.setId(UUID.randomUUID());

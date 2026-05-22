@@ -84,9 +84,8 @@ public class PaymentGateOrchestrator {
 
         // Bug 4 fix: settle billing at exit time, calculate real duration cost
         String customerEmail = reservation.getUser() != null ? reservation.getUser().getEmail() : null;
-        BillingService.PaymentAdjustmentResult settlementResult = null;
         try {
-            settlementResult = billingService.settleReservationOnExit(reservation, now, customerEmail);
+            billingService.settleReservationOnExit(reservation, now, customerEmail);
         } catch (Exception ex) {
             log.warn("Billing settlement failed for reservation {} plate {} — proceeding with existing payment record: {}",
                 reservation.getBookingCode(), normalizedPlate, ex.getMessage());
