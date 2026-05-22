@@ -47,7 +47,7 @@ export function MapPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterType>(initialFilter);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(primaryVehicle?.id ?? null);
-  const [subscribeMessage, setSubscribeMessage] = useState<string | null>(null);
+  const [isSubscribed, setIsSubscribed] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const userSelectedVehicleRef = useRef(false);
   const userChangedFilterRef = useRef(false);
@@ -147,11 +147,10 @@ export function MapPage() {
   const handleSubscribeSelected = useCallback(async () => {
     if (!selectedLotId) return;
     try {
-      setSubscribeMessage(null);
       await subscribeSpaceAvailableAlerts([selectedLotId]);
-      setSubscribeMessage('Alerta ativado para este parque.');
+      setIsSubscribed((prev) => !prev);
     } catch {
-      setSubscribeMessage('Não foi possível ativar alerta para este parque.');
+      // silent fail
     }
   }, [selectedLotId]);
 
@@ -172,7 +171,7 @@ export function MapPage() {
         onFilterChange={handleFilterChange}
         filteredCount={loading ? 0 : filteredLots.length}
         onSubscribeSelected={selectedLot ? () => void handleSubscribeSelected() : undefined}
-        subscribeMessage={subscribeMessage}
+        isSubscribed={isSubscribed}
       />
 
       {selectedLot ? (
@@ -195,7 +194,7 @@ export function MapPage() {
         aria-live="polite"
       >
         {selectedLot && (
-          <div className="flex flex-col h-full bg-card/98 backdrop-blur-sm shadow-2xl border-l border-border overflow-hidden">
+          <div className="flex flex-col h-full bg-card/98 backdrop-blur-sm shadow-2xl border-l border-border overflow-hidden rounded-l-2xl">
             <ParkPanel lot={selectedLot} onClose={() => setSelectedLotId(null)} getStatusInfo={getStatusInfo} desktop />
           </div>
         )}
@@ -215,10 +214,10 @@ interface ControlBarProps {
   readonly onFilterChange: (f: FilterType) => void;
   readonly filteredCount: number;
   readonly onSubscribeSelected?: () => void;
-  readonly subscribeMessage: string | null;
+  readonly isSubscribed: boolean;
 }
 
-function ControlBar({ searchQuery, onSearchChange, searchRef, vehicles, selectedVehicleId, onVehicleSelect, activeFilter, onFilterChange, filteredCount, onSubscribeSelected, subscribeMessage }: ControlBarProps) {
+function ControlBar({ searchQuery, onSearchChange, searchRef, vehicles, selectedVehicleId, onVehicleSelect, activeFilter, onFilterChange, filteredCount, onSubscribeSelected, isSubscribed }: ControlBarProps) {
   return (
     <div className="absolute top-3 left-3 right-3 z-10 pointer-events-none">
       <div className="flex flex-col gap-2">
@@ -233,10 +232,9 @@ function ControlBar({ searchQuery, onSearchChange, searchRef, vehicles, selected
         <FilterRow activeFilter={activeFilter} onFilterChange={onFilterChange} filteredCount={filteredCount} />
         {onSubscribeSelected && (
           <div className="pointer-events-auto">
-            <button type="button" className="btn btn-xs btn-outline" onClick={onSubscribeSelected}>
+            <button type="button" className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap shadow-lg transition-all duration-200 border flex-shrink-0 ${isSubscribed ? 'bg-primary text-primary-foreground border-primary' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'}`} onClick={onSubscribeSelected}>
               <i className="fas fa-bell" aria-hidden="true" /> Alertar-me deste parque
             </button>
-            {subscribeMessage && <span className="ml-2 text-xs text-muted-foreground">{subscribeMessage}</span>}
           </div>
         )}
       </div>

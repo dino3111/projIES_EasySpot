@@ -239,7 +239,7 @@ export function ParkingListPage() {
         filteredCount={filtered.length}
       />
       <div className="mb-3 flex items-center gap-2">
-        <button className="btn btn-sm btn-outline" disabled={subscribing || filtered.length === 0} onClick={() => void handleSubscribeVisible()}>
+        <button className="btn btn-sm btn-outline rounded-full" disabled={subscribing || filtered.length === 0} onClick={() => void handleSubscribeVisible()}>
           <i className="fas fa-bell" aria-hidden="true" /> Alertar-me destes parques
         </button>
         {subscribeMessage && <span className="text-xs text-muted-foreground">{subscribeMessage}</span>}

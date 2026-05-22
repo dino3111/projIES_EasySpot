@@ -228,16 +228,18 @@ export function Step4Reserved({
         </div>
       )}
 
-      <div className="flex flex-col sm:flex-row gap-3 w-full max-w-md">
-        <Link to="/reservations" className="btn btn-primary rounded-full flex-1 shadow-lg shadow-primary/30">
+      <div className="flex flex-col gap-3 w-full max-w-md">
+        <Link to="/reservations" className="btn btn-primary rounded-full w-full shadow-lg shadow-primary/30">
           <i className="fa-solid fa-bookmark mr-2" /> Minhas Reservas
         </Link>
-        <button onClick={onNavigate} className="btn btn-outline btn-primary rounded-full flex-1">
-          <i className="fa-solid fa-map-location-dot mr-2" /> Ver no Mapa
-        </button>
-        <button onClick={onNewBooking} className="btn btn-ghost rounded-full flex-1">
-          <i className="fa-solid fa-plus mr-2" /> Nova Reserva
-        </button>
+        <div className="flex gap-3 w-full">
+          <button onClick={onNavigate} className="btn btn-outline btn-primary rounded-full flex-1">
+            <i className="fa-solid fa-map-location-dot mr-2" /> Ver no Mapa
+          </button>
+          <button onClick={onNewBooking} className="btn btn-outline btn-primary rounded-full flex-1">
+            <i className="fa-solid fa-plus mr-2" /> Nova Reserva
+          </button>
+        </div>
       </div>
 
       <div className="flex gap-4">
