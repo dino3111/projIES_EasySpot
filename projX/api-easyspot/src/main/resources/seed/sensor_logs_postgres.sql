@@ -46,7 +46,7 @@ values
 (
     'ENT-CO1-ENT1',
     'b231a846-7d40-5100-ba29-b9c0ca0ef9aa',
-    'Entrada Principal',
+    'f-c1-p0:ENT',
     'OPERATIONAL',
     now() - interval '3 minutes',
     '2024-04-01 00:00:00'
@@ -54,7 +54,7 @@ values
 (
     'GW-CO1-01',
     'b231a846-7d40-5100-ba29-b9c0ca0ef9aa',
-    'Sala Técnica',
+    'f-c1-p0:ENT',
     'OPERATIONAL',
     now() - interval '2 minutes',
     '2024-03-28 00:00:00'
@@ -64,7 +64,7 @@ values
 (
     'OCR-CO2-SAI1',
     '452ed8eb-d0a3-5d61-8428-572e946614a5',
-    'Saída Principal',
+    'f-c2-p0:ENT',
     'OFFLINE',
     now() - interval '14 hours',
     '2024-05-01 00:00:00'
@@ -80,7 +80,7 @@ values
 (
     'ENT-CO2-ENT1',
     '452ed8eb-d0a3-5d61-8428-572e946614a5',
-    'Entrada Principal',
+    'f-c2-p0:ENT',
     'OPERATIONAL',
     now() - interval '4 minutes',
     '2024-04-20 00:00:00'
@@ -88,7 +88,7 @@ values
 (
     'GW-CO2-01',
     '452ed8eb-d0a3-5d61-8428-572e946614a5',
-    'Sala Técnica',
+    'f-c2-p0:ENT',
     'OPERATIONAL',
     now() - interval '3 minutes',
     '2024-04-18 00:00:00'
@@ -130,7 +130,7 @@ values
 (
     'ENT-AV1-ENT1',
     '4731819f-a806-5c1f-be8c-a478d4276840',
-    'Entrada Principal',
+    'f-a1-p0:ENT',
     'OPERATIONAL',
     now() - interval '4 minutes',
     '2024-06-01 00:00:00'
@@ -138,7 +138,7 @@ values
 (
     'OCR-AV1-SAI1',
     '4731819f-a806-5c1f-be8c-a478d4276840',
-    'Saída Principal',
+    'f-a1-p0:ENT',
     'OPERATIONAL',
     now() - interval '5 minutes',
     '2024-06-01 00:00:00'
@@ -146,7 +146,7 @@ values
 (
     'GW-AV1-01',
     '4731819f-a806-5c1f-be8c-a478d4276840',
-    'Sala Técnica',
+    'f-a1-p0:ENT',
     'OPERATIONAL',
     now() - interval '2 minutes',
     '2024-05-28 00:00:00'
@@ -172,7 +172,7 @@ values
 (
     'ENT-AV2-ENT1',
     'd8085d8f-7aaa-5eb4-b47d-2e2fe79bfe43',
-    'Entrada Principal',
+    'f-a2-p0:ENT',
     'OPERATIONAL',
     now() - interval '3 minutes',
     '2024-07-05 00:00:00'
@@ -180,7 +180,7 @@ values
 (
     'GW-AV2-01',
     'd8085d8f-7aaa-5eb4-b47d-2e2fe79bfe43',
-    'Sala Técnica',
+    'f-a2-p0:ENT',
     'OPERATIONAL',
     now() - interval '2 minutes',
     '2024-07-01 00:00:00'
@@ -206,7 +206,7 @@ values
 (
     'ENT-LE1-ENT1',
     '070b4f4d-9a9e-5c4a-92bd-eae711ecb6b3',
-    'Entrada Principal',
+    'f-l1-p0:ENT',
     'OPERATIONAL',
     now() - interval '3 minutes',
     '2024-07-28 00:00:00'
@@ -214,7 +214,7 @@ values
 (
     'GW-LE1-01',
     '070b4f4d-9a9e-5c4a-92bd-eae711ecb6b3',
-    'Sala Técnica',
+    'f-l1-p0:ENT',
     'OPERATIONAL',
     now() - interval '2 minutes',
     '2024-07-25 00:00:00'
@@ -232,7 +232,7 @@ values
 (
     'ENT-FI2-ENT1',
     '62feaf63-aa20-5070-b89f-e81bfd5f47cd',
-    'Entrada Principal',
+    'f-f2-p0:ENT',
     'OPERATIONAL',
     now() - interval '4 minutes',
     '2024-09-01 00:00:00'
@@ -240,7 +240,7 @@ values
 (
     'GW-FI2-01',
     '62feaf63-aa20-5070-b89f-e81bfd5f47cd',
-    'Sala Técnica',
+    'f-f2-p0:ENT',
     'DEGRADED',
     now() - interval '45 minutes',
     '2024-08-28 00:00:00'
@@ -264,6 +264,9 @@ select
 from parking_spots as ps
 on conflict (sensor_id) do nothing;
 
+-- Helper: floor-0 prefix per parking lot (derived from existing spot_number format)
+-- Used below to assign gateway/OCR sensors to Piso 0 of their park.
+
 -- Garante automaticamente 1 sensor de portão por parque (entrada e saída).
 -- O ID segue o padrão do simulador: gate-{park_id[:8]}-entry / gate-{park_id[:8]}-exit
 insert into sensor_registry (
@@ -272,7 +275,17 @@ insert into sensor_registry (
 select
     'gate-' || substring(pl.id::text from 1 for 8) || '-entry' as sensor_id,
     pl.id as parking_lot_id,
-    'Portão de Entrada' as zone,
+    coalesce(
+        (select regexp_replace(ps.spot_number, '^(f-[^-]+-p0):.*', '\1') || ':ENT'
+         from parking_spots ps
+         where ps.parking_lot_id = pl.id and ps.spot_number ~ '^f-[^-]+-p0:'
+         limit 1),
+        (select regexp_replace(ps.spot_number, '^(p0):.*', '\1') || ':ENT'
+         from parking_spots ps
+         where ps.parking_lot_id = pl.id and ps.spot_number ~ '^p0:'
+         limit 1),
+        'p0:ENT'
+    ) as zone,
     'OPERATIONAL' as status,
     now() as last_seen_at,
     now() as created_at
@@ -285,7 +298,17 @@ insert into sensor_registry (
 select
     'gate-' || substring(pl.id::text from 1 for 8) || '-exit' as sensor_id,
     pl.id as parking_lot_id,
-    'Portão de Saída' as zone,
+    coalesce(
+        (select regexp_replace(ps.spot_number, '^(f-[^-]+-p0):.*', '\1') || ':ENT'
+         from parking_spots ps
+         where ps.parking_lot_id = pl.id and ps.spot_number ~ '^f-[^-]+-p0:'
+         limit 1),
+        (select regexp_replace(ps.spot_number, '^(p0):.*', '\1') || ':ENT'
+         from parking_spots ps
+         where ps.parking_lot_id = pl.id and ps.spot_number ~ '^p0:'
+         limit 1),
+        'p0:ENT'
+    ) as zone,
     'OPERATIONAL' as status,
     now() as last_seen_at,
     now() as created_at
@@ -299,7 +322,17 @@ insert into sensor_registry (
 select
     'OCR-' || upper(substring(replace(pl.id::text, '-', '') from 1 for 8)) || '-ENT1' as sensor_id,
     pl.id as parking_lot_id,
-    'Entrada Principal' as zone,
+    coalesce(
+        (select regexp_replace(ps.spot_number, '^(f-[^-]+-p0):.*', '\1') || ':ENT'
+         from parking_spots ps
+         where ps.parking_lot_id = pl.id and ps.spot_number ~ '^f-[^-]+-p0:'
+         limit 1),
+        (select regexp_replace(ps.spot_number, '^(p0):.*', '\1') || ':ENT'
+         from parking_spots ps
+         where ps.parking_lot_id = pl.id and ps.spot_number ~ '^p0:'
+         limit 1),
+        'p0:ENT'
+    ) as zone,
     'OPERATIONAL' as status,
     now() as last_seen_at,
     now() as created_at
@@ -312,7 +345,17 @@ insert into sensor_registry (
 select
     'OCR-' || upper(substring(replace(pl.id::text, '-', '') from 1 for 8)) || '-SAI1' as sensor_id,
     pl.id as parking_lot_id,
-    'Saida Principal' as zone,
+    coalesce(
+        (select regexp_replace(ps.spot_number, '^(f-[^-]+-p0):.*', '\1') || ':ENT'
+         from parking_spots ps
+         where ps.parking_lot_id = pl.id and ps.spot_number ~ '^f-[^-]+-p0:'
+         limit 1),
+        (select regexp_replace(ps.spot_number, '^(p0):.*', '\1') || ':ENT'
+         from parking_spots ps
+         where ps.parking_lot_id = pl.id and ps.spot_number ~ '^p0:'
+         limit 1),
+        'p0:ENT'
+    ) as zone,
     'OPERATIONAL' as status,
     now() as last_seen_at,
     now() as created_at
