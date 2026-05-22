@@ -59,7 +59,7 @@ public class ParkingSpotEventKafkaListener {
             SpotStateResolver.Resolution resolution =
                 spotStateResolver.resolve(current, event.status(), event.payload());
             if (!resolution.accepted()) {
-                log.warn("Ignoring spot event for spotId={} reason={}", event.spotId(), resolution.reasonCode());
+                log.debug("Ignoring spot event for spotId={} reason={}", event.spotId(), resolution.reasonCode());
                 return;
             }
             String resolved = resolution.finalStatus();
@@ -72,7 +72,7 @@ public class ParkingSpotEventKafkaListener {
             parkingSpotRepository.save(spot);
             occupancySnapshotIngestService.captureLotSnapshotIfDue(spot.getParkingLot().getId());
 
-            log.info("Updated spot {} in park {} from {} to {}",
+            log.debug("Updated spot {} in park {} from {} to {}",
                 spot.getSpotNumber(),
                 spot.getParkingLot().getId(),
                 current,

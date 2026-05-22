@@ -5,6 +5,7 @@ from config import (
     BACKEND_BASE_URL,
     CONTEXT_LOAD_RETRIES,
     CONTEXT_RETRY_DELAY_SECONDS,
+    MAX_SIMULATED_SPOTS,
     SENSOR_CONTEXT_ENDPOINT,
     SIMULATION_SERVICE_TOKEN,
 )
@@ -55,7 +56,7 @@ def spots_from_context(context):
         str(park["id"]): park.get("name", "") for park in context["parkingLots"]
     }
 
-    return [
+    spots = [
         {
             "parkId": str(spot["parkingLotId"]),
             "parkName": park_name_by_id.get(str(spot["parkingLotId"]), ""),
@@ -68,6 +69,33 @@ def spots_from_context(context):
         }
         for spot in context["parkingSpots"]
     ]
+    return _limit_spots_by_park(spots)
+
+
+def _limit_spots_by_park(spots):
+    if MAX_SIMULATED_SPOTS <= 0 or len(spots) <= MAX_SIMULATED_SPOTS:
+        return spots
+
+    by_park = {}
+    for spot in spots:
+        by_park.setdefault(spot["parkId"], []).append(spot)
+
+    limited = []
+    park_ids = sorted(by_park)
+    index = 0
+    while len(limited) < MAX_SIMULATED_SPOTS:
+        added_any = False
+        for park_id in park_ids:
+            park_spots = by_park[park_id]
+            if index < len(park_spots):
+                limited.append(park_spots[index])
+                added_any = True
+                if len(limited) >= MAX_SIMULATED_SPOTS:
+                    break
+        if not added_any:
+            break
+        index += 1
+    return limited
 
 
 def load_vehicle_plates():

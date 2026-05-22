@@ -90,7 +90,11 @@ public class SecurityConfig {
                 .requestMatchers("/api/test/token").permitAll()
                 .requestMatchers("/api/stripe/webhook").permitAll()
                 .requestMatchers("/api/parks/list", "/api/parks/*/details", "/api/parks/cities").permitAll()
-                .requestMatchers("/api/technician/sensors/context").access((authentication, context) ->
+                .requestMatchers(
+                    "/api/technician/sensors/context",
+                    "/api/technician/sensors/context/base",
+                    "/api/technician/sensors/context/reservations"
+                ).access((authentication, context) ->
                     new org.springframework.security.authorization.AuthorizationDecision(
                         isAuthenticated(authentication.get())
                             || hasValidSensorServiceKey(context.getRequest())
@@ -107,7 +111,7 @@ public class SecurityConfig {
             String authHeader = request.getHeader("Authorization");
             String hasBearer = authHeader != null && authHeader.startsWith("Bearer ") ? "yes" : "no";
             String cause = authException.getCause() != null ? authException.getCause().getMessage() : "n/a";
-            log.warn("[AUTH-401] {} {} → unauthorized: reason='{}' cause='{}' bearer={} origin={}",
+            log.debug("[AUTH-401] {} {} -> unauthorized: reason='{}' cause='{}' bearer={} origin={}",
                 request.getMethod(), request.getRequestURI(),
                 authException.getMessage(), cause, hasBearer, request.getHeader("Origin"));
             writeProblem(response, HttpStatus.UNAUTHORIZED, "JWT inválido ou em falta");
@@ -117,7 +121,7 @@ public class SecurityConfig {
     @Bean
     public AccessDeniedHandler jwtAccessDeniedHandler() {
         return (request, response, accessDeniedException) -> {
-            log.warn("[AUTH-403] {} {} → forbidden: reason='{}' user={}",
+            log.debug("[AUTH-403] {} {} -> forbidden: reason='{}' user={}",
                 request.getMethod(), request.getRequestURI(),
                 accessDeniedException.getMessage(),
                 request.getUserPrincipal() != null ? request.getUserPrincipal().getName() : "anonymous");

@@ -31,12 +31,12 @@ public class SensorEventKafkaListener {
             switch (event.eventType()) {
                 case "sensor.fault", "device.fault" -> {
                     sensorLogsService.faultSensor(event.sensorId());
-                    log.info("Sensor fault registered: sensorId={} park={}", event.sensorId(), event.parkId());
+                    log.debug("Sensor fault registered: sensorId={} park={}", event.sensorId(), event.parkId());
                 }
                 case "sensor.recovered", "device.recovery" -> {
                     String recoveryType = extractRecoveryType(event);
                     sensorLogsService.recoverSensor(event.sensorId(), recoveryType);
-                    log.info("Sensor recovered: sensorId={} type={} park={}", event.sensorId(), recoveryType, event.parkId());
+                    log.debug("Sensor recovered: sensorId={} type={} park={}", event.sensorId(), recoveryType, event.parkId());
                 }
                 default -> log.debug("Sensor event type '{}' has no dedicated handler: sensorId={}", event.eventType(), event.sensorId());
             }

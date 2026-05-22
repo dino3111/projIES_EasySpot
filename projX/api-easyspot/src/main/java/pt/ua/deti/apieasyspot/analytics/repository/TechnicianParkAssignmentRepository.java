@@ -12,11 +12,19 @@ import java.util.UUID;
 @Repository("analyticsTechnicianParkAssignmentRepository")
 public interface TechnicianParkAssignmentRepository extends JpaRepository<TechnicianParkAssignment, UUID> {
 
+    interface AssignmentRow {
+        UUID getParkingLotId();
+        UUID getTechnicianId();
+    }
+
     List<TechnicianParkAssignment> findByTechnicianId(UUID technicianId);
 
     boolean existsByTechnicianIdAndParkingLotId(UUID technicianId, UUID parkingLotId);
 
     void deleteByTechnicianIdAndParkingLotId(UUID technicianId, UUID parkingLotId);
+
+    @Query("select t.parkingLotId as parkingLotId, t.technicianId as technicianId from AnalyticsTechnicianParkAssignment t")
+    List<AssignmentRow> findAllAssignmentRows();
 
     @Query("select t.parkingLotId from AnalyticsTechnicianParkAssignment t where t.technicianId = :technicianId")
     List<UUID> findParkingLotIdByTechnicianId(@Param("technicianId") UUID technicianId);

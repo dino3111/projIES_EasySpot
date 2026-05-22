@@ -6,6 +6,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -20,13 +21,17 @@ public class OccupancySnapshotIngestService {
 
     private final ParkingSpotRepository parkingSpotRepository;
     private final TimescaleOccupancySnapshotRepository timescaleOccupancySnapshotRepository;
+    private final Map<UUID, Instant> lastSnapshotByLot = new ConcurrentHashMap<>();
 
     @Value("${easyspot.occupancy.snapshot-min-interval-seconds:5}")
     private int snapshotMinIntervalSeconds;
 
     public void captureLotSnapshotIfDue(UUID parkingLotId) {
         Instant now = Instant.now();
-        Instant last = timescaleOccupancySnapshotRepository.latestRecordedAt(parkingLotId);
+        Instant last = lastSnapshotByLot.computeIfAbsent(
+            parkingLotId,
+            id -> timescaleOccupancySnapshotRepository.latestRecordedAt(id)
+        );
         if (last != null && Duration.between(last, now).getSeconds() < snapshotMinIntervalSeconds) {
             return;
         }
@@ -55,6 +60,7 @@ public class OccupancySnapshotIngestService {
                 recordedAt
             );
         }
+        lastSnapshotByLot.put(parkingLotId, recordedAt);
     }
 
     private boolean countsAsOccupied(String status) {

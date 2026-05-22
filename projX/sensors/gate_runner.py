@@ -4,8 +4,6 @@ import time
 from config import (
     FAULT_CHECK_INTERVAL_SECONDS,
     KAFKA_TOPIC_GATE,
-    KAFKA_TOPIC_GATE_COMMANDS,
-    KAFKA_TOPIC_GATE_RESPONSES,
     SIMULATION_INTERVAL_SECONDS,
     SIMULATION_SEED,
 )
@@ -33,10 +31,6 @@ def run_gates():
     publisher = KafkaPublisher()
     simulator = GateSimulator(parks=parks, seed=SIMULATION_SEED)
 
-    print(f"[gates] Simulating gates for {len(parks)} parks")
-    print(f"[gates] Consuming commands from {KAFKA_TOPIC_GATE_COMMANDS}")
-    print(f"[gates] Publishing responses to {KAFKA_TOPIC_GATE_RESPONSES}")
-
     command_thread = threading.Thread(
         target=run_gate_command_consumer,
         args=(simulator, publisher),
@@ -55,9 +49,12 @@ def run_gates():
         if run_fault_check:
             last_fault_check = now_mono
 
+        published_any = False
         for event, park_id in simulator.tick(fault_check=run_fault_check):
             publisher.publish(KAFKA_TOPIC_GATE, park_id, event)
+            published_any = True
 
-        publisher.flush()
+        if published_any:
+            publisher.flush()
         if SIMULATION_INTERVAL_SECONDS > 0:
             time.sleep(SIMULATION_INTERVAL_SECONDS)

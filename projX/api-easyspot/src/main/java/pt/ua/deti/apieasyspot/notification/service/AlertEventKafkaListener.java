@@ -21,7 +21,7 @@ public class AlertEventKafkaListener {
     private final AlertNotificationDispatchService dispatchService;
 
     @KafkaListener(
-        topics = {"occupancy-events", "sensor-events"},
+        topics = "#{'${alerts.kafka.topics:alert-events,reservation-events,sensor-events}'.split(',')}",
         groupId = "${alerts.kafka.group-id:easyspot-alert-subscriptions}"
     )
     public void onEvent(String payload) {
@@ -38,7 +38,7 @@ public class AlertEventKafkaListener {
             );
             dispatchService.handleEvent(event);
         } catch (Exception ex) {
-            log.warn("Ignoring unsupported Kafka event payload for alerts: {}", payload);
+            log.debug("Ignoring unsupported Kafka event payload for alerts: {}", payload);
         }
     }
 

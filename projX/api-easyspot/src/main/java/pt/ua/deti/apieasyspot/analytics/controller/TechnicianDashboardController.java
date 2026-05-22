@@ -37,7 +37,7 @@ public class TechnicianDashboardController {
     @PreAuthorize("hasRole('TECHNICAL')")
     public ResponseEntity<TechnicianDashboardResponse> getDashboard(@AuthenticationPrincipal Jwt jwt) {
         List<UUID> assignedParkIds = assignmentService.getAssignedParkIds(jwt.getSubject());
-        log.info("[TECH-DASHBOARD] subject={} assignedParkIdsCount={} assignedParkIds={}", jwt.getSubject(), assignedParkIds.size(), assignedParkIds);
+        log.debug("[TECH-DASHBOARD] subject={} assignedParkIdsCount={}", jwt.getSubject(), assignedParkIds.size());
         return ResponseEntity.ok(technicianService.buildDashboard(assignedParkIds));
     }
 }
