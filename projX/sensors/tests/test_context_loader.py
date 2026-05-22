@@ -174,6 +174,47 @@ class ContextLoaderTests(unittest.TestCase):
                 # Loading context must not drift with simulation randomness settings.
                 self.assertEqual(context_loader.spots_from_context(context), baseline)
 
+    def test_spots_from_context_limits_evenly_by_park(self):
+        context = {
+            "version": 1,
+            "generatedAt": "2026-05-16T12:00:00Z",
+            "parkingLots": [
+                {"id": "park-1", "name": "Park One"},
+                {"id": "park-2", "name": "Park Two"},
+            ],
+            "parkingSpots": [
+                {
+                    "id": f"p1-{idx}",
+                    "parkingLotId": "park-1",
+                    "spotNumber": f"A{idx}",
+                    "zone": "STANDARD",
+                    "row": 0,
+                    "col": idx,
+                    "status": "free",
+                }
+                for idx in range(4)
+            ]
+            + [
+                {
+                    "id": f"p2-{idx}",
+                    "parkingLotId": "park-2",
+                    "spotNumber": f"B{idx}",
+                    "zone": "STANDARD",
+                    "row": 1,
+                    "col": idx,
+                    "status": "free",
+                }
+                for idx in range(4)
+            ],
+            "vehicles": [],
+        }
+
+        with patch.object(context_loader, "MAX_SIMULATED_SPOTS", 3):
+            spots = context_loader.spots_from_context(context)
+
+        self.assertEqual(len(spots), 3)
+        self.assertEqual({spot["parkId"] for spot in spots}, {"park-1", "park-2"})
+
     @patch("context_loader.requests.get")
     def test_load_spots_and_vehicle_plates_can_share_context(self, mock_get):
         payload = {

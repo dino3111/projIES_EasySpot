@@ -31,7 +31,7 @@ from state_machine import SpotStateMachine
 
 
 def run():
-    context = load_cached_context()
+    load_cached_context()
     spots = load_spots()
     if not spots:
         raise RuntimeError("No parking spots returned by backend context endpoint")
@@ -76,13 +76,11 @@ def run():
     )
     last_fault_check = time.monotonic()
 
-    print(f"Loaded {len(spots)} spots")
-    print(f"Loaded {len(context.get('vehicles', []))} vehicles in cached context")
-
     while True:
         current_hour = datetime.now().hour
         now_ts = datetime.now(timezone.utc)
         now_mono = time.monotonic()
+        published_any = False
 
         pending_delayed = flush_pending(
             pending_delayed, publisher, KAFKA_TOPIC, now_mono, network_faults
@@ -96,8 +94,7 @@ def run():
             active_res_by_spot = {}
             for res in load_reservations():
                 active_res_by_spot.setdefault(res["spotId"], []).append(res)
-        except Exception as exc:
-            print(f"Warning: could not load reservations: {exc}")
+        except Exception:
             active_res_by_spot = {}
 
         for spot in spots:
@@ -160,10 +157,12 @@ def run():
                         now_mono,
                         network_faults,
                     )
+                    published_any = True
             else:
                 meta["time_in_state"] += 1
 
-        publisher.flush()
+        if published_any or pending_delayed:
+            publisher.flush()
         if SIMULATION_INTERVAL_SECONDS > 0:
             time.sleep(SIMULATION_INTERVAL_SECONDS)
 

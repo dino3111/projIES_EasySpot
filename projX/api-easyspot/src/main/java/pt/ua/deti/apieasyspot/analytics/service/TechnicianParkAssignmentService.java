@@ -37,9 +37,9 @@ public class TechnicianParkAssignmentService {
             .stream()
             .map(pt.ua.deti.apieasyspot.occupancy.model.TechnicianParkAssignment::getParkingLotId)
             .forEach(merged::add);
-        log.info(
-            "[TECH-ASSIGN] subject={} resolvedUserId={} role={} parks={} (analytics+occupancy merged)",
-            authentikUserId, user.getId(), user.getRole(), merged
+        log.debug(
+            "[TECH-ASSIGN] subject={} resolvedUserId={} role={} assignedParksCount={}",
+            authentikUserId, user.getId(), user.getRole(), merged.size()
         );
         return List.copyOf(merged);
     }
@@ -70,9 +70,9 @@ public class TechnicianParkAssignmentService {
         User user = userRepository.findByAuthentikUserId(authentikSubject)
             .or(() -> userRepository.findByAuthentikPk(authentikSubject))
             .orElseThrow(() -> new ResourceNotFoundException("User not found: " + authentikSubject));
-        log.info(
-            "[TECH-ASSIGN] resolved subject={} -> userId={} email={} role={} authentikUserId={} authentikPk={}",
-            authentikSubject, user.getId(), user.getEmail(), user.getRole(), user.getAuthentikUserId(), user.getAuthentikPk()
+        log.debug(
+            "[TECH-ASSIGN] resolved subject={} -> userId={} role={} authentikUserId={} authentikPk={}",
+            authentikSubject, user.getId(), user.getRole(), user.getAuthentikUserId(), user.getAuthentikPk()
         );
         return user;
     }

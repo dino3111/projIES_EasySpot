@@ -18,12 +18,13 @@ SENSOR_HEARTBEAT_INTERVAL_SECONDS = float(
     os.getenv("SENSOR_HEARTBEAT_INTERVAL_SECONDS", "30.0")
 )
 
-# 1 second between occupancy cycles (keeps parking state lively).
-SIMULATION_INTERVAL_SECONDS = float(os.getenv("SIMULATION_INTERVAL_SECONDS", "1.0"))
+# 2 seconds between occupancy cycles to avoid pegging the local machine.
+SIMULATION_INTERVAL_SECONDS = float(os.getenv("SIMULATION_INTERVAL_SECONDS", "2.0"))
 # 60 seconds between fault-check cycles.
 # With hundreds of sensors, even tiny probabilities add up fast.
 FAULT_CHECK_INTERVAL_SECONDS = float(os.getenv("FAULT_CHECK_INTERVAL_SECONDS", "60.0"))
 SIMULATION_SEED = int(os.getenv("SIMULATION_SEED", "42"))
+MAX_SIMULATED_SPOTS = int(os.getenv("MAX_SIMULATED_SPOTS", "0"))
 CONTEXT_LOAD_RETRIES = int(os.getenv("CONTEXT_LOAD_RETRIES", "20"))
 CONTEXT_RETRY_DELAY_SECONDS = float(os.getenv("CONTEXT_RETRY_DELAY_SECONDS", "3"))
 

@@ -24,6 +24,8 @@ import pt.ua.deti.apieasyspot.sensor.repository.BackendDecisionHistoryRepository
 import java.time.OffsetDateTime;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Service
@@ -34,6 +36,7 @@ public class SensorLogsService {
     private final SensorRegistryRepository sensorRegistryRepository;
     private final TimescaleAlertRepository alertRepository;
     private final BackendDecisionHistoryRepository backendDecisionHistoryRepository;
+    private final Map<String, LocalDateTime> lastTouchBySensor = new ConcurrentHashMap<>();
 
     public List<SensorSummaryDto> listAllSensors() {
         return sensorLogsRepository.findAllSensors();
@@ -122,8 +125,14 @@ public class SensorLogsService {
     }
 
     public void touchSensor(String sensorId) {
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        LocalDateTime lastTouch = lastTouchBySensor.get(sensorId);
+        if (lastTouch != null && java.time.Duration.between(lastTouch, now).getSeconds() < 60) {
+            return;
+        }
+        lastTouchBySensor.put(sensorId, now);
         sensorRegistryRepository.findById(sensorId).ifPresent(sensor -> {
-            sensor.setLastSeenAt(LocalDateTime.now(ZoneOffset.UTC));
+            sensor.setLastSeenAt(now);
             sensorRegistryRepository.save(sensor);
         });
     }
@@ -152,7 +161,7 @@ public class SensorLogsService {
                     alertRepository.save(alert);
                 }
             );
-            log.info("Sensor {} marked OFFLINE via device.fault", sensorId);
+            log.debug("Sensor {} marked OFFLINE via device.fault", sensorId);
             recordDecision("sensor", sensorId, "FAULT", "device", "status=OFFLINE");
         });
     }
@@ -169,7 +178,7 @@ public class SensorLogsService {
                 alertRepository.save(alert);
             });
 
-            log.info("Sensor {} recovered via {}", sensorId, recoveryType);
+            log.debug("Sensor {} recovered via {}", sensorId, recoveryType);
             recordDecision("sensor", sensorId, "RECOVER", recoveryType, "status=OPERATIONAL");
         });
     }

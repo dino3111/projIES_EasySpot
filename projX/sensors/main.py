@@ -1,4 +1,5 @@
 import os
+import sys
 import threading
 
 from gate_runner import run_gates
@@ -11,7 +12,7 @@ def _run_ocr_safe():
     try:
         run_ocr()
     except Exception as exc:
-        print(f"[ocr] runner crashed: {exc}")
+        print(f"[ocr] runner crashed: {exc}", file=sys.stderr)
         raise
 
 
@@ -19,7 +20,7 @@ def _run_occupancy_safe():
     try:
         run()
     except Exception as exc:
-        print(f"[occupancy] runner crashed: {exc}")
+        print(f"[occupancy] runner crashed: {exc}", file=sys.stderr)
         raise
 
 
@@ -27,7 +28,7 @@ def _run_gates_safe():
     try:
         run_gates()
     except Exception as exc:
-        print(f"[gates] runner crashed: {exc}")
+        print(f"[gates] runner crashed: {exc}", file=sys.stderr)
         raise
 
 
@@ -35,7 +36,7 @@ def _run_ir_sensors_safe():
     try:
         run_ir_sensors()
     except Exception as exc:
-        print(f"[ir-sensors] runner crashed: {exc}")
+        print(f"[ir-sensors] runner crashed: {exc}", file=sys.stderr)
         raise
 
 

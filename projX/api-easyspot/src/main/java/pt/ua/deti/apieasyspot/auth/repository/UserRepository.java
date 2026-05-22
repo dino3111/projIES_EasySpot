@@ -12,4 +12,12 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     Optional<User> findByAuthentikPk(String authentikPk);
     Optional<User> findByEmail(String email);
     List<User> findByRole(String role);
+
+    interface TechnicianSummaryProjection {
+        UUID getId();
+        String getName();
+        String getEmail();
+    }
+
+    List<TechnicianSummaryProjection> findByRoleOrderByNameAsc(String role);
 }

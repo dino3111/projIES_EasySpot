@@ -42,11 +42,6 @@ def run_ocr():
         technician_repair_probability=TECHNICIAN_REPAIR_PROBABILITY,
     )
 
-    print(
-        f"[ocr] Loaded {len(spots)} spots and {len(plates)} "
-        "registered plates for OCR simulation"
-    )
-
     last_fault_check = time.monotonic()
 
     while True:
@@ -55,9 +50,12 @@ def run_ocr():
         if run_fault_check:
             last_fault_check = now_mono
 
+        published_any = False
         for event, key in generator.next_events(fault_check=run_fault_check):
             publisher.publish(KAFKA_TOPIC_OCR, key, event)
+            published_any = True
 
-        publisher.flush()
+        if published_any:
+            publisher.flush()
         if SIMULATION_INTERVAL_SECONDS > 0:
             time.sleep(SIMULATION_INTERVAL_SECONDS)

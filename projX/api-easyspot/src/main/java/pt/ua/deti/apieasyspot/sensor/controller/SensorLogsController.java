@@ -45,7 +45,7 @@ public class SensorLogsController {
     public ResponseEntity<List<SensorSummaryDto>> listSensors(@AuthenticationPrincipal Jwt jwt) {
         List<UUID> assignedParkIds = assignmentService.getAssignedParkIds(jwt.getSubject());
         List<SensorSummaryDto> sensors = sensorLogsService.listSensorsByParks(assignedParkIds);
-        log.info(
+        log.debug(
             "[TECH-SENSORS] subject={} assignedParkIdsCount={} sensorsCount={}",
             jwt.getSubject(), assignedParkIds.size(), sensors.size()
         );

@@ -44,15 +44,15 @@ public class ManagerParkService {
     private final AuthentikClient authentikClient;
 
     public List<TechnicianSummaryResponse> listTechnicians() {
-        return userRepository.findByRole("TECHNICAL").stream()
+        return userRepository.findByRoleOrderByNameAsc("TECHNICAL").stream()
             .map(u -> new TechnicianSummaryResponse(u.getId(), u.getName(), u.getEmail()))
             .toList();
     }
 
     public List<ParkAssignmentsResponse> listParkAssignments() {
-        List<TechnicianParkAssignment> all = assignmentRepository.findAll();
+        List<TechnicianParkAssignmentRepository.AssignmentRow> all = assignmentRepository.findAllAssignmentRows();
         Map<UUID, List<UUID>> byPark = new HashMap<>();
-        for (TechnicianParkAssignment a : all) {
+        for (TechnicianParkAssignmentRepository.AssignmentRow a : all) {
             byPark.computeIfAbsent(a.getParkingLotId(), k -> new ArrayList<>()).add(a.getTechnicianId());
         }
         Map<UUID, User> techById = userRepository.findByRole("TECHNICAL").stream()

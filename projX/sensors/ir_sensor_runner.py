@@ -46,11 +46,10 @@ def run_ir_sensors():
         for spot in spots
     }
 
-    print(f"[ir-sensors] Loaded {len(spots)} sensors")
-
     while True:
         current_hour = datetime.now().hour
         now_mono = time.monotonic()
+        published_any = False
 
         for spot in spots:
             spot_id = spot["spotId"]
@@ -73,6 +72,7 @@ def run_ir_sensors():
                 m["time_in_state"] = 0
                 for event in events_for_transition(spot, previous, next_status):
                     publisher.publish(KAFKA_TOPIC_SENSOR, spot_id, event)
+                    published_any = True
             else:
                 m["time_in_state"] += 1
 
@@ -87,8 +87,10 @@ def run_ir_sensors():
                     build_heartbeat_event(spot),
                 )
                 m["last_heartbeat_at"] = now_mono
+                published_any = True
 
-        publisher.flush()
+        if published_any:
+            publisher.flush()
         if SIMULATION_INTERVAL_SECONDS > 0:
             time.sleep(SIMULATION_INTERVAL_SECONDS)
 
