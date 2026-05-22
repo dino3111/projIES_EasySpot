@@ -158,11 +158,78 @@ class SensorLogsServiceTest {
         sensor.setCreatedAt(LocalDateTime.now());
 
         when(sensorRegistryRepository.findById("IR-TEST-01")).thenReturn(Optional.of(sensor));
+        when(alertRepository.findOpenBySensorId("IR-TEST-01")).thenReturn(Optional.empty());
 
         service.updateSensorStatus("IR-TEST-01", new SensorStatusUpdateRequest("operational", "Reparação concluída."));
 
         verify(sensorRegistryRepository).save(sensor);
         assertThat(sensor.getStatus()).isEqualTo(SensorStatus.OPERATIONAL);
+    }
+
+    @Test
+    @DisplayName("updateSensorStatus to OPERATIONAL resolves open alert and removes it from active list")
+    void updateSensorStatus_toOperational_resolvesOpenAlert() {
+        UUID parkId = UUID.randomUUID();
+        ParkingLot lot = new ParkingLot();
+        lot.setId(parkId);
+        lot.setName("Parque Teste");
+
+        SensorRegistry sensor = new SensorRegistry();
+        sensor.setSensorId("IR-TEST-05");
+        sensor.setParkingLot(lot);
+        sensor.setZone("Zona A");
+        sensor.setStatus(SensorStatus.OFFLINE);
+        sensor.setLastSeenAt(LocalDateTime.now());
+        sensor.setCreatedAt(LocalDateTime.now());
+
+        Alert openAlert = new Alert();
+        openAlert.setId(UUID.randomUUID());
+        openAlert.setState(StateAlert.OPEN);
+        openAlert.setCreatedAt(OffsetDateTime.now(ZoneOffset.UTC));
+
+        when(sensorRegistryRepository.findById("IR-TEST-05")).thenReturn(Optional.of(sensor));
+        when(alertRepository.findOpenBySensorId("IR-TEST-05")).thenReturn(Optional.of(openAlert));
+
+        service.updateSensorStatus("IR-TEST-05", new SensorStatusUpdateRequest("operational", "Sensor recuperado."));
+
+        assertThat(sensor.getStatus()).isEqualTo(SensorStatus.OPERATIONAL);
+        verify(alertRepository).save(argThat(alert ->
+            alert.getState() == StateAlert.RESOLVED
+                && alert.getResolvedAt() != null
+        ));
+    }
+
+    @Test
+    @DisplayName("updateSensorStatus to OPERATIONAL resolves IN_PROGRESS alert and removes it from active list")
+    void updateSensorStatus_toOperational_resolvesInProgressAlert() {
+        UUID parkId = UUID.randomUUID();
+        ParkingLot lot = new ParkingLot();
+        lot.setId(parkId);
+        lot.setName("Parque Teste");
+
+        SensorRegistry sensor = new SensorRegistry();
+        sensor.setSensorId("IR-TEST-06");
+        sensor.setParkingLot(lot);
+        sensor.setZone("Zona B");
+        sensor.setStatus(SensorStatus.DEGRADED);
+        sensor.setLastSeenAt(LocalDateTime.now());
+        sensor.setCreatedAt(LocalDateTime.now());
+
+        Alert inProgressAlert = new Alert();
+        inProgressAlert.setId(UUID.randomUUID());
+        inProgressAlert.setState(StateAlert.IN_PROGRESS);
+        inProgressAlert.setCreatedAt(OffsetDateTime.now(ZoneOffset.UTC));
+
+        when(sensorRegistryRepository.findById("IR-TEST-06")).thenReturn(Optional.of(sensor));
+        when(alertRepository.findOpenBySensorId("IR-TEST-06")).thenReturn(Optional.of(inProgressAlert));
+
+        service.updateSensorStatus("IR-TEST-06", new SensorStatusUpdateRequest("operational", null));
+
+        assertThat(sensor.getStatus()).isEqualTo(SensorStatus.OPERATIONAL);
+        verify(alertRepository).save(argThat(alert ->
+            alert.getState() == StateAlert.RESOLVED
+                && alert.getResolvedAt() != null
+        ));
     }
 
     @Test
