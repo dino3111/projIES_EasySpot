@@ -256,6 +256,55 @@ class AlertControllerIT {
         assertThat(updated.getNotes()).isEqualTo("sensor offline, checking cables");
     }
 
+    @Test
+    @DisplayName("State transition - resolved incident no longer appears in active list")
+    void stateTransition_resolvedAlert_doesNotAppearInActiveList() throws Exception {
+        Alert alert = savedAlert(StateAlert.OPEN);
+
+        mockMvc.perform(patch("/api/alerts/" + alert.getId() + "/state")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"state\":\"RESOLVED\"}")
+                .with(jwtWithRole("sub-tech", "TECHNICAL")))
+            .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/alerts")
+                .param("state", "OPEN")
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(jwtWithRole("sub-tech", "TECHNICAL")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[?(@.id == '" + alert.getId() + "')]").doesNotExist());
+
+        mockMvc.perform(get("/api/alerts")
+                .param("state", "IN_PROGRESS")
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(jwtWithRole("sub-tech", "TECHNICAL")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[?(@.id == '" + alert.getId() + "')]").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("State transition - IN_PROGRESS incident resolved and no longer appears in active list")
+    void stateTransition_inProgressAlertResolved_doesNotAppearInActiveList() throws Exception {
+        Alert alert = savedAlert(StateAlert.IN_PROGRESS);
+
+        mockMvc.perform(patch("/api/alerts/" + alert.getId() + "/state")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"state\":\"RESOLVED\"}")
+                .with(jwtWithRole("sub-tech", "TECHNICAL")))
+            .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/alerts")
+                .param("state", "IN_PROGRESS")
+                .contentType(MediaType.APPLICATION_JSON)
+                .with(jwtWithRole("sub-tech", "TECHNICAL")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[?(@.id == '" + alert.getId() + "')]").doesNotExist());
+
+        Alert updated = alertRepository.findById(alert.getId()).orElseThrow();
+        assertThat(updated.getState()).isEqualTo(StateAlert.RESOLVED);
+        assertThat(updated.getResolvedAt()).isNotNull();
+    }
+
     // ── GET /api/alerts ──────────────────────────────────────────────────────────
 
     @Test

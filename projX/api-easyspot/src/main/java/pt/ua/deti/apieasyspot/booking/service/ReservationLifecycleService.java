@@ -93,8 +93,10 @@ public class ReservationLifecycleService {
             reservation.setLockedUntil(null);
             return true;
         } else if (now.isAfter(reservation.getArrivalTime()) && now.isBefore(reservation.getDepartureTime())) {
-            // The reservation is active; keep the booking lifecycle coherent.
-            reservation.setStatus(ReservationStatus.CONFIRMED);
+            if (reservation.getStatus() != ReservationStatus.CONFIRMED) {
+                reservation.setStatus(ReservationStatus.CONFIRMED);
+                return true;
+            }
         }
         return false;
     }

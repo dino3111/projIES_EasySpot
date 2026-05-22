@@ -168,7 +168,7 @@ export function MaintenancePage() {
   const [orders, setOrders]                 = useState<WorkOrder[]>([]);
   const [completedOrders, setCompletedOrders] = useState<WorkOrder[]>([]);
   const [completedLoading, setCompletedLoading] = useState(false);
-  const [weekOffset, setWeekOffset]         = useState(-1);
+  const [weekOffset, setWeekOffset]         = useState(0);
   const [loading, setLoading]               = useState(true);
   const [apiError, setApiError]             = useState<string | null>(null);
   const [selectedIssue, setSelectedIssue]   = useState<IssueReport | null>(null);
@@ -306,6 +306,9 @@ export function MaintenancePage() {
       setIssues((prev) => prev.map((i) =>
         i.id === orderId ? { ...i, estado: toIssueEstado(apiState) } : i,
       ));
+      if (novoEstado === 'concluida') {
+        void loadCompleted(weekOffset);
+      }
       showToast(novoEstado === 'em-progresso' ? 'Tarefa iniciada.' : 'Tarefa concluída.');
     } catch {
       showToast('Erro ao atualizar tarefa.');
@@ -401,7 +404,7 @@ export function MaintenancePage() {
         >
           <i className="fas fa-triangle-exclamation" aria-hidden="true" />
           <span>Erro ao carregar dados: {apiError}</span>
-          <button onClick={loadAll} className="ml-auto underline font-semibold">
+          <button onClick={() => void loadAll()} className="ml-auto underline font-semibold">
             Tentar novamente
           </button>
         </div>
