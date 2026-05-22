@@ -11,15 +11,18 @@ import {
 import { KpiCard } from './components/shared';
 import { useOptionalWs } from '../../context/WsContext';
 import { useOptionalAuth } from '../../context/AuthContext';
-const backgroundRefreshFromEnv = Number(import.meta.env.VITE_REALTIME_REFRESH_MS ?? 5000);
-const BACKGROUND_REFRESH_MS = Number.isFinite(backgroundRefreshFromEnv) && backgroundRefreshFromEnv >= 1000
-  ? backgroundRefreshFromEnv
-  : 5000;
-
 const STATUS_COLOR: Record<string, string> = {
   operational: '#22c55e',
-  degraded:    '#f59e0b',
-  offline:     '#ef4444',
+  degraded:    '#ef4444',
+  offline:     '#6b7280',
+  maintenance: '#f59e0b',
+};
+
+const STATUS_LABEL_PT: Record<string, string> = {
+  operational: 'Operacional',
+  degraded:    'Degradado',
+  offline:     'Offline',
+  maintenance: 'Manutenção',
 };
 
 
@@ -55,12 +58,8 @@ export function DashboardTechnicianPage() {
       }
     };
     void load();
-    const intervalId = globalThis.setInterval(() => {
-      void load(true);
-    }, BACKGROUND_REFRESH_MS);
     return () => {
       mounted = false;
-      globalThis.clearInterval(intervalId);
     };
   }, []);
 
@@ -81,9 +80,11 @@ export function DashboardTechnicianPage() {
 
   const { kpis, uptimeLast7Days, sensorDistribution, urgentWorkOrders } = dashboard;
 
+  const totalFromDist = sensorDistribution.reduce((s, d) => s + d.count, 0);
   const pieData = sensorDistribution.map((d) => ({
-    name: d.label,
+    name: STATUS_LABEL_PT[d.status] ?? d.label,
     value: d.count,
+    pct: totalFromDist > 0 ? Math.round(d.count * 1000 / totalFromDist) / 10 : 0,
     color: STATUS_COLOR[d.status] ?? '#94a3b8',
   })).filter((d) => d.value > 0);
 
@@ -105,7 +106,7 @@ export function DashboardTechnicianPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <UptimeChart data={uptimeChartData} />
-        <StatusDonut pieData={pieData} total={kpis.totalSensors} />
+        <StatusDonut pieData={pieData} />
       </div>
 
       {pendingOrders.length > 0 && (
@@ -182,7 +183,7 @@ function UptimeChart({ data }: { data: { day: string; uptime: number }[] }) {
   );
 }
 
-function StatusDonut({ pieData, total }: { pieData: { name: string; value: number; color: string }[]; total: number }) {
+function StatusDonut({ pieData }: { pieData: { name: string; value: number; pct: number; color: string }[] }) {
   return (
     <div className="bg-card border border-border rounded-2xl p-4">
       <h2 className="text-foreground mb-4" style={{ fontSize: '1rem', fontWeight: 700 }}>Estado dos Sensores</h2>
@@ -205,7 +206,7 @@ function StatusDonut({ pieData, total }: { pieData: { name: string; value: numbe
             <span className="text-foreground flex-1" style={{ fontSize: '0.72rem' }}>{d.name}</span>
             <span className="text-muted-foreground" style={{ fontSize: '0.72rem' }}>{d.value}</span>
             <span className="px-1.5 py-0.5 rounded-full" style={{ fontSize: '0.65rem', fontWeight: 700, background: `${d.color}22`, color: d.color }}>
-              {total > 0 ? Math.round((d.value / total) * 100) : 0}%
+              {d.pct}%
             </span>
           </div>
         ))}
@@ -214,7 +215,7 @@ function StatusDonut({ pieData, total }: { pieData: { name: string; value: numbe
   );
 }
 
-function UrgentOrders({ orders, onAction }: { orders: WorkOrder[]; onAction: (o: WorkOrder) => void }) {
+function UrgentOrders({ orders }: { orders: WorkOrder[] }) {
   return (
     <div className="bg-destructive/5 border border-destructive/20 rounded-2xl p-4">
       <div className="flex items-center gap-2 mb-3">

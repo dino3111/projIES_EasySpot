@@ -199,6 +199,13 @@ export function IncidentsTab({
 function ParkOcorrenciasView({
   parkName, manager, issues, onBack, onSelectIssue, onUpdateSensor, onCreateTaskFromIssue, sensors,
 }: ParkOcorrenciasViewProps) {
+  const [parkEstFilter, setParkEstFilter] = useState<IncidentStatusFilter>('aberto');
+
+  const activeIssues = issues.filter(i => {
+    if (parkEstFilter === 'todos') return true;
+    return i.estado === parkEstFilter;
+  });
+
   return (
     <div className="space-y-4">
       <div className="flex items-start justify-between p-4 bg-card border border-border rounded-2xl">
@@ -240,15 +247,29 @@ function ParkOcorrenciasView({
       )}
 
       <div>
-        <h3 className="text-foreground font-bold mb-2" style={{ fontSize: '0.875rem' }}>
-          <i className="fas fa-list-check text-primary mr-1.5" aria-hidden="true" />
-          Ocorrências ({issues.length})
-        </h3>
-        {issues.length === 0 ? (
-          <EmptyState icon="fa-check-circle" title="Sem ocorrências" desc="Nenhuma ocorrência registada para este parque." />
+        <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+          <h3 className="text-foreground font-bold" style={{ fontSize: '0.875rem' }}>
+            <i className="fas fa-list-check text-primary mr-1.5" aria-hidden="true" />
+            Ocorrências ({activeIssues.length})
+          </h3>
+          <div className="flex rounded-xl overflow-hidden border border-border">
+            {(['aberto', 'em-progresso', 'todos'] as const).map(f => (
+              <button
+                key={f}
+                onClick={() => setParkEstFilter(f)}
+                className={`px-2.5 py-1 transition-colors ${parkEstFilter === f ? 'bg-primary text-white' : 'bg-card text-muted-foreground hover:bg-muted'}`}
+                style={{ fontSize: '0.72rem', fontWeight: 600 }}
+              >
+                {{ aberto: 'Abertos', 'em-progresso': 'Em Progresso', todos: 'Todos' }[f]}
+              </button>
+            ))}
+          </div>
+        </div>
+        {activeIssues.length === 0 ? (
+          <EmptyState icon="fa-check-circle" title="Sem ocorrências" desc="Nenhuma ocorrência com este estado para este parque." />
         ) : (
           <div className="space-y-2">
-            {issues.map(issue => {
+            {activeIssues.map(issue => {
               const sensor = sensors.find(s => s.id === issue.sensorId);
               return (
                 <IssueCard
@@ -257,9 +278,9 @@ function ParkOcorrenciasView({
                   sensor={sensor}
                   onClick={() => onSelectIssue(issue)}
                   onUpdate={sensor ? () => onUpdateSensor(sensor) : undefined}
-                onCreateTask={issue.tipo === 'sensor' && issue.estado === 'aberto'
-                  ? () => onCreateTaskFromIssue(issue)
-                  : undefined}
+                  onCreateTask={issue.tipo === 'sensor' && issue.estado === 'aberto'
+                    ? () => onCreateTaskFromIssue(issue)
+                    : undefined}
                 />
               );
             })}

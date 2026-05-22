@@ -155,7 +155,7 @@ export function StatusUpdateModal({
                 newStatus === opt.value ? 'border-primary/60 bg-primary/5' : 'border-border hover:border-primary/30 hover:bg-muted/30'
               }`}
             >
-              <input type="radio" name="newStatus" value={opt.value} checked={newStatus === opt.value} onChange={() => setNewStatus(opt.value)} className="sr-only" />
+              <input type="radio" name="newStatus" value={opt.value} checked={newStatus === opt.value} onChange={() => setNewStatus(opt.value as SensorStatus)} className="sr-only" />
               <i className={`fas ${opt.icon} flex-shrink-0`} style={{ color: STATUS_COLOR[opt.value], fontSize: '1rem', width: '16px', textAlign: 'center' }} aria-hidden="true"></i>
               <div className="flex-1 min-w-0">
                 <p className="text-foreground" style={{ fontSize: '0.875rem', fontWeight: 600 }}>{opt.label}</p>
@@ -185,7 +185,7 @@ export function StatusUpdateModal({
         <div className="flex gap-2">
           <button
             onClick={() => onConfirm(sensor.id, newStatus, notes)}
-            disabled={newStatus === sensor.status && notes.trim() === ''}
+            disabled={false}
             className="flex-1 py-2.5 rounded-xl bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ fontSize: '0.875rem', fontWeight: 700 }}
           >

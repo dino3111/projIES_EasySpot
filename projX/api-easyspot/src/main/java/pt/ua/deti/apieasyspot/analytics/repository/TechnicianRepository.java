@@ -63,9 +63,8 @@ public class TechnicianRepository {
         String sql = """
             SELECT count(*) FROM alerts
             WHERE type IN ('SENSOR', 'SYSTEM')
-              AND created_at >= current_date
-              AND created_at < current_date + interval '1 day'
-              AND state != 'RESOLVED'
+              AND created_at >= current_date at time zone 'Europe/Lisbon'
+              AND created_at < (current_date + interval '1 day') at time zone 'Europe/Lisbon'
             """ + parkFilter(parkIds, "parking_lot_id");
         Long result = timescaleJdbc.queryForObject(sql, Long.class, parkParams(parkIds));
         return result != null ? result : 0L;
@@ -75,9 +74,8 @@ public class TechnicianRepository {
         String sql = """
             SELECT count(*) FROM alerts
             WHERE type IN ('SENSOR', 'SYSTEM')
-              AND created_at >= current_date - interval '1 day'
-              AND created_at < current_date
-              AND state != 'RESOLVED'
+              AND created_at >= (current_date - interval '1 day') at time zone 'Europe/Lisbon'
+              AND created_at < current_date at time zone 'Europe/Lisbon'
             """ + parkFilter(parkIds, "parking_lot_id");
         Long result = timescaleJdbc.queryForObject(sql, Long.class, parkParams(parkIds));
         return result != null ? result : 0L;
@@ -220,9 +218,10 @@ public class TechnicianRepository {
 
     private String statusLabel(String status) {
         return switch (status) {
-            case "OPERATIONAL" -> "Operacional";
-            case "DEGRADED" -> "Degradado";
-            case "OFFLINE" -> "Offline";
+            case "OPERATIONAL"  -> "Operacional";
+            case "DEGRADED"     -> "Degradado";
+            case "OFFLINE"      -> "Offline";
+            case "MAINTENANCE"  -> "Manutenção";
             default -> status;
         };
     }

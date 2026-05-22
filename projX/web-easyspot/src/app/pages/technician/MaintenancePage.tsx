@@ -33,9 +33,10 @@ const STATUS_TO_API: Record<string, string> = {
 // ── Sensor mapping (API → UI) ─────────────────────────────────────────────────
 
 function toSensorStatus(apiStatus: string): SensorStatus {
-  if (apiStatus === 'operational') return 'operacional';
-  if (apiStatus === 'offline')     return 'offline';
-  if (apiStatus === 'degraded')    return 'falha';
+  if (apiStatus === 'operational')  return 'operacional';
+  if (apiStatus === 'offline')      return 'offline';
+  if (apiStatus === 'degraded')     return 'falha';
+  if (apiStatus === 'maintenance')  return 'manutencao';
   return 'offline';
 }
 
@@ -317,7 +318,12 @@ export function MaintenancePage() {
 
   const handleStatusUpdate = async (sensorId: string, newStatus: SensorStatus, notes: string) => {
     const apiStatus = STATUS_TO_API[newStatus] ?? newStatus;
-    await updateSensorStatus(sensorId, apiStatus, notes || undefined).catch(() => {});
+    try {
+      await updateSensorStatus(sensorId, apiStatus, notes || undefined);
+    } catch {
+      showToast('Erro ao atualizar estado do sensor.', 'error');
+      return;
+    }
     setSensors((prev) =>
       prev.map((s) => {
         if (s.id !== sensorId) return s;
@@ -331,10 +337,29 @@ export function MaintenancePage() {
         return { ...s, status: newStatus, historicoErros: [entry, ...s.historicoErros] };
       }),
     );
+    // When sensor is restored to operational, optimistically mark linked open alerts as resolved
+    // (the backend already resolves them via applySensorStatusToAlert)
+    if (newStatus === 'operacional') {
+      setIssues((prev) =>
+        prev.map((i) =>
+          i.sensorId === sensorId && (i.estado === 'aberto' || i.estado === 'em-progresso')
+            ? { ...i, estado: 'resolvido' as const }
+            : i,
+        ),
+      );
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.sensorId === sensorId && o.state !== 'RESOLVED'
+            ? { ...o, state: 'RESOLVED' as const }
+            : o,
+        ),
+      );
+    }
     setUpdateTarget(null);
     setSelectedSensor(null);
     setSelectedIssue(null);
     showToast(`Sensor ${sensorId} atualizado para "${STATUS_LABEL[newStatus]}".`);
+    void loadAll(true);
   };
 
   const handleCreateOrder = async (sensorId: string, titulo: string, descricao: string, prioridade: string) => {
