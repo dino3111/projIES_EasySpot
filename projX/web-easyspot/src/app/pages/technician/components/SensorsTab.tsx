@@ -168,6 +168,20 @@ export function SensorsTab({
   );
 }
 
+// Normalizes zone to a floor label:
+// "Piso 0 – Zona A"  → "Piso 0"
+// "f-a2-p-2:E3"      → "Piso -2"   (full spotNumber format)
+// "p0:A1"            → "Piso 0"    (short spotNumber format)
+function extractFloorLabel(zone: string): string | null {
+  // "Piso X" text prefix
+  const m1 = zone.match(/^Piso\s+(-?\d+)/i);
+  if (m1) return `Piso ${m1[1]}`;
+  // spotNumber formats: "f-xxx-p<N>:..." or "p<N>:..."
+  const m2 = zone.match(/(?:^|-)p(-?\d+):/i);
+  if (m2) return `Piso ${m2[1]}`;
+  return null;
+}
+
 function ParkSensorMapView({
   parkId, allSensors, onBack, onSelectSensor,
 }: ParkSensorMapViewProps) {
@@ -175,18 +189,34 @@ function ParkSensorMapView({
   const [localFilter, setLocalFilter] = useState<StatusFil>('todos');
   const [visibleCount, setVisibleCount] = useState(5);
 
+  // Derive floors from the zone field of the sensors already loaded from the API
+  const floorNames = Array.from(
+    new Set(allSensors.map(s => extractFloorLabel(s.zona)).filter((f): f is string => f !== null))
+  ).sort((a, b) => {
+    const na = parseInt(a.replace(/[^-\d]/g, ''), 10);
+    const nb = parseInt(b.replace(/[^-\d]/g, ''), 10);
+    if (!isNaN(na) && !isNaN(nb)) return na - nb;
+    return a.localeCompare(b, 'pt-PT');
+  });
+  const hasFloors = floorNames.length > 1;
+  const [selectedFloor, setSelectedFloor] = useState<string | null>(hasFloors ? floorNames[0] : null);
+
+  const visibleSensors = hasFloors && selectedFloor
+    ? allSensors.filter(s => extractFloorLabel(s.zona) === selectedFloor)
+    : allSensors;
+
   const statusCounts = {
-    operacional: allSensors.filter(s => s.status === 'operacional').length,
-    falha:       allSensors.filter(s => s.status === 'falha').length,
-    offline:     allSensors.filter(s => s.status === 'offline').length,
-    manutencao:  allSensors.filter(s => s.status === 'manutencao').length,
+    operacional: visibleSensors.filter(s => s.status === 'operacional').length,
+    falha:       visibleSensors.filter(s => s.status === 'falha').length,
+    offline:     visibleSensors.filter(s => s.status === 'offline').length,
+    manutencao:  visibleSensors.filter(s => s.status === 'manutencao').length,
   };
 
   // Build a label for each sensor from sensorId suffix: "IR-AV1-B07" → "B07"
   const sensorLabel = (s: SensorDevice) => s.lugar ?? s.id.split('-').pop() ?? s.id;
 
   // Grid: up to 18 columns, rows expand as needed
-  const COLS = Math.min(18, allSensors.length);
+  const COLS = Math.min(18, visibleSensors.length);
 
   return (
     <div className="space-y-3">
@@ -209,6 +239,27 @@ function ParkSensorMapView({
         </button>
       </div>
 
+      {hasFloors && (
+        <div className="flex flex-wrap gap-2 items-center">
+          <span className="text-muted-foreground font-semibold" style={{ fontSize: '0.78rem' }}>
+            <i className="fas fa-layer-group mr-1.5" aria-hidden="true"></i>
+            Piso:
+          </span>
+          <div className="flex rounded-xl overflow-hidden border border-border">
+            {floorNames.map(floor => (
+              <button
+                key={floor}
+                onClick={() => { setSelectedFloor(floor); setVisibleCount(5); setLocalFilter('todos'); }}
+                className={`px-3 py-1.5 transition-colors font-bold ${selectedFloor === floor ? 'bg-primary text-white' : 'bg-card text-muted-foreground hover:bg-muted'}`}
+                style={{ fontSize: '0.75rem' }}
+              >
+                {floor}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-4 gap-2">
         <StatBadge label="Operacional" value={statusCounts.operacional} color="#22c55e" icon="fa-circle-check" />
         <StatBadge label="Falha"       value={statusCounts.falha}       color="#d4183d" icon="fa-circle-xmark" />
@@ -221,6 +272,9 @@ function ParkSensorMapView({
           <span className="text-foreground font-bold" style={{ fontSize: '0.8rem' }}>
             <i className="fas fa-map-pin mr-1.5 text-primary" aria-hidden="true"></i>
             Disposição dos Lugares
+            {hasFloors && selectedFloor && (
+              <span className="ml-2 text-primary" style={{ fontWeight: 400 }}>— {selectedFloor}</span>
+            )}
           </span>
           <div className="flex flex-wrap gap-x-3 gap-y-1">
             <TechMapLegend color="#22c55e" label="Operacional" />
@@ -230,42 +284,49 @@ function ParkSensorMapView({
           </div>
         </div>
         <div className="p-4 flex justify-center bg-muted/10">
-          <div
-            className="grid gap-2"
-            style={{ gridTemplateColumns: `repeat(${COLS}, 52px)` }}
-          >
-            {allSensors.map(sensor => {
-              const color = STATUS_COLOR[sensor.status];
-              const label = sensorLabel(sensor);
-              return (
-                <button
-                  key={sensor.id}
-                  onClick={() => onSelectSensor(sensor)}
-                  className="flex flex-col items-center justify-center rounded-xl shadow-sm hover:scale-105 transition-all cursor-pointer"
-                  style={{ width: 52, height: 52, background: color }}
-                  title={`${label} — ${STATUS_LABEL[sensor.status]}\n${sensor.id}`}
-                >
-                  <i className="fas fa-microchip text-white" style={{ fontSize: '0.75rem' }} aria-hidden="true" />
-                  <span className="text-white font-bold leading-none mt-1" style={{ fontSize: '0.6rem' }}>{label}</span>
-                </button>
-              );
-            })}
-          </div>
+          {visibleSensors.length === 0 ? (
+            <p className="text-muted-foreground" style={{ fontSize: '0.85rem' }}>Nenhum sensor neste piso.</p>
+          ) : (
+            <div
+              className="grid gap-2"
+              style={{ gridTemplateColumns: `repeat(${COLS}, 52px)` }}
+            >
+              {visibleSensors.map(sensor => {
+                const color = STATUS_COLOR[sensor.status];
+                const label = sensorLabel(sensor);
+                return (
+                  <button
+                    key={sensor.id}
+                    onClick={() => onSelectSensor(sensor)}
+                    className="flex flex-col items-center justify-center rounded-xl shadow-sm hover:scale-105 transition-all cursor-pointer"
+                    style={{ width: 52, height: 52, background: color }}
+                    title={`${label} — ${STATUS_LABEL[sensor.status]}\n${sensor.id}`}
+                  >
+                    <i className="fas fa-microchip text-white" style={{ fontSize: '0.75rem' }} aria-hidden="true" />
+                    <span className="text-white font-bold leading-none mt-1" style={{ fontSize: '0.6rem' }}>{label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 
       <div>
         <h3 className="text-foreground mb-3 font-bold" style={{ fontSize: '0.875rem' }}>
           <i className="fas fa-list mr-2 text-primary" aria-hidden="true"></i>
-          Sensores ({allSensors.filter(s => localFilter === 'todos' || s.status === localFilter).length})
+          Sensores ({visibleSensors.filter(s => localFilter === 'todos' || s.status === localFilter).length})
+          {hasFloors && selectedFloor && (
+            <span className="text-muted-foreground font-normal ml-1" style={{ fontSize: '0.78rem' }}>— {selectedFloor}</span>
+          )}
         </h3>
         <div className="flex flex-wrap gap-2 mb-3">
           {([
-            { v: 'todos'       as StatusFil, l: `Todos (${allSensors.length})`,                active: 'bg-primary text-white border-primary',        inactive: 'bg-card text-muted-foreground border-border hover:border-primary/50' },
-            { v: 'operacional' as StatusFil, l: `Operacional (${statusCounts.operacional})`,   active: 'bg-green-500 text-white border-green-500',     inactive: 'bg-card text-muted-foreground border-border hover:border-green-500/50' },
-            { v: 'falha'       as StatusFil, l: `Falha (${statusCounts.falha})`,               active: 'bg-red-500 text-white border-red-500',         inactive: 'bg-card text-muted-foreground border-border hover:border-red-500/50' },
-            { v: 'offline'     as StatusFil, l: `Offline (${statusCounts.offline})`,           active: 'bg-gray-500 text-white border-gray-500',       inactive: 'bg-card text-muted-foreground border-border hover:border-gray-500/50' },
-            { v: 'manutencao'  as StatusFil, l: `Manutenção (${statusCounts.manutencao})`,     active: 'bg-amber-500 text-white border-amber-500',     inactive: 'bg-card text-muted-foreground border-border hover:border-amber-500/50' },
+            { v: 'todos'       as StatusFil, l: `Todos (${visibleSensors.length})`,              active: 'bg-primary text-white border-primary',        inactive: 'bg-card text-muted-foreground border-border hover:border-primary/50' },
+            { v: 'operacional' as StatusFil, l: `Operacional (${statusCounts.operacional})`,     active: 'bg-green-500 text-white border-green-500',     inactive: 'bg-card text-muted-foreground border-border hover:border-green-500/50' },
+            { v: 'falha'       as StatusFil, l: `Falha (${statusCounts.falha})`,                 active: 'bg-red-500 text-white border-red-500',         inactive: 'bg-card text-muted-foreground border-border hover:border-red-500/50' },
+            { v: 'offline'     as StatusFil, l: `Offline (${statusCounts.offline})`,             active: 'bg-gray-500 text-white border-gray-500',       inactive: 'bg-card text-muted-foreground border-border hover:border-gray-500/50' },
+            { v: 'manutencao'  as StatusFil, l: `Manutenção (${statusCounts.manutencao})`,       active: 'bg-amber-500 text-white border-amber-500',     inactive: 'bg-card text-muted-foreground border-border hover:border-amber-500/50' },
           ]).map(({ v, l, active, inactive }) => (
             <button
               key={v}
@@ -277,7 +338,7 @@ function ParkSensorMapView({
           ))}
         </div>
         <div className="space-y-2">
-          {allSensors
+          {visibleSensors
             .filter(s => localFilter === 'todos' || s.status === localFilter)
             .slice(0, visibleCount)
             .map(sensor => {
@@ -308,14 +369,14 @@ function ParkSensorMapView({
                 </button>
               );
             })}
-          {allSensors.filter(s => localFilter === 'todos' || s.status === localFilter).length > visibleCount && (
+          {visibleSensors.filter(s => localFilter === 'todos' || s.status === localFilter).length > visibleCount && (
             <button
               onClick={() => setVisibleCount(prev => prev + 5)}
               className="w-full flex items-center justify-center gap-2 p-3 mt-3 bg-muted border border-border rounded-lg hover:bg-muted/80 transition-colors text-primary font-bold"
               style={{ fontSize: '0.85rem' }}
             >
               <i className="fas fa-plus" aria-hidden="true"></i>
-              Mostrar mais ({allSensors.filter(s => localFilter === 'todos' || s.status === localFilter).length - visibleCount} restantes)
+              Mostrar mais ({visibleSensors.filter(s => localFilter === 'todos' || s.status === localFilter).length - visibleCount} restantes)
             </button>
           )}
         </div>
