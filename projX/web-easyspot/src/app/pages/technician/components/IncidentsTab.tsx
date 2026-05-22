@@ -24,6 +24,7 @@ type ParkOcorrenciasViewProps = Readonly<{
   onUpdateSensor: (s: SensorDevice) => void;
   onCreateTaskFromIssue: (i: IssueReport) => void;
   sensors: SensorDevice[];
+  initialEstFilter?: IncidentStatusFilter;
 }>;
 
 type IssueCardProps = Readonly<{
@@ -73,6 +74,7 @@ export function IncidentsTab({
         onUpdateSensor={onUpdateSensor}
         onCreateTaskFromIssue={onCreateTaskFromIssue}
         sensors={sensors}
+        initialEstFilter={estFilter === 'todos' ? 'aberto' : estFilter}
       />
     );
   }
@@ -197,9 +199,9 @@ export function IncidentsTab({
 }
 
 function ParkOcorrenciasView({
-  parkName, manager, issues, onBack, onSelectIssue, onUpdateSensor, onCreateTaskFromIssue, sensors,
+  parkName, manager, issues, onBack, onSelectIssue, onUpdateSensor, onCreateTaskFromIssue, sensors, initialEstFilter = 'aberto',
 }: ParkOcorrenciasViewProps) {
-  const [parkEstFilter, setParkEstFilter] = useState<IncidentStatusFilter>('aberto');
+  const [parkEstFilter, setParkEstFilter] = useState<IncidentStatusFilter>(initialEstFilter);
 
   const activeIssues = issues.filter(i => {
     if (parkEstFilter === 'todos') return true;

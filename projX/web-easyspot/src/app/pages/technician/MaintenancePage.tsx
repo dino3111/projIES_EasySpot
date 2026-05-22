@@ -411,6 +411,7 @@ export function MaintenancePage() {
         <div
           role="status"
           aria-live="polite"
+          aria-label={toast.message}
           className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-2xl text-white shadow-xl ${
             toast.kind === 'success' ? 'bg-green-600' : 'bg-red-600'
           }`}
