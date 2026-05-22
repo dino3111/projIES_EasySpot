@@ -543,6 +543,62 @@ class ReservationServiceTest {
             .hasMessageContaining("Only confirmed reservations");
     }
 
+    // ── Daily-rate multi-day pricing (regression for daily-cap bug) ──────────
+
+    @Test
+    @DisplayName("create - 7-day stay with maxDaily applies cap per day, not total")
+    void create_sevenDayStay_appliesMaxDailyPerDay() {
+        // 7 full days × 12.00 maxDaily = 84.00
+        // Before fix: would return 12.00 (cap applied to total)
+        lot.setOpeningHours("24/7");
+        OffsetDateTime weekArrival   = OffsetDateTime.now(ZoneOffset.UTC).plusDays(1)
+            .withHour(0).withMinute(0).withSecond(0).withNano(0);
+        OffsetDateTime weekDeparture = weekArrival.plusDays(7);
+        CreateReservationRequest req = new CreateReservationRequest(
+            lot.getId(), vehicle.getId(), weekArrival.toString(), weekDeparture.toString(), null);
+        stubHappyPath(0, 0, 0, Collections.emptyList());
+        stubSave();
+
+        ReservationResponse resp = reservationService.create(AUTH_ID, null, req);
+
+        assertThat(resp.estimatedCost()).isEqualByComparingTo("84.00");
+    }
+
+    @Test
+    @DisplayName("create - 28-day stay with maxDaily applies cap per day, not total")
+    void create_twentyEightDayStay_appliesMaxDailyPerDay() {
+        // 28 full days × 12.00 maxDaily = 336.00
+        // Before fix: would return 12.00 (single cap applied to entire period)
+        lot.setOpeningHours("24/7");
+        OffsetDateTime monthArrival   = OffsetDateTime.now(ZoneOffset.UTC).plusDays(1)
+            .withHour(0).withMinute(0).withSecond(0).withNano(0);
+        OffsetDateTime monthDeparture = monthArrival.plusDays(28);
+        CreateReservationRequest req = new CreateReservationRequest(
+            lot.getId(), vehicle.getId(), monthArrival.toString(), monthDeparture.toString(), null);
+        stubHappyPath(0, 0, 0, Collections.emptyList());
+        stubSave();
+
+        ReservationResponse resp = reservationService.create(AUTH_ID, null, req);
+
+        assertThat(resp.estimatedCost()).isEqualByComparingTo("336.00");
+    }
+
+    @Test
+    @DisplayName("create - partial day below maxDaily is charged at hourly rate, not capped")
+    void create_partialDayBelowMaxDaily_chargedAtHourlyRate() {
+        // 2h × 1.50 = 3.00, below maxDaily of 12.00 — no cap applied
+        OffsetDateTime arrival   = ARRIVAL;
+        OffsetDateTime departure = ARRIVAL.plusHours(2);
+        CreateReservationRequest req = new CreateReservationRequest(
+            lot.getId(), vehicle.getId(), arrival.toString(), departure.toString(), null);
+        stubHappyPath(0, 0, 0, Collections.emptyList());
+        stubSave();
+
+        ReservationResponse resp = reservationService.create(AUTH_ID, null, req);
+
+        assertThat(resp.estimatedCost()).isEqualByComparingTo("3.00");
+    }
+
     // ── Lock expiry ──────────────────────────────────────────────────────────
 
     @Test

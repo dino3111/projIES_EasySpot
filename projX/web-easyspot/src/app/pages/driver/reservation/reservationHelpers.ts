@@ -50,7 +50,16 @@ export function getDefaultExitTime(arrivalIso: string): string {
 export const EV_CHARGING_KWH_PER_HOUR = 7;
 
 export function calcParkingCost(lot: ParkingLot, hours: number): number {
-  return Math.min(lot.hourlyRate * hours, lot.dailyMax);
+  if (!lot.dailyMax || lot.dailyMax <= 0) {
+    return lot.hourlyRate * hours;
+  }
+  // Apply dailyMax cap per calendar day so multi-day stays are priced correctly
+  const HOURS_PER_DAY = 24;
+  const fullDays = Math.floor(hours / HOURS_PER_DAY);
+  const remainingHours = hours % HOURS_PER_DAY;
+  const fullDaysCost = fullDays * lot.dailyMax;
+  const remainingCost = Math.min(lot.hourlyRate * remainingHours, lot.dailyMax);
+  return fullDaysCost + remainingCost;
 }
 
 export function calcChargingCost(lot: ParkingLot, hours: number): number {

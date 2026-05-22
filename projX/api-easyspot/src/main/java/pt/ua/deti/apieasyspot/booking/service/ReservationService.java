@@ -507,14 +507,28 @@ public class ReservationService {
 
         if (tariff.getPricePerHour() == null) return BigDecimal.ZERO;
 
-        long minutes = java.time.Duration.between(arrival, departure).toMinutes();
-        BigDecimal hours = BigDecimal.valueOf(minutes).divide(BigDecimal.valueOf(60), 4, RoundingMode.HALF_UP);
-        BigDecimal cost  = tariff.getPricePerHour().multiply(hours).setScale(2, RoundingMode.HALF_UP);
-
-        if (tariff.getMaxDaily() != null && cost.compareTo(tariff.getMaxDaily()) > 0) {
-            cost = tariff.getMaxDaily();
+        if (tariff.getMaxDaily() == null) {
+            long minutes = java.time.Duration.between(arrival, departure).toMinutes();
+            BigDecimal hours = BigDecimal.valueOf(minutes).divide(BigDecimal.valueOf(60), 4, RoundingMode.HALF_UP);
+            return tariff.getPricePerHour().multiply(hours).setScale(2, RoundingMode.HALF_UP);
         }
-        return cost;
+
+        // Apply maxDaily cap per calendar day so multi-day stays are priced correctly
+        BigDecimal total = BigDecimal.ZERO;
+        OffsetDateTime cursor = arrival;
+        while (cursor.isBefore(departure)) {
+            OffsetDateTime endOfDay = cursor.toLocalDate().atStartOfDay(cursor.getOffset()).toOffsetDateTime().plusDays(1);
+            OffsetDateTime segmentEnd = endOfDay.isBefore(departure) ? endOfDay : departure;
+            long segmentMinutes = java.time.Duration.between(cursor, segmentEnd).toMinutes();
+            BigDecimal segmentHours = BigDecimal.valueOf(segmentMinutes).divide(BigDecimal.valueOf(60), 4, RoundingMode.HALF_UP);
+            BigDecimal segmentCost = tariff.getPricePerHour().multiply(segmentHours).setScale(2, RoundingMode.HALF_UP);
+            if (segmentCost.compareTo(tariff.getMaxDaily()) > 0) {
+                segmentCost = tariff.getMaxDaily();
+            }
+            total = total.add(segmentCost);
+            cursor = segmentEnd;
+        }
+        return total.setScale(2, RoundingMode.HALF_UP);
     }
 
     private void preValidateTimeWindow(CreateReservationRequest request) {
