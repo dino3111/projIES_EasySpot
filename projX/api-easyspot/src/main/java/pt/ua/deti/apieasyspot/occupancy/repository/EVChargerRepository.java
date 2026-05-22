@@ -11,5 +11,7 @@ public interface EVChargerRepository extends JpaRepository<EVCharger, UUID> {
     List<EVCharger> findByParkingLotId(UUID parkingLotId);
     @Query("SELECT DISTINCT e.parkingLot.id FROM EVCharger e")
     List<UUID> findDistinctParkingLotIds();
+    @Query("SELECT DISTINCT e.parkingLot.id FROM EVCharger e WHERE e.available = true")
+    List<UUID> findDistinctParkingLotIdsWithAvailableChargers();
     void deleteByParkingLotId(UUID parkingLotId);
 }

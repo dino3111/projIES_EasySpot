@@ -90,6 +90,20 @@ public class TimescaleOccupancySnapshotRepository {
             Collectors.mapping(LotZoneSnapshot::snapshot, Collectors.toList())));
     }
 
+    public List<UUID> findLotIdsWithAvailableZone(ZoneType zoneType) {
+        return jdbc.query(
+            """
+            SELECT DISTINCT ON (parking_lot_id) parking_lot_id
+            FROM occupancy_snapshots
+            WHERE zone_type = ?
+              AND (total_count - occupied_count) > 0
+            ORDER BY parking_lot_id, recorded_at DESC
+            """,
+            (rs, rowNum) -> UUID.fromString(rs.getString("parking_lot_id")),
+            zoneType.name()
+        );
+    }
+
     public void insert(UUID id, UUID parkingLotId, ZoneType zoneType, int occupiedCount, int totalCount, Instant recordedAt) {
         jdbc.update(
             """

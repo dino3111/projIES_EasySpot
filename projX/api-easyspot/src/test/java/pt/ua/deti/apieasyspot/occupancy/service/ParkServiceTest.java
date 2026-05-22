@@ -73,7 +73,7 @@ class ParkServiceTest {
         evCharger.setType("Type 2");
         evCharger.setSpeed("Fast");
         evCharger.setAvailable(true);
-        when(evChargerRepository.findDistinctParkingLotIds()).thenReturn(List.of(lotId));
+        when(evChargerRepository.findDistinctParkingLotIdsWithAvailableChargers()).thenReturn(List.of(lotId));
 
         ParkingLotSummaryResponse response = parkService.searchParks("Test", 10, null, List.of("EV"), 1, 10);
 
@@ -296,5 +296,106 @@ class ParkServiceTest {
         });
         assertThat(response.spotMap()).extracting(ParkingLotDetailsResponse.SpotResponse::status)
             .containsExactly("occupied", "free");
+    }
+
+    @Test
+    void searchParks_accessibleFilter_excludesParksWithNoAvailableAccessibleSpots() {
+        lot.setCity("Aveiro");
+        when(parkingLotRepository.searchByTextAndCity(null, null)).thenReturn(List.of(lot));
+        when(parkingSpotRepository.findByParkingLotIdIn(anyCollection())).thenReturn(List.of());
+        when(reservationRepository.findActiveWithSpotByParkIds(anyList())).thenReturn(List.of());
+        // Park has accessible spots but none available — lot is filtered out before toSummary is called
+        when(accessibleSpotRepository.findDistinctParkingLotIdsWithAvailableSpots()).thenReturn(List.of());
+
+        ParkingLotSummaryResponse response = parkService.searchParks(null, null, null, List.of("ACCESSIBLE"), 1, 10);
+
+        assertThat(response.items()).isEmpty();
+    }
+
+    @Test
+    void searchParks_accessibleFilter_includesParksWithAvailableAccessibleSpots() {
+        lot.setCity("Aveiro");
+        when(parkingLotRepository.searchByTextAndCity(null, null)).thenReturn(List.of(lot));
+        when(parkingSpotRepository.findByParkingLotIdIn(anyCollection())).thenReturn(List.of());
+        when(reservationRepository.findActiveWithSpotByParkIds(anyList())).thenReturn(List.of());
+        when(timescaleOccupancySnapshotRepository.latestByLot(lotId)).thenReturn(List.of());
+        when(reservationRepository.countActiveReservationsForLot(any(UUID.class), any(OffsetDateTime.class))).thenReturn(0L);
+        when(tariffRepository.findByParkingLotId(lotId)).thenReturn(List.of());
+        when(accessibleSpotRepository.findDistinctParkingLotIdsWithAvailableSpots()).thenReturn(List.of(lotId));
+
+        ParkingLotSummaryResponse response = parkService.searchParks(null, null, null, List.of("ACCESSIBLE"), 1, 10);
+
+        assertThat(response.items()).hasSize(1);
+        assertThat(response.items().get(0).id()).isEqualTo(lotId);
+    }
+
+    @Test
+    void searchParks_accessibleAndAvailableFilter_combined() {
+        lot.setCity("Aveiro");
+        lot.setTotalSpaces(5);
+
+        UUID lotId2 = UUID.randomUUID();
+        ParkingLot lot2 = new ParkingLot();
+        lot2.setId(lotId2);
+        lot2.setName("Park 2");
+        lot2.setAddress("Addr 2");
+        lot2.setCity("Aveiro");
+        lot2.setLatitude(1.0);
+        lot2.setLongitude(2.0);
+        lot2.setOpeningHours("24h");
+        lot2.setTotalSpaces(5);
+
+        when(parkingLotRepository.searchByTextAndCity(null, null)).thenReturn(List.of(lot, lot2));
+        when(parkingSpotRepository.findByParkingLotIdIn(anyCollection())).thenReturn(List.of());
+        when(reservationRepository.findActiveWithSpotByParkIds(anyList())).thenReturn(List.of());
+        // Only lot reaches toSummary (lot2 filtered out by ACCESSIBLE filter)
+        when(timescaleOccupancySnapshotRepository.latestByLot(lotId)).thenReturn(List.of());
+        when(reservationRepository.countActiveReservationsForLot(eq(lotId), any(OffsetDateTime.class))).thenReturn(0L);
+        when(tariffRepository.findByParkingLotId(eq(lotId))).thenReturn(List.of());
+        // Only lot has available accessible spots; lot2 has none
+        when(accessibleSpotRepository.findDistinctParkingLotIdsWithAvailableSpots()).thenReturn(List.of(lotId));
+
+        // Filter: ACCESSIBLE + minAvailableSpaces=1
+        ParkingLotSummaryResponse response = parkService.searchParks(null, 1, null, List.of("ACCESSIBLE"), 1, 10);
+
+        assertThat(response.items()).hasSize(1);
+        assertThat(response.items().get(0).id()).isEqualTo(lotId);
+    }
+
+    @Test
+    void searchParks_evFilter_excludesParksWithNoAvailableEVChargers() {
+        lot.setCity("Aveiro");
+        when(parkingLotRepository.searchByTextAndCity(null, null)).thenReturn(List.of(lot));
+        when(parkingSpotRepository.findByParkingLotIdIn(anyCollection())).thenReturn(List.of());
+        when(reservationRepository.findActiveWithSpotByParkIds(anyList())).thenReturn(List.of());
+        // Park has EV chargers but none available — lot is filtered out before toSummary is called
+        when(evChargerRepository.findDistinctParkingLotIdsWithAvailableChargers()).thenReturn(List.of());
+
+        ParkingLotSummaryResponse response = parkService.searchParks(null, null, null, List.of("EV"), 1, 10);
+
+        assertThat(response.items()).isEmpty();
+    }
+
+    @Test
+    void searchParks_accessibleFilter_includesParksWithAccessibleZoneInSnapshot() {
+        // Parks that use Timescale snapshots (no ParkingSpot rows, no AccessibleSpot rows)
+        // must still appear when they have available ACCESSIBLE zone slots
+        lot.setCity("Aveiro");
+        when(parkingLotRepository.searchByTextAndCity(null, null)).thenReturn(List.of(lot));
+        when(parkingSpotRepository.findByParkingLotIdIn(anyCollection())).thenReturn(List.of());
+        when(reservationRepository.findActiveWithSpotByParkIds(anyList())).thenReturn(List.of());
+        when(accessibleSpotRepository.findDistinctParkingLotIdsWithAvailableSpots()).thenReturn(List.of());
+        when(timescaleOccupancySnapshotRepository.findLotIdsWithAvailableZone(ZoneType.ACCESSIBLE)).thenReturn(List.of(lotId));
+        when(timescaleOccupancySnapshotRepository.latestByLot(lotId)).thenReturn(List.of(
+            new ZoneSnapshot(ZoneType.ACCESSIBLE, 2, 5, java.time.Instant.now())
+        ));
+        when(reservationRepository.countActiveReservationsForLot(any(UUID.class), any(OffsetDateTime.class))).thenReturn(0L);
+        when(tariffRepository.findByParkingLotId(lotId)).thenReturn(List.of());
+
+        ParkingLotSummaryResponse response = parkService.searchParks(null, null, null, List.of("ACCESSIBLE"), 1, 10);
+
+        assertThat(response.items()).hasSize(1);
+        assertThat(response.items().get(0).id()).isEqualTo(lotId);
+        assertThat(response.items().get(0).accessibleSpaces().available()).isEqualTo(3);
     }
 }

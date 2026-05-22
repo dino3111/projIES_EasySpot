@@ -64,12 +64,20 @@ public class ParkService {
                 .collect(Collectors.groupingBy(reservation -> reservation.getParkingLot().getId()));
         OffsetDateTime now = OffsetDateTime.now();
 
-        Set<UUID> lotsWithEV = filterEV
-            ? new java.util.HashSet<>(evChargerRepository.findDistinctParkingLotIds())
-            : Set.of();
-        Set<UUID> lotsWithAcc = filterAcc
-            ? new java.util.HashSet<>(accessibleSpotRepository.findDistinctParkingLotIds())
-            : Set.of();
+        Set<UUID> lotsWithEV;
+        if (filterEV) {
+            lotsWithEV = new java.util.HashSet<>(evChargerRepository.findDistinctParkingLotIdsWithAvailableChargers());
+            lotsWithEV.addAll(timescaleOccupancySnapshotRepository.findLotIdsWithAvailableZone(ZoneType.EV));
+        } else {
+            lotsWithEV = Set.of();
+        }
+        Set<UUID> lotsWithAcc;
+        if (filterAcc) {
+            lotsWithAcc = new java.util.HashSet<>(accessibleSpotRepository.findDistinctParkingLotIdsWithAvailableSpots());
+            lotsWithAcc.addAll(timescaleOccupancySnapshotRepository.findLotIdsWithAvailableZone(ZoneType.ACCESSIBLE));
+        } else {
+            lotsWithAcc = Set.of();
+        }
 
         List<ParkingLotSummaryResponse.ParkingLotSummary> filtered = allLots.stream()
             .filter(lot -> !filterEV || lotsWithEV.contains(lot.getId()))

@@ -11,5 +11,7 @@ public interface AccessibleSpotRepository extends JpaRepository<AccessibleSpot, 
     List<AccessibleSpot> findByParkingLotId(UUID parkingLotId);
     @Query("SELECT DISTINCT a.parkingLot.id FROM AccessibleSpot a")
     List<UUID> findDistinctParkingLotIds();
+    @Query("SELECT DISTINCT a.parkingLot.id FROM AccessibleSpot a WHERE a.available = true")
+    List<UUID> findDistinctParkingLotIdsWithAvailableSpots();
     void deleteByParkingLotId(UUID parkingLotId);
 }
