@@ -662,13 +662,13 @@ function ExportReportsModal({ onClose }: Readonly<{ onClose: () => void }>) {
     setExporting(true);
     setError(null);
     try {
-      const [tariffs, dashboard] = await Promise.all([
+      const [tariffsPage, dashboard] = await Promise.all([
         fetchManagerTariffs(),
         fetchManagerDashboard(),
       ]);
       const report = {
         exportedAt: new Date().toISOString(),
-        tarifas: tariffs,
+        tarifas: tariffsPage.content,
         painelDesempenho: dashboard,
       };
       const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });

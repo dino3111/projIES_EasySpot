@@ -106,20 +106,42 @@ export interface Page<T> {
   totalPages: number;
 }
 
-export const fetchManagerTariffs = async (parkId?: string) => {
-  const query = parkId ? `?parkId=${parkId}` : '';
-  const response = await request<Page<TariffResponse>>(`/api/manager/tariffs${query}`);
-  return response.content;
+export interface TariffListParams {
+  page?: number;
+  size?: number;
+  city?: string;
+  status?: 'ACTIVE' | 'INACTIVE';
+  parkId?: string;
+}
+
+export const fetchManagerTariffs = async (params?: TariffListParams): Promise<Page<TariffResponse>> => {
+  const query = new URLSearchParams();
+  if (params?.page !== undefined) query.append('page', String(params.page));
+  if (params?.size !== undefined) query.append('size', String(params.size));
+  if (params?.city?.trim()) query.append('city', params.city.trim());
+  if (params?.status) query.append('status', params.status);
+  if (params?.parkId) query.append('parkId', params.parkId);
+  const qs = query.toString() ? `?${query.toString()}` : '';
+  return request<Page<TariffResponse>>(`/api/manager/tariffs${qs}`);
 };
 
-export const fetchManagerAlerts = async (parkId?: string, state?: string, severity?: string) => {
-  const params = new URLSearchParams();
-  if (parkId) params.append('parkId', parkId);
-  if (state && state !== 'todos') params.append('state', state.toUpperCase().replace('-', '_'));
-  if (severity && severity !== 'todos') params.append('severity', severity.toUpperCase());
+export interface AlertListParams {
+  parkId?: string;
+  state?: string;
+  severity?: string;
+  page?: number;
+  size?: number;
+}
 
-  const query = params.toString() ? `?${params.toString()}` : '';
-  return await request<AlertResponse[]>(`/api/alerts${query}`);
+export const fetchManagerAlerts = async (params?: AlertListParams): Promise<Page<AlertResponse>> => {
+  const query = new URLSearchParams();
+  if (params?.parkId) query.append('parkId', params.parkId);
+  if (params?.state && params.state !== 'todos') query.append('state', params.state.toUpperCase().replace('-', '_'));
+  if (params?.severity && params.severity !== 'todos') query.append('severity', params.severity.toUpperCase());
+  if (params?.page !== undefined) query.append('page', String(params.page));
+  if (params?.size !== undefined) query.append('size', String(params.size));
+  const qs = query.toString() ? `?${query.toString()}` : '';
+  return request<Page<AlertResponse>>(`/api/alerts${qs}`);
 };
 
 export const updateTariff = async (tariff: Partial<TariffEntry>) => {

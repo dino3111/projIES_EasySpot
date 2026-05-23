@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   type IssueReport,
   type BillingRecord,
@@ -19,6 +19,9 @@ import {
   type AlertResponse,
   type BillingSessionResponse,
 } from '../../services/managerApi';
+
+const TARIFF_PAGE_SIZE = 10;
+const INCIDENT_PAGE_SIZE = 10;
 
 type PageTab    = 'tarifas' | 'ocorrencias' | 'faturacao';
 type IssueFilter = 'todos' | 'aberto' | 'em-progresso' | 'resolvido';
@@ -108,50 +111,123 @@ function mapBilling(b: BillingSessionResponse): BillingRecord {
 
 export function TariffsIncidentsPage() {
   const [tab, setTab]               = useState<PageTab>('tarifas');
-  const [issueFilter, setIssueFilter] = useState<IssueFilter>('todos');
-  const [sevFilter, setSevFilter]   = useState<SevFilter>('todos');
   const [selectedIssue, setSelectedIssue] = useState<IssueReport | null>(null);
   const [editTariff, setEditTariff] = useState<TariffEntry | null>(null);
-  const [tariffs, setTariffs] = useState<TariffEntry[]>([]);
-  const [issues, setIssues] = useState<IssueReport[]>([]);
-  const [billingRecords, setBillingRecords] = useState<BillingRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Tariff state
+  const [tariffs, setTariffs] = useState<TariffEntry[]>([]);
+  const [tariffPage, setTariffPage] = useState(0);
+  const [tariffDistrict, setTariffDistrict] = useState('');
+  const [tariffStatus, setTariffStatus] = useState<'' | 'ACTIVE' | 'INACTIVE'>('');
+  const [tariffTotalPages, setTariffTotalPages] = useState(1);
+  const [tariffTotalElements, setTariffTotalElements] = useState(0);
+
+  // Incidents state
+  const [issues, setIssues] = useState<IssueReport[]>([]);
+  const [issueFilter, setIssueFilter] = useState<IssueFilter>('todos');
+  const [sevFilter, setSevFilter]   = useState<SevFilter>('todos');
+  const [incidentPage, setIncidentPage] = useState(0);
+  const [incidentTotalPages, setIncidentTotalPages] = useState(1);
+  const [incidentTotalElements, setIncidentTotalElements] = useState(0);
+
+  // Billing state
+  const [billingRecords, setBillingRecords] = useState<BillingRecord[]>([]);
+
+  const isInitialMount = useRef(true);
+
+  // Initial load
   useEffect(() => {
     setLoading(true);
     Promise.all([
-      fetchManagerTariffs(),
-      fetchManagerAlerts(),
+      fetchManagerTariffs({ page: 0, size: TARIFF_PAGE_SIZE }),
+      fetchManagerAlerts({ page: 0, size: INCIDENT_PAGE_SIZE }),
       fetchManagerBilling(),
     ]).then(([tariffsData, alertsData, billingData]) => {
-      setTariffs(tariffsData.map(mapTariff));
-      setIssues(alertsData.map(mapAlert));
+      setTariffs(tariffsData.content.map(mapTariff));
+      setTariffTotalPages(tariffsData.totalPages);
+      setTariffTotalElements(tariffsData.totalElements);
+      setIssues(alertsData.content.map(mapAlert));
+      setIncidentTotalPages(alertsData.totalPages);
+      setIncidentTotalElements(alertsData.totalElements);
       setBillingRecords(billingData.content.map(mapBilling));
     }).catch(err => {
       console.error('Error fetching manager data:', err);
-    }).finally(() => setLoading(false));
+    }).finally(() => {
+      setLoading(false);
+      isInitialMount.current = false;
+    });
   }, []);
+
+  // Re-fetch tariffs when page/district/status changes
+  useEffect(() => {
+    if (isInitialMount.current) return;
+    fetchManagerTariffs({
+      page: tariffPage,
+      size: TARIFF_PAGE_SIZE,
+      city: tariffDistrict || undefined,
+      status: tariffStatus || undefined,
+    }).then(data => {
+      setTariffs(data.content.map(mapTariff));
+      setTariffTotalPages(data.totalPages);
+      setTariffTotalElements(data.totalElements);
+    }).catch(err => console.error('Error fetching tariffs:', err));
+  }, [tariffPage, tariffDistrict, tariffStatus]);
+
+  // Re-fetch incidents when page/filter changes
+  useEffect(() => {
+    if (isInitialMount.current) return;
+    fetchManagerAlerts({
+      page: incidentPage,
+      size: INCIDENT_PAGE_SIZE,
+      state: issueFilter !== 'todos' ? issueFilter : undefined,
+      severity: sevFilter !== 'todos' ? sevFilter : undefined,
+    }).then(data => {
+      setIssues(data.content.map(mapAlert));
+      setIncidentTotalPages(data.totalPages);
+      setIncidentTotalElements(data.totalElements);
+    }).catch(err => console.error('Error fetching incidents:', err));
+  }, [incidentPage, issueFilter, sevFilter]);
+
+  const handleTariffPageChange = useCallback((p: number) => setTariffPage(p), []);
+  const handleTariffDistrictChange = useCallback((d: string) => {
+    setTariffPage(0);
+    setTariffDistrict(d);
+  }, []);
+  const handleTariffStatusChange = useCallback((s: '' | 'ACTIVE' | 'INACTIVE') => {
+    setTariffPage(0);
+    setTariffStatus(s);
+  }, []);
+
+  const handleIssueFilterChange = useCallback((f: IssueFilter) => {
+    setIncidentPage(0);
+    setIssueFilter(f);
+  }, []);
+  const handleSevFilterChange = useCallback((f: SevFilter) => {
+    setIncidentPage(0);
+    setSevFilter(f);
+  }, []);
+  const handleIncidentPageChange = useCallback((p: number) => setIncidentPage(p), []);
 
   const handleSaveTariff = async (updated: Partial<TariffEntry>) => {
     await updateTariff(updated);
-    const tariffsData = await fetchManagerTariffs();
-    setTariffs(tariffsData.map(mapTariff));
-  };
-
-  const filteredIssues = useMemo(() => {
-    return issues.filter((i) => {
-      const estadoOk = issueFilter === 'todos' || i.estado === issueFilter;
-      const sevOk    = sevFilter   === 'todos' || i.severidade === sevFilter;
-      return estadoOk && sevOk;
+    const data = await fetchManagerTariffs({
+      page: tariffPage,
+      size: TARIFF_PAGE_SIZE,
+      city: tariffDistrict || undefined,
+      status: tariffStatus || undefined,
     });
-  }, [issues, issueFilter, sevFilter]);
+    setTariffs(data.content.map(mapTariff));
+    setTariffTotalPages(data.totalPages);
+    setTariffTotalElements(data.totalElements);
+  };
 
   const handleExport = () => {
     let data: unknown;
     let filename: string;
 
     if (tab === 'ocorrencias') {
-      data = filteredIssues;
+      data = issues;
       filename = `ocorrencias-${new Date().toISOString().split('T')[0]}.json`;
     } else if (tab === 'tarifas') {
       data = tariffs;
@@ -172,7 +248,7 @@ export function TariffsIncidentsPage() {
     URL.revokeObjectURL(url);
   };
 
-  const openIssuesCount = issues.filter(i => i.estado === 'aberto').length;
+  const openIssuesCount = incidentTotalElements;
 
   if (loading) {
     return (
@@ -221,15 +297,32 @@ export function TariffsIncidentsPage() {
         />
       </div>
 
-      {tab === 'tarifas'     && <TariffsTab    onEdit={setEditTariff}   tariffs={tariffs} />}
+      {tab === 'tarifas' && (
+        <TariffsTab
+          onEdit={setEditTariff}
+          tariffs={tariffs}
+          page={tariffPage}
+          totalPages={tariffTotalPages}
+          totalElements={tariffTotalElements}
+          district={tariffDistrict}
+          statusFilter={tariffStatus}
+          onPageChange={handleTariffPageChange}
+          onDistrictChange={handleTariffDistrictChange}
+          onStatusChange={handleTariffStatusChange}
+        />
+      )}
       {tab === 'ocorrencias' && (
         <IncidentsTab
-          issues={filteredIssues}
+          issues={issues}
           issueFilter={issueFilter}
-          setIssueFilter={setIssueFilter}
+          setIssueFilter={handleIssueFilterChange}
           sevFilter={sevFilter}
-          setSevFilter={setSevFilter}
+          setSevFilter={handleSevFilterChange}
           onSelect={setSelectedIssue}
+          page={incidentPage}
+          totalPages={incidentTotalPages}
+          totalElements={incidentTotalElements}
+          onPageChange={handleIncidentPageChange}
         />
       )}
       {tab === 'faturacao' && <BillingTab billingRecords={billingRecords} />}

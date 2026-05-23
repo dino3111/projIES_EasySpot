@@ -1,5 +1,4 @@
 import type { IssueReport } from '../../../data/gestorData';
-import { QuickStat } from './shared';
 
 type IssueFilter = 'todos' | 'aberto' | 'em-progresso' | 'resolvido';
 type SevFilter = 'todos' | 'critica' | 'aviso' | 'info';
@@ -11,6 +10,10 @@ type IncidentsTabProps = Readonly<{
   sevFilter: SevFilter;
   setSevFilter: (f: SevFilter) => void;
   onSelect: (i: IssueReport) => void;
+  page: number;
+  totalPages: number;
+  totalElements: number;
+  onPageChange: (p: number) => void;
 }>;
 
 type IssueCardProps = Readonly<{
@@ -31,21 +34,13 @@ export function IncidentsTab({
   sevFilter,
   setSevFilter,
   onSelect,
+  page,
+  totalPages,
+  totalElements,
+  onPageChange,
 }: IncidentsTabProps) {
-  const estadoCounts = {
-    aberto: issues.filter(i => i.estado === 'aberto').length,
-    'em-progresso': issues.filter(i => i.estado === 'em-progresso').length,
-    resolvido: issues.filter(i => i.estado === 'resolvido').length,
-  };
-
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-3 gap-3">
-        <QuickStat label="Em Aberto"     value={estadoCounts.aberto}           color="#d4183d" icon="fa-circle-exclamation" />
-        <QuickStat label="Em Progresso"  value={estadoCounts['em-progresso']}  color="#f59e0b" icon="fa-spinner" />
-        <QuickStat label="Resolvidos"    value={estadoCounts.resolvido}        color="#22c55e" icon="fa-circle-check" />
-      </div>
-
       <div className="flex flex-wrap gap-2">
         <div className="flex rounded-xl overflow-hidden border border-border">
           {(['todos', 'aberto', 'em-progresso', 'resolvido'] as IssueFilter[]).map((f) => (
@@ -90,6 +85,46 @@ export function IncidentsTab({
           {issues.map((issue) => (
             <IssueCard key={issue.id} issue={issue} onClick={() => onSelect(issue)} />
           ))}
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <p className="text-muted-foreground" style={{ fontSize: '0.78rem' }}>
+            {totalElements} ocorrências · página {page + 1} de {totalPages}
+          </p>
+          <div className="flex gap-1">
+            <button
+              onClick={() => onPageChange(Math.max(0, page - 1))}
+              disabled={page === 0}
+              aria-label="Página anterior"
+              className="px-3 py-1.5 rounded-lg border border-border bg-card text-muted-foreground hover:bg-muted disabled:opacity-40 transition-colors"
+              style={{ fontSize: '0.78rem' }}
+            >
+              <i className="fas fa-chevron-left"></i>
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i)
+              .filter(i => Math.abs(i - page) <= 2)
+              .map(i => (
+                <button
+                  key={i}
+                  onClick={() => onPageChange(i)}
+                  className={`px-3 py-1.5 rounded-lg border transition-colors ${i === page ? 'border-primary bg-primary text-white' : 'border-border bg-card text-muted-foreground hover:bg-muted'}`}
+                  style={{ fontSize: '0.78rem' }}
+                >
+                  {i + 1}
+                </button>
+              ))}
+            <button
+              onClick={() => onPageChange(Math.min(totalPages - 1, page + 1))}
+              disabled={page === totalPages - 1}
+              aria-label="Próxima página"
+              className="px-3 py-1.5 rounded-lg border border-border bg-card text-muted-foreground hover:bg-muted disabled:opacity-40 transition-colors"
+              style={{ fontSize: '0.78rem' }}
+            >
+              <i className="fas fa-chevron-right"></i>
+            </button>
+          </div>
         </div>
       )}
     </div>
