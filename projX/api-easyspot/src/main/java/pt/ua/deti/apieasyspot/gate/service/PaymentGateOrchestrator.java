@@ -184,6 +184,11 @@ public class PaymentGateOrchestrator {
             reservation.getBookingCode(), plate, parkId);
     }
 
+    public void openGateForWalkIn(UUID parkId, String plate) {
+        issueOpenCommand(parkId, gateIdFor(parkId), plate, null);
+        log.info("Walk-in exit gate opened: plate={} park={}", plate, parkId);
+    }
+
     private void issueOpenCommand(UUID parkId, String gateId, String plate, UUID reservationId) {
         GateCommand command = new GateCommand(
             UUID.randomUUID(),

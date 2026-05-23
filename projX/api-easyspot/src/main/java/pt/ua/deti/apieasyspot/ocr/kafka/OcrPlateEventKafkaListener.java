@@ -166,6 +166,7 @@ public class OcrPlateEventKafkaListener {
             );
         Reservation reservation = pickReservation(candidates, occurredAt, read.getDirection());
         if (reservation == null) {
+            handleWalkIn(read, occurredAt);
             return;
         }
 
@@ -176,6 +177,15 @@ public class OcrPlateEventKafkaListener {
 
         // Exit: settle billing and send gate open command
         paymentGateOrchestrator.settleAndOpenGate(reservation, read.getParkId(), read.getPlate(), occurredAt);
+    }
+
+    private void handleWalkIn(OcrPlateRead read, OffsetDateTime occurredAt) {
+        if ("entry".equals(read.getDirection())) {
+            billingService.registerWalkInEntry(read.getPlate(), read.getParkId(), read.getSpotId(), occurredAt);
+        } else if ("exit".equals(read.getDirection())) {
+            billingService.settleWalkInOnExit(read.getPlate(), read.getParkId(), read.getSpotId(), occurredAt);
+            paymentGateOrchestrator.openGateForWalkIn(read.getParkId(), read.getPlate());
+        }
     }
 
     private Reservation pickReservation(List<Reservation> candidates, OffsetDateTime occurredAt, String direction) {
