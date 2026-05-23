@@ -90,8 +90,7 @@ function tokenIssuerMatches(claims: Record<string, unknown>): boolean {
 
 function clearAuthStorage() {
   Object.values(SK).forEach((k) => sessionStorage.removeItem(k));
-  localStorage.removeItem(SK.pkceVerifier);
-  localStorage.removeItem(SK.pkceState);
+  Object.values(SK).forEach((k) => localStorage.removeItem(k));
   for (let index = localStorage.length - 1; index >= 0; index -= 1) {
     const key = localStorage.key(index);
     if (key?.startsWith('oidc.user:')) localStorage.removeItem(key);
