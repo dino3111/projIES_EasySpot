@@ -107,9 +107,9 @@ class AlertControllerIT {
         mockMvc.perform(get("/api/alerts")
                 .with(jwtWithRole("sub-manager", "MANAGER")))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$[?(@.type == 'CLIENT')]").exists())
-            .andExpect(jsonPath("$[?(@.spotNumber == 'A-07')]").exists())
-            .andExpect(jsonPath("$[?(@.plate == 'AA-12-BB')]").exists());
+            .andExpect(jsonPath("$.content[?(@.type == 'CLIENT')]").exists())
+            .andExpect(jsonPath("$.content[?(@.spotNumber == 'A-07')]").exists())
+            .andExpect(jsonPath("$.content[?(@.plate == 'AA-12-BB')]").exists());
     }
 
     @Test
@@ -133,7 +133,7 @@ class AlertControllerIT {
         mockMvc.perform(get("/api/alerts")
                 .with(jwtWithRole("sub-tech", "TECHNICAL")))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$[?(@.type == 'CLIENT' && @.severity == 'CRITICAL')]").exists());
+            .andExpect(jsonPath("$.content[?(@.type == 'CLIENT' && @.severity == 'CRITICAL')]").exists());
     }
 
     @Test
@@ -162,7 +162,7 @@ class AlertControllerIT {
         mockMvc.perform(get("/api/alerts?state=OPEN")
                 .with(jwtWithRole("sub-manager", "MANAGER")))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$[?(@.state == 'RESOLVED')]").doesNotExist());
+            .andExpect(jsonPath("$.content[?(@.state == 'RESOLVED')]").doesNotExist());
     }
 
     // --- PATCH /api/alerts/{id}/state ---
@@ -272,14 +272,14 @@ class AlertControllerIT {
                 .contentType(MediaType.APPLICATION_JSON)
                 .with(jwtWithRole("sub-tech", "TECHNICAL")))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$[?(@.id == '" + alert.getId() + "')]").doesNotExist());
+            .andExpect(jsonPath("$.content[?(@.id == '" + alert.getId() + "')]").doesNotExist());
 
         mockMvc.perform(get("/api/alerts")
                 .param("state", "IN_PROGRESS")
                 .contentType(MediaType.APPLICATION_JSON)
                 .with(jwtWithRole("sub-tech", "TECHNICAL")))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$[?(@.id == '" + alert.getId() + "')]").doesNotExist());
+            .andExpect(jsonPath("$.content[?(@.id == '" + alert.getId() + "')]").doesNotExist());
     }
 
     @Test
@@ -298,7 +298,7 @@ class AlertControllerIT {
                 .contentType(MediaType.APPLICATION_JSON)
                 .with(jwtWithRole("sub-tech", "TECHNICAL")))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$[?(@.id == '" + alert.getId() + "')]").doesNotExist());
+            .andExpect(jsonPath("$.content[?(@.id == '" + alert.getId() + "')]").doesNotExist());
 
         Alert updated = alertRepository.findById(alert.getId()).orElseThrow();
         assertThat(updated.getState()).isEqualTo(StateAlert.RESOLVED);
@@ -334,8 +334,8 @@ class AlertControllerIT {
                 .contentType(MediaType.APPLICATION_JSON)
                 .with(jwtWithRole("sub-tech", "TECHNICAL")))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$").isArray())
-            .andExpect(jsonPath("$.length()").value(org.hamcrest.Matchers.greaterThanOrEqualTo(2)));
+            .andExpect(jsonPath("$.content").isArray())
+            .andExpect(jsonPath("$.content.length()").value(org.hamcrest.Matchers.greaterThanOrEqualTo(2)));
     }
 
     @Test
@@ -347,7 +347,8 @@ class AlertControllerIT {
                 .contentType(MediaType.APPLICATION_JSON)
                 .with(jwtWithRole("sub-manager", "MANAGER")))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$").isArray());
+            .andExpect(jsonPath("$.content").isArray())
+            .andExpect(jsonPath("$.totalElements").value(org.hamcrest.Matchers.greaterThanOrEqualTo(1)));
     }
 
     @Test
@@ -361,8 +362,8 @@ class AlertControllerIT {
                 .contentType(MediaType.APPLICATION_JSON)
                 .with(jwtWithRole("sub-tech", "TECHNICAL")))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$").isArray())
-            .andExpect(jsonPath("$[0].state").value("OPEN"));
+            .andExpect(jsonPath("$.content").isArray())
+            .andExpect(jsonPath("$.content[0].state").value("OPEN"));
     }
 
     // ── POST /api/alerts/subscriptions ───────────────────────────────────────────
@@ -451,6 +452,87 @@ class AlertControllerIT {
                 .content("{\"alertType\":\"LOT_FULL\"}")
                 .with(jwtWithRole("sub-tech", "TECHNICAL")))
             .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("GET /api/alerts - pagination returns correct page size")
+    void listAlerts_Pagination_CorrectPageSize() throws Exception {
+        alertRepository.deleteAll();
+        for (int i = 0; i < 5; i++) savedAlert(StateAlert.OPEN);
+
+        mockMvc.perform(get("/api/alerts")
+                .param("page", "0")
+                .param("size", "2")
+                .with(jwtWithRole("sub-manager", "MANAGER")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.content", org.hamcrest.Matchers.hasSize(2)))
+            .andExpect(jsonPath("$.totalElements", org.hamcrest.Matchers.is(5)))
+            .andExpect(jsonPath("$.totalPages", org.hamcrest.Matchers.is(3)));
+    }
+
+    @Test
+    @DisplayName("GET /api/alerts - totalElements reflects real count")
+    void listAlerts_Pagination_TotalElements() throws Exception {
+        alertRepository.deleteAll();
+        savedAlert(StateAlert.OPEN);
+        savedAlert(StateAlert.IN_PROGRESS);
+        savedAlert(StateAlert.RESOLVED);
+
+        mockMvc.perform(get("/api/alerts")
+                .with(jwtWithRole("sub-manager", "MANAGER")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.totalElements", org.hamcrest.Matchers.is(3)));
+    }
+
+    @Test
+    @DisplayName("GET /api/alerts - filters preserved across pages")
+    void listAlerts_Pagination_FiltersPreservedAcrossPages() throws Exception {
+        alertRepository.deleteAll();
+        for (int i = 0; i < 3; i++) savedAlert(StateAlert.OPEN);
+        for (int i = 0; i < 2; i++) savedAlert(StateAlert.RESOLVED);
+
+        mockMvc.perform(get("/api/alerts")
+                .param("state", "OPEN")
+                .param("page", "0")
+                .param("size", "2")
+                .with(jwtWithRole("sub-manager", "MANAGER")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.content", org.hamcrest.Matchers.hasSize(2)))
+            .andExpect(jsonPath("$.totalElements", org.hamcrest.Matchers.is(3)))
+            .andExpect(jsonPath("$.content[0].state", org.hamcrest.Matchers.is("OPEN")))
+            .andExpect(jsonPath("$.content[1].state", org.hamcrest.Matchers.is("OPEN")));
+
+        mockMvc.perform(get("/api/alerts")
+                .param("state", "OPEN")
+                .param("page", "1")
+                .param("size", "2")
+                .with(jwtWithRole("sub-manager", "MANAGER")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.content", org.hamcrest.Matchers.hasSize(1)))
+            .andExpect(jsonPath("$.content[0].state", org.hamcrest.Matchers.is("OPEN")));
+    }
+
+    @Test
+    @DisplayName("GET /api/alerts - first and last page metadata correct")
+    void listAlerts_Pagination_FirstAndLastPage() throws Exception {
+        alertRepository.deleteAll();
+        for (int i = 0; i < 3; i++) savedAlert(StateAlert.OPEN);
+
+        mockMvc.perform(get("/api/alerts")
+                .param("page", "0")
+                .param("size", "2")
+                .with(jwtWithRole("sub-manager", "MANAGER")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.first", org.hamcrest.Matchers.is(true)))
+            .andExpect(jsonPath("$.last", org.hamcrest.Matchers.is(false)));
+
+        mockMvc.perform(get("/api/alerts")
+                .param("page", "1")
+                .param("size", "2")
+                .with(jwtWithRole("sub-manager", "MANAGER")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.last", org.hamcrest.Matchers.is(true)))
+            .andExpect(jsonPath("$.content", org.hamcrest.Matchers.hasSize(1)));
     }
 
     private Alert savedAlert(StateAlert state) {

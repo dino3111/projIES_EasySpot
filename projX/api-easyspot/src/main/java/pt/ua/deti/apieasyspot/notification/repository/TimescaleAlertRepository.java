@@ -91,76 +91,88 @@ public class TimescaleAlertRepository {
 
     public List<Alert> findAllFiltered(UUID parkId, StateAlert state, SeverityAlert severity,
                                         Timestamp from, Timestamp to) {
-        StringBuilder sql = new StringBuilder("""
-            select id, parking_lot_id, parking_lot_name, type, severity, state, zone, spot_number,
-                   sensor_id, plate, description, photo_url, reported_by, attributed_to, notes, resolved_at, created_at
-            from alerts
-            where 1=1
-            """);
-        List<Object> params = new ArrayList<>();
+        FilterClause f = buildFilterClause(parkId, state, severity, from, to);
+        String sql = SELECT_COLUMNS + " from alerts where 1=1" + f.where + " order by created_at desc";
+        return jdbc.query(sql, this::mapRow, f.params.toArray());
+    }
 
-        if (parkId != null) {
-            sql.append(" and parking_lot_id = ?::uuid");
-            params.add(parkId.toString());
-        }
-        if (state != null) {
-            sql.append(" and state = ?");
-            params.add(state.name());
-        }
-        if (severity != null) {
-            sql.append(" and severity = ?");
-            params.add(severity.name());
-        }
-        if (from != null) {
-            sql.append(" and created_at >= ?");
-            params.add(from);
-        }
-        if (to != null) {
-            sql.append(" and created_at <= ?");
-            params.add(to);
-        }
+    public List<Alert> findAllFilteredPaged(UUID parkId, StateAlert state, SeverityAlert severity,
+                                             Timestamp from, Timestamp to, int offset, int limit) {
+        FilterClause f = buildFilterClause(parkId, state, severity, from, to);
+        String sql = SELECT_COLUMNS + " from alerts where 1=1" + f.where + " order by created_at desc limit ? offset ?";
+        f.params.add(limit);
+        f.params.add(offset);
+        return jdbc.query(sql, this::mapRow, f.params.toArray());
+    }
 
-        sql.append(" order by created_at desc");
-
-        return jdbc.query(sql.toString(), this::mapRow, params.toArray());
+    public long countFiltered(UUID parkId, StateAlert state, SeverityAlert severity, Timestamp from, Timestamp to) {
+        FilterClause f = buildFilterClause(parkId, state, severity, from, to);
+        String sql = "select count(*) from alerts where 1=1" + f.where;
+        Long result = jdbc.queryForObject(sql, Long.class, f.params.toArray());
+        return result != null ? result : 0L;
     }
 
     public List<Alert> findAllFilteredByParks(List<UUID> parkIds, StateAlert state, SeverityAlert severity,
                                                Timestamp from, Timestamp to) {
         if (parkIds == null || parkIds.isEmpty()) return List.of();
+        FilterClause f = buildParksFilterClause(parkIds, state, severity, from, to);
+        String sql = SELECT_COLUMNS + " from alerts where 1=1" + f.where + " order by created_at desc";
+        return jdbc.query(sql, this::mapRow, f.params.toArray());
+    }
 
-        StringBuilder sql = new StringBuilder("""
-            select id, parking_lot_id, parking_lot_name, type, severity, state, zone, spot_number,
-                   sensor_id, plate, description, photo_url, reported_by, attributed_to, notes, resolved_at, created_at
-            from alerts
-            where 1=1
-            """);
+    public List<Alert> findAllFilteredByParksPaged(List<UUID> parkIds, StateAlert state, SeverityAlert severity,
+                                                    Timestamp from, Timestamp to, int offset, int limit) {
+        if (parkIds == null || parkIds.isEmpty()) return List.of();
+        FilterClause f = buildParksFilterClause(parkIds, state, severity, from, to);
+        String sql = SELECT_COLUMNS + " from alerts where 1=1" + f.where + " order by created_at desc limit ? offset ?";
+        f.params.add(limit);
+        f.params.add(offset);
+        return jdbc.query(sql, this::mapRow, f.params.toArray());
+    }
+
+    public long countFilteredByParks(List<UUID> parkIds, StateAlert state, SeverityAlert severity,
+                                      Timestamp from, Timestamp to) {
+        if (parkIds == null || parkIds.isEmpty()) return 0L;
+        FilterClause f = buildParksFilterClause(parkIds, state, severity, from, to);
+        String sql = "select count(*) from alerts where 1=1" + f.where;
+        Long result = jdbc.queryForObject(sql, Long.class, f.params.toArray());
+        return result != null ? result : 0L;
+    }
+
+    private static final String SELECT_COLUMNS = """
+        select id, parking_lot_id, parking_lot_name, type, severity, state, zone, spot_number,
+               sensor_id, plate, description, photo_url, reported_by, attributed_to, notes, resolved_at, created_at
+        """;
+
+    private record FilterClause(String where, List<Object> params) {}
+
+    private FilterClause buildFilterClause(UUID parkId, StateAlert state, SeverityAlert severity,
+                                            Timestamp from, Timestamp to) {
+        StringBuilder where = new StringBuilder();
         List<Object> params = new ArrayList<>();
+        if (parkId != null) {
+            where.append(" and parking_lot_id = ?::uuid");
+            params.add(parkId.toString());
+        }
+        if (state != null) { where.append(" and state = ?"); params.add(state.name()); }
+        if (severity != null) { where.append(" and severity = ?"); params.add(severity.name()); }
+        if (from != null) { where.append(" and created_at >= ?"); params.add(from); }
+        if (to != null) { where.append(" and created_at <= ?"); params.add(to); }
+        return new FilterClause(where.toString(), params);
+    }
 
+    private FilterClause buildParksFilterClause(List<UUID> parkIds, StateAlert state, SeverityAlert severity,
+                                                  Timestamp from, Timestamp to) {
+        StringBuilder where = new StringBuilder();
+        List<Object> params = new ArrayList<>();
         String placeholders = parkIds.stream().map(id -> "?::uuid").collect(java.util.stream.Collectors.joining(","));
-        sql.append(" and parking_lot_id in (").append(placeholders).append(")");
+        where.append(" and parking_lot_id in (").append(placeholders).append(")");
         parkIds.forEach(id -> params.add(id.toString()));
-
-        if (state != null) {
-            sql.append(" and state = ?");
-            params.add(state.name());
-        }
-        if (severity != null) {
-            sql.append(" and severity = ?");
-            params.add(severity.name());
-        }
-        if (from != null) {
-            sql.append(" and created_at >= ?");
-            params.add(from);
-        }
-        if (to != null) {
-            sql.append(" and created_at <= ?");
-            params.add(to);
-        }
-
-        sql.append(" order by created_at desc");
-
-        return jdbc.query(sql.toString(), this::mapRow, params.toArray());
+        if (state != null) { where.append(" and state = ?"); params.add(state.name()); }
+        if (severity != null) { where.append(" and severity = ?"); params.add(severity.name()); }
+        if (from != null) { where.append(" and created_at >= ?"); params.add(from); }
+        if (to != null) { where.append(" and created_at <= ?"); params.add(to); }
+        return new FilterClause(where.toString(), params);
     }
 
     public Optional<Alert> findOpenBySensorId(String sensorId) {
