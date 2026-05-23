@@ -447,6 +447,21 @@ def get_default_flow(designation: str) -> str:
     return flow_pk
 
 
+def get_flow_by_slug(slug: str) -> str:
+    resp = api("GET", f"/flows/instances/?slug={slug}")
+    results = resp.get("results", [])
+    if not results:
+        sys.exit(
+            f"Flow with slug '{slug}' not found. Run initial Authentik setup first."
+        )
+    flow_pk = results[0].get("pk")
+    if not flow_pk:
+        sys.exit(f"Flow with slug '{slug}' has no pk")
+    if not isinstance(flow_pk, str):
+        flow_pk = str(flow_pk)
+    return flow_pk
+
+
 def get_signing_key_pk() -> str:
     """Return an RSA certificate keypair pk to sign OAuth2 JWTs."""
     resp = api("GET", "/crypto/certificatekeypairs/")
@@ -468,7 +483,7 @@ def create_provider(groups_mapping_pk: str) -> str:
     scope_pks = get_default_scope_mappings() + [groups_mapping_pk]
     auth_flow = get_default_flow("authentication")
     authz_flow = get_default_flow("authorization")
-    invalidation_flow = get_default_flow("invalidation")
+    invalidation_flow = get_flow_by_slug("default-provider-invalidation-flow")
     signing_key_pk = get_signing_key_pk()
 
     payload = {
@@ -966,6 +981,20 @@ def _get_or_create_enrollment_login_stage() -> str:
 def _bind_stage(flow_pk: str, stage_pk: str, order: int) -> None:
     existing = api("GET", f"/flows/bindings/?target={flow_pk}&stage={stage_pk}")
     if existing.get("results"):
+        binding = existing["results"][0]
+        binding_pk = str(binding.get("pk") or "")
+        if binding_pk:
+            api(
+                "PATCH",
+                f"/flows/bindings/{binding_pk}/",
+                json={
+                    "target": flow_pk,
+                    "stage": stage_pk,
+                    "order": order,
+                    "enabled": True,
+                    "policy_engine_mode": "any",
+                },
+            )
         return
     api(
         "POST",

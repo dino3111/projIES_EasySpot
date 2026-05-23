@@ -17,6 +17,7 @@ import pt.ua.deti.apieasyspot.notification.model.Alert;
 import pt.ua.deti.apieasyspot.notification.model.AlertType;
 import pt.ua.deti.apieasyspot.notification.model.SeverityAlert;
 import pt.ua.deti.apieasyspot.notification.model.StateAlert;
+import pt.ua.deti.apieasyspot.notification.service.TechnicianRealtimeNotifier;
 import pt.ua.deti.apieasyspot.sensor.repository.SensorLogsRepository;
 import pt.ua.deti.apieasyspot.sensor.repository.SensorRegistryRepository;
 import pt.ua.deti.apieasyspot.sensor.repository.BackendDecisionHistoryRepository;
@@ -48,6 +49,9 @@ class SensorLogsServiceTest {
     @Mock
     private BackendDecisionHistoryRepository backendDecisionHistoryRepository;
 
+    @Mock
+    private TechnicianRealtimeNotifier technicianRealtimeNotifier;
+
     private SensorLogsService service;
 
     @BeforeEach
@@ -57,7 +61,8 @@ class SensorLogsServiceTest {
             sensorLogsRepository,
             sensorRegistryRepository,
             alertRepository,
-            backendDecisionHistoryRepository
+            backendDecisionHistoryRepository,
+            technicianRealtimeNotifier
         );
     }
 
@@ -339,7 +344,7 @@ class SensorLogsServiceTest {
         service.touchSensor("IR-TEST-TOUCH");
 
         verify(sensorRegistryRepository).save(sensor);
-        assertThat(sensor.getLastSeenAt()).isAfter(LocalDateTime.now().minusMinutes(1));
+        assertThat(sensor.getLastSeenAt()).isAfter(LocalDateTime.now(ZoneOffset.UTC).minusMinutes(1));
     }
 
     @Test

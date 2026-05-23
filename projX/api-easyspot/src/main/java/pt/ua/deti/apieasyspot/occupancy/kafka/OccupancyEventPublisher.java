@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
@@ -13,20 +14,26 @@ import org.springframework.stereotype.Component;
 public class OccupancyEventPublisher {
 
     private final KafkaTemplate<String, String> kafkaTemplate;
+    private final SimpMessagingTemplate messagingTemplate;
     private final ObjectMapper objectMapper;
     private final String topic;
 
     public OccupancyEventPublisher(
         @Autowired(required = false) KafkaTemplate<String, String> kafkaTemplate,
+        SimpMessagingTemplate messagingTemplate,
         ObjectMapper objectMapper,
         @Value("${easyspot.occupancy.kafka.topic:occupancy-events}") String topic
     ) {
         this.kafkaTemplate = kafkaTemplate;
+        this.messagingTemplate = messagingTemplate;
         this.objectMapper = objectMapper;
         this.topic = topic;
     }
 
     public void publish(OccupancyEvent event) {
+        messagingTemplate.convertAndSend("/topic/occupancy/parks", event);
+        messagingTemplate.convertAndSend("/topic/occupancy/parks/" + event.parkId(), event);
+
         if (kafkaTemplate == null) {
             log.debug("Kafka not configured — skipping occupancy event for spot {}", event.spotId());
             return;

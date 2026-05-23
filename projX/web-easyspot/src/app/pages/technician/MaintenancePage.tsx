@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router';
 import { type SensorDevice, type SensorStatus, computeTechKPIs } from '../../data/technicianData';
 import { STATUS_LABEL, type PageTab, type StatusFil } from './components/maintenanceTypes';
@@ -29,6 +29,11 @@ const STATUS_TO_API: Record<string, string> = {
   offline:     'offline',
   manutencao:  'maintenance',
 };
+
+const realtimeFallbackFromEnv = Number(import.meta.env.VITE_TECHNICIAN_REALTIME_FALLBACK_MS ?? 60000);
+const TECHNICIAN_REALTIME_FALLBACK_MS = Number.isFinite(realtimeFallbackFromEnv) && realtimeFallbackFromEnv >= 10000
+  ? realtimeFallbackFromEnv
+  : 60000;
 
 // ── Sensor mapping (API → UI) ─────────────────────────────────────────────────
 
@@ -158,6 +163,7 @@ export function MaintenancePage() {
   const { client, status } = useOptionalWs();
   const auth = useOptionalAuth();
   const user = auth?.user;
+  const refreshTimeoutRef = useRef<number | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const tab: PageTab = TAB_PARAM_MAP[searchParams.get('tab') ?? ''] ?? 'ocorrencias';
   function setTab(t: PageTab) {
@@ -192,10 +198,10 @@ export function MaintenancePage() {
     }
     try {
       const [apiSensors, openAlerts, inProgressAlerts, resolvedAlerts] = await Promise.all([
-        fetchSensorList(),
-        fetchAlerts({ state: 'OPEN' }),
-        fetchAlerts({ state: 'IN_PROGRESS' }),
-        fetchAlerts({ state: 'RESOLVED' }),
+        fetchSensorList({ background }),
+        fetchAlerts({ state: 'OPEN' }, { background }),
+        fetchAlerts({ state: 'IN_PROGRESS' }, { background }),
+        fetchAlerts({ state: 'RESOLVED' }, { background }),
       ]);
       const activeAlerts = [...openAlerts, ...inProgressAlerts];
       const allAlerts = [...activeAlerts, ...resolvedAlerts];
@@ -238,11 +244,32 @@ export function MaintenancePage() {
   }, [loadAll]);
 
   useEffect(() => {
-    if (status !== 'connected' || !client || !user?.sub) return;
-    const subscription = client.subscribe(`/topic/alerts/${user.sub}`, () => {
+    const intervalId = globalThis.setInterval(() => {
       void loadAll(true);
-    });
-    return () => subscription.unsubscribe();
+    }, TECHNICIAN_REALTIME_FALLBACK_MS);
+    return () => globalThis.clearInterval(intervalId);
+  }, [loadAll]);
+
+  useEffect(() => {
+    if (status !== 'connected' || !client || !user?.sub) return;
+    const scheduleRefresh = () => {
+      if (refreshTimeoutRef.current != null) return;
+      refreshTimeoutRef.current = globalThis.setTimeout(() => {
+        refreshTimeoutRef.current = null;
+        void loadAll(true);
+      }, 250);
+    };
+    const subscriptions = [
+      client.subscribe(`/topic/technician/dashboard/${user.sub}`, scheduleRefresh),
+      client.subscribe(`/topic/alerts/${user.sub}`, scheduleRefresh),
+    ];
+    return () => {
+      subscriptions.forEach((subscription) => subscription.unsubscribe());
+      if (refreshTimeoutRef.current != null) {
+        globalThis.clearTimeout(refreshTimeoutRef.current);
+        refreshTimeoutRef.current = null;
+      }
+    };
   }, [client, status, user?.sub, loadAll]);
   useEffect(() => {
     if (tab === 'tarefas') loadCompleted(weekOffset);

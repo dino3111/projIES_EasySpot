@@ -76,6 +76,13 @@ export interface TechnicianDashboard {
   urgentWorkOrders: WorkOrder[];
 }
 
+type FetchOptions = {
+  background?: boolean;
+};
+
+const requestMaybeBackground = <T,>(path: string, options: FetchOptions = {}) =>
+  options.background ? request<T>(path, { background: true }) : request<T>(path);
+
 // ── Alert / Issue types (matching backend AlertResponse DTO) ──────────────────
 
 export type AlertState    = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED';
@@ -100,8 +107,8 @@ export interface AlertResponse {
 
 // ── API functions (use shared apiService.request — handles auth, 401, loading) ──
 
-export const fetchTechnicianDashboard = (): Promise<TechnicianDashboard> =>
-  request<TechnicianDashboard>('/api/technician/dashboard').then((data) => {
+export const fetchTechnicianDashboard = (options: FetchOptions = {}): Promise<TechnicianDashboard> =>
+  requestMaybeBackground<TechnicianDashboard>('/api/technician/dashboard', options).then((data) => {
     console.info('[TECH-FE] dashboard loaded', {
       totalSensors: data.kpis.totalSensors,
       operationalSensors: data.kpis.operationalSensors,
@@ -111,8 +118,8 @@ export const fetchTechnicianDashboard = (): Promise<TechnicianDashboard> =>
     return data;
   });
 
-export const fetchSensorList = (): Promise<SensorSummary[]> =>
-  request<SensorSummary[]>('/api/technician/sensors').then((data) => {
+export const fetchSensorList = (options: FetchOptions = {}): Promise<SensorSummary[]> =>
+  requestMaybeBackground<SensorSummary[]>('/api/technician/sensors', options).then((data) => {
     console.info('[TECH-FE] sensors loaded', {
       count: data.length,
       parkIds: [...new Set(data.map((s) => s.parkingLotId))],
@@ -149,7 +156,7 @@ export type FetchAlertsQuery = {
   to?: string;
 };
 
-export const fetchAlerts = (query: FetchAlertsQuery = {}): Promise<AlertResponse[]> => {
+export const fetchAlerts = (query: FetchAlertsQuery = {}, options: FetchOptions = {}): Promise<AlertResponse[]> => {
   const params = new URLSearchParams();
   if (query.parkId)   params.set('parkId',   query.parkId);
   if (query.state)    params.set('state',    query.state);
@@ -157,7 +164,7 @@ export const fetchAlerts = (query: FetchAlertsQuery = {}): Promise<AlertResponse
   if (query.from)     params.set('from',     query.from);
   if (query.to)       params.set('to',       query.to);
   const qs = params.toString();
-  return request<AlertResponse[]>(`/api/alerts${qs ? `?${qs}` : ''}`).then((data) => {
+  return requestMaybeBackground<AlertResponse[]>(`/api/alerts${qs ? `?${qs}` : ''}`, options).then((data) => {
     console.info('[TECH-FE] alerts loaded', { count: data.length, query });
     return data;
   });

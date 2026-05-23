@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
 import { useProfile } from '../../../context/ProfileContext';
 import type { ParkingLot } from '../../../data/parkingTypes';
@@ -10,12 +10,13 @@ import { TabEV } from './TabEV';
 import { TabAccessibility } from './TabAccessibility';
 import { TabTariffs } from './TabTariffs';
 import { fetchParkDetails, fetchParkFavoriteStatus, toggleParkFavorite } from '../../../services/parksApi';
+import { useOptionalWs } from '../../../context/WsContext';
 
 type Tab = 'general' | 'map' | 'ev' | 'accessibility' | 'tariffs';
-const realtimeRefreshFromEnv = Number(import.meta.env.VITE_REALTIME_REFRESH_MS ?? 1000);
-const REALTIME_REFRESH_MS = Number.isFinite(realtimeRefreshFromEnv) && realtimeRefreshFromEnv >= 1000
-  ? realtimeRefreshFromEnv
-  : 1000;
+const realtimeFallbackFromEnv = Number(import.meta.env.VITE_REALTIME_FALLBACK_MS ?? 60000);
+const REALTIME_FALLBACK_MS = Number.isFinite(realtimeFallbackFromEnv) && realtimeFallbackFromEnv >= 10000
+  ? realtimeFallbackFromEnv
+  : 60000;
 
 function getOccupancyStatus(availableSpots: number, totalSpots: number) {
   const safeTotal = Math.max(0, totalSpots);
@@ -38,6 +39,7 @@ function getOccupancyStatus(availableSpots: number, totalSpots: number) {
 
 export function ParkingDetail() {
   const { id } = useParams<{ id: string }>();
+  const { client, status } = useOptionalWs();
   const navigate = useNavigate();
   const { vehicles } = useProfile();
   const myVehicle = useMemo(() => vehicles.find((v) => v.isPrimary) ?? vehicles[0] ?? null, [vehicles]);
@@ -47,6 +49,8 @@ export function ParkingDetail() {
   const [isFavorite, setIsFavorite] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
   const [activeFloorIdx, setActiveFloorIdx] = useState(0);
+  const refreshTimeoutRef = useRef<number | null>(null);
+  const loadRef = useRef<((background?: boolean) => Promise<void>) | null>(null);
 
   const totalEV  = lot?.evChargers?.length ?? 0;
   const totalAcc = lot?.accessibleSpots?.length ?? 0;
@@ -86,15 +90,42 @@ export function ParkingDetail() {
         if (mounted && !background) setLoading(false);
       }
     };
+    loadRef.current = load;
     void load();
-    const intervalId = globalThis.setInterval(() => {
-      void load(true);
-    }, REALTIME_REFRESH_MS);
     return () => {
       mounted = false;
-      globalThis.clearInterval(intervalId);
+      if (loadRef.current === load) loadRef.current = null;
     };
   }, [id]);
+
+  useEffect(() => {
+    const intervalId = globalThis.setInterval(() => {
+      void loadRef.current?.(true);
+    }, REALTIME_FALLBACK_MS);
+    return () => globalThis.clearInterval(intervalId);
+  }, []);
+
+  useEffect(() => {
+    if (!id || status !== 'connected' || !client) return;
+    const scheduleRefresh = () => {
+      if (refreshTimeoutRef.current != null) return;
+      refreshTimeoutRef.current = globalThis.setTimeout(() => {
+        refreshTimeoutRef.current = null;
+        void loadRef.current?.(true);
+      }, 250);
+    };
+    const subscriptions = [
+      client.subscribe(`/topic/occupancy/parks/${id}`, scheduleRefresh),
+      client.subscribe('/topic/occupancy/parks', scheduleRefresh),
+    ];
+    return () => {
+      subscriptions.forEach((subscription) => subscription.unsubscribe());
+      if (refreshTimeoutRef.current != null) {
+        globalThis.clearTimeout(refreshTimeoutRef.current);
+        refreshTimeoutRef.current = null;
+      }
+    };
+  }, [client, id, status]);
 
   if (loading) {
     return <div className="p-6 text-muted-foreground">A carregar parque...</div>;

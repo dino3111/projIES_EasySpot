@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell,
@@ -25,6 +25,11 @@ const STATUS_LABEL_PT: Record<string, string> = {
   maintenance: 'Manutenção',
 };
 
+const realtimeFallbackFromEnv = Number(import.meta.env.VITE_TECHNICIAN_REALTIME_FALLBACK_MS ?? 60000);
+const TECHNICIAN_REALTIME_FALLBACK_MS = Number.isFinite(realtimeFallbackFromEnv) && realtimeFallbackFromEnv >= 10000
+  ? realtimeFallbackFromEnv
+  : 60000;
+
 
 export function DashboardTechnicianPage() {
   const { client, status } = useOptionalWs();
@@ -33,49 +38,66 @@ export function DashboardTechnicianPage() {
   const [dashboard, setDashboard] = useState<TechnicianDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState<string | null>(null);
+  const refreshTimeoutRef = useRef<number | null>(null);
 
-  useEffect(() => {
-    let mounted = true;
-    const load = async (background = false) => {
-      try {
-        if (!background) {
-          setLoading(true);
-          setError(null);
-        }
-        const data = await fetchTechnicianDashboard();
-        console.info('[TECH-FE] dashboard page data', {
-          totalSensors: data.kpis.totalSensors,
-          operationalSensors: data.kpis.operationalSensors,
-          urgentWorkOrders: data.urgentWorkOrders.length,
-        });
-        if (!mounted) return;
-        setDashboard(data);
-      } catch (err: unknown) {
-        if (!mounted) return;
-        if (!background) setError(err instanceof Error ? err.message : 'Erro ao carregar dados.');
-      } finally {
-        if (mounted && !background) setLoading(false);
+  const loadDashboard = useCallback(async (background = false) => {
+    try {
+      if (!background) {
+        setLoading(true);
+        setError(null);
       }
-    };
-    void load();
-    return () => {
-      mounted = false;
-    };
+      const data = await fetchTechnicianDashboard({ background });
+      console.info('[TECH-FE] dashboard page data', {
+        totalSensors: data.kpis.totalSensors,
+        operationalSensors: data.kpis.operationalSensors,
+        urgentWorkOrders: data.urgentWorkOrders.length,
+      });
+      setDashboard(data);
+    } catch (err: unknown) {
+      if (!background) setError(err instanceof Error ? err.message : 'Erro ao carregar dados.');
+    } finally {
+      if (!background) setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
+    void loadDashboard();
+  }, [loadDashboard]);
+
+  useEffect(() => {
+    const intervalId = globalThis.setInterval(() => {
+      void loadDashboard(true);
+    }, TECHNICIAN_REALTIME_FALLBACK_MS);
+    return () => globalThis.clearInterval(intervalId);
+  }, [loadDashboard]);
+
+  useEffect(() => {
     if (status !== 'connected' || !client || !user?.sub) return;
-    const subscription = client.subscribe(`/topic/alerts/${user.sub}`, () => {
-      void fetchTechnicianDashboard().then(setDashboard).catch(() => {});
-    });
-    return () => subscription.unsubscribe();
-  }, [client, status, user?.sub]);
+    const scheduleRefresh = () => {
+      if (refreshTimeoutRef.current != null) return;
+      refreshTimeoutRef.current = globalThis.setTimeout(() => {
+        refreshTimeoutRef.current = null;
+        void loadDashboard(true);
+      }, 250);
+    };
+    const subscriptions = [
+      client.subscribe(`/topic/technician/dashboard/${user.sub}`, scheduleRefresh),
+      client.subscribe(`/topic/alerts/${user.sub}`, scheduleRefresh),
+    ];
+    return () => {
+      subscriptions.forEach((subscription) => subscription.unsubscribe());
+      if (refreshTimeoutRef.current != null) {
+        globalThis.clearTimeout(refreshTimeoutRef.current);
+        refreshTimeoutRef.current = null;
+      }
+    };
+  }, [client, status, user?.sub, loadDashboard]);
 
 
 
 
   if (loading) return <PageLoading />;
-  if (error)   return <PageError message={error} onRetry={() => { setLoading(true); setError(null); fetchTechnicianDashboard().then(setDashboard).catch((e: unknown) => setError(e instanceof Error ? e.message : 'Erro')).finally(() => setLoading(false)); }} />;
+  if (error)   return <PageError message={error} onRetry={() => { void loadDashboard(); }} />;
   if (!dashboard) return null;
 
   const { kpis, uptimeLast7Days, sensorDistribution, urgentWorkOrders } = dashboard;
