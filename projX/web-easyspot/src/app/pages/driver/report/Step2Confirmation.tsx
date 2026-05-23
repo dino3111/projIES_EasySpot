@@ -116,13 +116,6 @@ export function Step2Confirmation({ reportId, form, onNewReport, onGoHome }: Rea
             </button>
           </div>
         </div>
-
-        <p className="text-center text-muted-foreground mt-5" style={{ fontSize: '0.75rem' }}>
-          Dúvidas?{' '}
-          <a href="mailto:suporte@easyspot.pt" className="text-primary font-semibold hover:underline">
-            suporte@easyspot.pt
-          </a>
-        </p>
       </div>
     </div>
   );
