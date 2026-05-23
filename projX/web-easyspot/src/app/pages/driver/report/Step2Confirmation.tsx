@@ -88,8 +88,7 @@ export function Step2Confirmation({ reportId, form, onNewReport, onGoHome }: Rea
             {[
               { icon: 'fa-circle-check',   color: 'text-success', text: 'A equipa de gestão recebeu a sua denúncia' },
               { icon: 'fa-magnifying-glass', color: 'text-primary', text: 'Verificação no local nas próximas 2 horas' },
-              { icon: 'fa-gavel',          color: 'text-warning', text: 'Se confirmada, serão tomadas medidas apropriadas' },
-              { icon: 'fa-bell',           color: 'text-info',    text: 'Receberá notificação quando o estado for atualizado' },
+              { icon: 'fa-gavel',          color: 'text-warning', text: 'Se confirmada, serão tomadas medidas apropriadas' }
             ].map((item) => (
               <li key={item.text} className="flex items-start gap-2.5">
                 <i className={`fas ${item.icon} ${item.color} mt-0.5 flex-shrink-0`} style={{ fontSize: '0.8rem' }} />
