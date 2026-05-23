@@ -268,31 +268,48 @@ public class BillingService {
         }
 
         OffsetDateTime actualExitUtc = actualExit.withOffsetSameInstant(ZoneOffset.UTC);
-        OffsetDateTime plannedDeparture = reservation.getDepartureTime().withOffsetSameInstant(ZoneOffset.UTC);
         BigDecimal estimated = reservation.getEstimatedCost() != null
             ? reservation.getEstimatedCost()
             : BigDecimal.ZERO;
 
-        PaymentAdjustmentResult result = new PaymentAdjustmentResult(BigDecimal.ZERO, "NO_CHANGE", null, null);
-        BigDecimal finalRevenue = estimated;
+        ZoneType zone = reservation.getParkingSpot() != null
+            ? reservation.getParkingSpot().getZone()
+            : ZoneType.STANDARD;
 
-        if (actualExitUtc.isAfter(plannedDeparture)) {
-            ZoneType zone = reservation.getParkingSpot() != null
-                ? reservation.getParkingSpot().getZone()
-                : ZoneType.STANDARD;
-            BigDecimal actualCost = calculateCost(
-                reservation.getParkingLot().getId(),
-                reservation.getArrivalTime().withOffsetSameInstant(ZoneOffset.UTC),
-                actualExitUtc,
-                zone
-            );
-            if (actualCost.compareTo(estimated) > 0) {
-                result = adjustPaymentForReservation(reservation, estimated, actualCost, customerEmail);
-                finalRevenue = actualCost;
-            }
+        // Use actual sensor entry time; fall back to planned arrival if not recorded
+        OffsetDateTime actualEntryUtc = parkingSessionRepository
+            .findEntryTimeByReservationId(reservation.getId())
+            .orElseGet(() -> reservation.getArrivalTime().withOffsetSameInstant(ZoneOffset.UTC));
+
+        BigDecimal actualCost = calculateCost(
+            reservation.getParkingLot().getId(),
+            actualEntryUtc,
+            actualExitUtc,
+            zone
+        );
+
+        PaymentAdjustmentResult result = new PaymentAdjustmentResult(BigDecimal.ZERO, "NO_CHANGE", null, null);
+        if (actualCost.compareTo(estimated) != 0) {
+            result = adjustPaymentForReservation(reservation, estimated, actualCost, customerEmail);
         }
 
-        parkingSessionRepository.updateExitAndRevenueByReservationId(reservation.getId(), actualExitUtc, finalRevenue);
+        int updated = parkingSessionRepository.updateExitAndRevenueByReservationId(reservation.getId(), actualExitUtc, actualCost);
+        if (updated == 0) {
+            // No session pre-created (e.g. billing was disabled at reservation time) — create it now
+            ParkingSession session = new ParkingSession();
+            session.setId(reservation.getId());
+            session.setReservationId(reservation.getId());
+            if (reservation.getUser() != null) session.setUserId(reservation.getUser().getId());
+            session.setParkingLotId(reservation.getParkingLot().getId());
+            if (reservation.getVehicle() != null) session.setVehicleId(reservation.getVehicle().getId());
+            session.setZoneType(zone);
+            session.setEntryTime(actualEntryUtc);
+            session.setExitTime(actualExitUtc);
+            session.setRevenueEuros(actualCost);
+            parkingSessionRepository.save(session);
+            log.info("Parking session created on exit for reservation {} (no pre-existing session)",
+                reservation.getId());
+        }
         return result;
     }
 

@@ -11,6 +11,7 @@ import java.sql.SQLException;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -68,6 +69,15 @@ public class TimescaleParkingSessionRepository {
         );
     }
 
+    public Optional<OffsetDateTime> findEntryTimeByReservationId(UUID reservationId) {
+        List<OffsetDateTime> results = jdbc.query(
+            "select entry_time from parking_sessions where reservation_id = ?::uuid limit 1",
+            (rs, row) -> rs.getTimestamp("entry_time").toInstant().atOffset(ZoneOffset.UTC),
+            reservationId.toString()
+        );
+        return results.isEmpty() ? Optional.empty() : Optional.of(results.get(0));
+    }
+
     public void updateEntryByReservationId(UUID reservationId, OffsetDateTime entryTime, ZoneType zoneType) {
         jdbc.update(
             """
@@ -81,8 +91,8 @@ public class TimescaleParkingSessionRepository {
         );
     }
 
-    public void updateExitAndRevenueByReservationId(UUID reservationId, OffsetDateTime exitTime, java.math.BigDecimal revenue) {
-        jdbc.update(
+    public int updateExitAndRevenueByReservationId(UUID reservationId, OffsetDateTime exitTime, java.math.BigDecimal revenue) {
+        return jdbc.update(
             """
             update parking_sessions
             set exit_time = ?, revenue_euros = ?

@@ -1,7 +1,15 @@
 import type { BillingRecord } from '../../../data/gestorData';
 import { QuickStat } from './shared';
 
-export function BillingTab({ billingRecords }: { readonly billingRecords: BillingRecord[] }) {
+interface BillingTabProps {
+  readonly billingRecords: BillingRecord[];
+  readonly page: number;
+  readonly totalPages: number;
+  readonly totalElements: number;
+  readonly onPageChange: (p: number) => void;
+}
+
+export function BillingTab({ billingRecords, page, totalPages, totalElements, onPageChange }: BillingTabProps) {
   const totalPago       = billingRecords.filter(r => r.estado === 'pago').reduce((s, r) => s + r.total, 0);
   const totalPendente   = billingRecords.filter(r => r.estado === 'pendente').reduce((s, r) => s + r.total, 0);
   const totalContestado = billingRecords.filter(r => r.estado === 'contestado').reduce((s, r) => s + r.total, 0);
@@ -38,6 +46,46 @@ export function BillingTab({ billingRecords }: { readonly billingRecords: Billin
           </table>
         </div>
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <p className="text-muted-foreground" style={{ fontSize: '0.78rem' }}>
+            {totalElements} registos · página {page + 1} de {totalPages}
+          </p>
+          <div className="flex gap-1">
+            <button
+              onClick={() => onPageChange(Math.max(0, page - 1))}
+              disabled={page === 0}
+              aria-label="Página anterior"
+              className="px-3 py-1.5 rounded-lg border border-border bg-card text-muted-foreground hover:bg-muted disabled:opacity-40 transition-colors"
+              style={{ fontSize: '0.78rem' }}
+            >
+              <i className="fas fa-chevron-left"></i>
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i)
+              .filter(i => Math.abs(i - page) <= 2)
+              .map(i => (
+                <button
+                  key={i}
+                  onClick={() => onPageChange(i)}
+                  className={`px-3 py-1.5 rounded-lg border transition-colors ${i === page ? 'border-primary bg-primary text-white' : 'border-border bg-card text-muted-foreground hover:bg-muted'}`}
+                  style={{ fontSize: '0.78rem' }}
+                >
+                  {i + 1}
+                </button>
+              ))}
+            <button
+              onClick={() => onPageChange(Math.min(totalPages - 1, page + 1))}
+              disabled={page === totalPages - 1}
+              aria-label="Próxima página"
+              className="px-3 py-1.5 rounded-lg border border-border bg-card text-muted-foreground hover:bg-muted disabled:opacity-40 transition-colors"
+              style={{ fontSize: '0.78rem' }}
+            >
+              <i className="fas fa-chevron-right"></i>
+            </button>
+          </div>
+        </div>
+      )}
 
       <p className="text-muted-foreground" style={{ fontSize: '0.72rem' }}>
         <i className="fas fa-info-circle mr-1" aria-hidden="true"></i>

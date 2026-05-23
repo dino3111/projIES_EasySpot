@@ -6,6 +6,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import pt.ua.deti.apieasyspot.billing.service.BillingService;
+import pt.ua.deti.apieasyspot.gate.service.PaymentGateOrchestrator;
 import pt.ua.deti.apieasyspot.ocr.model.OcrPlateRead;
 import pt.ua.deti.apieasyspot.ocr.repository.OcrPlateReadRepository;
 import pt.ua.deti.apieasyspot.sensor.service.SensorLogsService;
@@ -24,6 +25,7 @@ class OcrPlateEventKafkaListenerTest {
     private SensorLogsService sensorLogsService;
     private ReservationRepository reservationRepository;
     private BillingService billingService;
+    private PaymentGateOrchestrator paymentGateOrchestrator;
     private OcrPlateEventKafkaListener listener;
 
     @BeforeEach
@@ -32,8 +34,9 @@ class OcrPlateEventKafkaListenerTest {
         sensorLogsService = mock(SensorLogsService.class);
         reservationRepository = mock(ReservationRepository.class);
         billingService = mock(BillingService.class);
+        paymentGateOrchestrator = mock(PaymentGateOrchestrator.class);
         ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
-        listener = new OcrPlateEventKafkaListener(objectMapper, repository, sensorLogsService, reservationRepository, billingService);
+        listener = new OcrPlateEventKafkaListener(objectMapper, repository, sensorLogsService, reservationRepository, billingService, paymentGateOrchestrator);
     }
 
     @Test

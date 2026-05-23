@@ -134,6 +134,9 @@ export function TariffsIncidentsPage() {
 
   // Billing state
   const [billingRecords, setBillingRecords] = useState<BillingRecord[]>([]);
+  const [billingPage, setBillingPage] = useState(0);
+  const [billingTotalPages, setBillingTotalPages] = useState(1);
+  const [billingTotalElements, setBillingTotalElements] = useState(0);
 
   const isInitialMount = useRef(true);
 
@@ -153,6 +156,8 @@ export function TariffsIncidentsPage() {
       setIncidentTotalPages(alertsData.totalPages);
       setIncidentTotalElements(alertsData.totalElements);
       setBillingRecords(billingData.content.map(mapBilling));
+      setBillingTotalPages(billingData.totalPages);
+      setBillingTotalElements(billingData.totalElements);
       setOpenIncidentsCount(openAlertsData.totalElements);
     }).catch(err => {
       console.error('Error fetching manager data:', err);
@@ -192,6 +197,16 @@ export function TariffsIncidentsPage() {
     }).catch(err => console.error('Error fetching incidents:', err));
   }, [incidentPage, issueFilter, sevFilter]);
 
+  // Re-fetch billing when page changes
+  useEffect(() => {
+    if (isInitialMount.current) return;
+    fetchManagerBilling(undefined, 2, billingPage).then(data => {
+      setBillingRecords(data.content.map(mapBilling));
+      setBillingTotalPages(data.totalPages);
+      setBillingTotalElements(data.totalElements);
+    }).catch(err => console.error('Error fetching billing:', err));
+  }, [billingPage]);
+
   const handleTariffPageChange = useCallback((p: number) => setTariffPage(p), []);
   const handleTariffDistrictChange = useCallback((d: string) => {
     setTariffPage(0);
@@ -211,6 +226,7 @@ export function TariffsIncidentsPage() {
     setSevFilter(f);
   }, []);
   const handleIncidentPageChange = useCallback((p: number) => setIncidentPage(p), []);
+  const handleBillingPageChange  = useCallback((p: number) => setBillingPage(p), []);
 
   const handleSaveTariff = async (updated: Partial<TariffEntry>) => {
     await updateTariff(updated);
@@ -337,7 +353,15 @@ export function TariffsIncidentsPage() {
           onPageChange={handleIncidentPageChange}
         />
       )}
-      {tab === 'faturacao' && <BillingTab billingRecords={billingRecords} />}
+      {tab === 'faturacao' && (
+        <BillingTab
+          billingRecords={billingRecords}
+          page={billingPage}
+          totalPages={billingTotalPages}
+          totalElements={billingTotalElements}
+          onPageChange={handleBillingPageChange}
+        />
+      )}
 
       {selectedIssue && <IssueModal  issue={selectedIssue} onClose={() => setSelectedIssue(null)} />}
       {editTariff    && <TariffModal tariff={editTariff}   onClose={() => setEditTariff(null)} onSave={handleSaveTariff} />}
