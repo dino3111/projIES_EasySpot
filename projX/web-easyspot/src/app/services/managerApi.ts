@@ -141,7 +141,11 @@ export const fetchManagerAlerts = async (params?: AlertListParams): Promise<Page
   if (params?.page !== undefined) query.append('page', String(params.page));
   if (params?.size !== undefined) query.append('size', String(params.size));
   const qs = query.toString() ? `?${query.toString()}` : '';
-  return request<Page<AlertResponse>>(`/api/alerts${qs}`);
+  const raw = await request<Page<AlertResponse> | AlertResponse[]>(`/api/alerts${qs}`);
+  if (Array.isArray(raw)) {
+    return { content: raw, totalElements: raw.length, totalPages: raw.length > 0 ? 1 : 0 };
+  }
+  return raw;
 };
 
 export const updateTariff = async (tariff: Partial<TariffEntry>) => {
