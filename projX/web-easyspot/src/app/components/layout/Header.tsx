@@ -30,7 +30,7 @@ export function Header() {
 
   return (
     <header
-      className="sticky top-0 z-50 shadow-md"
+      className="sticky top-0 z-[9999] shadow-md"
       style={{ background: 'linear-gradient(135deg, #7357ec 0%, #5948a6 100%)', minHeight: '56px' }}
     >
       <div className="flex items-center justify-between px-4 h-14 max-w-screen-2xl mx-auto">
@@ -175,7 +175,7 @@ function UserDropdown({
 }: UserDropdownProps) {
   return (
     <div
-      className="absolute right-0 top-full mt-2 w-64 bg-card border border-border rounded-2xl shadow-2xl overflow-hidden z-50"
+      className="absolute right-0 top-full mt-2 w-64 bg-card border border-border rounded-2xl shadow-2xl overflow-hidden z-[9999]"
       role="menu"
     >
       <div className="px-4 py-3 border-b border-border bg-muted/30 flex items-center gap-3">
