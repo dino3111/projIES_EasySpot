@@ -125,10 +125,20 @@ export const fetchManagerTariffs = async (params?: TariffListParams): Promise<Pa
   return request<Page<TariffResponse>>(`/api/manager/tariffs${qs}`);
 };
 
+export type AlertStateFilter    = 'todos' | 'aberto' | 'em-progresso' | 'resolvido';
+export type AlertSeverityFilter = 'todos' | 'critica' | 'aviso' | 'info';
+
+const ALERT_STATE_PARAM: Record<AlertStateFilter, string | undefined> = {
+  todos: undefined, aberto: 'OPEN', 'em-progresso': 'IN_PROGRESS', resolvido: 'RESOLVED',
+};
+const ALERT_SEVERITY_PARAM: Record<AlertSeverityFilter, string | undefined> = {
+  todos: undefined, critica: 'CRITICAL', aviso: 'WARNING', info: 'INFO',
+};
+
 export interface AlertListParams {
   parkId?: string;
-  state?: string;
-  severity?: string;
+  state?: AlertStateFilter;
+  severity?: AlertSeverityFilter;
   page?: number;
   size?: number;
 }
@@ -136,8 +146,10 @@ export interface AlertListParams {
 export const fetchManagerAlerts = async (params?: AlertListParams): Promise<Page<AlertResponse>> => {
   const query = new URLSearchParams();
   if (params?.parkId) query.append('parkId', params.parkId);
-  if (params?.state && params.state !== 'todos') query.append('state', params.state.toUpperCase().replace('-', '_'));
-  if (params?.severity && params.severity !== 'todos') query.append('severity', params.severity.toUpperCase());
+  const stateParam = params?.state ? ALERT_STATE_PARAM[params.state] : undefined;
+  const severityParam = params?.severity ? ALERT_SEVERITY_PARAM[params.severity] : undefined;
+  if (stateParam) query.append('state', stateParam);
+  if (severityParam) query.append('severity', severityParam);
   if (params?.page !== undefined) query.append('page', String(params.page));
   if (params?.size !== undefined) query.append('size', String(params.size));
   const qs = query.toString() ? `?${query.toString()}` : '';

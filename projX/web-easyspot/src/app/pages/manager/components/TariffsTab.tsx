@@ -33,7 +33,7 @@ export function TariffsTab({
           <i className="fas fa-map-marker-alt text-muted-foreground" style={{ fontSize: '0.85rem' }}></i>
           <select
             value={district}
-            onChange={e => { onDistrictChange(e.target.value); onPageChange(0); }}
+            onChange={e => onDistrictChange(e.target.value)}
             className="bg-transparent text-foreground outline-none"
             style={{ fontSize: '0.875rem' }}
             aria-label="Filtrar por distrito"
@@ -48,7 +48,7 @@ export function TariffsTab({
           {([['', 'Todos'], ['ACTIVE', 'Ativo'], ['INACTIVE', 'Suspenso']] as ['' | 'ACTIVE' | 'INACTIVE', string][]).map(([val, label]) => (
             <button
               key={val}
-              onClick={() => { onStatusChange(val); onPageChange(0); }}
+              onClick={() => onStatusChange(val)}
               className={`px-3 py-1.5 transition-colors ${statusFilter === val ? 'bg-primary text-white' : 'bg-card text-muted-foreground hover:bg-muted'}`}
               style={{ fontSize: '0.75rem', fontWeight: 600 }}
             >

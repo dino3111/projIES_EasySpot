@@ -130,6 +130,7 @@ export function TariffsIncidentsPage() {
   const [incidentPage, setIncidentPage] = useState(0);
   const [incidentTotalPages, setIncidentTotalPages] = useState(1);
   const [incidentTotalElements, setIncidentTotalElements] = useState(0);
+  const [openIncidentsCount, setOpenIncidentsCount] = useState(0);
 
   // Billing state
   const [billingRecords, setBillingRecords] = useState<BillingRecord[]>([]);
@@ -143,7 +144,8 @@ export function TariffsIncidentsPage() {
       fetchManagerTariffs({ page: 0, size: TARIFF_PAGE_SIZE }),
       fetchManagerAlerts({ page: 0, size: INCIDENT_PAGE_SIZE }),
       fetchManagerBilling(),
-    ]).then(([tariffsData, alertsData, billingData]) => {
+      fetchManagerAlerts({ page: 0, size: 1, state: 'aberto' }),
+    ]).then(([tariffsData, alertsData, billingData, openAlertsData]) => {
       setTariffs(tariffsData.content.map(mapTariff));
       setTariffTotalPages(tariffsData.totalPages);
       setTariffTotalElements(tariffsData.totalElements);
@@ -151,6 +153,7 @@ export function TariffsIncidentsPage() {
       setIncidentTotalPages(alertsData.totalPages);
       setIncidentTotalElements(alertsData.totalElements);
       setBillingRecords(billingData.content.map(mapBilling));
+      setOpenIncidentsCount(openAlertsData.totalElements);
     }).catch(err => {
       console.error('Error fetching manager data:', err);
     }).finally(() => {
@@ -222,19 +225,30 @@ export function TariffsIncidentsPage() {
     setTariffTotalElements(data.totalElements);
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     let data: unknown;
     let filename: string;
+    const dateStr = new Date().toISOString().split('T')[0];
 
     if (tab === 'ocorrencias') {
-      data = issues;
-      filename = `ocorrencias-${new Date().toISOString().split('T')[0]}.json`;
+      const all = await fetchManagerAlerts({
+        page: 0, size: incidentTotalElements || 500,
+        state: issueFilter !== 'todos' ? issueFilter : undefined,
+        severity: sevFilter !== 'todos' ? sevFilter : undefined,
+      });
+      data = all.content.map(mapAlert);
+      filename = `ocorrencias-${dateStr}.json`;
     } else if (tab === 'tarifas') {
-      data = tariffs;
-      filename = `tarifas-${new Date().toISOString().split('T')[0]}.json`;
+      const all = await fetchManagerTariffs({
+        page: 0, size: tariffTotalElements || 500,
+        city: tariffDistrict || undefined,
+        status: tariffStatus || undefined,
+      });
+      data = all.content.map(mapTariff);
+      filename = `tarifas-${dateStr}.json`;
     } else {
       data = billingRecords;
-      filename = `faturacao-${new Date().toISOString().split('T')[0]}.json`;
+      filename = `faturacao-${dateStr}.json`;
     }
 
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -247,8 +261,6 @@ export function TariffsIncidentsPage() {
     link.remove();
     URL.revokeObjectURL(url);
   };
-
-  const openIssuesCount = incidentTotalElements;
 
   if (loading) {
     return (
@@ -288,7 +300,7 @@ export function TariffsIncidentsPage() {
         className="flex gap-0 bg-muted rounded-xl p-1 w-full sm:w-auto sm:inline-flex"
       >
         <TabBtn active={tab === 'tarifas'}     onClick={() => setTab('tarifas')}     icon="fa-file-invoice-dollar"  label="Tarifários" />
-        <TabBtn active={tab === 'ocorrencias'} onClick={() => setTab('ocorrencias')} icon="fa-triangle-exclamation" label="Ocorrências" badge={openIssuesCount} />
+        <TabBtn active={tab === 'ocorrencias'} onClick={() => setTab('ocorrencias')} icon="fa-triangle-exclamation" label="Ocorrências" badge={openIncidentsCount} />
         <TabBtn
           active={tab === 'faturacao'}
           onClick={() => setTab('faturacao')}
