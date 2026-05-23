@@ -157,9 +157,10 @@ export const fetchAlerts = (query: FetchAlertsQuery = {}): Promise<AlertResponse
   if (query.from)     params.set('from',     query.from);
   if (query.to)       params.set('to',       query.to);
   const qs = params.toString();
-  return request<AlertResponse[]>(`/api/alerts${qs ? `?${qs}` : ''}`).then((data) => {
-    console.info('[TECH-FE] alerts loaded', { count: data.length, query });
-    return data;
+  return request<AlertResponse[] | { content: AlertResponse[] }>(`/api/alerts${qs ? `?${qs}` : ''}`).then((data) => {
+    const alerts = Array.isArray(data) ? data : data.content;
+    console.info('[TECH-FE] alerts loaded', { count: alerts.length, query });
+    return alerts;
   });
 };
 

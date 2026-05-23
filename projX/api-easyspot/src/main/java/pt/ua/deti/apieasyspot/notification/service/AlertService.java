@@ -24,6 +24,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import pt.ua.deti.apieasyspot.common.dto.PagedResponse;
 import pt.ua.deti.apieasyspot.notification.dto.AlertStateHistoryEntry;
 
 @Service
@@ -45,11 +46,31 @@ public class AlertService {
         return alerts;
     }
 
+    public PagedResponse<Alert> listAlertsPaged(UUID parkId, StateAlert state, SeverityAlert severity,
+                                                 OffsetDateTime from, OffsetDateTime to, int page, int size) {
+        Timestamp tsFrom = from != null ? Timestamp.from(from.toInstant()) : null;
+        Timestamp tsTo   = to   != null ? Timestamp.from(to.toInstant())   : null;
+        long total = alertRepository.countFiltered(parkId, state, severity, tsFrom, tsTo);
+        List<Alert> alerts = alertRepository.findAllFilteredPaged(parkId, state, severity, tsFrom, tsTo, page * size, size);
+        hydrateClientReportAttribution(alerts);
+        return PagedResponse.of(alerts, total, page, size);
+    }
+
     public List<Alert> listAlertsByParks(List<UUID> parkIds, StateAlert state, SeverityAlert severity,
                                           OffsetDateTime from, OffsetDateTime to) {
         Timestamp tsFrom = from != null ? Timestamp.from(from.toInstant()) : null;
         Timestamp tsTo   = to   != null ? Timestamp.from(to.toInstant())   : null;
         return alertRepository.findAllFilteredByParks(parkIds, state, severity, tsFrom, tsTo);
+    }
+
+    public PagedResponse<Alert> listAlertsByParksPaged(List<UUID> parkIds, StateAlert state, SeverityAlert severity,
+                                                        OffsetDateTime from, OffsetDateTime to, int page, int size) {
+        if (parkIds == null || parkIds.isEmpty()) return PagedResponse.of(List.of(), 0, page, size);
+        Timestamp tsFrom = from != null ? Timestamp.from(from.toInstant()) : null;
+        Timestamp tsTo   = to   != null ? Timestamp.from(to.toInstant())   : null;
+        long total = alertRepository.countFilteredByParks(parkIds, state, severity, tsFrom, tsTo);
+        List<Alert> alerts = alertRepository.findAllFilteredByParksPaged(parkIds, state, severity, tsFrom, tsTo, page * size, size);
+        return PagedResponse.of(alerts, total, page, size);
     }
 
     public void updateState(UUID id, String rawState, String notes) {

@@ -45,38 +45,46 @@ const mockTariffs = {
   totalPages: 1,
 };
 
-const mockAlerts = [
-  {
-    id: 'alert-uuid-001',
-    type: 'sensor',
-    park: 'Fórum Aveiro',
-    zone: 'Piso 0 – Zona B',
-    spotNumber: null,
-    sensorId: 'IR-AV1-B07',
-    plate: null,
-    description: 'Sensor IR sem leituras há >2h.',
-    severity: 'critical',
-    state: 'open',
-    createdAt: '2026-05-08T08:12:00Z',
-    attributedTo: null,
-    notas: null,
-  },
-  {
-    id: 'alert-uuid-002',
-    type: 'billing',
-    park: 'Parque Central',
-    zone: null,
-    spotNumber: null,
-    sensorId: null,
-    plate: 'AA-00-BB',
-    description: 'Pagamento recusado.',
-    severity: 'warning',
-    state: 'resolved',
-    createdAt: '2026-05-07T14:30:00Z',
-    attributedTo: null,
-    notas: null,
-  },
-];
+const mockAlerts = {
+  content: [
+    {
+      id: 'alert-uuid-001',
+      type: 'sensor',
+      park: 'Fórum Aveiro',
+      zone: 'Piso 0 – Zona B',
+      spotNumber: null,
+      sensorId: 'IR-AV1-B07',
+      plate: null,
+      description: 'Sensor IR sem leituras há >2h.',
+      severity: 'CRITICAL',
+      state: 'OPEN',
+      createdAt: '2026-05-08T08:12:00Z',
+      reportedBy: null,
+      attributedTo: null,
+      notes: null,
+      photoUrl: null,
+    },
+    {
+      id: 'alert-uuid-002',
+      type: 'billing',
+      park: 'Parque Central',
+      zone: null,
+      spotNumber: null,
+      sensorId: null,
+      plate: 'AA-00-BB',
+      description: 'Pagamento recusado.',
+      severity: 'WARNING',
+      state: 'RESOLVED',
+      createdAt: '2026-05-07T14:30:00Z',
+      reportedBy: null,
+      attributedTo: null,
+      notes: null,
+      photoUrl: null,
+    },
+  ],
+  totalElements: 2,
+  totalPages: 1,
+};
 
 const mockParks = {
   items: [

@@ -106,20 +106,58 @@ export interface Page<T> {
   totalPages: number;
 }
 
-export const fetchManagerTariffs = async (parkId?: string) => {
-  const query = parkId ? `?parkId=${parkId}` : '';
-  const response = await request<Page<TariffResponse>>(`/api/manager/tariffs${query}`);
-  return response.content;
+export interface TariffListParams {
+  page?: number;
+  size?: number;
+  city?: string;
+  status?: 'ACTIVE' | 'INACTIVE';
+  parkId?: string;
+}
+
+export const fetchManagerTariffs = async (params?: TariffListParams): Promise<Page<TariffResponse>> => {
+  const query = new URLSearchParams();
+  if (params?.page !== undefined) query.append('page', String(params.page));
+  if (params?.size !== undefined) query.append('size', String(params.size));
+  if (params?.city?.trim()) query.append('city', params.city.trim());
+  if (params?.status) query.append('status', params.status);
+  if (params?.parkId) query.append('parkId', params.parkId);
+  const qs = query.toString() ? `?${query.toString()}` : '';
+  return request<Page<TariffResponse>>(`/api/manager/tariffs${qs}`);
 };
 
-export const fetchManagerAlerts = async (parkId?: string, state?: string, severity?: string) => {
-  const params = new URLSearchParams();
-  if (parkId) params.append('parkId', parkId);
-  if (state && state !== 'todos') params.append('state', state.toUpperCase().replace('-', '_'));
-  if (severity && severity !== 'todos') params.append('severity', severity.toUpperCase());
+export type AlertStateFilter    = 'todos' | 'aberto' | 'em-progresso' | 'resolvido';
+export type AlertSeverityFilter = 'todos' | 'critica' | 'aviso' | 'info';
 
-  const query = params.toString() ? `?${params.toString()}` : '';
-  return await request<AlertResponse[]>(`/api/alerts${query}`);
+const ALERT_STATE_PARAM: Record<AlertStateFilter, string | undefined> = {
+  todos: undefined, aberto: 'OPEN', 'em-progresso': 'IN_PROGRESS', resolvido: 'RESOLVED',
+};
+const ALERT_SEVERITY_PARAM: Record<AlertSeverityFilter, string | undefined> = {
+  todos: undefined, critica: 'CRITICAL', aviso: 'WARNING', info: 'INFO',
+};
+
+export interface AlertListParams {
+  parkId?: string;
+  state?: AlertStateFilter;
+  severity?: AlertSeverityFilter;
+  page?: number;
+  size?: number;
+}
+
+export const fetchManagerAlerts = async (params?: AlertListParams): Promise<Page<AlertResponse>> => {
+  const query = new URLSearchParams();
+  if (params?.parkId) query.append('parkId', params.parkId);
+  const stateParam = params?.state ? ALERT_STATE_PARAM[params.state] : undefined;
+  const severityParam = params?.severity ? ALERT_SEVERITY_PARAM[params.severity] : undefined;
+  if (stateParam) query.append('state', stateParam);
+  if (severityParam) query.append('severity', severityParam);
+  if (params?.page !== undefined) query.append('page', String(params.page));
+  if (params?.size !== undefined) query.append('size', String(params.size));
+  const qs = query.toString() ? `?${query.toString()}` : '';
+  const raw = await request<Page<AlertResponse> | AlertResponse[]>(`/api/alerts${qs}`);
+  if (Array.isArray(raw)) {
+    return { content: raw, totalElements: raw.length, totalPages: raw.length > 0 ? 1 : 0 };
+  }
+  return raw;
 };
 
 export const updateTariff = async (tariff: Partial<TariffEntry>) => {

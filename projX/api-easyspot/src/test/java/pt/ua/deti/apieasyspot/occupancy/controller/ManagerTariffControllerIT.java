@@ -74,6 +74,26 @@ class ManagerTariffControllerIT {
         lot = parkingLotRepository.save(lot);
     }
 
+    private ParkingLot createLot(String name, String city) {
+        ParkingLot l = new ParkingLot();
+        l.setName(name);
+        l.setCity(city);
+        l.setAddress("Test Address");
+        l.setLatitude(40.0);
+        l.setLongitude(-8.0);
+        l.setTotalSpaces(50);
+        return parkingLotRepository.save(l);
+    }
+
+    private Tariff createTariff(ParkingLot parkingLot, TariffStatus status, BigDecimal pricePerHour) {
+        Tariff t = new Tariff();
+        t.setParkingLot(parkingLot);
+        t.setName("Test Tariff");
+        t.setPricePerHour(pricePerHour);
+        t.setStatus(status);
+        return tariffRepository.save(t);
+    }
+
     @Test
     @DisplayName("GET /api/manager/tariffs - list all tariffs")
     void listTariffs_Success() throws Exception {
@@ -87,9 +107,10 @@ class ManagerTariffControllerIT {
         mockMvc.perform(get("/api/manager/tariffs")
                 .with(jwtWithRole("mgr-1", "MANAGER")))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$", hasSize(1)))
-            .andExpect(jsonPath("$[0].parkName", is("Central Park")))
-            .andExpect(jsonPath("$[0].pricePerHour", is(1.2)));
+            .andExpect(jsonPath("$.content", hasSize(1)))
+            .andExpect(jsonPath("$.totalElements", is(1)))
+            .andExpect(jsonPath("$.content[0].parkName", is("Central Park")))
+            .andExpect(jsonPath("$.content[0].pricePerHour", is(1.2)));
     }
 
     @Test
@@ -106,13 +127,13 @@ class ManagerTariffControllerIT {
                 .param("city", "Aveiro")
                 .with(jwtWithRole("mgr-1", "MANAGER")))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$", hasSize(1)));
+            .andExpect(jsonPath("$.content", hasSize(1)));
 
         mockMvc.perform(get("/api/manager/tariffs")
                 .param("city", "Lisboa")
                 .with(jwtWithRole("mgr-1", "MANAGER")))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$", hasSize(0)));
+            .andExpect(jsonPath("$.content", hasSize(0)));
     }
 
     @Test
@@ -199,14 +220,7 @@ class ManagerTariffControllerIT {
         activeTariff.setStatus(TariffStatus.ACTIVE);
         tariffRepository.save(activeTariff);
 
-        ParkingLot lot2 = new ParkingLot();
-        lot2.setName("Another Park");
-        lot2.setCity("Lisbon");
-        lot2.setAddress("Rua 456");
-        lot2.setLatitude(38.7223);
-        lot2.setLongitude(-9.1393);
-        lot2.setTotalSpaces(50);
-        lot2 = parkingLotRepository.save(lot2);
+        ParkingLot lot2 = createLot("Another Park", "Lisbon");
 
         Tariff inactiveTariff = new Tariff();
         inactiveTariff.setParkingLot(lot2);
@@ -219,15 +233,15 @@ class ManagerTariffControllerIT {
                 .param("status", "ACTIVE")
                 .with(jwtWithRole("mgr-1", "MANAGER")))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$", hasSize(1)))
-            .andExpect(jsonPath("$[0].status", is("ACTIVE")));
+            .andExpect(jsonPath("$.content", hasSize(1)))
+            .andExpect(jsonPath("$.content[0].status", is("ACTIVE")));
 
         mockMvc.perform(get("/api/manager/tariffs")
                 .param("status", "INACTIVE")
                 .with(jwtWithRole("mgr-1", "MANAGER")))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$", hasSize(1)))
-            .andExpect(jsonPath("$[0].status", is("INACTIVE")));
+            .andExpect(jsonPath("$.content", hasSize(1)))
+            .andExpect(jsonPath("$.content[0].status", is("INACTIVE")));
     }
 
     @Test
@@ -287,7 +301,8 @@ class ManagerTariffControllerIT {
                 .param("city", "NonexistentCity")
                 .with(jwtWithRole("mgr-1", "MANAGER")))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$", hasSize(0)));
+            .andExpect(jsonPath("$.content", hasSize(0)))
+            .andExpect(jsonPath("$.totalElements", is(0)));
     }
 
     @Test
@@ -407,14 +422,7 @@ class ManagerTariffControllerIT {
         activeTariff.setStatus(TariffStatus.ACTIVE);
         tariffRepository.save(activeTariff);
 
-        ParkingLot lisboaPark = new ParkingLot();
-        lisboaPark.setName("Lisboa Park");
-        lisboaPark.setCity("Lisboa");
-        lisboaPark.setAddress("Rua 456");
-        lisboaPark.setLatitude(38.7223);
-        lisboaPark.setLongitude(-9.1393);
-        lisboaPark.setTotalSpaces(50);
-        lisboaPark = parkingLotRepository.save(lisboaPark);
+        ParkingLot lisboaPark = createLot("Lisboa Park", "Lisboa");
 
         Tariff lisboaTariff = new Tariff();
         lisboaTariff.setParkingLot(lisboaPark);
@@ -428,9 +436,99 @@ class ManagerTariffControllerIT {
                 .param("status", "ACTIVE")
                 .with(jwtWithRole("mgr-1", "MANAGER")))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$", hasSize(1)))
-            .andExpect(jsonPath("$[0].city", is("Aveiro")))
-            .andExpect(jsonPath("$[0].status", is("ACTIVE")));
+            .andExpect(jsonPath("$.content", hasSize(1)))
+            .andExpect(jsonPath("$.content[0].city", is("Aveiro")))
+            .andExpect(jsonPath("$.content[0].status", is("ACTIVE")));
+    }
+
+    @Test
+    @DisplayName("GET /api/manager/tariffs - pagination returns correct page size")
+    void listTariffs_Pagination_CorrectPageSize() throws Exception {
+        for (int i = 1; i <= 3; i++) {
+            createTariff(createLot("Park " + i, "Aveiro"), TariffStatus.ACTIVE, new BigDecimal("1.00"));
+        }
+
+        mockMvc.perform(get("/api/manager/tariffs")
+                .param("page", "0")
+                .param("size", "2")
+                .with(jwtWithRole("mgr-1", "MANAGER")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.content", hasSize(2)))
+            .andExpect(jsonPath("$.totalElements", is(3)))
+            .andExpect(jsonPath("$.totalPages", is(2)));
+    }
+
+    @Test
+    @DisplayName("GET /api/manager/tariffs - totalElements reflects real count")
+    void listTariffs_Pagination_TotalElements() throws Exception {
+        ParkingLot lot2 = createLot("Park 2", "Lisboa");
+        ParkingLot lot3 = createLot("Park 3", "Porto");
+
+        createTariff(lot, TariffStatus.ACTIVE, new BigDecimal("1.00"));
+        createTariff(lot2, TariffStatus.INACTIVE, new BigDecimal("2.00"));
+        createTariff(lot3, TariffStatus.ACTIVE, new BigDecimal("1.50"));
+
+        mockMvc.perform(get("/api/manager/tariffs")
+                .with(jwtWithRole("mgr-1", "MANAGER")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.totalElements", is(3)))
+            .andExpect(jsonPath("$.content", hasSize(3)));
+    }
+
+    @Test
+    @DisplayName("GET /api/manager/tariffs - filters preserved across pages")
+    void listTariffs_Pagination_FiltersPreservedAcrossPages() throws Exception {
+        for (int i = 1; i <= 3; i++) {
+            createTariff(createLot("Active Park " + i, "Aveiro"), TariffStatus.ACTIVE, new BigDecimal("1.00"));
+        }
+        for (int i = 1; i <= 2; i++) {
+            createTariff(createLot("Inactive Park " + i, "Aveiro"), TariffStatus.INACTIVE, new BigDecimal("0.50"));
+        }
+
+        mockMvc.perform(get("/api/manager/tariffs")
+                .param("status", "ACTIVE")
+                .param("page", "0")
+                .param("size", "2")
+                .with(jwtWithRole("mgr-1", "MANAGER")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.content", hasSize(2)))
+            .andExpect(jsonPath("$.totalElements", is(3)))
+            .andExpect(jsonPath("$.content[0].status", is("ACTIVE")))
+            .andExpect(jsonPath("$.content[1].status", is("ACTIVE")));
+
+        mockMvc.perform(get("/api/manager/tariffs")
+                .param("status", "ACTIVE")
+                .param("page", "1")
+                .param("size", "2")
+                .with(jwtWithRole("mgr-1", "MANAGER")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.content", hasSize(1)))
+            .andExpect(jsonPath("$.content[0].status", is("ACTIVE")));
+    }
+
+    @Test
+    @DisplayName("GET /api/manager/tariffs - first page and last page metadata correct")
+    void listTariffs_Pagination_FirstAndLastPage() throws Exception {
+        for (int i = 1; i <= 3; i++) {
+            createTariff(createLot("Park " + i, "Aveiro"), TariffStatus.ACTIVE, new BigDecimal("1.00"));
+        }
+
+        mockMvc.perform(get("/api/manager/tariffs")
+                .param("page", "0")
+                .param("size", "2")
+                .with(jwtWithRole("mgr-1", "MANAGER")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.first", is(true)))
+            .andExpect(jsonPath("$.last", is(false)))
+            .andExpect(jsonPath("$.content", hasSize(2)));
+
+        mockMvc.perform(get("/api/manager/tariffs")
+                .param("page", "1")
+                .param("size", "2")
+                .with(jwtWithRole("mgr-1", "MANAGER")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.last", is(true)))
+            .andExpect(jsonPath("$.content", hasSize(1)));
     }
 
     @Test

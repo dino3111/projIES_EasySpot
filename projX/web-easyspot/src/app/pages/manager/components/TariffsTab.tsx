@@ -1,46 +1,62 @@
-import { useState } from 'react';
 import type { TariffEntry } from '../../../data/gestorData';
 import { LegendBadge } from './shared';
 
-const PAGE_SIZE = 10;
+const DISTRICTS = [
+  'Aveiro', 'Beja', 'Braga', 'Bragança', 'Castelo Branco', 'Coimbra',
+  'Évora', 'Faro', 'Guarda', 'Leiria', 'Lisboa', 'Portalegre', 'Porto',
+  'Santarém', 'Setúbal', 'Viana do Castelo', 'Vila Real', 'Viseu',
+  'Funchal', 'Ponta Delgada',
+];
 
-export function TariffsTab({ onEdit, tariffs }: { readonly onEdit: (t: TariffEntry) => void; readonly tariffs: TariffEntry[] }) {
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(0);
+interface TariffsTabProps {
+  readonly onEdit: (t: TariffEntry) => void;
+  readonly tariffs: TariffEntry[];
+  readonly page: number;
+  readonly totalPages: number;
+  readonly totalElements: number;
+  readonly district: string;
+  readonly statusFilter: '' | 'ACTIVE' | 'INACTIVE';
+  readonly onPageChange: (p: number) => void;
+  readonly onDistrictChange: (d: string) => void;
+  readonly onStatusChange: (s: '' | 'ACTIVE' | 'INACTIVE') => void;
+}
 
-  const filtered = tariffs.filter(t =>
-    t.parqueNome.toLowerCase().includes(search.toLowerCase()) ||
-    t.cidade.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const currentPage = Math.min(page, totalPages - 1);
-  const paged = filtered.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
-
-  const handleSearch = (v: string) => {
-    setSearch(v);
-    setPage(0);
-  };
-
+export function TariffsTab({
+  onEdit, tariffs, page, totalPages, totalElements,
+  district, statusFilter, onPageChange, onDistrictChange, onStatusChange,
+}: TariffsTabProps) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2 flex-1 min-w-[200px] px-3 py-2 rounded-lg bg-card border border-border">
-          <i className="fas fa-search text-muted-foreground" style={{ fontSize: '0.85rem' }}></i>
-          <input
-            type="text"
-            placeholder="Pesquisar parque ou cidade..."
-            value={search}
-            onChange={e => handleSearch(e.target.value)}
-            className="flex-1 bg-transparent text-foreground outline-none"
+        {/* District filter */}
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-card border border-border">
+          <i className="fas fa-map-marker-alt text-muted-foreground" style={{ fontSize: '0.85rem' }}></i>
+          <select
+            value={district}
+            onChange={e => onDistrictChange(e.target.value)}
+            className="bg-transparent text-foreground outline-none"
             style={{ fontSize: '0.875rem' }}
-          />
-          {search && (
-            <button onClick={() => handleSearch('')} className="text-muted-foreground hover:text-foreground">
-              <i className="fas fa-xmark" style={{ fontSize: '0.8rem' }}></i>
-            </button>
-          )}
+            aria-label="Filtrar por distrito"
+          >
+            <option value="">Todos os distritos</option>
+            {DISTRICTS.map(d => <option key={d} value={d}>{d}</option>)}
+          </select>
         </div>
+
+        {/* Status filter */}
+        <div className="flex rounded-xl overflow-hidden border border-border">
+          {([['', 'Todos'], ['ACTIVE', 'Ativo'], ['INACTIVE', 'Suspenso']] as ['' | 'ACTIVE' | 'INACTIVE', string][]).map(([val, label]) => (
+            <button
+              key={val}
+              onClick={() => onStatusChange(val)}
+              className={`px-3 py-1.5 transition-colors ${statusFilter === val ? 'bg-primary text-white' : 'bg-card text-muted-foreground hover:bg-muted'}`}
+              style={{ fontSize: '0.75rem', fontWeight: 600 }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
         <div className="flex flex-wrap gap-2">
           <LegendBadge color="#22c55e" label="Ativo" />
           <LegendBadge color="#f59e0b" label="Em Revisão" />
@@ -64,14 +80,14 @@ export function TariffsTab({ onEdit, tariffs }: { readonly onEdit: (t: TariffEnt
               </tr>
             </thead>
             <tbody>
-              {paged.length === 0 ? (
+              {tariffs.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground" style={{ fontSize: '0.875rem' }}>
                     Nenhum tarifário encontrado
                   </td>
                 </tr>
               ) : (
-                paged.map((t) => (
+                tariffs.map((t) => (
                   <TariffRow key={t.id ?? t.parqueId} tariff={t} onEdit={onEdit} />
                 ))
               )}
@@ -83,32 +99,34 @@ export function TariffsTab({ onEdit, tariffs }: { readonly onEdit: (t: TariffEnt
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
           <p className="text-muted-foreground" style={{ fontSize: '0.78rem' }}>
-            {filtered.length} tarifários · página {currentPage + 1} de {totalPages}
+            {totalElements} tarifários · página {page + 1} de {totalPages}
           </p>
           <div className="flex gap-1">
             <button
-              onClick={() => setPage(p => Math.max(0, p - 1))}
-              disabled={currentPage === 0}
+              onClick={() => onPageChange(Math.max(0, page - 1))}
+              disabled={page === 0}
+              aria-label="Página anterior"
               className="px-3 py-1.5 rounded-lg border border-border bg-card text-muted-foreground hover:bg-muted disabled:opacity-40 transition-colors"
               style={{ fontSize: '0.78rem' }}
             >
               <i className="fas fa-chevron-left"></i>
             </button>
             {Array.from({ length: totalPages }, (_, i) => i)
-              .filter(i => Math.abs(i - currentPage) <= 2)
+              .filter(i => Math.abs(i - page) <= 2)
               .map(i => (
                 <button
                   key={i}
-                  onClick={() => setPage(i)}
-                  className={`px-3 py-1.5 rounded-lg border transition-colors ${i === currentPage ? 'border-primary bg-primary text-white' : 'border-border bg-card text-muted-foreground hover:bg-muted'}`}
+                  onClick={() => onPageChange(i)}
+                  className={`px-3 py-1.5 rounded-lg border transition-colors ${i === page ? 'border-primary bg-primary text-white' : 'border-border bg-card text-muted-foreground hover:bg-muted'}`}
                   style={{ fontSize: '0.78rem' }}
                 >
                   {i + 1}
                 </button>
               ))}
             <button
-              onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
-              disabled={currentPage === totalPages - 1}
+              onClick={() => onPageChange(Math.min(totalPages - 1, page + 1))}
+              disabled={page === totalPages - 1}
+              aria-label="Próxima página"
               className="px-3 py-1.5 rounded-lg border border-border bg-card text-muted-foreground hover:bg-muted disabled:opacity-40 transition-colors"
               style={{ fontSize: '0.78rem' }}
             >

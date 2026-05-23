@@ -6,13 +6,17 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.*;
+import pt.ua.deti.apieasyspot.common.dto.PagedResponse;
 import pt.ua.deti.apieasyspot.notification.dto.AlertResponse;
 import pt.ua.deti.apieasyspot.notification.dto.AlertStateHistoryEntry;
 import pt.ua.deti.apieasyspot.notification.dto.AlertSubscriptionResponse;
@@ -32,6 +36,7 @@ import pt.ua.deti.apieasyspot.sensor.repository.SensorRegistryRepository;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import org.springframework.web.bind.annotation.RequestParam;
 import java.util.Locale;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
@@ -40,6 +45,7 @@ import org.springframework.http.HttpStatus;
 @RestController
 @RequestMapping("/api/alerts")
 @RequiredArgsConstructor
+@Validated
 public class AlertController {
 
     private final AlertService alertService;
@@ -53,12 +59,14 @@ public class AlertController {
     @ApiResponse(responseCode = "403", description = "Not a technical or manager")
     @GetMapping
     @PreAuthorize("hasAnyRole('TECHNICAL', 'MANAGER')")
-    public ResponseEntity<List<AlertResponse>> listAlerts(
+    public ResponseEntity<PagedResponse<AlertResponse>> listAlerts(
         @RequestParam(required = false) UUID parkId,
         @RequestParam(required = false) StateAlert state,
         @RequestParam(required = false) SeverityAlert severity,
         @RequestParam(required = false) OffsetDateTime from,
         @RequestParam(required = false) OffsetDateTime to,
+        @RequestParam(defaultValue = "0") @Min(0) int page,
+        @RequestParam(defaultValue = "20") @Min(1) @Max(200) int size,
         @AuthenticationPrincipal Jwt jwt
     ) {
         List<String> groups = jwt.getClaimAsStringList("groups");
@@ -72,15 +80,16 @@ public class AlertController {
                 return ResponseEntity.status(403).build();
             }
             List<UUID> effectiveParkIds = parkId != null ? List.of(parkId) : assignedParkIds;
-            return ResponseEntity.ok(
-                alertService.listAlertsByParks(effectiveParkIds, state, severity, from, to).stream()
-                    .map(AlertResponse::from)
-                    .toList());
+            PagedResponse<AlertResponse> result = alertService
+                .listAlertsByParksPaged(effectiveParkIds, state, severity, from, to, page, size)
+                .map(AlertResponse::from);
+            return ResponseEntity.ok(result);
         }
 
-        return ResponseEntity.ok(alertService.listAlerts(parkId, state, severity, from, to).stream()
-            .map(AlertResponse::from)
-            .toList());
+        PagedResponse<AlertResponse> result = alertService
+            .listAlertsPaged(parkId, state, severity, from, to, page, size)
+            .map(AlertResponse::from);
+        return ResponseEntity.ok(result);
     }
 
     @Operation(summary = "Create an alert subscription")
