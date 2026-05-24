@@ -23,6 +23,7 @@ import { fetchParksList } from '../../services/parksApi';
 
 const TARIFF_PAGE_SIZE = 10;
 const INCIDENT_PAGE_SIZE = 10;
+const BILLING_DAYS = 30;
 
 type PageTab    = 'tarifas' | 'ocorrencias' | 'faturacao';
 type IssueFilter = 'todos' | 'aberto' | 'em-progresso' | 'resolvido';
@@ -149,7 +150,7 @@ export function TariffsIncidentsPage() {
     Promise.all([
       fetchManagerTariffs({ page: 0, size: TARIFF_PAGE_SIZE }),
       fetchManagerAlerts({ page: 0, size: INCIDENT_PAGE_SIZE }),
-      fetchManagerBilling(),
+      fetchManagerBilling(undefined, BILLING_DAYS),
       fetchManagerAlerts({ page: 0, size: 1, state: 'aberto' }),
       fetchParksList({ pageSize: 100 }),
     ]).then(([tariffsData, alertsData, billingData, openAlertsData, parksData]) => {
@@ -205,7 +206,7 @@ export function TariffsIncidentsPage() {
   // Re-fetch billing when page or park filter changes
   useEffect(() => {
     if (isInitialMount.current) return;
-    fetchManagerBilling(billingParkId || undefined, 2, billingPage).then(data => {
+    fetchManagerBilling(billingParkId || undefined, BILLING_DAYS, billingPage).then(data => {
       setBillingRecords(data.content.map(mapBilling));
       setBillingTotalPages(data.totalPages);
       setBillingTotalElements(data.totalElements);

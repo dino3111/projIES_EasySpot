@@ -370,6 +370,10 @@ public class BillingService {
         ParkingSession session = sessionOpt.get();
         ZoneType zone = session.getZoneType() != null ? session.getZoneType() : ZoneType.STANDARD;
         OffsetDateTime exitUtc = exitTime.withOffsetSameInstant(ZoneOffset.UTC);
+        if (!exitUtc.isAfter(session.getEntryTime())) {
+            log.info("Walk-in exit: skipping zero-duration session for plate {} at park {}", plate, parkId);
+            return;
+        }
         BigDecimal cost = calculateCost(parkId, session.getEntryTime(), exitUtc, zone);
 
         parkingSessionRepository.updateExitAndRevenueById(session.getId(), exitUtc, cost);
