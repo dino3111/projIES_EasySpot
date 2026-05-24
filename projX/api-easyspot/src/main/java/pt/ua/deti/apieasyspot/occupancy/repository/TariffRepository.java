@@ -5,8 +5,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import pt.ua.deti.apieasyspot.occupancy.model.ParkStatus;
 import pt.ua.deti.apieasyspot.occupancy.model.Tariff;
-import pt.ua.deti.apieasyspot.occupancy.model.TariffStatus;
 
 import java.util.List;
 import java.util.Optional;
@@ -17,13 +17,13 @@ public interface TariffRepository extends JpaRepository<Tariff, UUID> {
 
     Optional<Tariff> findFirstByParkingLotIdOrderByIdAsc(UUID parkingLotId);
 
-    @Query("SELECT t FROM Tariff t JOIN t.parkingLot p WHERE " +
+    @Query("SELECT t FROM Tariff t JOIN FETCH t.parkingLot p WHERE " +
            "(:parkId IS NULL OR p.id = :parkId) AND " +
-           "(:cityPattern IS NULL OR LOWER(p.city) LIKE :cityPattern) AND " +
-           "(:status IS NULL OR t.status = :status)")
+           "(:district IS NULL OR p.district = :district) AND " +
+           "(:parkStatus IS NULL OR p.status = :parkStatus)")
     Page<Tariff> findFiltered(
             @Param("parkId") UUID parkId,
-            @Param("cityPattern") String cityPattern,
-            @Param("status") TariffStatus status,
+            @Param("district") String district,
+            @Param("parkStatus") ParkStatus parkStatus,
             Pageable pageable);
 }

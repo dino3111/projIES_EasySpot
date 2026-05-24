@@ -180,7 +180,7 @@ describe('TariffsIncidentsPage', () => {
 
     await waitFor(() => {
       expect(fetchManagerTariffs).toHaveBeenCalledWith(
-        expect.objectContaining({ city: 'Lisboa', page: 0 })
+        expect.objectContaining({ district: 'Lisboa', page: 0 })
       );
     });
   });

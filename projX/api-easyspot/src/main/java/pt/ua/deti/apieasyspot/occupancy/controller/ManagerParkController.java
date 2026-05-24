@@ -99,4 +99,25 @@ public class ManagerParkController {
         managerParkService.removeTechnicianFromPark(parkId, technicianId);
         return ResponseEntity.noContent().build();
     }
+
+    @Operation(summary = "List all parks with their status (manager view)")
+    @ApiResponse(responseCode = "200", description = "Parks list with status")
+    @ApiResponse(responseCode = "403", description = "Not a manager")
+    @GetMapping("/parks")
+    @PreAuthorize("hasRole('MANAGER') or hasRole('TECHNICAL')")
+    public ResponseEntity<List<ManagerParkSummaryResponse>> listAllParks() {
+        return ResponseEntity.ok(managerParkService.listAllParks());
+    }
+
+    @Operation(summary = "Update park operational status")
+    @ApiResponse(responseCode = "200", description = "Status updated")
+    @ApiResponse(responseCode = "404", description = "Park not found")
+    @ApiResponse(responseCode = "403", description = "Not a manager")
+    @PatchMapping("/parks/{parkId}/status")
+    @PreAuthorize("hasRole('MANAGER')")
+    public ResponseEntity<ManagerParkSummaryResponse> updateParkStatus(
+            @PathVariable UUID parkId,
+            @Valid @RequestBody UpdateParkStatusRequest request) {
+        return ResponseEntity.ok(managerParkService.updateParkStatus(parkId, request.status()));
+    }
 }

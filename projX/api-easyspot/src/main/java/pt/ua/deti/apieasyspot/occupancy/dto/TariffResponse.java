@@ -1,5 +1,6 @@
 package pt.ua.deti.apieasyspot.occupancy.dto;
 
+import pt.ua.deti.apieasyspot.occupancy.model.ParkStatus;
 import pt.ua.deti.apieasyspot.occupancy.model.TariffStatus;
 
 import java.math.BigDecimal;
@@ -14,5 +15,6 @@ public record TariffResponse(
     BigDecimal maxDaily,
     BigDecimal monthlyPrice,
     BigDecimal pricePerKwh,
-    TariffStatus status
+    TariffStatus status,
+    ParkStatus parkStatus
 ) {}

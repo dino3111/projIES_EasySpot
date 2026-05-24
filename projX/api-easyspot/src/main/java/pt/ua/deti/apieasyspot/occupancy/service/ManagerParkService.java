@@ -13,6 +13,7 @@ import pt.ua.deti.apieasyspot.occupancy.model.AccessibleSpot;
 import pt.ua.deti.apieasyspot.occupancy.model.EVCharger;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingSpot;
+import pt.ua.deti.apieasyspot.occupancy.model.ParkStatus;
 import pt.ua.deti.apieasyspot.occupancy.model.ZoneType;
 import pt.ua.deti.apieasyspot.occupancy.repository.AccessibleSpotRepository;
 import pt.ua.deti.apieasyspot.occupancy.repository.EVChargerRepository;
@@ -117,6 +118,27 @@ public class ManagerParkService {
     public void removeTechnicianFromPark(UUID parkId, UUID technicianId) {
         assignmentRepository.deleteByParkingLotIdAndTechnicianId(parkId, technicianId);
         analyticsAssignmentService.unassign(technicianId, parkId);
+    }
+
+    public List<ManagerParkSummaryResponse> listAllParks() {
+        return parkingLotRepository.findAllByOrderByNameAsc().stream()
+            .map(lot -> new ManagerParkSummaryResponse(
+                lot.getId(), lot.getName(), lot.getCity(), lot.getAddress(),
+                lot.getLatitude(), lot.getLongitude(), lot.getOpeningHours(),
+                lot.getTotalSpaces(), lot.getStatus()))
+            .toList();
+    }
+
+    @Transactional
+    public ManagerParkSummaryResponse updateParkStatus(UUID parkId, ParkStatus newStatus) {
+        ParkingLot lot = parkingLotRepository.findById(parkId)
+            .orElseThrow(() -> new ResourceNotFoundException("Park not found: " + parkId));
+        lot.setStatus(newStatus);
+        ParkingLot saved = parkingLotRepository.save(lot);
+        return new ManagerParkSummaryResponse(
+            saved.getId(), saved.getName(), saved.getCity(), saved.getAddress(),
+            saved.getLatitude(), saved.getLongitude(), saved.getOpeningHours(),
+            saved.getTotalSpaces(), saved.getStatus());
     }
 
     @Transactional

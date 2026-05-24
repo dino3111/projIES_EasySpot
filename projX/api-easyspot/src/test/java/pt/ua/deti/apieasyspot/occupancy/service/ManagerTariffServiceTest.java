@@ -18,6 +18,7 @@ import pt.ua.deti.apieasyspot.common.exception.ResourceNotFoundException;
 import pt.ua.deti.apieasyspot.occupancy.dto.TariffResponse;
 import pt.ua.deti.apieasyspot.occupancy.dto.UpdateTariffRequest;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
+import pt.ua.deti.apieasyspot.occupancy.model.ParkStatus;
 import pt.ua.deti.apieasyspot.occupancy.model.Tariff;
 import pt.ua.deti.apieasyspot.occupancy.model.TariffAudit;
 import pt.ua.deti.apieasyspot.occupancy.model.TariffStatus;
@@ -67,10 +68,10 @@ class ManagerTariffServiceTest {
         t.setPricePerHour(BigDecimal.ONE);
         t.setStatus(TariffStatus.ACTIVE);
 
-        when(tariffRepository.findFiltered(lotId, "%test city%", TariffStatus.ACTIVE, pageable))
+        when(tariffRepository.findFiltered(lotId, "Aveiro", ParkStatus.ACTIVE, pageable))
             .thenReturn(new PageImpl<>(List.of(t)));
 
-        Page<TariffResponse> responses = managerTariffService.listTariffs(lotId, "Test City", TariffStatus.ACTIVE, pageable);
+        Page<TariffResponse> responses = managerTariffService.listTariffs(lotId, "Aveiro", ParkStatus.ACTIVE, pageable);
 
         assertEquals(1, responses.getTotalElements());
         assertEquals("Test Park", responses.getContent().get(0).parkName());

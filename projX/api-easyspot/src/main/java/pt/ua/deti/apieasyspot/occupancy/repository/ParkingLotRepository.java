@@ -15,7 +15,8 @@ public interface ParkingLotRepository extends JpaRepository<ParkingLot, UUID> {
 
     @Query("""
         SELECT p FROM ParkingLot p
-        WHERE (:textQuery IS NULL OR :textQuery = '' OR
+        WHERE p.status = pt.ua.deti.apieasyspot.occupancy.model.ParkStatus.ACTIVE
+          AND (:textQuery IS NULL OR :textQuery = '' OR
                LOWER(p.name) LIKE LOWER(CONCAT('%', :textQuery, '%')) OR
                LOWER(p.city) LIKE LOWER(CONCAT('%', :textQuery, '%')) OR
                LOWER(p.address) LIKE LOWER(CONCAT('%', :textQuery, '%')))
@@ -23,6 +24,8 @@ public interface ParkingLotRepository extends JpaRepository<ParkingLot, UUID> {
         ORDER BY p.name ASC
         """)
     List<ParkingLot> searchByTextAndCity(@Param("textQuery") String textQuery, @Param("city") String city);
+
+    List<ParkingLot> findAllByOrderByNameAsc();
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT p FROM ParkingLot p WHERE p.id = :id")

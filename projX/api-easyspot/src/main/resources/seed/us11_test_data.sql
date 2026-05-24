@@ -50,9 +50,9 @@ tariff_seed (
         '42ea890c-aa26-4cb8-b6f8-ef44719ff8f4'::uuid,
         'coimbra-shopping',
         'US11 Midweek Revision',
-        'Tarifa em revisão para testes de estado',
+        'Tarifa para validação manual no dashboard',
         1.55::numeric, 12.50::numeric, 112.00::numeric, 0.31::numeric,
-        'INACTIVE'
+        'ACTIVE'
     ),
     (
         '9ff5f18f-60c8-467a-a644-d52257f71571'::uuid,
@@ -66,9 +66,9 @@ tariff_seed (
         '9e1f2ccf-b00b-45ec-9f53-35e45167365c'::uuid,
         'glicinias-plaza',
         'US11 Weekend Special',
-        'Tarifa suspensa para validar filtro por estado',
+        'Tarifa para validação manual no dashboard',
         1.10::numeric, 8.00::numeric, 82.00::numeric, 0.29::numeric,
-        'INACTIVE'
+        'ACTIVE'
     )
 )
 
@@ -133,7 +133,7 @@ audit_seed (
         '42ea890c-aa26-4cb8-b6f8-ef44719ff8f4'::uuid,
         'coimbra-shopping',
         1.55::numeric, 12.50::numeric, 112.00::numeric, 0.31::numeric,
-        'INACTIVE', '2026-05-03T10:30:00Z'::timestamptz, 'manager-us11'
+        'ACTIVE', '2026-05-03T10:30:00Z'::timestamptz, 'manager-us11'
     ),
     (
         'e6ec43af-0d7a-4e37-8adb-5fa92feac9e9'::uuid,
@@ -147,7 +147,7 @@ audit_seed (
         '9e1f2ccf-b00b-45ec-9f53-35e45167365c'::uuid,
         'glicinias-plaza',
         1.10::numeric, 8.00::numeric, 82.00::numeric, 0.29::numeric,
-        'INACTIVE', '2026-05-07T21:15:00Z'::timestamptz, 'manager-us11'
+        'ACTIVE', '2026-05-07T21:15:00Z'::timestamptz, 'manager-us11'
     )
 )
 

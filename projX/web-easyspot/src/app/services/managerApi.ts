@@ -82,6 +82,7 @@ export interface TariffResponse {
   monthlyPrice: number;
   pricePerKwh: number;
   status: 'ACTIVE' | 'INACTIVE';
+  parkStatus: 'ACTIVE' | 'SUSPENDED';
 }
 
 export interface AlertResponse {
@@ -109,8 +110,8 @@ export interface Page<T> {
 export interface TariffListParams {
   page?: number;
   size?: number;
-  city?: string;
-  status?: 'ACTIVE' | 'INACTIVE';
+  district?: string;
+  parkStatus?: 'ACTIVE' | 'SUSPENDED';
   parkId?: string;
 }
 
@@ -118,8 +119,8 @@ export const fetchManagerTariffs = async (params?: TariffListParams): Promise<Pa
   const query = new URLSearchParams();
   if (params?.page !== undefined) query.append('page', String(params.page));
   if (params?.size !== undefined) query.append('size', String(params.size));
-  if (params?.city?.trim()) query.append('city', params.city.trim());
-  if (params?.status) query.append('status', params.status);
+  if (params?.district?.trim()) query.append('district', params.district.trim());
+  if (params?.parkStatus) query.append('parkStatus', params.parkStatus);
   if (params?.parkId) query.append('parkId', params.parkId);
   const qs = query.toString() ? `?${query.toString()}` : '';
   return request<Page<TariffResponse>>(`/api/manager/tariffs${qs}`);
@@ -299,3 +300,26 @@ export const assignTechnicianToPark = (parkId: string, technicianId: string) =>
 
 export const removeTechnicianFromPark = (parkId: string, technicianId: string) =>
   request<void>(`/api/manager/parks/${parkId}/technician/${technicianId}`, { method: 'DELETE' });
+
+export type ParkOperationalStatus = 'ACTIVE' | 'SUSPENDED';
+
+export interface ManagerParkSummary {
+  id: string;
+  name: string;
+  city: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  openingHours: string;
+  totalSpaces: number;
+  status: ParkOperationalStatus;
+}
+
+export const fetchManagerParks = () =>
+  request<ManagerParkSummary[]>('/api/manager/parks');
+
+export const updateParkStatus = (parkId: string, status: ParkOperationalStatus) =>
+  request<ManagerParkSummary>(`/api/manager/parks/${parkId}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
