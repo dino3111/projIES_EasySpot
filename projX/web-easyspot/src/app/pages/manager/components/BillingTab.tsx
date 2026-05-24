@@ -1,15 +1,23 @@
 import type { BillingRecord } from '../../../data/gestorData';
 import { QuickStat } from './shared';
 
+interface ParkOption {
+  readonly id: string;
+  readonly name: string;
+}
+
 interface BillingTabProps {
   readonly billingRecords: BillingRecord[];
   readonly page: number;
   readonly totalPages: number;
   readonly totalElements: number;
   readonly onPageChange: (p: number) => void;
+  readonly parks?: ParkOption[];
+  readonly parkFilter?: string;
+  readonly onParkChange?: (id: string) => void;
 }
 
-export function BillingTab({ billingRecords, page, totalPages, totalElements, onPageChange }: BillingTabProps) {
+export function BillingTab({ billingRecords, page, totalPages, totalElements, onPageChange, parks, parkFilter, onParkChange }: BillingTabProps) {
   const totalPago       = billingRecords.filter(r => r.estado === 'pago').reduce((s, r) => s + r.total, 0);
   const totalPendente   = billingRecords.filter(r => r.estado === 'pendente').reduce((s, r) => s + r.total, 0);
   const totalContestado = billingRecords.filter(r => r.estado === 'contestado').reduce((s, r) => s + r.total, 0);
@@ -21,6 +29,23 @@ export function BillingTab({ billingRecords, page, totalPages, totalElements, on
         <QuickStat label="Pendente"   value={`€${totalPendente.toFixed(2)}`}   color="#f59e0b" icon="fa-hourglass-half" />
         <QuickStat label="Contestado" value={`€${totalContestado.toFixed(2)}`} color="#d4183d" icon="fa-circle-xmark" />
       </div>
+
+      {parks && parks.length > 0 && onParkChange && (
+        <div className="flex flex-wrap gap-2 items-center">
+          <select
+            value={parkFilter ?? ''}
+            onChange={(e) => onParkChange(e.target.value)}
+            className="px-3 py-1.5 rounded-xl border border-border bg-card text-foreground hover:bg-muted transition-colors"
+            style={{ fontSize: '0.75rem', fontWeight: 600 }}
+            aria-label="Filtrar por parque"
+          >
+            <option value="">Todos os parques</option>
+            {parks.map(p => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div className="bg-card border border-border rounded-2xl overflow-hidden">
         <div className="overflow-x-auto">

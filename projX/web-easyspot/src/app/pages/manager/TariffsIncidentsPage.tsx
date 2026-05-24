@@ -19,6 +19,7 @@ import {
   type AlertResponse,
   type BillingSessionResponse,
 } from '../../services/managerApi';
+import { fetchParksList } from '../../services/parksApi';
 
 const TARIFF_PAGE_SIZE = 10;
 const INCIDENT_PAGE_SIZE = 10;
@@ -137,6 +138,8 @@ export function TariffsIncidentsPage() {
   const [billingPage, setBillingPage] = useState(0);
   const [billingTotalPages, setBillingTotalPages] = useState(1);
   const [billingTotalElements, setBillingTotalElements] = useState(0);
+  const [billingParkId, setBillingParkId] = useState('');
+  const [billingParks, setBillingParks] = useState<{ id: string; name: string }[]>([]);
 
   const isInitialMount = useRef(true);
 
@@ -148,7 +151,8 @@ export function TariffsIncidentsPage() {
       fetchManagerAlerts({ page: 0, size: INCIDENT_PAGE_SIZE }),
       fetchManagerBilling(),
       fetchManagerAlerts({ page: 0, size: 1, state: 'aberto' }),
-    ]).then(([tariffsData, alertsData, billingData, openAlertsData]) => {
+      fetchParksList({ pageSize: 100 }),
+    ]).then(([tariffsData, alertsData, billingData, openAlertsData, parksData]) => {
       setTariffs(tariffsData.content.map(mapTariff));
       setTariffTotalPages(tariffsData.totalPages);
       setTariffTotalElements(tariffsData.totalElements);
@@ -159,6 +163,7 @@ export function TariffsIncidentsPage() {
       setBillingTotalPages(billingData.totalPages);
       setBillingTotalElements(billingData.totalElements);
       setOpenIncidentsCount(openAlertsData.totalElements);
+      setBillingParks(parksData.items.map(p => ({ id: p.id, name: p.name })));
     }).catch(err => {
       console.error('Error fetching manager data:', err);
     }).finally(() => {
@@ -197,15 +202,15 @@ export function TariffsIncidentsPage() {
     }).catch(err => console.error('Error fetching incidents:', err));
   }, [incidentPage, issueFilter, sevFilter]);
 
-  // Re-fetch billing when page changes
+  // Re-fetch billing when page or park filter changes
   useEffect(() => {
     if (isInitialMount.current) return;
-    fetchManagerBilling(undefined, 2, billingPage).then(data => {
+    fetchManagerBilling(billingParkId || undefined, 2, billingPage).then(data => {
       setBillingRecords(data.content.map(mapBilling));
       setBillingTotalPages(data.totalPages);
       setBillingTotalElements(data.totalElements);
     }).catch(err => console.error('Error fetching billing:', err));
-  }, [billingPage]);
+  }, [billingPage, billingParkId]);
 
   const handleTariffPageChange = useCallback((p: number) => setTariffPage(p), []);
   const handleTariffDistrictChange = useCallback((d: string) => {
@@ -227,6 +232,10 @@ export function TariffsIncidentsPage() {
   }, []);
   const handleIncidentPageChange = useCallback((p: number) => setIncidentPage(p), []);
   const handleBillingPageChange  = useCallback((p: number) => setBillingPage(p), []);
+  const handleBillingParkChange  = useCallback((id: string) => {
+    setBillingPage(0);
+    setBillingParkId(id);
+  }, []);
 
   const handleSaveTariff = async (updated: Partial<TariffEntry>) => {
     await updateTariff(updated);
@@ -360,6 +369,9 @@ export function TariffsIncidentsPage() {
           totalPages={billingTotalPages}
           totalElements={billingTotalElements}
           onPageChange={handleBillingPageChange}
+          parks={billingParks}
+          parkFilter={billingParkId}
+          onParkChange={handleBillingParkChange}
         />
       )}
 
