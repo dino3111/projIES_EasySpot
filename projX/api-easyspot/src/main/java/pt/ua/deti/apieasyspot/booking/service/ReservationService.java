@@ -321,7 +321,7 @@ public class ReservationService {
         parkingSpotRepository.releaseExpiredReservedSpots();
 
         // 3. Resolve entities
-        ParkingLot lot  = findLot(request.parkId());
+        ParkingLot lot  = findLotForCreate(request.parkId());
         Vehicle vehicle = findVehicleOwnedByUser(request.vehicleId(), user.getId());
 
         validateOpeningHours(lot, arrival, departure);
@@ -697,8 +697,12 @@ public class ReservationService {
     }
 
     private ParkingLot findLot(UUID parkId) {
-        ParkingLot lot = parkingLotRepository.findById(parkId)
+        return parkingLotRepository.findById(parkId)
             .orElseThrow(() -> new ResourceNotFoundException("Parking lot not found: " + parkId));
+    }
+
+    private ParkingLot findLotForCreate(UUID parkId) {
+        ParkingLot lot = findLot(parkId);
         if (lot.getStatus() == ParkStatus.SUSPENDED) {
             throw new ConflictException("Park '" + lot.getName() + "' is currently suspended and not accepting new reservations");
         }

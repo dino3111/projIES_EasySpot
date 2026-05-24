@@ -22,10 +22,6 @@ vi.mock('../../../services/managerApi', () => ({
   removeTechnicianFromPark: vi.fn(),
 }));
 
-vi.mock('../../../services/parksApi', () => ({
-  fetchParksList: vi.fn().mockResolvedValue({ items: [], pagination: {} }),
-}));
-
 const activeParks = [
   {
     id: 'park-1',

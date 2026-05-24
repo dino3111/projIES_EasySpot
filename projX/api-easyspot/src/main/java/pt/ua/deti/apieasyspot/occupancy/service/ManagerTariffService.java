@@ -115,17 +115,18 @@ public class ManagerTariffService {
     }
 
     private TariffResponse mapToResponse(Tariff t) {
+        ParkingLot lot = t.getParkingLot();
         return new TariffResponse(
             t.getId(),
-            t.getParkingLot().getId(),
-            t.getParkingLot().getName(),
-            t.getParkingLot().getCity(),
+            lot.getId(),
+            lot.getName(),
+            lot.getCity(),
             t.getPricePerHour(),
             t.getMaxDaily(),
             t.getMonthly(),
             t.getPricePerKwh(),
             t.getStatus(),
-            t.getParkingLot().getStatus()
+            lot.getStatus()
         );
     }
 }

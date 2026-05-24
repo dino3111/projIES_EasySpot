@@ -38,7 +38,7 @@ class ParkStatusTest {
     ManagerParkService managerParkService;
 
     private ParkingLot activeLot;
-    private ParkingLot reviewLot;
+    private ParkingLot suspendedLot;
 
     @BeforeEach
     void setUp() {
@@ -53,23 +53,23 @@ class ParkStatusTest {
         activeLot.setTotalSpaces(50);
         activeLot.setStatus(ParkStatus.ACTIVE);
 
-        reviewLot = new ParkingLot();
-        reviewLot.setId(UUID.randomUUID());
-        reviewLot.setName("Parque em Revisão");
-        reviewLot.setCity("Porto");
-        reviewLot.setAddress("Rua B, 2");
-        reviewLot.setLatitude(41.0);
-        reviewLot.setLongitude(-8.5);
-        reviewLot.setOpeningHours("08:00-22:00");
-        reviewLot.setTotalSpaces(30);
-        reviewLot.setStatus(ParkStatus.SUSPENDED);
+        suspendedLot = new ParkingLot();
+        suspendedLot.setId(UUID.randomUUID());
+        suspendedLot.setName("Parque Suspenso");
+        suspendedLot.setCity("Porto");
+        suspendedLot.setAddress("Rua B, 2");
+        suspendedLot.setLatitude(41.0);
+        suspendedLot.setLongitude(-8.5);
+        suspendedLot.setOpeningHours("08:00-22:00");
+        suspendedLot.setTotalSpaces(30);
+        suspendedLot.setStatus(ParkStatus.SUSPENDED);
     }
 
     // ── listAllParks ─────────────────────────────────────────────────────────────
 
     @Test
     void listAllParks_returnsAllParksWithStatus() {
-        when(parkingLotRepository.findAllByOrderByNameAsc()).thenReturn(List.of(activeLot, reviewLot));
+        when(parkingLotRepository.findAllByOrderByNameAsc()).thenReturn(List.of(activeLot, suspendedLot));
 
         List<ManagerParkSummaryResponse> result = managerParkService.listAllParks();
 
@@ -79,20 +79,20 @@ class ParkStatusTest {
     }
 
     @Test
-    void listAllParks_includesInReviewParks() {
-        when(parkingLotRepository.findAllByOrderByNameAsc()).thenReturn(List.of(reviewLot));
+    void listAllParks_includesSuspendedParks() {
+        when(parkingLotRepository.findAllByOrderByNameAsc()).thenReturn(List.of(suspendedLot));
 
         List<ManagerParkSummaryResponse> result = managerParkService.listAllParks();
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).status()).isEqualTo(ParkStatus.SUSPENDED);
-        assertThat(result.get(0).name()).isEqualTo("Parque em Revisão");
+        assertThat(result.get(0).name()).isEqualTo("Parque Suspenso");
     }
 
     // ── updateParkStatus ─────────────────────────────────────────────────────────
 
     @Test
-    void updateParkStatus_activeToInReview_succeeds() {
+    void updateParkStatus_activeToSuspended_succeeds() {
         when(parkingLotRepository.findById(activeLot.getId())).thenReturn(Optional.of(activeLot));
         when(parkingLotRepository.save(activeLot)).thenAnswer(inv -> {
             ParkingLot saved = inv.getArgument(0);
@@ -106,11 +106,11 @@ class ParkStatusTest {
     }
 
     @Test
-    void updateParkStatus_inReviewToActive_succeeds() {
-        when(parkingLotRepository.findById(reviewLot.getId())).thenReturn(Optional.of(reviewLot));
-        when(parkingLotRepository.save(reviewLot)).thenAnswer(inv -> inv.getArgument(0));
+    void updateParkStatus_suspendedToActive_succeeds() {
+        when(parkingLotRepository.findById(suspendedLot.getId())).thenReturn(Optional.of(suspendedLot));
+        when(parkingLotRepository.save(suspendedLot)).thenAnswer(inv -> inv.getArgument(0));
 
-        ManagerParkSummaryResponse response = managerParkService.updateParkStatus(reviewLot.getId(), ParkStatus.ACTIVE);
+        ManagerParkSummaryResponse response = managerParkService.updateParkStatus(suspendedLot.getId(), ParkStatus.ACTIVE);
 
         assertThat(response.status()).isEqualTo(ParkStatus.ACTIVE);
     }

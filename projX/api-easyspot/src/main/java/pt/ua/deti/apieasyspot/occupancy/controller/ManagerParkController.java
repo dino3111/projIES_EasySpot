@@ -13,8 +13,6 @@ import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
 import pt.ua.deti.apieasyspot.occupancy.service.ManagerParkService;
 
 import java.util.List;
-
-import java.util.List;
 import java.util.UUID;
 
 @Tag(name = "Manager", description = "Manager park management")

@@ -7,7 +7,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkStatus;
 import pt.ua.deti.apieasyspot.occupancy.model.Tariff;
-import pt.ua.deti.apieasyspot.occupancy.model.TariffStatus;
 
 import java.util.List;
 import java.util.Optional;
@@ -18,7 +17,7 @@ public interface TariffRepository extends JpaRepository<Tariff, UUID> {
 
     Optional<Tariff> findFirstByParkingLotIdOrderByIdAsc(UUID parkingLotId);
 
-    @Query("SELECT t FROM Tariff t JOIN t.parkingLot p WHERE " +
+    @Query("SELECT t FROM Tariff t JOIN FETCH t.parkingLot p WHERE " +
            "(:parkId IS NULL OR p.id = :parkId) AND " +
            "(:district IS NULL OR p.district = :district) AND " +
            "(:parkStatus IS NULL OR p.status = :parkStatus)")
