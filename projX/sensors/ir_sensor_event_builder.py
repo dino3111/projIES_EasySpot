@@ -8,6 +8,8 @@ class SensorEventType(str, Enum):
     PRESENCE = "sensor.presence"
     ABSENCE = "sensor.absence"
     HEARTBEAT = "sensor.heartbeat"
+
+
 # Occupancy states where a vehicle is physically present under the sensor
 _PRESENCE_STATES = frozenset({"occupied"})
 
