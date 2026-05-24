@@ -15,18 +15,19 @@ interface BillingTabProps {
   readonly parks?: ParkOption[];
   readonly parkFilter?: string;
   readonly onParkChange?: (id: string) => void;
+  readonly stats?: { pago: number; pendente: number; contestado: number };
 }
 
-export function BillingTab({ billingRecords, page, totalPages, totalElements, onPageChange, parks, parkFilter, onParkChange }: BillingTabProps) {
-  const totalPago       = billingRecords.filter(r => r.estado === 'pago').reduce((s, r) => s + r.total, 0);
-  const totalPendente   = billingRecords.filter(r => r.estado === 'pendente').reduce((s, r) => s + r.total, 0);
-  const totalContestado = billingRecords.filter(r => r.estado === 'contestado').reduce((s, r) => s + r.total, 0);
+export function BillingTab({ billingRecords, page, totalPages, totalElements, onPageChange, parks, parkFilter, onParkChange, stats }: BillingTabProps) {
+  const totalPago       = stats?.pago       ?? billingRecords.filter(r => r.estado === 'pago').reduce((s, r) => s + r.total, 0);
+  const totalPendente   = stats?.pendente   ?? billingRecords.filter(r => r.estado === 'pendente').reduce((s, r) => s + r.total, 0);
+  const totalContestado = stats?.contestado ?? billingRecords.filter(r => r.estado === 'contestado').reduce((s, r) => s + r.total, 0);
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-3 gap-3">
         <QuickStat label="Pago"       value={`€${totalPago.toFixed(2)}`}       color="#22c55e" icon="fa-circle-check" />
-        <QuickStat label="Pendente"   value={`€${totalPendente.toFixed(2)}`}   color="#f59e0b" icon="fa-hourglass-half" />
+        <QuickStat label="Por pagar"  value={`€${totalPendente.toFixed(2)}`}   color="#f59e0b" icon="fa-hourglass-half" />
         <QuickStat label="Contestado" value={`€${totalContestado.toFixed(2)}`} color="#d4183d" icon="fa-circle-xmark" />
       </div>
 
@@ -125,7 +126,7 @@ export function BillingTab({ billingRecords, page, totalPages, totalElements, on
 function BillingRow({ record }: { readonly record: BillingRecord }) {
   const estadoMap = {
     pago: { color: '#22c55e', label: 'Pago' },
-    pendente: { color: '#f59e0b', label: 'Pendente' },
+    pendente: { color: '#f59e0b', label: 'Por pagar' },
     contestado: { color: '#d4183d', label: 'Contestado' },
   };
   const metodoIconMap = {
@@ -153,16 +154,20 @@ function BillingRow({ record }: { readonly record: BillingRecord }) {
         </span>
       </td>
       <td className="px-3 py-3 text-center text-muted-foreground">{record.duracao}</td>
-      <td className="px-3 py-3 text-right text-foreground">€{record.valorEstacionamento.toFixed(2)}</td>
+      <td className="px-3 py-3 text-right text-foreground">
+        {record.estado === 'pendente' ? <span className="text-muted-foreground/50">—</span> : `€${record.valorEstacionamento.toFixed(2)}`}
+      </td>
       <td className="px-3 py-3 text-right">
-        {record.valorEV ? (
+        {record.estado === 'pendente' ? (
+          <span className="text-muted-foreground/50">—</span>
+        ) : record.valorEV ? (
           <span className="text-green-600 dark:text-green-400">€{record.valorEV.toFixed(2)}</span>
         ) : (
           <span className="text-muted-foreground/50">—</span>
         )}
       </td>
       <td className="px-3 py-3 text-right text-foreground" style={{ fontWeight: 700 }}>
-        €{record.total.toFixed(2)}
+        {record.estado === 'pendente' ? <span className="text-muted-foreground/50">—</span> : `€${record.total.toFixed(2)}`}
       </td>
       <td className="px-4 py-3 text-center">
         <span className="px-2 py-0.5 rounded-full" style={{ fontSize: '0.68rem', fontWeight: 700, background: `${estadoInfo.color}20`, color: estadoInfo.color }}>

@@ -88,6 +88,7 @@ function mapAlert(a: AlertResponse): IssueReport {
 }
 
 function mapBilling(b: BillingSessionResponse): BillingRecord {
+  const isActive = !b.exitTime || (b.durationMinutes === 0 && Number(b.total) === 0);
   const durationH = Math.floor(b.durationMinutes / 60);
   const durationM = b.durationMinutes % 60;
   const entryDate = new Date(b.entryTime);
@@ -102,14 +103,22 @@ function mapBilling(b: BillingSessionResponse): BillingRecord {
     data: dateStr,
     matricula: b.licensePlate ?? '—',
     metodo: method,
-    duracao: `${durationH}h ${String(durationM).padStart(2, '0')}m`,
+    duracao: isActive ? '—' : `${durationH}h ${String(durationM).padStart(2, '0')}m`,
     valorEstacionamento: Number(b.parkingRevenue),
     valorEV: Number(b.evRevenue) > 0 ? Number(b.evRevenue) : undefined,
     total: Number(b.total),
-    estado: 'pago',
+    estado: isActive ? 'pendente' : 'pago',
   };
 }
 
+
+function computeBillingStats(records: BillingRecord[]) {
+  return {
+    pago:      records.filter(r => r.estado === 'pago').reduce((s, r) => s + r.total, 0),
+    pendente:  records.filter(r => r.estado === 'pendente').reduce((s, r) => s + r.total, 0),
+    contestado: records.filter(r => r.estado === 'contestado').reduce((s, r) => s + r.total, 0),
+  };
+}
 
 export function TariffsIncidentsPage() {
   const [tab, setTab]               = useState<PageTab>('tarifas');
@@ -141,6 +150,7 @@ export function TariffsIncidentsPage() {
   const [billingTotalElements, setBillingTotalElements] = useState(0);
   const [billingParkId, setBillingParkId] = useState('');
   const [billingParks, setBillingParks] = useState<{ id: string; name: string }[]>([]);
+  const [billingStats, setBillingStats] = useState({ pago: 0, pendente: 0, contestado: 0 });
 
   const isInitialMount = useRef(true);
 
@@ -151,9 +161,10 @@ export function TariffsIncidentsPage() {
       fetchManagerTariffs({ page: 0, size: TARIFF_PAGE_SIZE }),
       fetchManagerAlerts({ page: 0, size: INCIDENT_PAGE_SIZE }),
       fetchManagerBilling(undefined, BILLING_DAYS),
+      fetchManagerBilling(undefined, BILLING_DAYS, 0, 1000),
       fetchManagerAlerts({ page: 0, size: 1, state: 'aberto' }),
       fetchParksList({ pageSize: 100 }),
-    ]).then(([tariffsData, alertsData, billingData, openAlertsData, parksData]) => {
+    ]).then(([tariffsData, alertsData, billingData, allBillingData, openAlertsData, parksData]) => {
       setTariffs(tariffsData.content.map(mapTariff));
       setTariffTotalPages(tariffsData.totalPages);
       setTariffTotalElements(tariffsData.totalElements);
@@ -163,6 +174,7 @@ export function TariffsIncidentsPage() {
       setBillingRecords(billingData.content.map(mapBilling));
       setBillingTotalPages(billingData.totalPages);
       setBillingTotalElements(billingData.totalElements);
+      setBillingStats(computeBillingStats(allBillingData.content.map(mapBilling)));
       setOpenIncidentsCount(openAlertsData.totalElements);
       setBillingParks(parksData.items.map(p => ({ id: p.id, name: p.name })));
     }).catch(err => {
@@ -203,7 +215,7 @@ export function TariffsIncidentsPage() {
     }).catch(err => console.error('Error fetching incidents:', err));
   }, [incidentPage, issueFilter, sevFilter]);
 
-  // Re-fetch billing when page or park filter changes
+  // Re-fetch billing table when page or park filter changes
   useEffect(() => {
     if (isInitialMount.current) return;
     fetchManagerBilling(billingParkId || undefined, BILLING_DAYS, billingPage).then(data => {
@@ -212,6 +224,14 @@ export function TariffsIncidentsPage() {
       setBillingTotalElements(data.totalElements);
     }).catch(err => console.error('Error fetching billing:', err));
   }, [billingPage, billingParkId]);
+
+  // Refresh billing stats (all pages) when park filter changes
+  useEffect(() => {
+    if (isInitialMount.current) return;
+    fetchManagerBilling(billingParkId || undefined, BILLING_DAYS, 0, 1000).then(data => {
+      setBillingStats(computeBillingStats(data.content.map(mapBilling)));
+    }).catch(err => console.error('Error fetching billing stats:', err));
+  }, [billingParkId]);
 
   const handleTariffPageChange = useCallback((p: number) => setTariffPage(p), []);
   const handleTariffDistrictChange = useCallback((d: string) => {
@@ -373,6 +393,7 @@ export function TariffsIncidentsPage() {
           parks={billingParks}
           parkFilter={billingParkId}
           onParkChange={handleBillingParkChange}
+          stats={billingStats}
         />
       )}
 
