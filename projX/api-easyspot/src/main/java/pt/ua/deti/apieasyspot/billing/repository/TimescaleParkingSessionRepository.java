@@ -91,7 +91,7 @@ public class TimescaleParkingSessionRepository {
 
     public Optional<OffsetDateTime> findEntryTimeByReservationId(UUID reservationId) {
         List<OffsetDateTime> results = jdbc.query(
-            "select entry_time from parking_sessions where reservation_id = ?::uuid limit 1",
+            "select entry_time from parking_sessions where reservation_id = ?::uuid order by entry_time asc limit 1",
             (rs, row) -> rs.getTimestamp("entry_time").toInstant().atOffset(ZoneOffset.UTC),
             reservationId.toString()
         );

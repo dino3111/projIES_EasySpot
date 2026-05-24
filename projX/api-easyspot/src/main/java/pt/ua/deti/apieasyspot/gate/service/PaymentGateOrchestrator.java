@@ -1,6 +1,5 @@
 package pt.ua.deti.apieasyspot.gate.service;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -132,6 +131,7 @@ public class PaymentGateOrchestrator {
         // Mark reservation COMPLETED before opening gate
         try {
             reservation.setStatus(ReservationStatus.COMPLETED);
+            reservation.setLockedUntil(null);
             reservationRepository.save(reservation);
         } catch (Exception ex) {
             log.warn("Failed to mark reservation {} as COMPLETED: {}", reservation.getBookingCode(), ex.getMessage());
@@ -148,11 +148,19 @@ public class PaymentGateOrchestrator {
      */
     public void settleAndOpenGate(Reservation reservation, UUID parkId, String plate, OffsetDateTime exitTime) {
         String customerEmail = reservation.getUser() != null ? reservation.getUser().getEmail() : null;
+        boolean settlementSucceeded = true;
         try {
             billingService.settleReservationOnExit(reservation, exitTime, customerEmail);
         } catch (Exception ex) {
-            log.warn("Billing settlement failed for reservation {} plate {} — proceeding anyway: {}",
-                reservation.getBookingCode(), plate, ex.getMessage());
+            settlementSucceeded = false;
+            log.warn("Billing settlement failed for reservation {} plate {} — {}: {}",
+                reservation.getBookingCode(), plate,
+                billingEnabled ? "blocking gate" : "proceeding anyway", ex.getMessage());
+        }
+
+        if (billingEnabled && !settlementSucceeded) {
+            issueBlockCommand(parkId, gateIdFor(parkId), plate, reservation.getId(), "settlement_failed");
+            return;
         }
 
         if (!billingEnabled) {
