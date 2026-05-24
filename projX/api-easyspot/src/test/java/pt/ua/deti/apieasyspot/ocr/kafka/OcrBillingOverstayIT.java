@@ -46,6 +46,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.stripe.model.Refund;
+import com.stripe.param.RefundCreateParams;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -70,9 +73,13 @@ class OcrBillingOverstayIT {
 
     private Reservation reservation;
 
+    @Autowired private pt.ua.deti.apieasyspot.gate.service.PaymentGateOrchestrator paymentGateOrchestrator;
+
     @BeforeEach
     void setUp() {
         ReflectionTestUtils.setField(billingService, "stripeSecretKey", "sk_test_123");
+        // Disable payment gate check so tests focus on billing logic, not Stripe payment records
+        ReflectionTestUtils.setField(paymentGateOrchestrator, "billingEnabled", false);
 
         paymentRecordRepository.deleteAll();
         reservationRepository.deleteAll();
@@ -245,17 +252,114 @@ class OcrBillingOverstayIT {
         ParkingSession session = maybeSession.orElseThrow();
         assertThat(session.getEntryTime()).isEqualTo(actualEntry.withOffsetSameInstant(ZoneOffset.UTC));
         assertThat(session.getExitTime()).isEqualTo(actualExit.withOffsetSameInstant(ZoneOffset.UTC));
-        assertThat(session.getRevenueEuros()).isEqualTo(new BigDecimal("6.00"));
+        // actual entry = arrivalTime+5min, actual exit = departureTime+2h → 2h55min × €2/h = €5.83
+        assertThat(session.getRevenueEuros()).isEqualTo(new BigDecimal("5.83"));
 
         List<PaymentRecord> records = paymentRecordRepository.findAll().stream()
             .filter(r -> reservation.getId().equals(r.getReservationId()))
             .toList();
         assertThat(records).isNotEmpty();
+        // delta = €5.83 − €2.00 (estimated) = €3.83
         assertThat(records.stream().anyMatch(r ->
-            new BigDecimal("4.00").compareTo(r.getAmount()) == 0
+            new BigDecimal("3.83").compareTo(r.getAmount()) == 0
                 && r.getStatus() == PaymentStatus.COMPLETED
                 && "pi_overstay_delta_123".equals(r.getPaymentIntentId())
         )).isTrue();
+    }
+
+    @Test
+    @DisplayName("Early exit triggers refund for unused time")
+    void ocrEarlyExit_refundsUnusedTime() {
+        // Driver arrives on time, leaves 30 min early (planned 1h, actual 30min)
+        OffsetDateTime actualEntry = reservation.getArrivalTime();
+        OffsetDateTime actualExit  = reservation.getDepartureTime().minusMinutes(30);
+
+        String entryPayload = """
+            {
+              "eventId": "%s",
+              "eventType": "ocr.plate.read",
+              "parkId": "%s",
+              "spotId": "%s",
+              "occurredAt": "%s",
+              "version": 1,
+              "payload": {
+                "plate": "%s",
+                "confidence": 0.98,
+                "direction": "entry"
+              }
+            }
+            """.formatted(
+            UUID.randomUUID(),
+            reservation.getParkingLot().getId(),
+            reservation.getParkingSpot().getId(),
+            actualEntry.toInstant(),
+            reservation.getVehicle().getPlate()
+        );
+        listener.onEvent(entryPayload);
+
+        PaymentRecord initialRecord = paymentRecordRepository.findAll().stream()
+            .filter(r -> reservation.getId().equals(r.getReservationId()))
+            .findFirst()
+            .orElseGet(() -> {
+                PaymentRecord pr = new PaymentRecord();
+                pr.setReservationId(reservation.getId());
+                pr.setPaymentIntentId("pi_early_exit_initial");
+                pr.setAmount(new BigDecimal("2.00"));
+                pr.setCurrency("eur");
+                pr.setStatus(PaymentStatus.COMPLETED);
+                pr.setCustomerEmail("driver-overstay@example.com");
+                return paymentRecordRepository.save(pr);
+            });
+        if (initialRecord.getPaymentIntentId() == null) {
+            initialRecord.setPaymentIntentId("pi_early_exit_initial");
+            paymentRecordRepository.save(initialRecord);
+        }
+
+        Refund refund = mock(Refund.class);
+        when(refund.getId()).thenReturn("re_early_exit_123");
+        when(refund.getStatus()).thenReturn("succeeded");
+
+        String exitPayload = """
+            {
+              "eventId": "%s",
+              "eventType": "ocr.plate.read",
+              "parkId": "%s",
+              "spotId": "%s",
+              "occurredAt": "%s",
+              "version": 1,
+              "payload": {
+                "plate": "%s",
+                "confidence": 0.97,
+                "direction": "exit"
+              }
+            }
+            """.formatted(
+            UUID.randomUUID(),
+            reservation.getParkingLot().getId(),
+            reservation.getParkingSpot().getId(),
+            actualExit.toInstant(),
+            reservation.getVehicle().getPlate()
+        );
+
+        try (MockedStatic<Refund> refundStatic = mockStatic(Refund.class)) {
+            refundStatic
+                .when(() -> Refund.create(any(RefundCreateParams.class), any()))
+                .thenReturn(refund);
+            listener.onEvent(exitPayload);
+        }
+
+        // actual duration = 30min × €2/h = €1.00; estimated was €2.00 → refund €1.00
+        List<ParkingSession> sessions = parkingSessionRepository.findActiveByParkingLotId(
+            reservation.getParkingLot().getId(),
+            reservation.getArrivalTime().minusHours(1)
+        );
+        Optional<ParkingSession> maybeSession = sessions.stream()
+            .filter(s -> reservation.getId().equals(s.getReservationId()))
+            .findFirst();
+        assertThat(maybeSession).isPresent();
+        assertThat(maybeSession.orElseThrow().getRevenueEuros()).isEqualTo(new BigDecimal("1.00"));
+        assertThat(maybeSession.orElseThrow().getExitTime())
+            .isEqualTo(actualExit.withOffsetSameInstant(ZoneOffset.UTC));
     }
 }
 

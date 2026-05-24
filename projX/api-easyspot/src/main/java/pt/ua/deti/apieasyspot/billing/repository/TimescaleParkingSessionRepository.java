@@ -11,6 +11,7 @@ import java.sql.SQLException;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -68,6 +69,35 @@ public class TimescaleParkingSessionRepository {
         );
     }
 
+    public Optional<ParkingSession> findOpenByVehicleIdAndParkingLotId(UUID vehicleId, UUID parkingLotId) {
+        List<ParkingSession> results = jdbc.query("""
+            select id, reservation_id, user_id, parking_lot_id, vehicle_id, zone_type, entry_time, exit_time, revenue_euros
+            from parking_sessions
+            where vehicle_id = ?::uuid and parking_lot_id = ?::uuid and exit_time is null
+            order by entry_time desc limit 1
+            """,
+            this::mapRow,
+            vehicleId.toString(), parkingLotId.toString()
+        );
+        return results.isEmpty() ? Optional.empty() : Optional.of(results.get(0));
+    }
+
+    public int updateExitAndRevenueById(UUID id, OffsetDateTime exitTime, java.math.BigDecimal revenue) {
+        return jdbc.update(
+            "update parking_sessions set exit_time = ?, revenue_euros = ? where id = ?::uuid",
+            exitTime, revenue, id.toString()
+        );
+    }
+
+    public Optional<OffsetDateTime> findEntryTimeByReservationId(UUID reservationId) {
+        List<OffsetDateTime> results = jdbc.query(
+            "select entry_time from parking_sessions where reservation_id = ?::uuid order by entry_time asc limit 1",
+            (rs, row) -> rs.getTimestamp("entry_time").toInstant().atOffset(ZoneOffset.UTC),
+            reservationId.toString()
+        );
+        return results.isEmpty() ? Optional.empty() : Optional.of(results.get(0));
+    }
+
     public void updateEntryByReservationId(UUID reservationId, OffsetDateTime entryTime, ZoneType zoneType) {
         jdbc.update(
             """
@@ -81,8 +111,8 @@ public class TimescaleParkingSessionRepository {
         );
     }
 
-    public void updateExitAndRevenueByReservationId(UUID reservationId, OffsetDateTime exitTime, java.math.BigDecimal revenue) {
-        jdbc.update(
+    public int updateExitAndRevenueByReservationId(UUID reservationId, OffsetDateTime exitTime, java.math.BigDecimal revenue) {
+        return jdbc.update(
             """
             update parking_sessions
             set exit_time = ?, revenue_euros = ?
@@ -115,7 +145,8 @@ public class TimescaleParkingSessionRepository {
         if (vehicleId != null) s.setVehicleId(UUID.fromString(vehicleId));
         s.setZoneType(ZoneType.valueOf(rs.getString("zone_type")));
         s.setEntryTime(rs.getTimestamp("entry_time").toInstant().atOffset(ZoneOffset.UTC));
-        s.setExitTime(rs.getTimestamp("exit_time").toInstant().atOffset(ZoneOffset.UTC));
+        java.sql.Timestamp exitTs = rs.getTimestamp("exit_time");
+        if (exitTs != null) s.setExitTime(exitTs.toInstant().atOffset(ZoneOffset.UTC));
         s.setRevenueEuros(rs.getBigDecimal("revenue_euros"));
         return s;
     }

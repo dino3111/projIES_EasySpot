@@ -9,6 +9,7 @@ import pt.ua.deti.apieasyspot.billing.service.BillingService;
 import pt.ua.deti.apieasyspot.booking.model.Reservation;
 import pt.ua.deti.apieasyspot.booking.model.ReservationStatus;
 import pt.ua.deti.apieasyspot.booking.repository.ReservationRepository;
+import pt.ua.deti.apieasyspot.gate.service.PaymentGateOrchestrator;
 import pt.ua.deti.apieasyspot.ocr.dto.OcrPlateEvent;
 import pt.ua.deti.apieasyspot.ocr.model.OcrPlateRead;
 import pt.ua.deti.apieasyspot.ocr.repository.OcrPlateReadRepository;
@@ -32,6 +33,7 @@ public class OcrPlateEventKafkaListener {
     private final SensorLogsService sensorLogsService;
     private final ReservationRepository reservationRepository;
     private final BillingService billingService;
+    private final PaymentGateOrchestrator paymentGateOrchestrator;
 
     private static final java.util.Set<String> VALID_FAILURE_MODES = java.util.Set.of(
         "UNREADABLE", "LOW_CONFIDENCE", "WRONG_PLATE", "CAMERA_OFFLINE", "CAMERA_DEGRADED"
@@ -164,6 +166,7 @@ public class OcrPlateEventKafkaListener {
             );
         Reservation reservation = pickReservation(candidates, occurredAt, read.getDirection());
         if (reservation == null) {
+            handleWalkIn(read, occurredAt);
             return;
         }
 
@@ -172,17 +175,16 @@ public class OcrPlateEventKafkaListener {
             return;
         }
 
-        BillingService.PaymentAdjustmentResult adjustment = billingService.settleReservationOnExit(
-            reservation,
-            occurredAt,
-            reservation.getUser() != null ? reservation.getUser().getEmail() : null
-        );
-        reservation.setStatus(ReservationStatus.COMPLETED);
-        reservation.setLockedUntil(null);
-        reservationRepository.save(reservation);
-        if (adjustment != null && adjustment.delta() != null && adjustment.delta().signum() > 0) {
-            log.info("Reservation {} exit settled with extra charge {} ({})",
-                reservation.getBookingCode(), adjustment.delta(), adjustment.kind());
+        // Exit: settle billing and send gate open command
+        paymentGateOrchestrator.settleAndOpenGate(reservation, read.getParkId(), read.getPlate(), occurredAt);
+    }
+
+    private void handleWalkIn(OcrPlateRead read, OffsetDateTime occurredAt) {
+        if ("entry".equals(read.getDirection())) {
+            billingService.registerWalkInEntry(read.getPlate(), read.getParkId(), read.getSpotId(), occurredAt);
+        } else if ("exit".equals(read.getDirection())) {
+            billingService.settleWalkInOnExit(read.getPlate(), read.getParkId(), read.getSpotId(), occurredAt);
+            paymentGateOrchestrator.openGateForWalkIn(read.getParkId(), read.getPlate());
         }
     }
 

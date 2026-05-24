@@ -86,15 +86,16 @@ public class TimescaleHypertableInitializer implements ApplicationRunner {
                 vehicle_id uuid,
                 zone_type text not null,
                 entry_time timestamptz not null,
-                exit_time timestamptz not null,
+                exit_time timestamptz,
                 revenue_euros numeric(8, 2),
                 primary key (id, entry_time)
             )
             """);
         try {
             jdbc.execute("alter table parking_sessions add column if not exists reservation_id uuid");
+            jdbc.execute("alter table parking_sessions alter column exit_time drop not null");
         } catch (Exception exception) {
-            log.debug("parking_sessions.reservation_id column already exists: {}", exception.getMessage());
+            log.debug("parking_sessions schema already matches expected shape: {}", exception.getMessage());
         }
     }
 

@@ -19,9 +19,11 @@ import {
   type AlertResponse,
   type BillingSessionResponse,
 } from '../../services/managerApi';
+import { fetchParksList } from '../../services/parksApi';
 
 const TARIFF_PAGE_SIZE = 10;
 const INCIDENT_PAGE_SIZE = 10;
+const BILLING_DAYS = 30;
 
 type PageTab    = 'tarifas' | 'ocorrencias' | 'faturacao';
 type IssueFilter = 'todos' | 'aberto' | 'em-progresso' | 'resolvido';
@@ -83,6 +85,7 @@ function mapAlert(a: AlertResponse): IssueReport {
 }
 
 function mapBilling(b: BillingSessionResponse): BillingRecord {
+  const isActive = !b.exitTime || (b.durationMinutes === 0 && Number(b.total) === 0);
   const durationH = Math.floor(b.durationMinutes / 60);
   const durationM = b.durationMinutes % 60;
   const entryDate = new Date(b.entryTime);
@@ -97,14 +100,22 @@ function mapBilling(b: BillingSessionResponse): BillingRecord {
     data: dateStr,
     matricula: b.licensePlate ?? '—',
     metodo: method,
-    duracao: `${durationH}h ${String(durationM).padStart(2, '0')}m`,
+    duracao: isActive ? '—' : `${durationH}h ${String(durationM).padStart(2, '0')}m`,
     valorEstacionamento: Number(b.parkingRevenue),
     valorEV: Number(b.evRevenue) > 0 ? Number(b.evRevenue) : undefined,
     total: Number(b.total),
-    estado: 'pago',
+    estado: isActive ? 'pendente' : 'pago',
   };
 }
 
+
+function computeBillingStats(records: BillingRecord[]) {
+  return {
+    pago:      records.filter(r => r.estado === 'pago').reduce((s, r) => s + r.total, 0),
+    pendente:  records.filter(r => r.estado === 'pendente').reduce((s, r) => s + r.total, 0),
+    contestado: records.filter(r => r.estado === 'contestado').reduce((s, r) => s + r.total, 0),
+  };
+}
 
 export function TariffsIncidentsPage() {
   const [tab, setTab]               = useState<PageTab>('tarifas');
@@ -131,6 +142,12 @@ export function TariffsIncidentsPage() {
 
   // Billing state
   const [billingRecords, setBillingRecords] = useState<BillingRecord[]>([]);
+  const [billingPage, setBillingPage] = useState(0);
+  const [billingTotalPages, setBillingTotalPages] = useState(1);
+  const [billingTotalElements, setBillingTotalElements] = useState(0);
+  const [billingParkId, setBillingParkId] = useState('');
+  const [billingParks, setBillingParks] = useState<{ id: string; name: string }[]>([]);
+  const [billingStats, setBillingStats] = useState({ pago: 0, pendente: 0, contestado: 0 });
 
   const isInitialMount = useRef(true);
 
@@ -140,9 +157,11 @@ export function TariffsIncidentsPage() {
     Promise.all([
       fetchManagerTariffs({ page: 0, size: TARIFF_PAGE_SIZE }),
       fetchManagerAlerts({ page: 0, size: INCIDENT_PAGE_SIZE }),
-      fetchManagerBilling(),
+      fetchManagerBilling(undefined, BILLING_DAYS),
+      fetchManagerBilling(undefined, BILLING_DAYS, 0, 1000),
       fetchManagerAlerts({ page: 0, size: 1, state: 'aberto' }),
-    ]).then(([tariffsData, alertsData, billingData, openAlertsData]) => {
+      fetchParksList({ pageSize: 100 }),
+    ]).then(([tariffsData, alertsData, billingData, allBillingData, openAlertsData, parksData]) => {
       setTariffs(tariffsData.content.map(mapTariff));
       setTariffTotalPages(tariffsData.totalPages);
       setTariffTotalElements(tariffsData.totalElements);
@@ -150,7 +169,11 @@ export function TariffsIncidentsPage() {
       setIncidentTotalPages(alertsData.totalPages);
       setIncidentTotalElements(alertsData.totalElements);
       setBillingRecords(billingData.content.map(mapBilling));
+      setBillingTotalPages(billingData.totalPages);
+      setBillingTotalElements(billingData.totalElements);
+      setBillingStats(computeBillingStats(allBillingData.content.map(mapBilling)));
       setOpenIncidentsCount(openAlertsData.totalElements);
+      setBillingParks(parksData.items.map(p => ({ id: p.id, name: p.name })));
     }).catch(err => {
       console.error('Error fetching manager data:', err);
     }).finally(() => {
@@ -189,6 +212,24 @@ export function TariffsIncidentsPage() {
     }).catch(err => console.error('Error fetching incidents:', err));
   }, [incidentPage, issueFilter, sevFilter]);
 
+  // Re-fetch billing table when page or park filter changes
+  useEffect(() => {
+    if (isInitialMount.current) return;
+    fetchManagerBilling(billingParkId || undefined, BILLING_DAYS, billingPage).then(data => {
+      setBillingRecords(data.content.map(mapBilling));
+      setBillingTotalPages(data.totalPages);
+      setBillingTotalElements(data.totalElements);
+    }).catch(err => console.error('Error fetching billing:', err));
+  }, [billingPage, billingParkId]);
+
+  // Refresh billing stats (all pages) when park filter changes
+  useEffect(() => {
+    if (isInitialMount.current) return;
+    fetchManagerBilling(billingParkId || undefined, BILLING_DAYS, 0, 1000).then(data => {
+      setBillingStats(computeBillingStats(data.content.map(mapBilling)));
+    }).catch(err => console.error('Error fetching billing stats:', err));
+  }, [billingParkId]);
+
   const handleTariffPageChange = useCallback((p: number) => setTariffPage(p), []);
   const handleTariffDistrictChange = useCallback((d: string) => {
     setTariffPage(0);
@@ -208,6 +249,11 @@ export function TariffsIncidentsPage() {
     setSevFilter(f);
   }, []);
   const handleIncidentPageChange = useCallback((p: number) => setIncidentPage(p), []);
+  const handleBillingPageChange  = useCallback((p: number) => setBillingPage(p), []);
+  const handleBillingParkChange  = useCallback((id: string) => {
+    setBillingPage(0);
+    setBillingParkId(id);
+  }, []);
 
   const handleSaveTariff = async (updated: Partial<TariffEntry>) => {
     await updateTariff(updated);
@@ -334,7 +380,19 @@ export function TariffsIncidentsPage() {
           onPageChange={handleIncidentPageChange}
         />
       )}
-      {tab === 'faturacao' && <BillingTab billingRecords={billingRecords} />}
+      {tab === 'faturacao' && (
+        <BillingTab
+          billingRecords={billingRecords}
+          page={billingPage}
+          totalPages={billingTotalPages}
+          totalElements={billingTotalElements}
+          onPageChange={handleBillingPageChange}
+          parks={billingParks}
+          parkFilter={billingParkId}
+          onParkChange={handleBillingParkChange}
+          stats={billingStats}
+        />
+      )}
 
       {selectedIssue && <IssueModal  issue={selectedIssue} onClose={() => setSelectedIssue(null)} />}
       {editTariff    && <TariffModal tariff={editTariff}   onClose={() => setEditTariff(null)} onSave={handleSaveTariff} />}

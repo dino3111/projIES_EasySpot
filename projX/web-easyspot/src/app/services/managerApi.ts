@@ -187,7 +187,7 @@ export interface BillingSessionResponse {
   id: string;
   parkName: string;
   entryTime: string;
-  exitTime: string;
+  exitTime: string | null;
   durationMinutes: number;
   licensePlate: string | null;
   zoneType: string;

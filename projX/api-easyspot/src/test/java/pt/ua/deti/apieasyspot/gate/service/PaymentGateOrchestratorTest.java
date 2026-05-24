@@ -21,6 +21,8 @@ import pt.ua.deti.apieasyspot.ocr.dto.OcrPlateEvent;
 import pt.ua.deti.apieasyspot.vehicle.model.Vehicle;
 import pt.ua.deti.apieasyspot.vehicle.repository.VehicleRepository;
 
+import org.springframework.test.util.ReflectionTestUtils;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -54,6 +56,8 @@ class PaymentGateOrchestratorTest {
 
     @BeforeEach
     void setUp() {
+        ReflectionTestUtils.setField(orchestrator, "billingEnabled", true);
+
         parkId = UUID.randomUUID();
         vehicleId = UUID.randomUUID();
         reservationId = UUID.randomUUID();

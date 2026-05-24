@@ -108,20 +108,21 @@ export function TariffsTab({
               className="px-3 py-1.5 rounded-lg border border-border bg-card text-muted-foreground hover:bg-muted disabled:opacity-40 transition-colors"
               style={{ fontSize: '0.78rem' }}
             >
-              <i className="fas fa-chevron-left"></i>
+              <i className="fas fa-chevron-left" aria-hidden="true"></i>
             </button>
-            {Array.from({ length: totalPages }, (_, i) => i)
-              .filter(i => Math.abs(i - page) <= 2)
-              .map(i => (
-                <button
-                  key={i}
-                  onClick={() => onPageChange(i)}
-                  className={`px-3 py-1.5 rounded-lg border transition-colors ${i === page ? 'border-primary bg-primary text-white' : 'border-border bg-card text-muted-foreground hover:bg-muted'}`}
-                  style={{ fontSize: '0.78rem' }}
-                >
-                  {i + 1}
-                </button>
-              ))}
+            {Array.from(
+              { length: Math.min(5, totalPages) },
+              (_, j) => Math.max(0, Math.min(page - 2, totalPages - 5)) + j
+            ).map(i => (
+              <button
+                key={i}
+                onClick={() => onPageChange(i)}
+                className={`px-3 py-1.5 rounded-lg border transition-colors ${i === page ? 'border-primary bg-primary text-white' : 'border-border bg-card text-muted-foreground hover:bg-muted'}`}
+                style={{ fontSize: '0.78rem' }}
+              >
+                {i + 1}
+              </button>
+            ))}
             <button
               onClick={() => onPageChange(Math.min(totalPages - 1, page + 1))}
               disabled={page === totalPages - 1}
@@ -129,7 +130,7 @@ export function TariffsTab({
               className="px-3 py-1.5 rounded-lg border border-border bg-card text-muted-foreground hover:bg-muted disabled:opacity-40 transition-colors"
               style={{ fontSize: '0.78rem' }}
             >
-              <i className="fas fa-chevron-right"></i>
+              <i className="fas fa-chevron-right" aria-hidden="true"></i>
             </button>
           </div>
         </div>

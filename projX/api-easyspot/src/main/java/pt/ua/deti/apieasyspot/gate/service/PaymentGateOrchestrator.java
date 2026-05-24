@@ -1,7 +1,7 @@
 package pt.ua.deti.apieasyspot.gate.service;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import pt.ua.deti.apieasyspot.billing.model.PaymentRecord;
 import pt.ua.deti.apieasyspot.billing.model.PaymentStatus;
@@ -24,7 +24,6 @@ import java.util.UUID;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class PaymentGateOrchestrator {
 
     private static final List<PaymentStatus> COMPLETED_STATUSES =
@@ -35,6 +34,21 @@ public class PaymentGateOrchestrator {
     private final PaymentRecordRepository paymentRecordRepository;
     private final GateCommandKafkaProducer gateCommandProducer;
     private final BillingService billingService;
+
+    @Value("${reservations.billing.enabled:true}")
+    private boolean billingEnabled;
+
+    public PaymentGateOrchestrator(VehicleRepository vehicleRepository,
+                                   ReservationRepository reservationRepository,
+                                   PaymentRecordRepository paymentRecordRepository,
+                                   GateCommandKafkaProducer gateCommandProducer,
+                                   BillingService billingService) {
+        this.vehicleRepository = vehicleRepository;
+        this.reservationRepository = reservationRepository;
+        this.paymentRecordRepository = paymentRecordRepository;
+        this.gateCommandProducer = gateCommandProducer;
+        this.billingService = billingService;
+    }
 
     public void onExitOcrEvent(OcrPlateEvent event) {
         if (event.parkId() == null || event.payload() == null) {
@@ -91,6 +105,17 @@ public class PaymentGateOrchestrator {
                 reservation.getBookingCode(), normalizedPlate, ex.getMessage());
         }
 
+        // When Stripe billing is disabled (demo/dev environments), open gate without payment check
+        if (!billingEnabled) {
+            log.info("Billing disabled — opening exit gate without payment check for plate {} at park {}",
+                normalizedPlate, parkId);
+            reservation.setStatus(ReservationStatus.COMPLETED);
+            reservation.setLockedUntil(null);
+            reservationRepository.save(reservation);
+            issueOpenCommand(parkId, gateIdFor(parkId), normalizedPlate, reservation.getId());
+            return;
+        }
+
         // Bug 2 fix: look for any COMPLETED record, not just the most recent (which may be an adjustment/refund)
         Optional<PaymentRecord> completedPayment =
             paymentRecordRepository.findFirstByReservationIdAndStatusInOrderByCreatedAtDesc(
@@ -106,6 +131,7 @@ public class PaymentGateOrchestrator {
         // Mark reservation COMPLETED before opening gate
         try {
             reservation.setStatus(ReservationStatus.COMPLETED);
+            reservation.setLockedUntil(null);
             reservationRepository.save(reservation);
         } catch (Exception ex) {
             log.warn("Failed to mark reservation {} as COMPLETED: {}", reservation.getBookingCode(), ex.getMessage());
@@ -114,6 +140,61 @@ public class PaymentGateOrchestrator {
         log.info("Payment COMPLETED for reservation {} plate {} — opening exit gate at park {}",
             reservation.getBookingCode(), normalizedPlate, parkId);
         issueOpenCommand(parkId, gateIdFor(parkId), normalizedPlate, reservation.getId());
+    }
+
+    /**
+     * Called by the OCR listener after it has already resolved the reservation (handles overstays correctly).
+     * Settles billing and issues the gate command without doing a second reservation lookup.
+     */
+    public void settleAndOpenGate(Reservation reservation, UUID parkId, String plate, OffsetDateTime exitTime) {
+        String customerEmail = reservation.getUser() != null ? reservation.getUser().getEmail() : null;
+        boolean settlementSucceeded = true;
+        try {
+            billingService.settleReservationOnExit(reservation, exitTime, customerEmail);
+        } catch (Exception ex) {
+            settlementSucceeded = false;
+            log.warn("Billing settlement failed for reservation {} plate {} — {}: {}",
+                reservation.getBookingCode(), plate,
+                billingEnabled ? "blocking gate" : "proceeding anyway", ex.getMessage());
+        }
+
+        if (billingEnabled && !settlementSucceeded) {
+            issueBlockCommand(parkId, gateIdFor(parkId), plate, reservation.getId(), "settlement_failed");
+            return;
+        }
+
+        if (!billingEnabled) {
+            reservation.setStatus(ReservationStatus.COMPLETED);
+            reservation.setLockedUntil(null);
+            reservationRepository.save(reservation);
+            issueOpenCommand(parkId, gateIdFor(parkId), plate, reservation.getId());
+            log.info("Exit gate opened (billing disabled) for reservation {} plate {}",
+                reservation.getBookingCode(), plate);
+            return;
+        }
+
+        Optional<PaymentRecord> completedPayment =
+            paymentRecordRepository.findFirstByReservationIdAndStatusInOrderByCreatedAtDesc(
+                reservation.getId(), COMPLETED_STATUSES);
+
+        if (completedPayment.isEmpty()) {
+            log.warn("No COMPLETED payment for reservation {} plate {} — blocking exit gate at park {}",
+                reservation.getBookingCode(), plate, parkId);
+            issueBlockCommand(parkId, gateIdFor(parkId), plate, reservation.getId(), "no_payment_record");
+            return;
+        }
+
+        reservation.setStatus(ReservationStatus.COMPLETED);
+        reservation.setLockedUntil(null);
+        reservationRepository.save(reservation);
+        issueOpenCommand(parkId, gateIdFor(parkId), plate, reservation.getId());
+        log.info("Payment COMPLETED for reservation {} plate {} — exit gate opened at park {}",
+            reservation.getBookingCode(), plate, parkId);
+    }
+
+    public void openGateForWalkIn(UUID parkId, String plate) {
+        issueOpenCommand(parkId, gateIdFor(parkId), plate, null);
+        log.info("Walk-in exit gate opened: plate={} park={}", plate, parkId);
     }
 
     private void issueOpenCommand(UUID parkId, String gateId, String plate, UUID reservationId) {

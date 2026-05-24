@@ -25,9 +25,13 @@ import pt.ua.deti.apieasyspot.auth.model.User;
 import pt.ua.deti.apieasyspot.billing.repository.PaymentRecordRepository;
 import pt.ua.deti.apieasyspot.billing.repository.TimescaleParkingSessionRepository;
 import pt.ua.deti.apieasyspot.booking.model.Reservation;
+import pt.ua.deti.apieasyspot.occupancy.model.ParkingSpot;
 import pt.ua.deti.apieasyspot.occupancy.model.Tariff;
 import pt.ua.deti.apieasyspot.occupancy.model.ZoneType;
+import pt.ua.deti.apieasyspot.occupancy.repository.ParkingSpotRepository;
 import pt.ua.deti.apieasyspot.occupancy.repository.TariffRepository;
+import pt.ua.deti.apieasyspot.vehicle.model.Vehicle;
+import pt.ua.deti.apieasyspot.vehicle.repository.VehicleRepository;
 
 import java.time.Duration;
 import java.time.OffsetDateTime;
@@ -48,6 +52,8 @@ public class BillingService {
     private final PaymentRecordRepository paymentRecordRepository;
     private final UserRepository userRepository;
     private final TariffRepository tariffRepository;
+    private final VehicleRepository vehicleRepository;
+    private final ParkingSpotRepository parkingSpotRepository;
 
     @Value("${stripe.api.key:}")
     private String stripeSecretKey;
@@ -268,32 +274,112 @@ public class BillingService {
         }
 
         OffsetDateTime actualExitUtc = actualExit.withOffsetSameInstant(ZoneOffset.UTC);
-        OffsetDateTime plannedDeparture = reservation.getDepartureTime().withOffsetSameInstant(ZoneOffset.UTC);
         BigDecimal estimated = reservation.getEstimatedCost() != null
             ? reservation.getEstimatedCost()
             : BigDecimal.ZERO;
 
-        PaymentAdjustmentResult result = new PaymentAdjustmentResult(BigDecimal.ZERO, "NO_CHANGE", null, null);
-        BigDecimal finalRevenue = estimated;
+        ZoneType zone = reservation.getParkingSpot() != null
+            ? reservation.getParkingSpot().getZone()
+            : ZoneType.STANDARD;
 
-        if (actualExitUtc.isAfter(plannedDeparture)) {
-            ZoneType zone = reservation.getParkingSpot() != null
-                ? reservation.getParkingSpot().getZone()
-                : ZoneType.STANDARD;
-            BigDecimal actualCost = calculateCost(
-                reservation.getParkingLot().getId(),
-                reservation.getArrivalTime().withOffsetSameInstant(ZoneOffset.UTC),
-                actualExitUtc,
-                zone
-            );
-            if (actualCost.compareTo(estimated) > 0) {
-                result = adjustPaymentForReservation(reservation, estimated, actualCost, customerEmail);
-                finalRevenue = actualCost;
-            }
+        // Use actual sensor entry time; fall back to planned arrival if not recorded
+        OffsetDateTime actualEntryUtc = parkingSessionRepository
+            .findEntryTimeByReservationId(reservation.getId())
+            .orElseGet(() -> reservation.getArrivalTime().withOffsetSameInstant(ZoneOffset.UTC));
+
+        BigDecimal actualCost = calculateCost(
+            reservation.getParkingLot().getId(),
+            actualEntryUtc,
+            actualExitUtc,
+            zone
+        );
+
+        PaymentAdjustmentResult result = new PaymentAdjustmentResult(BigDecimal.ZERO, "NO_CHANGE", null, null);
+        if (actualCost.compareTo(estimated) != 0) {
+            result = adjustPaymentForReservation(reservation, estimated, actualCost, customerEmail);
         }
 
-        parkingSessionRepository.updateExitAndRevenueByReservationId(reservation.getId(), actualExitUtc, finalRevenue);
+        int updated = parkingSessionRepository.updateExitAndRevenueByReservationId(reservation.getId(), actualExitUtc, actualCost);
+        if (updated == 0) {
+            // No session pre-created (e.g. billing was disabled at reservation time) — create it now
+            ParkingSession session = new ParkingSession();
+            session.setId(reservation.getId());
+            session.setReservationId(reservation.getId());
+            if (reservation.getUser() != null) session.setUserId(reservation.getUser().getId());
+            session.setParkingLotId(reservation.getParkingLot().getId());
+            if (reservation.getVehicle() != null) session.setVehicleId(reservation.getVehicle().getId());
+            session.setZoneType(zone);
+            session.setEntryTime(actualEntryUtc);
+            session.setExitTime(actualExitUtc);
+            session.setRevenueEuros(actualCost);
+            parkingSessionRepository.save(session);
+            log.info("Parking session created on exit for reservation {} (no pre-existing session)",
+                reservation.getId());
+        }
         return result;
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void registerWalkInEntry(String plate, UUID parkId, UUID spotId, OffsetDateTime entryTime) {
+        if (plate == null || plate.isBlank() || parkId == null || entryTime == null) return;
+
+        Optional<Vehicle> vehicleOpt = vehicleRepository.findByPlate(plate);
+        if (vehicleOpt.isEmpty()) {
+            log.info("Walk-in entry: plate {} not in system, skipping session", plate);
+            return;
+        }
+        Vehicle vehicle = vehicleOpt.get();
+
+        ZoneType zone = ZoneType.STANDARD;
+        if (spotId != null) {
+            zone = parkingSpotRepository.findById(spotId)
+                .map(ParkingSpot::getZone)
+                .orElse(ZoneType.STANDARD);
+        }
+
+        OffsetDateTime entryUtc = entryTime.withOffsetSameInstant(ZoneOffset.UTC);
+        ParkingSession session = new ParkingSession();
+        session.setId(UUID.randomUUID());
+        session.setVehicleId(vehicle.getId());
+        if (vehicle.getUser() != null) session.setUserId(vehicle.getUser().getId());
+        session.setParkingLotId(parkId);
+        session.setZoneType(zone);
+        session.setEntryTime(entryUtc);
+        parkingSessionRepository.save(session);
+        log.info("Walk-in session created: plate={} park={} entry={}", plate, parkId, entryUtc);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void settleWalkInOnExit(String plate, UUID parkId, UUID spotId, OffsetDateTime exitTime) {
+        if (plate == null || plate.isBlank() || parkId == null || exitTime == null) return;
+
+        Optional<Vehicle> vehicleOpt = vehicleRepository.findByPlate(plate);
+        if (vehicleOpt.isEmpty()) {
+            log.info("Walk-in exit: plate {} not in system, no billing recorded", plate);
+            return;
+        }
+        UUID vehicleId = vehicleOpt.get().getId();
+
+        Optional<ParkingSession> sessionOpt =
+            parkingSessionRepository.findOpenByVehicleIdAndParkingLotId(vehicleId, parkId);
+        if (sessionOpt.isEmpty()) {
+            log.info("Walk-in exit: no open session for plate {} at park {}", plate, parkId);
+            return;
+        }
+
+        ParkingSession session = sessionOpt.get();
+        ZoneType zone = session.getZoneType() != null ? session.getZoneType() : ZoneType.STANDARD;
+        OffsetDateTime exitUtc = exitTime.withOffsetSameInstant(ZoneOffset.UTC);
+        if (!exitUtc.isAfter(session.getEntryTime())) {
+            log.info("Walk-in exit: skipping zero-duration session for plate {} at park {}", plate, parkId);
+            return;
+        }
+        BigDecimal cost = calculateCost(parkId, session.getEntryTime(), exitUtc, zone);
+
+        parkingSessionRepository.updateExitAndRevenueById(session.getId(), exitUtc, cost);
+        log.info("Walk-in settled: plate={} park={} duration={}min revenue={}",
+            plate, parkId,
+            java.time.Duration.between(session.getEntryTime(), exitUtc).toMinutes(), cost);
     }
 
     private BigDecimal calculateCost(UUID parkingLotId, OffsetDateTime entry, OffsetDateTime exit, ZoneType zoneType) {
