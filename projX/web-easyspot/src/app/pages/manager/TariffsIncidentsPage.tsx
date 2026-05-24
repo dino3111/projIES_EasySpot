@@ -34,10 +34,7 @@ const EXPORT_TITLE_BY_TAB: Record<PageTab, string> = {
 };
 
 function mapTariff(t: TariffResponse): TariffEntry {
-  const statusMap: Record<string, 'ativo' | 'revisao' | 'suspenso'> = {
-    ACTIVE: 'ativo',
-    INACTIVE: 'suspenso',
-  };
+  const estado: 'ativo' | 'suspenso' = t.parkStatus === 'SUSPENDED' ? 'suspenso' : 'ativo';
   return {
     id: t.id,
     parqueId: t.parkId,
@@ -49,7 +46,7 @@ function mapTariff(t: TariffResponse): TariffEntry {
     tarifaEV: t.pricePerKwh,
     temAcessivel: true,
     ultimaAtualizacao: new Date().toISOString().split('T')[0],
-    estado: statusMap[t.status] ?? 'ativo',
+    estado,
   };
 }
 
@@ -119,7 +116,7 @@ export function TariffsIncidentsPage() {
   const [tariffs, setTariffs] = useState<TariffEntry[]>([]);
   const [tariffPage, setTariffPage] = useState(0);
   const [tariffDistrict, setTariffDistrict] = useState('');
-  const [tariffStatus, setTariffStatus] = useState<'' | 'ACTIVE' | 'INACTIVE'>('');
+  const [tariffStatus, setTariffStatus] = useState<'' | 'ACTIVE' | 'SUSPENDED'>('');
   const [tariffTotalPages, setTariffTotalPages] = useState(1);
   const [tariffTotalElements, setTariffTotalElements] = useState(0);
 
@@ -168,8 +165,8 @@ export function TariffsIncidentsPage() {
     fetchManagerTariffs({
       page: tariffPage,
       size: TARIFF_PAGE_SIZE,
-      city: tariffDistrict || undefined,
-      status: tariffStatus || undefined,
+      district: tariffDistrict || undefined,
+      parkStatus: tariffStatus || undefined,
     }).then(data => {
       setTariffs(data.content.map(mapTariff));
       setTariffTotalPages(data.totalPages);
@@ -197,7 +194,7 @@ export function TariffsIncidentsPage() {
     setTariffPage(0);
     setTariffDistrict(d);
   }, []);
-  const handleTariffStatusChange = useCallback((s: '' | 'ACTIVE' | 'INACTIVE') => {
+  const handleTariffStatusChange = useCallback((s: '' | 'ACTIVE' | 'SUSPENDED') => {
     setTariffPage(0);
     setTariffStatus(s);
   }, []);
@@ -217,8 +214,8 @@ export function TariffsIncidentsPage() {
     const data = await fetchManagerTariffs({
       page: tariffPage,
       size: TARIFF_PAGE_SIZE,
-      city: tariffDistrict || undefined,
-      status: tariffStatus || undefined,
+      district: tariffDistrict || undefined,
+      parkStatus: tariffStatus || undefined,
     });
     setTariffs(data.content.map(mapTariff));
     setTariffTotalPages(data.totalPages);
@@ -241,8 +238,8 @@ export function TariffsIncidentsPage() {
     } else if (tab === 'tarifas') {
       const all = await fetchManagerTariffs({
         page: 0, size: tariffTotalElements || 500,
-        city: tariffDistrict || undefined,
-        status: tariffStatus || undefined,
+        district: tariffDistrict || undefined,
+        parkStatus: tariffStatus || undefined,
       });
       data = all.content.map(mapTariff);
       filename = `tarifas-${dateStr}.json`;

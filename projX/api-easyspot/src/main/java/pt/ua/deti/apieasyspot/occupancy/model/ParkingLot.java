@@ -31,11 +31,18 @@ public class ParkingLot {
     @Column(nullable = false)
     private Double longitude;
 
+    @Column(length = 100)
+    private String district;
+
     @Column(length = 50)
     private String openingHours;
 
     @Column(nullable = false)
     private Integer totalSpaces;
+
+    @Column(nullable = false, length = 20)
+    @Enumerated(EnumType.STRING)
+    private ParkStatus status = ParkStatus.ACTIVE;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "technician_user_id")

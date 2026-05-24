@@ -1,33 +1,49 @@
 import { useState, useEffect } from 'react';
-import { fetchParksList } from '../../services/parksApi';
 import {
+  fetchManagerParks,
   fetchParkAssignments,
+  updateParkStatus,
   type TechnicianSummary,
   type ParkAssignment,
+  type ManagerParkSummary,
+  type ParkOperationalStatus,
 } from '../../services/managerApi';
-import type { ParkingLot } from '../../data/parkingTypes';
 import { CreateParkModal } from './components/CreateParkModal';
 import { AssignTechnicianModal } from './components/AssignTechnicianModal';
 
 export function ManagerParksPage() {
-  const [parks, setParks] = useState<ParkingLot[]>([]);
+  const [parks, setParks] = useState<ManagerParkSummary[]>([]);
   const [assignments, setAssignments] = useState<ParkAssignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [assignPark, setAssignPark] = useState<{ id: string; name: string; technicians: TechnicianSummary[] } | null>(null);
+  const [togglingStatus, setTogglingStatus] = useState<string | null>(null);
 
   const loadData = () => {
     setLoading(true);
     Promise.all([
-      fetchParksList({ pageSize: 100 }),
+      fetchManagerParks(),
       fetchParkAssignments().catch(() => []),
     ])
       .then(([parksData, assignmentsData]) => {
-        setParks(parksData.items);
+        setParks(parksData);
         setAssignments(assignmentsData);
       })
       .catch(() => setParks([]))
       .finally(() => setLoading(false));
+  };
+
+  const handleToggleStatus = async (parkId: string, current: ParkOperationalStatus) => {
+    const next: ParkOperationalStatus = current === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
+    setTogglingStatus(parkId);
+    try {
+      const updated = await updateParkStatus(parkId, next);
+      setParks((prev) => prev.map((p) => (p.id === parkId ? { ...p, status: updated.status } : p)));
+    } catch {
+      // leave state unchanged; user can retry
+    } finally {
+      setTogglingStatus(null);
+    }
   };
 
   useEffect(() => { loadData(); }, []);
@@ -75,6 +91,8 @@ export function ManagerParksPage() {
               onAssign={() =>
                 setAssignPark({ id: park.id, name: park.name, technicians: getTechnicians(park.id) })
               }
+              onToggleStatus={() => handleToggleStatus(park.id, park.status)}
+              togglingStatus={togglingStatus === park.id}
             />
           ))}
         </div>
@@ -97,22 +115,31 @@ export function ManagerParksPage() {
   );
 }
 
+const STATUS_CONFIG: Record<ParkOperationalStatus, { label: string; color: string; icon: string; nextLabel: string }> = {
+  ACTIVE: { label: 'Ativo', color: '#22c55e', icon: 'fa-circle-check', nextLabel: 'Suspender Parque' },
+  SUSPENDED: { label: 'Suspenso', color: '#ef4444', icon: 'fa-ban', nextLabel: 'Reativar Parque' },
+};
+
 function ParkCard({
   park,
   technicians,
   onAssign,
+  onToggleStatus,
+  togglingStatus,
 }: {
-  readonly park: ParkingLot;
+  readonly park: ManagerParkSummary;
   readonly technicians: TechnicianSummary[];
   readonly onAssign: () => void;
+  readonly onToggleStatus: () => void;
+  readonly togglingStatus: boolean;
 }) {
-  const occPct = park.totalSpots > 0
-    ? Math.round(((park.totalSpots - park.availableSpots) / park.totalSpots) * 100)
-    : 0;
-  const occColor = occPct >= 90 ? '#d4183d' : occPct >= 70 ? '#f59e0b' : '#22c55e';
+  const statusCfg = STATUS_CONFIG[park.status] ?? STATUS_CONFIG.ACTIVE;
 
   return (
-    <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+    <div
+      className="bg-card border border-border rounded-2xl p-4 space-y-3"
+      style={park.status === 'SUSPENDED' ? { borderColor: '#ef4444', borderWidth: '1.5px' } : undefined}
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="text-foreground font-semibold truncate" style={{ fontSize: '0.9rem' }}>
@@ -120,21 +147,22 @@ function ParkCard({
           </p>
           <p className="text-muted-foreground truncate" style={{ fontSize: '0.75rem' }}>
             <i className="fas fa-location-dot mr-1" aria-hidden="true" />
-            {park.localidade}
+            {park.city}
           </p>
         </div>
         <span
-          className="px-2 py-0.5 rounded-full flex-shrink-0"
-          style={{ fontSize: '0.68rem', fontWeight: 700, background: `${occColor}20`, color: occColor }}
+          className="px-2 py-0.5 rounded-full flex-shrink-0 flex items-center gap-1"
+          style={{ fontSize: '0.68rem', fontWeight: 700, background: `${statusCfg.color}20`, color: statusCfg.color }}
+          aria-label={`Estado: ${statusCfg.label}`}
         >
-          {occPct}%
+          <i className={`fas ${statusCfg.icon}`} style={{ fontSize: '0.6rem' }} aria-hidden="true" />
+          {statusCfg.label}
         </span>
       </div>
 
-      <div className="grid grid-cols-3 gap-2 text-center">
-        <Stat icon="fa-car" label="Lugares" value={String(park.totalSpots)} />
-        <Stat icon="fa-door-open" label="Livres" value={String(park.availableSpots)} />
-        <Stat icon="fa-clock" label="Horário" value={park.is24h ? '24h' : (park.openingHours || 'N/D')} />
+      <div className="grid grid-cols-2 gap-2 text-center">
+        <Stat icon="fa-car" label="Lugares" value={String(park.totalSpaces)} />
+        <Stat icon="fa-clock" label="Horário" value={park.openingHours || 'N/D'} />
       </div>
 
       {/* Técnicos atribuídos */}
@@ -169,18 +197,26 @@ function ParkCard({
         </button>
       </div>
 
-      <div className="flex gap-1.5">
-        {park.hasEVCharger && (
-          <span className="px-2 py-0.5 rounded-full bg-green-500/15 text-green-600" style={{ fontSize: '0.65rem', fontWeight: 700 }}>
-            EV
-          </span>
-        )}
-        {park.hasAccessible && (
-          <span className="px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-600" style={{ fontSize: '0.65rem', fontWeight: 700 }}>
-            Acessível
-          </span>
-        )}
-      </div>
+      <button
+        type="button"
+        onClick={onToggleStatus}
+        disabled={togglingStatus}
+        className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-xl border transition-colors disabled:opacity-50"
+        style={{
+          fontSize: '0.75rem',
+          fontWeight: 600,
+          borderColor: statusCfg.color,
+          color: statusCfg.color,
+          background: `${statusCfg.color}10`,
+        }}
+        aria-label={statusCfg.nextLabel}
+      >
+        {togglingStatus
+          ? <i className="fas fa-circle-notch fa-spin" aria-hidden="true" />
+          : <i className={`fas ${park.status === 'ACTIVE' ? 'fa-ban' : 'fa-play-circle'}`} style={{ fontSize: '0.7rem' }} aria-hidden="true" />
+        }
+        {statusCfg.nextLabel}
+      </button>
     </div>
   );
 }

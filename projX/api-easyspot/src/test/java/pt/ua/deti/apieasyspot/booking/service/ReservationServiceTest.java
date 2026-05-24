@@ -24,6 +24,7 @@ import pt.ua.deti.apieasyspot.common.exception.ConflictException;
 import pt.ua.deti.apieasyspot.common.exception.ResourceNotFoundException;
 import pt.ua.deti.apieasyspot.common.exception.UnprocessableEntityException;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
+import pt.ua.deti.apieasyspot.occupancy.model.ParkStatus;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingSpot;
 import pt.ua.deti.apieasyspot.occupancy.model.Tariff;
 import pt.ua.deti.apieasyspot.occupancy.model.ZoneType;
@@ -614,6 +615,32 @@ class ReservationServiceTest {
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
+
+    // ── Park status guard ──────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("create - park SUSPENDED - throws ConflictException")
+    void create_parkSuspended_throwsConflictException() {
+        lot.setStatus(ParkStatus.SUSPENDED);
+        when(userRepository.findByAuthentikUserId(AUTH_ID)).thenReturn(Optional.of(user));
+        when(parkingLotRepository.findById(lot.getId())).thenReturn(Optional.of(lot));
+
+        assertThatThrownBy(() -> reservationService.create(AUTH_ID, null, request(null)))
+            .isInstanceOf(ConflictException.class)
+            .hasMessageContaining("suspended");
+    }
+
+    @Test
+    @DisplayName("create - park ACTIVE - proceeds normally")
+    void create_parkActive_proceedsNormally() {
+        lot.setStatus(ParkStatus.ACTIVE);
+        stubHappyPath(0, 0, 0, Collections.emptyList());
+        stubSave();
+
+        ReservationResponse resp = reservationService.create(AUTH_ID, null, request(null));
+
+        assertThat(resp.status()).isEqualTo(ReservationStatus.CONFIRMED.name());
+    }
 
     private CreateReservationRequest request(UUID spotId) {
         return new CreateReservationRequest(

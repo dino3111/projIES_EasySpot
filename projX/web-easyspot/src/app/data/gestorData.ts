@@ -48,7 +48,7 @@ export interface TariffEntry {
   tarifaEV?: number; // por kWh
   temAcessivel: boolean;
   ultimaAtualizacao: string;
-  estado: 'ativo' | 'revisao' | 'suspenso';
+  estado: 'ativo' | 'suspenso';
 }
 
 export interface BillingRecord {

@@ -24,6 +24,7 @@ import pt.ua.deti.apieasyspot.common.exception.ConflictException;
 import pt.ua.deti.apieasyspot.common.exception.ResourceNotFoundException;
 import pt.ua.deti.apieasyspot.common.exception.UnprocessableEntityException;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
+import pt.ua.deti.apieasyspot.occupancy.model.ParkStatus;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingSpot;
 import pt.ua.deti.apieasyspot.occupancy.model.Tariff;
 import pt.ua.deti.apieasyspot.occupancy.model.ZoneType;
@@ -696,8 +697,12 @@ public class ReservationService {
     }
 
     private ParkingLot findLot(UUID parkId) {
-        return parkingLotRepository.findById(parkId)
+        ParkingLot lot = parkingLotRepository.findById(parkId)
             .orElseThrow(() -> new ResourceNotFoundException("Parking lot not found: " + parkId));
+        if (lot.getStatus() == ParkStatus.SUSPENDED) {
+            throw new ConflictException("Park '" + lot.getName() + "' is currently suspended and not accepting new reservations");
+        }
+        return lot;
     }
 
     private Vehicle findVehicleOwnedByUser(UUID vehicleId, UUID userId) {

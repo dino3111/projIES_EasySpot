@@ -15,6 +15,7 @@ import pt.ua.deti.apieasyspot.occupancy.dto.UpdateTariffRequest;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
 import pt.ua.deti.apieasyspot.occupancy.model.Tariff;
 import pt.ua.deti.apieasyspot.occupancy.model.TariffAudit;
+import pt.ua.deti.apieasyspot.occupancy.model.ParkStatus;
 import pt.ua.deti.apieasyspot.occupancy.model.TariffStatus;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingLotRepository;
 import pt.ua.deti.apieasyspot.occupancy.repository.TariffAuditRepository;
@@ -34,9 +35,9 @@ public class ManagerTariffService {
     private final TimescaleParkingSessionRepository parkingSessionRepository;
 
     @Transactional(readOnly = true)
-    public Page<TariffResponse> listTariffs(UUID parkId, String city, TariffStatus status, Pageable pageable) {
-        String cityPattern = (city == null || city.isBlank()) ? null : "%" + city.trim().toLowerCase() + "%";
-        return tariffRepository.findFiltered(parkId, cityPattern, status, pageable)
+    public Page<TariffResponse> listTariffs(UUID parkId, String district, ParkStatus parkStatus, Pageable pageable) {
+        String districtFilter = (district == null || district.isBlank()) ? null : district.trim();
+        return tariffRepository.findFiltered(parkId, districtFilter, parkStatus, pageable)
             .map(this::mapToResponse);
     }
 
@@ -123,7 +124,8 @@ public class ManagerTariffService {
             t.getMaxDaily(),
             t.getMonthly(),
             t.getPricePerKwh(),
-            t.getStatus()
+            t.getStatus(),
+            t.getParkingLot().getStatus()
         );
     }
 }

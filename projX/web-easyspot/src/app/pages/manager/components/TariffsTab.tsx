@@ -15,10 +15,10 @@ interface TariffsTabProps {
   readonly totalPages: number;
   readonly totalElements: number;
   readonly district: string;
-  readonly statusFilter: '' | 'ACTIVE' | 'INACTIVE';
+  readonly statusFilter: '' | 'ACTIVE' | 'SUSPENDED';
   readonly onPageChange: (p: number) => void;
   readonly onDistrictChange: (d: string) => void;
-  readonly onStatusChange: (s: '' | 'ACTIVE' | 'INACTIVE') => void;
+  readonly onStatusChange: (s: '' | 'ACTIVE' | 'SUSPENDED') => void;
 }
 
 export function TariffsTab({
@@ -45,7 +45,7 @@ export function TariffsTab({
 
         {/* Status filter */}
         <div className="flex rounded-xl overflow-hidden border border-border">
-          {([['', 'Todos'], ['ACTIVE', 'Ativo'], ['INACTIVE', 'Suspenso']] as ['' | 'ACTIVE' | 'INACTIVE', string][]).map(([val, label]) => (
+          {([['', 'Todos'], ['ACTIVE', 'Ativo'], ['SUSPENDED', 'Suspenso']] as ['' | 'ACTIVE' | 'SUSPENDED', string][]).map(([val, label]) => (
             <button
               key={val}
               onClick={() => onStatusChange(val)}
@@ -59,8 +59,7 @@ export function TariffsTab({
 
         <div className="flex flex-wrap gap-2">
           <LegendBadge color="#22c55e" label="Ativo" />
-          <LegendBadge color="#f59e0b" label="Em Revisão" />
-          <LegendBadge color="#9ca3af" label="Suspenso" />
+          <LegendBadge color="#ef4444" label="Suspenso" />
         </div>
       </div>
 
@@ -140,10 +139,9 @@ export function TariffsTab({
 }
 
 function TariffRow({ tariff, onEdit }: { readonly tariff: TariffEntry; readonly onEdit: (t: TariffEntry) => void }) {
-  const statusMap = {
+  const statusMap: Record<'ativo' | 'suspenso', { color: string; label: string }> = {
     ativo: { color: '#22c55e', label: 'Ativo' },
-    revisao: { color: '#f59e0b', label: 'Revisão' },
-    suspenso: { color: '#9ca3af', label: 'Suspenso' },
+    suspenso: { color: '#ef4444', label: 'Suspenso' },
   };
   const statusInfo = statusMap[tariff.estado];
 

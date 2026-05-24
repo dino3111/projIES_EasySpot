@@ -46,11 +46,14 @@ export interface ParkingZone {
   floor: string;
 }
 
+export type ParkStatus = 'ACTIVE' | 'SUSPENDED';
+
 export interface ParkingLot {
   id: string;
   name: string;
   address: string;
   localidade: string;
+  status?: ParkStatus;
   availableSpots: number;
   totalSpots: number;
   hourlyRate: number;

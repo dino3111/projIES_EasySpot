@@ -113,7 +113,7 @@ public class ParkService {
 
     public List<String> listCities() {
         return jdbc.query(
-            "SELECT DISTINCT city FROM parking_lots WHERE city IS NOT NULL AND city <> '' ORDER BY city ASC",
+            "SELECT DISTINCT city FROM parking_lots WHERE status = 'ACTIVE' AND city IS NOT NULL AND city <> '' ORDER BY city ASC",
             (rs, rowNum) -> rs.getString("city")
         );
     }

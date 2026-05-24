@@ -15,7 +15,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import pt.ua.deti.apieasyspot.occupancy.dto.TariffResponse;
 import pt.ua.deti.apieasyspot.occupancy.dto.UpdateTariffRequest;
-import pt.ua.deti.apieasyspot.occupancy.model.TariffStatus;
+import pt.ua.deti.apieasyspot.occupancy.model.ParkStatus;
 import pt.ua.deti.apieasyspot.occupancy.service.ManagerTariffService;
 
 import java.util.UUID;
@@ -36,10 +36,10 @@ public class ManagerTariffController {
     @PreAuthorize("hasRole('MANAGER')")
     public ResponseEntity<Page<TariffResponse>> listTariffs(
             @RequestParam(required = false) UUID parkId,
-            @RequestParam(required = false) String city,
-            @RequestParam(required = false) TariffStatus status,
+            @RequestParam(required = false) String district,
+            @RequestParam(required = false) ParkStatus parkStatus,
             @PageableDefault(size = 20) Pageable pageable) {
-        return ResponseEntity.ok(managerTariffService.listTariffs(parkId, city, status, pageable));
+        return ResponseEntity.ok(managerTariffService.listTariffs(parkId, district, parkStatus, pageable));
     }
 
     @Operation(summary = "Update tariffs (hourly, max daily, monthly, pricePerKwh, status)")
