@@ -20,6 +20,10 @@ vi.mock('../../../services/vehiclesApi', () => ({
   fetchVehicles: vi.fn().mockResolvedValue([]),
 }));
 
+vi.mock('../../../services/parksApi', () => ({
+  fetchParksList: vi.fn().mockResolvedValue({ items: [], totalElements: 0, totalPages: 0 }),
+}));
+
 const emptyPage = { content: [], totalElements: 0, totalPages: 0 };
 
 const makeTariffPage = (items = [{ id: '1', parkId: 'park-1', parkName: 'Test Park', city: 'Aveiro', pricePerHour: 1.5, maxDaily: 12, monthlyPrice: 100, pricePerKwh: 0.3, status: 'ACTIVE' as const }]) => ({
