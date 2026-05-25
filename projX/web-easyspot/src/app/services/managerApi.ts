@@ -212,6 +212,7 @@ export interface TechnicianSummary {
 export interface CreateParkPayload {
   name: string;
   city: string;
+  district: string;
   address: string;
   latitude: number;
   longitude: number;

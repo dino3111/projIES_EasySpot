@@ -9,6 +9,7 @@ import java.util.UUID;
 public record CreateParkRequest(
     @NotBlank String name,
     @NotBlank String city,
+    @NotBlank String district,
     @NotBlank String address,
     @NotNull Double latitude,
     @NotNull Double longitude,
