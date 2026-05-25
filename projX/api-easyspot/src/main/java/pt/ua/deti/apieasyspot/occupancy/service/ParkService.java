@@ -403,6 +403,14 @@ public class ParkService {
         List<TimescaleOccupancySnapshotRepository.HourlyOccupancyPoint> points =
             timescaleOccupancySnapshotRepository.hourlyOccupancyLast7Days(List.of(id))
                 .getOrDefault(id, List.of());
+        int fallbackPercent = currentSpotOccupancyPercent(id);
+        boolean onlyZeroes = !points.isEmpty() && points.stream()
+            .allMatch(point -> point.occupancyPercent() == 0);
+        if ((points.isEmpty() || onlyZeroes) && fallbackPercent > 0) {
+            points = java.util.stream.IntStream.range(0, 24)
+                .mapToObj(hour -> new TimescaleOccupancySnapshotRepository.HourlyOccupancyPoint(hour, fallbackPercent))
+                .toList();
+        }
 
         List<Map<String, Object>> result = new ArrayList<>();
         for (TimescaleOccupancySnapshotRepository.HourlyOccupancyPoint p : points.stream()
@@ -414,6 +422,17 @@ public class ParkService {
             ));
         }
         return result;
+    }
+
+    private int currentSpotOccupancyPercent(UUID lotId) {
+        List<ParkingSpot> spots = parkingSpotRepository.findByParkingLotId(lotId);
+        if (spots.isEmpty()) {
+            return 0;
+        }
+        long unavailable = spots.stream()
+            .filter(spot -> !STATUS_FREE.equalsIgnoreCase(spot.getStatus()))
+            .count();
+        return (int) Math.round((double) unavailable / spots.size() * 100);
     }
 
     private record Availability(

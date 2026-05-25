@@ -14,9 +14,11 @@ import org.springframework.stereotype.Service;
 import pt.ua.deti.apieasyspot.billing.dto.ParkingPlanningRequest;
 import pt.ua.deti.apieasyspot.billing.dto.ParkingPlanningResponse;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
+import pt.ua.deti.apieasyspot.occupancy.model.ParkingSpot;
 import pt.ua.deti.apieasyspot.occupancy.model.Tariff;
 import pt.ua.deti.apieasyspot.occupancy.model.ZoneType;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingLotRepository;
+import pt.ua.deti.apieasyspot.occupancy.repository.ParkingSpotRepository;
 import pt.ua.deti.apieasyspot.occupancy.repository.TariffRepository;
 import pt.ua.deti.apieasyspot.occupancy.repository.TimescaleOccupancySnapshotRepository;
 import pt.ua.deti.apieasyspot.occupancy.repository.TimescaleOccupancySnapshotRepository.HourlyOccupancyPoint;
@@ -31,6 +33,7 @@ public class ParkingPlanningService {
     private static final double MAX_PRICE_REFERENCE_EUR = 5.0;
 
     private final ParkingLotRepository parkingLotRepository;
+    private final ParkingSpotRepository parkingSpotRepository;
     private final TariffRepository tariffRepository;
     private final TimescaleOccupancySnapshotRepository occupancyRepository;
 
@@ -46,9 +49,13 @@ public class ParkingPlanningService {
         Map<UUID, List<HourlyOccupancyPoint>> hourlyByLot = occupancyRepository.hourlyOccupancyLast7Days(
             lots.stream().map(ParkingLot::getId).toList()
         );
+        Map<UUID, List<ParkingSpot>> spotsByLot = parkingSpotRepository.findByParkingLotIdIn(
+            lots.stream().map(ParkingLot::getId).toList()
+        ).stream().collect(java.util.stream.Collectors.groupingBy(spot -> spot.getParkingLot().getId()));
 
         List<LotCandidate> candidates = lots.stream()
-            .map(lot -> toCandidate(lot, snapshotsByLot.getOrDefault(lot.getId(), List.of()), hourlyByLot.getOrDefault(lot.getId(), List.of()), req))
+            .map(lot -> toCandidate(lot, snapshotsByLot.getOrDefault(lot.getId(), List.of()), hourlyByLot.getOrDefault(lot.getId(), List.of()),
+                spotsByLot.getOrDefault(lot.getId(), List.of()), req))
             .filter((LotCandidate c) -> c.distanceMeters <= req.maxDistanceMeters())
             .filter((LotCandidate c) -> isOpen(c.openingHours, c.id))
             .filter((LotCandidate c) -> !needsEv(req) || c.hasEv)
@@ -75,10 +82,13 @@ public class ParkingPlanningService {
         ParkingLot lot,
         List<ZoneSnapshot> snapshots,
         List<HourlyOccupancyPoint> hourlyPoints,
+        List<ParkingSpot> spots,
         ParkingPlanningRequest req
     ) {
-        int occTotal = snapshots.stream().mapToInt(ZoneSnapshot::occupiedCount).sum();
-        int capTotal = snapshots.isEmpty() ? lot.getTotalSpaces() : snapshots.stream().mapToInt(ZoneSnapshot::totalCount).sum();
+        int spotTotal = spots.size();
+        int spotOccupied = (int) spots.stream().filter(spot -> !"free".equalsIgnoreCase(spot.getStatus())).count();
+        int occTotal = snapshots.isEmpty() ? spotOccupied : snapshots.stream().mapToInt(ZoneSnapshot::occupiedCount).sum();
+        int capTotal = snapshots.isEmpty() ? (spotTotal > 0 ? spotTotal : lot.getTotalSpaces()) : snapshots.stream().mapToInt(ZoneSnapshot::totalCount).sum();
         int pct = capTotal > 0 ? (int) Math.round((double) occTotal / capTotal * 100) : 0;
         boolean hasEv = snapshots.stream().anyMatch(s -> s.zoneType() == ZoneType.EV && s.totalCount() > 0);
         boolean hasAccessible = snapshots.stream().anyMatch(s -> s.zoneType() == ZoneType.ACCESSIBLE && s.totalCount() > 0);
@@ -95,11 +105,32 @@ public class ParkingPlanningService {
             pct,
             hasEv,
             hasAccessible,
-            hourlyPoints.stream()
-                .sorted(Comparator.comparingInt(HourlyOccupancyPoint::hourOfDay))
+            occupancySeries(hourlyPoints, pct).stream()
                 .map(point -> new ParkingPlanningResponse.HourlyOccupancy(String.format("%02dh", point.hourOfDay()), point.occupancyPercent()))
                 .toList()
         );
+    }
+
+    private List<HourlyOccupancyPoint> occupancySeries(List<HourlyOccupancyPoint> hourlyPoints, int fallbackPercent) {
+        List<HourlyOccupancyPoint> series = hourlyPoints == null ? List.of() : hourlyPoints;
+        boolean onlyZeroes = !series.isEmpty() && series.stream().allMatch(point -> point.occupancyPercent() == 0);
+        if ((series.isEmpty() || onlyZeroes) && fallbackPercent > 0) {
+            series = java.util.stream.IntStream.range(0, 24)
+                .mapToObj(hour -> new HourlyOccupancyPoint(hour, fallbackPercent))
+                .toList();
+        }
+        return upcomingHours(series);
+    }
+
+    private List<HourlyOccupancyPoint> upcomingHours(List<HourlyOccupancyPoint> hourlyPoints) {
+        if (hourlyPoints == null || hourlyPoints.isEmpty()) {
+            return List.of();
+        }
+        int currentHour = Instant.now().atZone(LISBON).getHour();
+        return hourlyPoints.stream()
+            .sorted(Comparator.comparingInt(point -> Math.floorMod(point.hourOfDay() - currentHour, 24)))
+            .limit(8)
+            .toList();
     }
 
     private BigDecimal minPrice(UUID lotId) {

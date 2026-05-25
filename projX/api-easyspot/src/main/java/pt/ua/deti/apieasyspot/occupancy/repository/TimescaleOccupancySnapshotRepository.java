@@ -2,7 +2,10 @@ package pt.ua.deti.apieasyspot.occupancy.repository;
 
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -149,8 +152,41 @@ public class TimescaleOccupancySnapshotRepository {
             ),
             params
         );
-        return rows.stream().collect(Collectors.groupingBy(LotHourlyPoint::lotId,
+        Map<UUID, List<HourlyOccupancyPoint>> grouped = rows.stream().collect(Collectors.groupingBy(LotHourlyPoint::lotId,
             Collectors.mapping(LotHourlyPoint::point, Collectors.toList())));
+        return grouped.entrySet().stream().collect(Collectors.toMap(
+            Map.Entry::getKey,
+            entry -> completeHourlySeries(entry.getValue())
+        ));
+    }
+
+    private List<HourlyOccupancyPoint> completeHourlySeries(List<HourlyOccupancyPoint> points) {
+        if (points == null || points.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Integer, Integer> byHour = new HashMap<>();
+        for (HourlyOccupancyPoint point : points) {
+            byHour.put(point.hourOfDay(), point.occupancyPercent());
+        }
+
+        List<HourlyOccupancyPoint> sortedPoints = points.stream()
+            .sorted(Comparator.comparingInt(HourlyOccupancyPoint::hourOfDay))
+            .toList();
+        List<HourlyOccupancyPoint> complete = new ArrayList<>(24);
+        Integer lastKnown = null;
+        for (int hour = 0; hour < 24; hour++) {
+            Integer occupancy = byHour.get(hour);
+            if (occupancy != null) {
+                lastKnown = occupancy;
+            } else if (lastKnown != null) {
+                occupancy = lastKnown;
+            } else {
+                occupancy = sortedPoints.getFirst().occupancyPercent();
+            }
+            complete.add(new HourlyOccupancyPoint(hour, occupancy));
+        }
+        return complete;
     }
 
     public record ZoneSnapshot(ZoneType zoneType, int occupiedCount, int totalCount, Instant recordedAt) {}
