@@ -175,6 +175,10 @@ public class ParkService {
             int evFree = zoneFree(zones, ZoneType.EV);
             int accTotal = zoneTotal(zones, ZoneType.ACCESSIBLE);
             int accFree = zoneFree(zones, ZoneType.ACCESSIBLE);
+            if (accTotal == 0 && !accessibleSpots.isEmpty()) {
+                accTotal = accessibleSpots.size();
+                accFree = (int) accessibleSpots.stream().filter(pt.ua.deti.apieasyspot.occupancy.model.AccessibleSpot::isAvailable).count();
+            }
             return new Availability(totalSpaces, freeSpaces, evTotal, evFree, accTotal, accFree);
         }
 
