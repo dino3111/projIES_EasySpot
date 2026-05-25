@@ -39,6 +39,7 @@ const DEFAULT_FLOOR: FloorConfig = {
 export function CreateParkModal({ onClose, onCreated }: Props) {
   const [name, setName] = useState('');
   const [city, setCity] = useState('');
+  const [district, setDistrict] = useState('');
   const [address, setAddress] = useState('');
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
@@ -190,8 +191,8 @@ export function CreateParkModal({ onClose, onCreated }: Props) {
 
   const handleSave = async () => {
     setError(null);
-    if (!name || !city || !address || !latitude || !longitude) {
-      setError('Preenche os dados base do parque.');
+    if (!name || !city || !district || !address || !latitude || !longitude) {
+      setError('Preenche os dados base do parque (nome, cidade, distrito, morada e coordenadas são obrigatórios).');
       return;
     }
 
@@ -205,6 +206,7 @@ export function CreateParkModal({ onClose, onCreated }: Props) {
       const created = await createPark({
         name,
         city,
+        district,
         address,
         latitude: Number.parseFloat(latitude),
         longitude: Number.parseFloat(longitude),
@@ -273,10 +275,13 @@ export function CreateParkModal({ onClose, onCreated }: Props) {
               <FieldRow id="park-city" label="Cidade *" icon="fa-city">
                 <input id="park-city" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Aveiro" className="w-full bg-transparent text-foreground outline-none" style={{ fontSize: '0.875rem' }} />
               </FieldRow>
-              <FieldRow id="park-spaces" label="Lugares (fallback)" icon="fa-car">
-                <input id="park-spaces" type="number" min="1" value={totalSpaces} onChange={(e) => setTotalSpaces(e.target.value)} placeholder="200" className="w-full bg-transparent text-foreground outline-none" style={{ fontSize: '0.875rem' }} />
+              <FieldRow id="park-district" label="Distrito *" icon="fa-map">
+                <input id="park-district" value={district} onChange={(e) => setDistrict(e.target.value)} placeholder="Aveiro" className="w-full bg-transparent text-foreground outline-none" style={{ fontSize: '0.875rem' }} />
               </FieldRow>
             </div>
+            <FieldRow id="park-spaces" label="Lugares (fallback)" icon="fa-car">
+              <input id="park-spaces" type="number" min="1" value={totalSpaces} onChange={(e) => setTotalSpaces(e.target.value)} placeholder="200" className="w-full bg-transparent text-foreground outline-none" style={{ fontSize: '0.875rem' }} />
+            </FieldRow>
             <FieldRow id="park-address" label="Morada *" icon="fa-location-dot">
               <input id="park-address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Rua de Aveiro, 1" className="w-full bg-transparent text-foreground outline-none" style={{ fontSize: '0.875rem' }} />
             </FieldRow>

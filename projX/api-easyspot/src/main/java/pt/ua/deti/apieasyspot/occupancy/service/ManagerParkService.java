@@ -14,11 +14,14 @@ import pt.ua.deti.apieasyspot.occupancy.model.EVCharger;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingSpot;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkStatus;
+import pt.ua.deti.apieasyspot.occupancy.model.Tariff;
+import pt.ua.deti.apieasyspot.occupancy.model.TariffStatus;
 import pt.ua.deti.apieasyspot.occupancy.model.ZoneType;
 import pt.ua.deti.apieasyspot.occupancy.repository.AccessibleSpotRepository;
 import pt.ua.deti.apieasyspot.occupancy.repository.EVChargerRepository;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingLotRepository;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingSpotRepository;
+import pt.ua.deti.apieasyspot.occupancy.repository.TariffRepository;
 import pt.ua.deti.apieasyspot.occupancy.model.TechnicianParkAssignment;
 import pt.ua.deti.apieasyspot.occupancy.repository.TechnicianParkAssignmentRepository;
 import pt.ua.deti.apieasyspot.sensor.model.SensorRegistry;
@@ -43,6 +46,7 @@ public class ManagerParkService {
     private final SensorRegistryRepository sensorRegistryRepository;
     private final TechnicianParkAssignmentService analyticsAssignmentService;
     private final AuthentikClient authentikClient;
+    private final TariffRepository tariffRepository;
 
     public List<TechnicianSummaryResponse> listTechnicians() {
         return userRepository.findByRoleOrderByNameAsc("TECHNICAL").stream()
@@ -151,6 +155,7 @@ public class ManagerParkService {
         ParkingLot lot = new ParkingLot();
         lot.setName(req.name());
         lot.setCity(req.city());
+        lot.setDistrict(req.district());
         lot.setAddress(req.address());
         lot.setLatitude(req.latitude());
         lot.setLongitude(req.longitude());
@@ -158,6 +163,7 @@ public class ManagerParkService {
         lot.setTotalSpaces(req.totalSpaces());
         lot.setAmenities(new java.util.ArrayList<>());
         ParkingLot saved = parkingLotRepository.save(lot);
+        createDefaultTariff(saved);
         createDefaultSpotsAndSensors(saved, req.totalSpaces());
         createDefaultOcrCameras(saved);
 
@@ -341,5 +347,17 @@ public class ManagerParkService {
         exit.setLastSeenAt(now);
 
         sensorRegistryRepository.saveAll(List.of(entrance, exit));
+    }
+
+    private void createDefaultTariff(ParkingLot lot) {
+        Tariff tariff = new Tariff();
+        tariff.setParkingLot(lot);
+        tariff.setName("Tarifa Base");
+        tariff.setPricePerHour(BigDecimal.ZERO);
+        tariff.setMaxDaily(BigDecimal.ZERO);
+        tariff.setMonthly(BigDecimal.ZERO);
+        tariff.setPricePerKwh(BigDecimal.ZERO);
+        tariff.setStatus(TariffStatus.ACTIVE);
+        tariffRepository.save(tariff);
     }
 }
