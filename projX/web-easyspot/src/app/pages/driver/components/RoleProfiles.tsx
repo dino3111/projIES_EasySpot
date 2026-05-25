@@ -325,7 +325,7 @@ export function DriverProfile({ profileData, onProfileUpdate }: Readonly<{ profi
       )}
 
       {showAddPaymentModal && (
-        <div className="fixed inset-0 z-[220] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }}>
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }}>
           <div className="w-full max-w-md rounded-2xl border border-border bg-card p-5">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-foreground font-bold" style={{ fontSize: '0.95rem' }}>Adicionar método de pagamento</h3>
@@ -465,7 +465,7 @@ function CreateParkModal({ onClose }: Readonly<{ onClose: () => void }>) {
   const inputCls = "w-full rounded-xl border border-border bg-background text-foreground px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50";
 
   return (
-    <div className="fixed inset-0 z-[220] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }}>
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }}>
       <div className="w-full max-w-md rounded-2xl border border-border bg-card p-5 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-foreground font-bold" style={{ fontSize: '0.95rem' }}>Criar Parque</h3>
@@ -689,7 +689,7 @@ function ExportReportsModal({ onClose }: Readonly<{ onClose: () => void }>) {
   };
 
   return (
-    <div className="fixed inset-0 z-[220] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }}>
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }}>
       <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-foreground font-bold" style={{ fontSize: '0.95rem' }}>Exportar Relatórios</h3>
@@ -941,7 +941,7 @@ function PrivacySecurityModal({ onClose }: Readonly<{ onClose: () => void }>) {
 
 function SimpleModal({ title, onClose, children }: Readonly<{ title: string; onClose: () => void; children: React.ReactNode }>) {
   return (
-    <div className="fixed inset-0 z-[220] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }}>
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }}>
       <div className="w-full max-w-md rounded-2xl border border-border bg-card p-5">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-foreground font-bold" style={{ fontSize: '0.95rem' }}>{title}</h3>
