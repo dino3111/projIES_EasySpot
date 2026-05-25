@@ -205,7 +205,17 @@ export function MaintenancePage() {
       ]);
       const activeAlerts = [...openAlerts, ...inProgressAlerts];
       const allAlerts = [...activeAlerts, ...resolvedAlerts];
-      setSensors(apiSensors.map(sensorFromApi));
+      setSensors((prev) => {
+        const incoming = apiSensors.map(sensorFromApi);
+        if (prev.length === 0) return incoming;
+        // Preserve stable insertion order: update existing entries in place,
+        // append genuinely new sensors at the end.
+        const byId = new Map(incoming.map((s) => [s.id, s]));
+        const updated = prev.map((s) => byId.get(s.id) ?? s);
+        const existingIds = new Set(prev.map((s) => s.id));
+        const added = incoming.filter((s) => !existingIds.has(s.id));
+        return added.length > 0 ? [...updated, ...added] : updated;
+      });
       setIssues(allAlerts.map(alertToIssue));
       setOrders(activeAlerts.map(alertToWorkOrder));
     } catch (err: unknown) {

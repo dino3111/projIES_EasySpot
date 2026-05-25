@@ -552,7 +552,7 @@ class ReservationServiceTest {
         // 7 full days × 12.00 maxDaily = 84.00
         // Before fix: would return 12.00 (cap applied to total)
         lot.setOpeningHours("24/7");
-        OffsetDateTime weekArrival   = OffsetDateTime.now(ZoneOffset.UTC).plusDays(1)
+        OffsetDateTime weekArrival   = OffsetDateTime.now(ZoneOffset.UTC).plusDays(2)
             .withHour(0).withMinute(0).withSecond(0).withNano(0);
         OffsetDateTime weekDeparture = weekArrival.plusDays(7);
         CreateReservationRequest req = new CreateReservationRequest(
@@ -571,7 +571,7 @@ class ReservationServiceTest {
         // 28 full days × 12.00 maxDaily = 336.00
         // Before fix: would return 12.00 (single cap applied to entire period)
         lot.setOpeningHours("24/7");
-        OffsetDateTime monthArrival   = OffsetDateTime.now(ZoneOffset.UTC).plusDays(1)
+        OffsetDateTime monthArrival   = OffsetDateTime.now(ZoneOffset.UTC).plusDays(2)
             .withHour(0).withMinute(0).withSecond(0).withNano(0);
         OffsetDateTime monthDeparture = monthArrival.plusDays(28);
         CreateReservationRequest req = new CreateReservationRequest(
