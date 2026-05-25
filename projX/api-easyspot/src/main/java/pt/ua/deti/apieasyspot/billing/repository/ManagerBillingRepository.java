@@ -31,9 +31,7 @@ public class ManagerBillingRepository {
         String sql = """
             select count(*)
             from parking_sessions ps
-            where ps.exit_time is not null
-              and ps.revenue_euros is not null
-              and ps.entry_time >= :since
+            where ps.entry_time >= :since
               and (cast(:parkId as uuid) is null or ps.parking_lot_id = cast(:parkId as uuid))
             """;
         Long result = timescaleJdbc.queryForObject(sql, params(parkId, since), Long.class);
@@ -48,9 +46,7 @@ public class ManagerBillingRepository {
             select ps.id, ps.parking_lot_id, ps.vehicle_id,
                    ps.entry_time, ps.exit_time, ps.zone_type, ps.revenue_euros
             from parking_sessions ps
-            where ps.exit_time is not null
-              and ps.revenue_euros is not null
-              and ps.entry_time >= :since
+            where ps.entry_time >= :since
               and (cast(:parkId as uuid) is null or ps.parking_lot_id = cast(:parkId as uuid))
             order by ps.entry_time desc
             limit :limit offset :offset
@@ -65,7 +61,7 @@ public class ManagerBillingRepository {
             UUID.fromString(rs.getString("parking_lot_id")),
             rs.getString("vehicle_id") != null ? UUID.fromString(rs.getString("vehicle_id")) : null,
             rs.getTimestamp("entry_time").toInstant().atOffset(ZoneOffset.UTC),
-            rs.getTimestamp("exit_time").toInstant().atOffset(ZoneOffset.UTC),
+            rs.getTimestamp("exit_time") != null ? rs.getTimestamp("exit_time").toInstant().atOffset(ZoneOffset.UTC) : null,
             rs.getString("zone_type"),
             rs.getBigDecimal("revenue_euros")
         ));
@@ -80,10 +76,14 @@ public class ManagerBillingRepository {
         Map<UUID, String> plates = vIds.isEmpty() ? Map.of() : vehiclePlates(vIds);
 
         return rows.stream().map(r -> {
-            long durationMin = (r.exit().toEpochSecond() - r.entry().toEpochSecond()) / 60;
+            // Active sessions (no exit yet) get 0 duration and 0 revenue displayed
+            long durationMin = r.exit() != null
+                ? (r.exit().toEpochSecond() - r.entry().toEpochSecond()) / 60
+                : 0L;
+            BigDecimal revenue = r.revenue() != null ? r.revenue() : BigDecimal.ZERO;
             boolean isEv = "EV".equalsIgnoreCase(r.zone());
-            BigDecimal evRev     = isEv ? r.revenue() : BigDecimal.ZERO;
-            BigDecimal parkRev   = isEv ? BigDecimal.ZERO : r.revenue();
+            BigDecimal evRev   = isEv ? revenue : BigDecimal.ZERO;
+            BigDecimal parkRev = isEv ? BigDecimal.ZERO : revenue;
             return new ManagerBillingSessionResponse(
                 r.id(),
                 names.getOrDefault(r.lotId(), r.lotId().toString()),
@@ -94,7 +94,7 @@ public class ManagerBillingRepository {
                 r.zone(),
                 parkRev,
                 evRev,
-                r.revenue()
+                revenue
             );
         }).toList();
     }

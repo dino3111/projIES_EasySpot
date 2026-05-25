@@ -12,16 +12,13 @@ vi.mock('../../../services/managerApi', () => ({
   fetchManagerTariffs: vi.fn(),
   fetchManagerAlerts: vi.fn(),
   fetchManagerBilling: vi.fn(),
+  fetchManagerParks: vi.fn().mockResolvedValue([]),
   updateTariff: vi.fn(),
   updateAlertState: vi.fn(),
 }));
 
 vi.mock('../../../services/vehiclesApi', () => ({
   fetchVehicles: vi.fn().mockResolvedValue([]),
-}));
-
-vi.mock('../../../services/parksApi', () => ({
-  fetchParksList: vi.fn().mockResolvedValue({ items: [], totalElements: 0, totalPages: 0 }),
 }));
 
 const emptyPage = { content: [], totalElements: 0, totalPages: 0 };

@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import pt.ua.deti.apieasyspot.occupancy.dto.ParkingSpotEvent;
+import pt.ua.deti.apieasyspot.occupancy.model.ParkStatus;
 import pt.ua.deti.apieasyspot.occupancy.model.ParkingSpot;
 import pt.ua.deti.apieasyspot.occupancy.model.ZoneType;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingSpotRepository;
@@ -52,6 +53,13 @@ public class ParkingSpotEventKafkaListener {
             ParkingSpot spot = parkingSpotRepository.findById(event.spotId()).orElse(null);
             if (spot == null) {
                 log.warn("Ignoring event for unknown spotId={}", event.spotId());
+                return;
+            }
+
+            if (ParkStatus.SUSPENDED.equals(spot.getParkingLot().getStatus())
+                    && STATUS_OCCUPIED.equals(spotStateResolver.normalize(event.status()))) {
+                log.debug("Ignoring entry event for spotId={}: park {} is SUSPENDED",
+                    event.spotId(), spot.getParkingLot().getId());
                 return;
             }
 

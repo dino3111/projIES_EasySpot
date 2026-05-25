@@ -14,12 +14,12 @@ import {
   fetchManagerTariffs,
   fetchManagerAlerts,
   fetchManagerBilling,
+  fetchManagerParks,
   updateTariff,
   type TariffResponse,
   type AlertResponse,
   type BillingSessionResponse,
 } from '../../services/managerApi';
-import { fetchParksList } from '../../services/parksApi';
 
 const TARIFF_PAGE_SIZE = 10;
 const INCIDENT_PAGE_SIZE = 10;
@@ -160,7 +160,7 @@ export function TariffsIncidentsPage() {
       fetchManagerBilling(undefined, BILLING_DAYS),
       fetchManagerBilling(undefined, BILLING_DAYS, 0, 1000),
       fetchManagerAlerts({ page: 0, size: 1, state: 'aberto' }),
-      fetchParksList({ pageSize: 100 }),
+      fetchManagerParks(),
     ]).then(([tariffsData, alertsData, billingData, allBillingData, openAlertsData, parksData]) => {
       setTariffs(tariffsData.content.map(mapTariff));
       setTariffTotalPages(tariffsData.totalPages);
@@ -173,7 +173,7 @@ export function TariffsIncidentsPage() {
       setBillingTotalElements(billingData.totalElements);
       setBillingStats(computeBillingStats(allBillingData.content.map(mapBilling)));
       setOpenIncidentsCount(openAlertsData.totalElements);
-      setBillingParks(parksData.items.map(p => ({ id: p.id, name: p.name })));
+      setBillingParks(parksData.map(p => ({ id: p.id, name: p.name })));
     }).catch(err => {
       console.error('Error fetching manager data:', err);
     }).finally(() => {
