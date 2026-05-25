@@ -14,6 +14,7 @@ import pt.ua.deti.apieasyspot.occupancy.model.ParkingLot;
 import pt.ua.deti.apieasyspot.occupancy.model.Tariff;
 import pt.ua.deti.apieasyspot.occupancy.model.ZoneType;
 import pt.ua.deti.apieasyspot.occupancy.repository.ParkingLotRepository;
+import pt.ua.deti.apieasyspot.occupancy.repository.ParkingSpotRepository;
 import pt.ua.deti.apieasyspot.occupancy.repository.TariffRepository;
 import pt.ua.deti.apieasyspot.occupancy.repository.TimescaleOccupancySnapshotRepository;
 import pt.ua.deti.apieasyspot.occupancy.repository.TimescaleOccupancySnapshotRepository.ZoneSnapshot;
@@ -34,6 +35,7 @@ class ParkingPlanningServiceTest {
     @Mock private ParkingLotRepository parkingLotRepository;
     @Mock private TariffRepository tariffRepository;
     @Mock private TimescaleOccupancySnapshotRepository occupancyRepository;
+    @Mock private ParkingSpotRepository parkingSpotRepository;
     @InjectMocks private ParkingPlanningService service;
 
     private ParkingLot availableLot;
