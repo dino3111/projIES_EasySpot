@@ -33,9 +33,9 @@ class SensorFaultSimulator:
     def __init__(
         self,
         seed: int = 42,
-        degraded_probability: float = 0.005,
-        offline_probability: float = 0.002,
-        maintenance_probability: float = 0.001,
+        degraded_probability: float = 0.0000005,
+        offline_probability: float = 0.0000002,
+        maintenance_probability: float = 0.0000001,
         recovery_probability: float = 0.15,
         fault_min_duration: float = 30.0,
         fault_max_duration: float = 300.0,

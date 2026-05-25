@@ -39,15 +39,15 @@ OCR_FAULT_PROBABILITY_PER_TICK = float(
 
 # IR sensor device-level fault simulation
 # With 1s ticks and ~300 sensors:
-# 0.000005 -> around 1 fault every ~10 minutes across all sensors.
+# 0.0000005 -> around 1 fault every ~100 minutes across all sensors.
 SENSOR_FAULT_DEGRADED_PROBABILITY = float(
-    os.getenv("SENSOR_FAULT_DEGRADED_PROBABILITY", "0.000005")
+    os.getenv("SENSOR_FAULT_DEGRADED_PROBABILITY", "0.0000005")
 )
 SENSOR_FAULT_OFFLINE_PROBABILITY = float(
-    os.getenv("SENSOR_FAULT_OFFLINE_PROBABILITY", "0.000002")
+    os.getenv("SENSOR_FAULT_OFFLINE_PROBABILITY", "0.0000002")
 )
 SENSOR_FAULT_MAINTENANCE_PROBABILITY = float(
-    os.getenv("SENSOR_FAULT_MAINTENANCE_PROBABILITY", "0.000001")
+    os.getenv("SENSOR_FAULT_MAINTENANCE_PROBABILITY", "0.0000001")
 )
 # High recovery so faults resolve quickly and don't pile up as OPEN alerts
 SENSOR_FAULT_RECOVERY_PROBABILITY = float(
