@@ -7,6 +7,7 @@ import { useProfile } from '../../context/ProfileContext';
 import { CompactParkRow } from './components/CompactParkRow';
 import { FilterBanners } from './components/FilterBanners';
 import { fetchParkCities, fetchParksList, subscribeSpaceAvailableAlerts, haversineKm, formatDistance, formatWalkingTime } from '../../services/parksApi';
+import { useOptionalWs } from '../../context/WsContext';
 
 interface QueryState {
   page: number;
@@ -17,12 +18,13 @@ interface QueryState {
   selectedDistrict: string;
   selectedVehicleId: string | null;
 }
-const realtimeRefreshFromEnv = Number(import.meta.env.VITE_REALTIME_REFRESH_MS ?? 1000);
-const REALTIME_REFRESH_MS = Number.isFinite(realtimeRefreshFromEnv) && realtimeRefreshFromEnv >= 1000
-  ? realtimeRefreshFromEnv
-  : 1000;
+const realtimeFallbackFromEnv = Number(import.meta.env.VITE_REALTIME_FALLBACK_MS ?? 60000);
+const REALTIME_FALLBACK_MS = Number.isFinite(realtimeFallbackFromEnv) && realtimeFallbackFromEnv >= 10000
+  ? realtimeFallbackFromEnv
+  : 60000;
 
 export function ParkingListPage() {
+  const { client, status } = useOptionalWs();
   const { vehicles, driverTypes } = useProfile();
   const primaryVehicle = vehicles.find((v) => v.isPrimary) ?? vehicles[0] ?? null;
 
@@ -82,6 +84,8 @@ export function ParkingListPage() {
 
   // Track whether the user has manually chosen a vehicle so we don't overwrite their selection.
   const userSelectedVehicleRef = useRef(false);
+  const refreshTimeoutRef = useRef<number | null>(null);
+  const loadRef = useRef<((background?: boolean) => Promise<void>) | null>(null);
 
   useEffect(() => {
     if (userSelectedVehicleRef.current) return;
@@ -156,15 +160,39 @@ export function ParkingListPage() {
         if (mounted && !background) setLoading(false);
       }
     };
+    loadRef.current = load;
     void load();
-    const intervalId = globalThis.setInterval(() => {
-      void load(true);
-    }, REALTIME_REFRESH_MS);
     return () => {
       mounted = false;
-      globalThis.clearInterval(intervalId);
+      if (loadRef.current === load) loadRef.current = null;
     };
   }, [query]);
+
+  useEffect(() => {
+    const intervalId = globalThis.setInterval(() => {
+      void loadRef.current?.(true);
+    }, REALTIME_FALLBACK_MS);
+    return () => globalThis.clearInterval(intervalId);
+  }, []);
+
+  useEffect(() => {
+    if (status !== 'connected' || !client) return;
+    const scheduleRefresh = () => {
+      if (refreshTimeoutRef.current != null) return;
+      refreshTimeoutRef.current = globalThis.setTimeout(() => {
+        refreshTimeoutRef.current = null;
+        void loadRef.current?.(true);
+      }, 250);
+    };
+    const subscription = client.subscribe('/topic/occupancy/parks', scheduleRefresh);
+    return () => {
+      subscription.unsubscribe();
+      if (refreshTimeoutRef.current != null) {
+        globalThis.clearTimeout(refreshTimeoutRef.current);
+        refreshTimeoutRef.current = null;
+      }
+    };
+  }, [client, status]);
 
   const { showEVOnly, showAccessibleOnly, showAvailableOnly, searchQuery, selectedDistrict, selectedVehicleId, page } = query;
 

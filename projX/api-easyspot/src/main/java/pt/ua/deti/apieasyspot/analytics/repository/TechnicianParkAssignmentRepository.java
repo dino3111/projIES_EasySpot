@@ -19,6 +19,8 @@ public interface TechnicianParkAssignmentRepository extends JpaRepository<Techni
 
     List<TechnicianParkAssignment> findByTechnicianId(UUID technicianId);
 
+    List<TechnicianParkAssignment> findByParkingLotId(UUID parkingLotId);
+
     boolean existsByTechnicianIdAndParkingLotId(UUID technicianId, UUID parkingLotId);
 
     void deleteByTechnicianIdAndParkingLotId(UUID technicianId, UUID parkingLotId);

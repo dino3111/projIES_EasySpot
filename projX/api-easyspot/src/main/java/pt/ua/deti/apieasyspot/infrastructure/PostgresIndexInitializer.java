@@ -21,7 +21,7 @@ public class PostgresIndexInitializer implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args) {
         try {
-            ensureAlertsTable();
+            dropEmptyTimeseriesTables();
             fixSensorRegistryStatusConstraint();
             createPaymentIndexes();
             createReservationConstraints();
@@ -31,35 +31,21 @@ public class PostgresIndexInitializer implements ApplicationRunner {
         }
     }
 
-    private void ensureAlertsTable() {
-        exec("""
-            create table if not exists alerts (
-                id uuid not null,
-                parking_lot_id uuid not null,
-                parking_lot_name text,
-                type text not null,
-                severity text not null,
-                state text not null,
-                zone text,
-                spot_number text,
-                sensor_id text,
-                plate text,
-                description text not null,
-                photo_url text,
-                reported_by text,
-                attributed_to text,
-                notes text,
-                resolved_at timestamptz,
-                created_at timestamptz not null,
-                primary key (id, created_at)
-            )
-            """);
-        exec("create index if not exists alerts_created_at_idx on alerts (created_at desc)");
-        exec("""
-            create index if not exists idx_alerts_active
-            on alerts (created_at desc, parking_lot_id)
-            where state in ('OPEN', 'IN_PROGRESS')
-            """);
+    private void dropEmptyTimeseriesTables() {
+        dropTableIfEmpty("alerts");
+        dropTableIfEmpty("ocr_plate_reads");
+    }
+
+    private void dropTableIfEmpty(String tableName) {
+        try {
+            Long rowCount = jdbc.queryForObject("select count(*) from " + tableName, Long.class);
+            if (rowCount != null && rowCount == 0) {
+                jdbc.execute("drop table " + tableName);
+                log.info("Dropped empty PostgreSQL table {} because it is stored in TimescaleDB.", tableName);
+            }
+        } catch (Exception e) {
+            log.debug("PostgreSQL timeseries table cleanup skipped for {}: {}", tableName, e.getMessage());
+        }
     }
 
     private void fixSensorRegistryStatusConstraint() {

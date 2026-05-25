@@ -13,6 +13,11 @@ function sleep(ms: number): Promise<void> {
 
 function clearAuthStorage() {
   for (const key of AUTH_STORAGE_KEYS) sessionStorage.removeItem(key);
+  for (const key of AUTH_STORAGE_KEYS) localStorage.removeItem(key);
+  for (let index = localStorage.length - 1; index >= 0; index -= 1) {
+    const key = localStorage.key(index);
+    if (key?.startsWith('oidc.user:')) localStorage.removeItem(key);
+  }
 }
 
 function redirectToWelcomeIfNeeded() {
@@ -79,21 +84,27 @@ function canRetry(method: string, attempt: number): boolean {
   return attempt < 2 && (method === 'GET' || method === 'HEAD');
 }
 
-export async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+type ApiRequestInit = RequestInit & {
+  background?: boolean;
+};
+
+export async function request<T>(path: string, options: ApiRequestInit = {}): Promise<T> {
+  const { background = false, ...fetchOptions } = options;
   const token = getAccessToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...(options.headers as Record<string, string>),
+    ...(fetchOptions.headers as Record<string, string>),
   };
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const method = options.method ?? 'GET';
+  const method = fetchOptions.method ?? 'GET';
   const url = `${API_BASE}${path}`;
   let res: Response | null = null;
 
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     try {
-      res = await withGlobalLoading(() => fetch(url, { ...options, headers }));
+      const execute = () => fetch(url, { ...fetchOptions, headers });
+      res = background ? await execute() : await withGlobalLoading(execute);
       if (!RETRYABLE_STATUSES.has(res.status) || !canRetry(method, attempt)) {
         break;
       }

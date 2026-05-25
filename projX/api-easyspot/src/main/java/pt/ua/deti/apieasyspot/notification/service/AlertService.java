@@ -36,6 +36,7 @@ public class AlertService {
     private final TechnicianParkAssignmentRepository technicianParkAssignmentRepository;
     private final UserRepository userRepository;
     private final AlertStateHistoryRepository alertStateHistoryRepository;
+    private final TechnicianRealtimeNotifier technicianRealtimeNotifier;
 
     public List<Alert> listAlerts(UUID parkId, StateAlert state, SeverityAlert severity,
                                    OffsetDateTime from, OffsetDateTime to) {
@@ -92,7 +93,7 @@ public class AlertService {
             alert.setResolvedAt(null);
         }
 
-        alertRepository.save(alert);
+        Alert saved = alertRepository.save(alert);
         alertStateHistoryRepository.save(
             alert.getId(),
             previousState != null ? previousState.name() : null,
@@ -101,6 +102,7 @@ public class AlertService {
             notes,
             Timestamp.from(OffsetDateTime.now(ZoneOffset.UTC).toInstant())
         );
+        technicianRealtimeNotifier.alertChanged("ALERT_STATE_CHANGED", saved);
     }
 
     public Alert createSensorAlert(UUID parkingLotId, String parkingLotName, String zone, String sensorId, String description, String notes, SeverityAlert severity) {
@@ -115,7 +117,9 @@ public class AlertService {
         alert.setDescription(description);
         alert.setNotes(notes);
         alert.setCreatedAt(OffsetDateTime.now(ZoneOffset.UTC));
-        return alertRepository.save(alert);
+        Alert saved = alertRepository.save(alert);
+        technicianRealtimeNotifier.alertChanged("ALERT_CREATED", saved);
+        return saved;
     }
 
     public List<AlertStateHistoryEntry> history(UUID alertId) {

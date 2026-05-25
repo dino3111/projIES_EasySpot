@@ -28,6 +28,11 @@ function isExpectedIssuer(token: string): boolean {
 
 function clearSessionAuthStorage() {
   for (const key of AUTH_STORAGE_KEYS) sessionStorage.removeItem(key);
+  for (const key of AUTH_STORAGE_KEYS) localStorage.removeItem(key);
+  for (let index = localStorage.length - 1; index >= 0; index -= 1) {
+    const key = localStorage.key(index);
+    if (key?.startsWith('oidc.user:')) localStorage.removeItem(key);
+  }
 }
 
 function usableToken(token?: string): string | null {

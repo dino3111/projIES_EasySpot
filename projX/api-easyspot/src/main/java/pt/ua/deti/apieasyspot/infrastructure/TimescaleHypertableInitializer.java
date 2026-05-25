@@ -30,6 +30,7 @@ public class TimescaleHypertableInitializer implements ApplicationRunner {
             prepareAlertStateHistoryTable();
             prepareBackendDecisionHistoryTable();
             prepareOcrPlateReadsTable();
+            prepareGateEventsTable();
         } catch (Exception e) {
             log.warn("TimescaleDB base table initialization skipped: {}", e.getMessage());
             return;
@@ -159,11 +160,32 @@ public class TimescaleHypertableInitializer implements ApplicationRunner {
         boolean alertHistoryHypertable = createHypertable("alert_state_history", "changed_at");
         boolean decisionHistoryHypertable = createHypertable("backend_decision_history", "decided_at");
         boolean ocrReadsHypertable = createHypertable("ocr_plate_reads", "occurred_at");
+        boolean gateEventsHypertable = createHypertable("gate_events", "occurred_at");
         if (!occupancyHypertable || !parkingSessionsHypertable || !alertsHypertable
-            || !alertHistoryHypertable || !decisionHistoryHypertable || !ocrReadsHypertable) {
+            || !alertHistoryHypertable || !decisionHistoryHypertable || !ocrReadsHypertable
+            || !gateEventsHypertable) {
             throw new IllegalStateException("One or more Timescale tables could not be converted to hypertables.");
         }
         log.info("TimescaleDB hypertables ready.");
+    }
+
+    private void prepareGateEventsTable() {
+        jdbc.execute("""
+            create table if not exists gate_events (
+                id uuid not null,
+                park_id uuid not null,
+                gate_id text not null,
+                direction varchar(10) not null,
+                event_type text not null,
+                state varchar(10) not null,
+                previous_state varchar(10) not null,
+                plate varchar(20),
+                reason text not null,
+                occurred_at timestamptz not null,
+                extra jsonb not null default '{}',
+                primary key (id, occurred_at)
+            )
+            """);
     }
 
     private void prepareAlertStateHistoryTable() {

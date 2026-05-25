@@ -90,6 +90,11 @@ function tokenIssuerMatches(claims: Record<string, unknown>): boolean {
 
 function clearAuthStorage() {
   Object.values(SK).forEach((k) => sessionStorage.removeItem(k));
+  Object.values(SK).forEach((k) => localStorage.removeItem(k));
+  for (let index = localStorage.length - 1; index >= 0; index -= 1) {
+    const key = localStorage.key(index);
+    if (key?.startsWith('oidc.user:')) localStorage.removeItem(key);
+  }
 }
 
 function extractRole(claims: Record<string, unknown>): AppProfile {
@@ -349,23 +354,9 @@ export function AuthProvider({ children }: { readonly children: ReactNode }) {
     if (idToken) params.set('id_token_hint', idToken);
     const logoutHref = `${LOGOUT_URL}?${params.toString()}`;
 
-    // Avoid landing users on Authentik's default invalidation page while still
-    // terminating the provider session. Call end-session in background and
-    // always return to the app's post-logout route.
-    void (async () => {
-      try {
-        await fetch(logoutHref, {
-          method: 'GET',
-          credentials: 'include',
-          redirect: 'follow',
-          cache: 'no-store',
-        });
-      } catch (error) {
-        console.warn('[AUTH] provider logout request failed; continuing local logout', error);
-      } finally {
-        globalThis.location.href = LOGOUT_REDIRECT_URI;
-      }
-    })();
+    // Authentik session cookies are cleared most reliably through a top-level
+    // navigation to the provider's end-session endpoint.
+    globalThis.location.href = logoutHref;
   }, []);
 
   return (

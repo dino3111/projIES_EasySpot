@@ -11,6 +11,7 @@ import pt.ua.deti.apieasyspot.notification.model.Alert;
 import pt.ua.deti.apieasyspot.notification.model.AlertType;
 import pt.ua.deti.apieasyspot.notification.model.SeverityAlert;
 import pt.ua.deti.apieasyspot.notification.repository.TimescaleAlertRepository;
+import pt.ua.deti.apieasyspot.notification.service.TechnicianRealtimeNotifier;
 import pt.ua.deti.apieasyspot.sensor.dto.SensorDetailDto;
 import pt.ua.deti.apieasyspot.sensor.dto.SensorLogEntry;
 import pt.ua.deti.apieasyspot.sensor.dto.SensorStatusUpdateRequest;
@@ -36,6 +37,7 @@ public class SensorLogsService {
     private final SensorRegistryRepository sensorRegistryRepository;
     private final TimescaleAlertRepository alertRepository;
     private final BackendDecisionHistoryRepository backendDecisionHistoryRepository;
+    private final TechnicianRealtimeNotifier technicianRealtimeNotifier;
     private final Map<String, LocalDateTime> lastTouchBySensor = new ConcurrentHashMap<>();
 
     public List<SensorSummaryDto> listAllSensors() {
@@ -83,7 +85,8 @@ public class SensorLogsService {
 
         alertRepository.findOpenBySensorId(sensorId).ifPresentOrElse(alert -> {
             applySensorStatusToAlert(alert, newStatus, request.notes());
-            alertRepository.save(alert);
+            Alert saved = alertRepository.save(alert);
+            technicianRealtimeNotifier.alertChanged("ALERT_STATE_CHANGED", saved);
         }, () -> {
             if (newStatus == SensorStatus.OPERATIONAL || newStatus == SensorStatus.MAINTENANCE) {
                 return;
@@ -102,8 +105,10 @@ public class SensorLogsService {
             alert.setAttributedTo(null);
             alert.setNotes(blankToNull(request.notes()));
             alert.setCreatedAt(OffsetDateTime.now(ZoneOffset.UTC));
-            alertRepository.save(alert);
+            Alert saved = alertRepository.save(alert);
+            technicianRealtimeNotifier.alertChanged("ALERT_CREATED", saved);
         });
+        technicianRealtimeNotifier.sensorStatusChanged(sensor.getParkingLot().getId(), sensorId, newStatus.name());
     }
 
     private void applySensorStatusToAlert(Alert alert, SensorStatus newStatus, String notes) {
@@ -160,11 +165,13 @@ public class SensorLogsService {
                     alert.setAttributedTo(null);
                     alert.setNotes(null);
                     alert.setCreatedAt(OffsetDateTime.now(ZoneOffset.UTC));
-                    alertRepository.save(alert);
+                    Alert saved = alertRepository.save(alert);
+                    technicianRealtimeNotifier.alertChanged("ALERT_CREATED", saved);
                 }
             );
             log.debug("Sensor {} marked OFFLINE via device.fault", sensorId);
             recordDecision("sensor", sensorId, "FAULT", "device", "status=OFFLINE");
+            technicianRealtimeNotifier.sensorStatusChanged(sensor.getParkingLot().getId(), sensorId, SensorStatus.OFFLINE.name());
         });
     }
 
@@ -177,11 +184,13 @@ public class SensorLogsService {
                 alert.setState(StateAlert.RESOLVED);
                 alert.setResolvedAt(OffsetDateTime.now(ZoneOffset.UTC));
                 alert.setNotes("Recovered via " + recoveryType);
-                alertRepository.save(alert);
+                Alert saved = alertRepository.save(alert);
+                technicianRealtimeNotifier.alertChanged("ALERT_STATE_CHANGED", saved);
             });
 
             log.debug("Sensor {} recovered via {}", sensorId, recoveryType);
             recordDecision("sensor", sensorId, "RECOVER", recoveryType, "status=OPERATIONAL");
+            technicianRealtimeNotifier.sensorStatusChanged(sensor.getParkingLot().getId(), sensorId, SensorStatus.OPERATIONAL.name());
         });
     }
 
