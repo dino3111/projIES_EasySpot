@@ -856,7 +856,14 @@ export function TechnicianProfile({ profileData }: Readonly<{ profileData: Techn
         {!loadingParks && parks.map((park, idx) => (
           <div key={park.id}>
             {idx > 0 && <div className="h-px bg-border mx-4" />}
-            <AccountRow icon="fa-square-parking" label={`${park.name} - ${park.city}`} />
+            <div className="w-full flex items-center gap-3 px-4 py-3.5 text-left bg-transparent">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-primary/10">
+                <i className="fas fa-square-parking text-primary" style={{ fontSize: '0.9rem' }} />
+              </div>
+              <span className="font-medium flex-1 text-foreground" style={{ fontSize: '0.875rem' }}>
+                {park.name} - {park.city}
+              </span>
+            </div>
           </div>
         ))}
       </div>
