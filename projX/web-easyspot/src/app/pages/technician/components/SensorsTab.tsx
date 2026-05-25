@@ -201,9 +201,10 @@ function ParkSensorMapView({
   const hasFloors = floorNames.length > 1;
   const [selectedFloor, setSelectedFloor] = useState<string | null>(hasFloors ? floorNames[0] : null);
 
-  const visibleSensors = hasFloors && selectedFloor
+  const visibleSensors = (hasFloors && selectedFloor
     ? allSensors.filter(s => extractFloorLabel(s.zona) === selectedFloor)
-    : allSensors;
+    : allSensors
+  ).slice().sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true, sensitivity: 'base' }));
 
   const statusCounts = {
     operacional: visibleSensors.filter(s => s.status === 'operacional').length,
