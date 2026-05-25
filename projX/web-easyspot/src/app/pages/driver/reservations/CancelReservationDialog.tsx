@@ -49,7 +49,7 @@ export function CancelReservationDialog({
             ) : (
               <>
                 <i className="fas fa-trash mr-2" style={{ fontSize: '0.8rem' }} />
-                Cancelar reserva
+                Cancelar
               </>
             )}
           </button>
