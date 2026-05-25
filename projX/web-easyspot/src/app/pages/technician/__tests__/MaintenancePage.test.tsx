@@ -22,8 +22,27 @@ vi.mock('../components/SensorsTab', () => ({
 }));
 
 vi.mock('../components/TasksTab', () => ({
-  TasksTab: ({ onNewOrder }: { onNewOrder: () => void }) => (
-    <button onClick={onNewOrder}>abrir-nova-ordem</button>
+  TasksTab: ({
+    orders,
+    completedOrders,
+    onUpdate,
+    onNewOrder,
+  }: {
+    orders: Array<{ id: string; state: string }>;
+    completedOrders: Array<{ id: string }>;
+    onUpdate: (id: string, state: 'em-progresso' | 'concluida') => void;
+    onNewOrder: () => void;
+  }) => (
+    <div>
+      <span data-testid="open-orders">{orders.filter((order) => order.state !== 'RESOLVED').length}</span>
+      <span data-testid="completed-orders">{completedOrders.length}</span>
+      {orders.map((order) => (
+        <button key={order.id} onClick={() => onUpdate(order.id, 'concluida')}>
+          concluir-{order.id}
+        </button>
+      ))}
+      <button onClick={onNewOrder}>abrir-nova-ordem</button>
+    </div>
   ),
 }));
 
@@ -126,5 +145,42 @@ describe('MaintenancePage', () => {
     fireEvent.click(await screen.findByText('confirmar-criacao'));
 
     await waitFor(() => expect(techApiMock.updateAlertState).toHaveBeenCalledWith('alert-1', 'OPEN', expect.stringContaining('PRIORITY:MEDIUM')));
+  });
+
+  it('increments completed task count immediately when completing a task', async () => {
+    const openAlert = {
+      id: 'alert-1',
+      type: 'SENSOR',
+      park: 'Fórum Aveiro',
+      zone: 'Zona A',
+      spotNumber: null,
+      sensorId: 'sensor-1',
+      plate: null,
+      description: 'Falha detetada',
+      severity: 'CRITICAL',
+      state: 'OPEN',
+      createdAt: '2026-05-12T10:00:00Z',
+      attributedTo: null,
+      notes: null,
+    };
+    techApiMock.fetchAlerts.mockImplementation((query?: { state?: string }) => {
+      if (query?.state === 'OPEN') return Promise.resolve([openAlert]);
+      return Promise.resolve([]);
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/technician/maintenance?tab=tasks']}>
+        <MaintenancePage />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(screen.getByTestId('open-orders')).toHaveTextContent('1'));
+    expect(screen.getByTestId('completed-orders')).toHaveTextContent('0');
+
+    fireEvent.click(screen.getByText('concluir-alert-1'));
+
+    await waitFor(() => expect(techApiMock.updateAlertState).toHaveBeenCalledWith('alert-1', 'RESOLVED'));
+    await waitFor(() => expect(screen.getByTestId('completed-orders')).toHaveTextContent('1'));
+    expect(screen.getByTestId('open-orders')).toHaveTextContent('0');
   });
 });

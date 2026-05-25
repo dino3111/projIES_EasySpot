@@ -230,7 +230,7 @@ export function MaintenancePage() {
         state: 'RESOLVED',
         from: monday.toISOString(),
         to: sunday.toISOString(),
-      });
+      }, { background: true });
       setCompletedOrders(apiAlerts.map(alertToWorkOrder));
     } catch {
       setCompletedOrders([]);
@@ -319,10 +319,10 @@ export function MaintenancePage() {
 
   const handleOrderUpdate = async (orderId: string, novoEstado: 'em-progresso' | 'concluida') => {
     const apiState = novoEstado === 'em-progresso' ? 'IN_PROGRESS' : 'RESOLVED';
+    const order = orders.find((o) => o.id === orderId);
     try {
       await updateAlertState(orderId, apiState);
       if (novoEstado === 'concluida') {
-        const order = orders.find((o) => o.id === orderId);
         if (order?.sensorId) {
           await updateSensorStatus(order.sensorId, 'operational').catch(() => {});
           setSensors((prev) =>
@@ -335,7 +335,14 @@ export function MaintenancePage() {
         i.id === orderId ? { ...i, estado: toIssueEstado(apiState) } : i,
       ));
       if (novoEstado === 'concluida') {
-        void loadCompleted(weekOffset);
+        if (order && weekOffset === 0) {
+          const completedOrder = { ...order, state: apiState };
+          setCompletedOrders((prev) =>
+            prev.some((existing) => existing.id === orderId)
+              ? prev.map((existing) => (existing.id === orderId ? completedOrder : existing))
+              : [completedOrder, ...prev],
+          );
+        }
       }
       showToast(novoEstado === 'em-progresso' ? 'Tarefa iniciada.' : 'Tarefa concluída.');
     } catch {

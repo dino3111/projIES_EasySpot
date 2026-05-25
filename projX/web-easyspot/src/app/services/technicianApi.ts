@@ -164,7 +164,9 @@ export const fetchAlerts = (query: FetchAlertsQuery = {}, options: FetchOptions 
   if (query.from)     params.set('from',     query.from);
   if (query.to)       params.set('to',       query.to);
   const qs = params.toString();
-  return request<AlertResponse[] | { content: AlertResponse[] }>(`/api/alerts${qs ? `?${qs}` : ''}`).then((data) => {
+  return request<AlertResponse[] | { content: AlertResponse[] }>(`/api/alerts${qs ? `?${qs}` : ''}`, {
+    background: options.background,
+  }).then((data) => {
     const alerts = Array.isArray(data) ? data : data.content;
     console.info('[TECH-FE] alerts loaded', { count: alerts.length, query });
     return alerts;

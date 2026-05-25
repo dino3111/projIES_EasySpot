@@ -3,6 +3,7 @@ import {
   fetchTechnicianDashboard,
   fetchSensorList,
   fetchSensorDetail,
+  fetchAlerts,
   updateAlertState,
   updateSensorStatus,
 } from '../technicianApi';
@@ -93,6 +94,18 @@ describe('technicianApi', () => {
           body: JSON.stringify({ state: 'IN_PROGRESS' }),
         }),
       );
+    });
+  });
+
+  describe('fetchAlerts', () => {
+    it('passes background option to request', async () => {
+      apiServiceMock.request.mockResolvedValueOnce({ content: [] });
+
+      await fetchAlerts({ state: 'RESOLVED' }, { background: true });
+
+      expect(apiServiceMock.request).toHaveBeenCalledWith('/api/alerts?state=RESOLVED', {
+        background: true,
+      });
     });
   });
 
