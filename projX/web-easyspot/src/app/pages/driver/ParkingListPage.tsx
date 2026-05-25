@@ -237,7 +237,7 @@ export function ParkingListPage() {
     : null;
 
   return (
-    <div className="max-w-screen-2xl mx-auto px-4 py-5 h-full transition-colors duration-300">
+    <div className="max-w-screen-2xl mx-auto px-4 py-5 transition-colors duration-300">
       <PageHeader mobileView={mobileView} setMobileView={setMobileView} />
 
       {vehicles.length > 0 && (
@@ -288,10 +288,10 @@ export function ParkingListPage() {
       ) : (
         <EmptyState />
       )}
-      <div className="mt-4 flex items-center justify-between">
-        <button className="btn btn-sm" disabled={page <= 1 || loading} onClick={() => setQuery((prev) => ({ ...prev, page: Math.max(1, prev.page - 1) }))}>Anterior</button>
+      <div className="mt-4 mb-6 flex items-center justify-between">
+        <button className="btn btn-sm rounded-full" disabled={page <= 1 || loading} onClick={() => setQuery((prev) => ({ ...prev, page: Math.max(1, prev.page - 1) }))}>Anterior</button>
         <span className="text-sm text-muted-foreground">Página {page} / {Math.max(totalPages, 1)}</span>
-        <button className="btn btn-sm" disabled={loading || (totalPages > 0 && page >= totalPages)} onClick={() => setQuery((prev) => ({ ...prev, page: prev.page + 1 }))}>Seguinte</button>
+        <button className="btn btn-sm rounded-full" disabled={loading || (totalPages > 0 && page >= totalPages)} onClick={() => setQuery((prev) => ({ ...prev, page: prev.page + 1 }))}>Seguinte</button>
       </div>
     </div>
   );
