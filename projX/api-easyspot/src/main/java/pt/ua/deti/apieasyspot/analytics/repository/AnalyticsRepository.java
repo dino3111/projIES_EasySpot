@@ -55,9 +55,16 @@ public class AnalyticsRepository {
     }
 
     public Double avgSessionDurationMinutes() {
+        // Rolling 24-hour window + COALESCE(exit_time, NOW()) so that:
+        //  - active sessions (no exit yet) contribute their current duration
+        //  - sessions started yesterday but not yet finished are included
         return timescaleJdbc.queryForObject(
-            "select avg(extract(epoch from (exit_time - entry_time)) / 60) from parking_sessions where exit_time >= current_date at time zone ? and exit_time < (current_date + interval '1 day') at time zone ? and exit_time is not null",
-            Double.class, TZ, TZ);
+            """
+            select avg(extract(epoch from (coalesce(exit_time, now()) - entry_time)) / 60)
+            from parking_sessions
+            where entry_time >= now() - interval '24 hours'
+            """,
+            Double.class);
     }
 
     public long countOpenAlerts() {
@@ -69,21 +76,18 @@ public class AnalyticsRepository {
     }
 
     public int[] currentOccupancy() {
-        int occupiedNow = timescaleJdbc.queryForObject(
+        // Query parking_spots directly — this table is updated synchronously on every sensor
+        // event and is always current, unlike occupancy_snapshots which are periodic aggregates.
+        Map<String, Object> row = jdbc.queryForMap(
             """
-            select count(*)
-            from parking_sessions
-            where exit_time is null
-            """,
-            Integer.class
+            select count(*) filter (where status not in ('free', 'ev', 'accessible', 'out_of_service')) as occupied,
+                   count(*)                                                                               as total
+            from parking_spots
+            """
         );
-
-        int totalSpaces = jdbc.queryForObject(
-            "select coalesce(sum(total_spaces), 0) from parking_lots",
-            Integer.class
-        );
-
-        return new int[]{occupiedNow, totalSpaces};
+        int occupied = ((Number) row.get("occupied")).intValue();
+        int total    = ((Number) row.get("total")).intValue();
+        return new int[]{occupied, total};
     }
 
     public List<DailyMetric> last7DaysMetrics() {
@@ -202,12 +206,12 @@ public class AnalyticsRepository {
             .sorted((a, b) -> b.revenue().compareTo(a.revenue()))
             .toList();
 
-        Map<UUID, Long> occupiedNowByParkId = timescaleJdbc.query(
+        // Use parking_spots directly — same real-time source as the KPI occupancy.
+        Map<UUID, Long> occupiedNowByParkId = jdbc.query(
             """
             select parking_lot_id,
-                   count(*) as occupied_now
-            from parking_sessions
-            where exit_time is null
+                   count(*) filter (where status not in ('free', 'ev', 'accessible', 'out_of_service')) as occupied_now
+            from parking_spots
             group by parking_lot_id
             """,
             (rs, rowNum) -> Map.entry(UUID.fromString(rs.getString("parking_lot_id")), rs.getLong("occupied_now"))

@@ -95,4 +95,112 @@ class AnalyticsServiceTest {
         assertThat(response.kpis().averageOccupancyTime()).isEqualTo("1h 30m");
         assertThat(response.kpis().alertsOpened()).isEqualTo(3L);
     }
+
+    // --- Occupancy rate reflects sensor data ---
+
+    @Test
+    @DisplayName("averageOccupancy is derived from sensor currentOccupancy, not billing sessions")
+    void buildDashboard_occupancyRateFromSensorData() {
+        stubMinimalRepository();
+        // Sensor reports 30 occupied out of 50 total (60 %)
+        when(analyticsRepository.currentOccupancy()).thenReturn(new int[]{30, 50});
+
+        ManagerDashboardResponse response = service.buildDashboard();
+
+        assertThat(response.kpis().averageOccupancy()).isEqualTo(60);
+        assertThat(response.kpis().occupiedLots()).isEqualTo(30);
+        assertThat(response.kpis().totalLots()).isEqualTo(50);
+    }
+
+    @Test
+    @DisplayName("averageOccupancy is 0 when sensors report no occupancy data (empty lot)")
+    void buildDashboard_occupancyZeroWhenNoSensorData() {
+        stubMinimalRepository();
+        when(analyticsRepository.currentOccupancy()).thenReturn(new int[]{0, 100});
+
+        ManagerDashboardResponse response = service.buildDashboard();
+
+        assertThat(response.kpis().averageOccupancy()).isZero();
+    }
+
+    @Test
+    @DisplayName("averageOccupancy is 0 when total spaces is 0 (safe division)")
+    void buildDashboard_occupancyZeroWhenTotalSpacesIsZero() {
+        stubMinimalRepository();
+        when(analyticsRepository.currentOccupancy()).thenReturn(new int[]{0, 0});
+
+        ManagerDashboardResponse response = service.buildDashboard();
+
+        assertThat(response.kpis().averageOccupancy()).isZero();
+    }
+
+    // --- Average time includes active sessions ---
+
+    @Test
+    @DisplayName("averageOccupancyTime shows non-zero when only active sessions exist (no exits yet)")
+    void buildDashboard_averageTimeFromActiveSessions() {
+        stubMinimalRepository();
+        // 45 minutes average — would be null with exit_time filter if no exits today
+        when(analyticsRepository.avgSessionDurationMinutes()).thenReturn(45.0);
+        when(analyticsRepository.currentOccupancy()).thenReturn(new int[]{0, 0});
+
+        ManagerDashboardResponse response = service.buildDashboard();
+
+        assertThat(response.kpis().averageOccupancyTime()).isEqualTo("0h 45m");
+    }
+
+    @Test
+    @DisplayName("averageOccupancyTime returns '0h 00m' when repository returns null (no sessions today)")
+    void buildDashboard_averageTimeZeroWhenNoSessions() {
+        stubMinimalRepository();
+        when(analyticsRepository.avgSessionDurationMinutes()).thenReturn(null);
+        when(analyticsRepository.currentOccupancy()).thenReturn(new int[]{0, 0});
+
+        ManagerDashboardResponse response = service.buildDashboard();
+
+        assertThat(response.kpis().averageOccupancyTime()).isEqualTo("0h 00m");
+    }
+
+    // --- Sensor fault scenario ---
+
+    @Test
+    @DisplayName("averageOccupancy falls back to 0 when sensor reports total=0 (sensor failure)")
+    void buildDashboard_sensorFault_occupancyZero() {
+        stubMinimalRepository();
+        // Sensor failure: total_count=0 because no snapshots available
+        when(analyticsRepository.currentOccupancy()).thenReturn(new int[]{0, 0});
+
+        ManagerDashboardResponse response = service.buildDashboard();
+
+        assertThat(response.kpis().averageOccupancy()).isZero();
+    }
+
+    // --- Multiple vehicle scenario ---
+
+    @Test
+    @DisplayName("averageOccupancy rounds correctly with many occupied spots")
+    void buildDashboard_multipleVehicles_occupancyRoundsCorrectly() {
+        stubMinimalRepository();
+        // 1 out of 3 → 33%
+        when(analyticsRepository.currentOccupancy()).thenReturn(new int[]{1, 3});
+
+        ManagerDashboardResponse response = service.buildDashboard();
+
+        assertThat(response.kpis().averageOccupancy()).isEqualTo(33);
+    }
+
+    private void stubMinimalRepository() {
+        when(analyticsRepository.countEntriesToday()).thenReturn(0L);
+        when(analyticsRepository.countEntriesYesterday()).thenReturn(0L);
+        when(analyticsRepository.revenueToday()).thenReturn(BigDecimal.ZERO);
+        when(analyticsRepository.revenueYesterday()).thenReturn(BigDecimal.ZERO);
+        when(analyticsRepository.avgSessionDurationMinutes()).thenReturn(0.0);
+        when(analyticsRepository.countOpenAlerts()).thenReturn(0L);
+        when(analyticsRepository.countActiveLots()).thenReturn(0);
+        when(analyticsRepository.last7DaysMetrics()).thenReturn(List.of());
+        when(analyticsRepository.zoneOccupancy()).thenReturn(List.of());
+        when(analyticsRepository.hourlyOccupancy()).thenReturn(List.of());
+        when(analyticsRepository.last5Alerts()).thenReturn(List.of());
+        when(analyticsRepository.parkPerformance()).thenReturn(List.of());
+    }
 }
