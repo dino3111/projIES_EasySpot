@@ -231,7 +231,7 @@ class ParkingPlanningServiceTest {
         assertThat(s.currentOccupancy().occupied()).isEqualTo(20);
         assertThat(s.currentOccupancy().total()).isEqualTo(100);
         assertThat(s.currentOccupancy().occupancyPercent()).isEqualTo(20);
-        assertThat(s.occupancyByHour()).isEmpty();
+        assertThat(s.occupancyByHour()).hasSize(8);
     }
 
     // --- helpers ---
