@@ -244,15 +244,6 @@ export function EditReservationModal({
                 <i className="fas fa-square-parking text-primary mr-1.5" />
                 Lugar
               </h3>
-              <button
-                type="button"
-                onClick={() => setSpotId('')}
-                className={`btn btn-xs rounded-full ${spotId === '' ? 'btn-primary' : 'btn-outline'}`}
-                style={{ fontSize: '0.72rem' }}
-              >
-                <i className="fas fa-wand-magic-sparkles mr-1" />
-                Atribuição automática
-              </button>
             </div>
 
             {loadingLot && (

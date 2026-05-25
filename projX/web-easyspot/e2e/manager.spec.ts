@@ -86,26 +86,19 @@ const mockAlerts = {
   totalPages: 1,
 };
 
-const mockParks = {
-  items: [
-    {
-      id: 'park-uuid-001',
-      name: 'Fórum Aveiro',
-      city: 'Aveiro',
-      address: 'Rua de exemplo 1',
-      latitude: 40.63,
-      longitude: -8.65,
-      openingHours: '08:00-22:00',
-      minPrice: 1.5,
-      totalSpaces: 200,
-      freeSpaces: 50,
-      evChargers: { free: 2, total: 5 },
-      accessibleSpaces: { free: 1, total: 3 },
-      availabilityStatus: 'AVAILABLE',
-    },
-  ],
-  pagination: { page: 1, pageSize: 500, totalItems: 1, totalPages: 1 },
-};
+const mockParks = [
+  {
+    id: 'park-uuid-001',
+    name: 'Fórum Aveiro',
+    city: 'Aveiro',
+    address: 'Rua de exemplo 1',
+    latitude: 40.63,
+    longitude: -8.65,
+    openingHours: '08:00-22:00',
+    totalSpaces: 200,
+    status: 'ACTIVE',
+  },
+];
 
 const mockBilling = {
   content: [],
@@ -126,7 +119,7 @@ test.beforeEach(async ({ page }) => {
   await page.route('**/api/manager/tariffs**', (route) => route.fulfill({ json: mockTariffs }));
   await page.route('**/api/manager/billing**', (route) => route.fulfill({ json: mockBilling }));
   await page.route('**/api/alerts**', (route) => route.fulfill({ json: mockAlerts }));
-  await page.route('**/api/parks/list**', (route) => route.fulfill({ json: mockParks }));
+  await page.route('**/api/manager/parks', (route) => route.fulfill({ json: mockParks }));
   await page.route('**/api/alerts/**/state', (route) => route.fulfill({ status: 204, body: '' }));
 });
 
