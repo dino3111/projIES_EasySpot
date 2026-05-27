@@ -217,7 +217,6 @@ projX/postman/newman-report.html
 coverage/
 *.lcov
 .nyc_output/
-reports/
 site/
 build-reports/
 target/

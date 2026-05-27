@@ -5,6 +5,7 @@ repos:
       - id: check-yaml
       - id: check-json
       - id: check-added-large-files
+        args: ["--maxkb=2500"]
       - id: detect-aws-credentials
         args: [--allow-missing-credentials]
 
