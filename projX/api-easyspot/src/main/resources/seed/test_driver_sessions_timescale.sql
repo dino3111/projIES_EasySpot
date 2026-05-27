@@ -2,6 +2,9 @@
 -- User UUID is fixed (463c3f1a); vehicle aaaaaaaa created
 -- in test_driver_spending.sql
 
+DELETE FROM parking_sessions
+WHERE user_id = '463c3f1a-4b25-46dd-8a1b-7942b4e2e6e4';
+
 INSERT INTO parking_sessions (
     id, user_id, parking_lot_id, vehicle_id, zone_type, entry_time, exit_time,
     revenue_euros

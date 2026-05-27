@@ -3,7 +3,7 @@
 
 -- ─────────────────────────────────────────────
 -- sensor_registry
--- Sensors for Fórum Aveiro, Glicínias Plaza, Europa and EasySpot EV Hub Aveiro
+-- Sensors for Fórum Aveiro, Glicínias Plaza and Europa
 -- ─────────────────────────────────────────────
 INSERT INTO sensor_registry (sensor_id, parking_lot_id, zone, status, last_seen_at, created_at) VALUES
 ('IR-AV1-A01', '4731819f-a806-5c1f-be8c-a478d4276840', 'Piso 0 – Zona A', 'OPERATIONAL', NOW() - INTERVAL '2 minutes', NOW() - INTERVAL '30 days'),
@@ -17,9 +17,7 @@ INSERT INTO sensor_registry (sensor_id, parking_lot_id, zone, status, last_seen_
 ('IR-AV2-B01', 'd8085d8f-7aaa-5eb4-b47d-2e2fe79bfe43', 'Piso 0', 'MAINTENANCE', NOW() - INTERVAL '1 day', NOW() - INTERVAL '25 days'),
 ('IR-LE1-A01', '070b4f4d-9a9e-5c4a-92bd-eae711ecb6b3', 'Piso 0', 'OPERATIONAL', NOW() - INTERVAL '2 minutes', NOW() - INTERVAL '20 days'),
 ('IR-LE1-A02', '070b4f4d-9a9e-5c4a-92bd-eae711ecb6b3', 'Piso 0', 'OPERATIONAL', NOW() - INTERVAL '3 minutes', NOW() - INTERVAL '20 days'),
-('IR-LE1-B01', '070b4f4d-9a9e-5c4a-92bd-eae711ecb6b3', 'Piso 1', 'DEGRADED', NOW() - INTERVAL '20 minutes', NOW() - INTERVAL '20 days'),
-('IR-EV1-A01', 'ee000001-0000-0000-0000-000000000001', 'Zona EV – Piso 0', 'OPERATIONAL', NOW() - INTERVAL '1 minute', NOW() - INTERVAL '15 days'),
-('IR-EV1-A02', 'ee000001-0000-0000-0000-000000000001', 'Zona EV – Piso 0', 'OPERATIONAL', NOW() - INTERVAL '2 minutes', NOW() - INTERVAL '15 days')
+('IR-LE1-B01', '070b4f4d-9a9e-5c4a-92bd-eae711ecb6b3', 'Piso 1', 'DEGRADED', NOW() - INTERVAL '20 minutes', NOW() - INTERVAL '20 days')
 ON CONFLICT (sensor_id) DO NOTHING;
 
 -- ─────────────────────────────────────────────
@@ -82,11 +80,10 @@ ON CONFLICT DO NOTHING;
 
 -- ─────────────────────────────────────────────
 -- user_favorites
--- driver@easyspot.local favorita Fórum Aveiro e EasySpot EV Hub
+-- driver@easyspot.local favorita Fórum Aveiro
 -- ─────────────────────────────────────────────
 INSERT INTO user_favorites (id, user_id, parking_lot_id, created_at) VALUES
-('fav00001-0000-0000-0000-000000000001', '463c3f1a-4b25-46dd-8a1b-7942b4e2e6e4', '4731819f-a806-5c1f-be8c-a478d4276840', NOW() - INTERVAL '10 days'),
-('fav00002-0000-0000-0000-000000000002', '463c3f1a-4b25-46dd-8a1b-7942b4e2e6e4', 'ee000001-0000-0000-0000-000000000001', NOW() - INTERVAL '7 days')
+('fav00001-0000-0000-0000-000000000001', '463c3f1a-4b25-46dd-8a1b-7942b4e2e6e4', '4731819f-a806-5c1f-be8c-a478d4276840', NOW() - INTERVAL '10 days')
 ON CONFLICT DO NOTHING;
 
 -- ─────────────────────────────────────────────
@@ -104,8 +101,8 @@ INSERT INTO alert_subscriptions (
     'sub00001-0000-0000-0000-000000000001',
     '80de0901-9dee-4123-b884-d9b2f99891dd',
     'SENSOR_FAULT',
-    '4731819f-a806-5c1f-be8c-a478d4276840,d8085d8f-7aaa-5eb4-b47d-2e2fe79bfe43,ee000001-0000-0000-0000-000000000001',
-    '4731819f-a806-5c1f-be8c-a478d4276840|d8085d8f-7aaa-5eb4-b47d-2e2fe79bfe43|ee000001-0000-0000-0000-000000000001',
+    '4731819f-a806-5c1f-be8c-a478d4276840,d8085d8f-7aaa-5eb4-b47d-2e2fe79bfe43',
+    '4731819f-a806-5c1f-be8c-a478d4276840|d8085d8f-7aaa-5eb4-b47d-2e2fe79bfe43',
     NULL,
     'technical@easyspot.local',
     NULL, NULL, NULL,

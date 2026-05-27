@@ -23,6 +23,12 @@ public class DriverSpendingRepository {
     private static final String PARKING_LOT_ID = "parking_lot_id";
     private static final String VEHICLE_ID = "vehicle_id";
     private static final String STATUS_COMPLETED = "COMPLETED";
+    private static final String BILLABLE_COMPLETED_SESSION_FILTER = """
+              and ps.exit_time is not null
+              and ps.exit_time > ps.entry_time
+              and ps.revenue_euros is not null
+              and ps.revenue_euros > 0
+            """;
 
     private final NamedParameterJdbcTemplate jdbc;
     private final NamedParameterJdbcTemplate pgJdbc;
@@ -46,8 +52,7 @@ public class DriverSpendingRepository {
             where ps.user_id = :userId
               and ps.entry_time >= :fromInclusive
               and ps.entry_time < :toExclusive
-              and ps.exit_time is not null
-              and ps.revenue_euros is not null
+            """ + BILLABLE_COMPLETED_SESSION_FILTER + """
               and (cast(:vehicleId as uuid) is null or ps.vehicle_id = cast(:vehicleId as uuid))
             """,
             params(userId, vehicleId, fromInclusive, toExclusive),
@@ -68,8 +73,7 @@ public class DriverSpendingRepository {
             where ps.user_id = :userId
               and ps.entry_time >= :fromInclusive
               and ps.entry_time < :toExclusive
-              and ps.exit_time is not null
-              and ps.revenue_euros is not null
+            """ + BILLABLE_COMPLETED_SESSION_FILTER + """
               and (cast(:vehicleId as uuid) is null or ps.vehicle_id = cast(:vehicleId as uuid))
             group by date(ps.entry_time)
             order by day
@@ -94,8 +98,7 @@ public class DriverSpendingRepository {
             where ps.user_id = :userId
               and ps.entry_time >= :fromInclusive
               and ps.entry_time < :toExclusive
-              and ps.exit_time is not null
-              and ps.revenue_euros is not null
+            """ + BILLABLE_COMPLETED_SESSION_FILTER + """
               and (cast(:vehicleId as uuid) is null or ps.vehicle_id = cast(:vehicleId as uuid))
             group by ps.parking_lot_id
             order by total_spent desc
@@ -137,8 +140,7 @@ public class DriverSpendingRepository {
             where ps.user_id = :userId
               and ps.entry_time >= :fromInclusive
               and ps.entry_time < :toExclusive
-              and ps.exit_time is not null
-              and ps.revenue_euros is not null
+            """ + BILLABLE_COMPLETED_SESSION_FILTER + """
               and ps.vehicle_id is not null
               and (cast(:vehicleId as uuid) is null or ps.vehicle_id = cast(:vehicleId as uuid))
             group by ps.vehicle_id
@@ -182,8 +184,7 @@ public class DriverSpendingRepository {
             where ps.user_id = :userId
               and ps.entry_time >= :fromInclusive
               and ps.entry_time < :toExclusive
-              and ps.exit_time is not null
-              and ps.revenue_euros is not null
+            """ + BILLABLE_COMPLETED_SESSION_FILTER + """
               and (cast(:vehicleId as uuid) is null or ps.vehicle_id = cast(:vehicleId as uuid))
             order by ps.revenue_euros desc, ps.exit_time desc
             limit 1
@@ -221,8 +222,7 @@ public class DriverSpendingRepository {
             where ps.user_id = :userId
               and ps.entry_time >= :fromInclusive
               and ps.entry_time < :toExclusive
-              and ps.exit_time is not null
-              and ps.revenue_euros is not null
+            """ + BILLABLE_COMPLETED_SESSION_FILTER + """
               and (cast(:vehicleId as uuid) is null or ps.vehicle_id = cast(:vehicleId as uuid))
             """,
             params(userId, vehicleId, fromInclusive, toExclusive),
@@ -249,8 +249,7 @@ public class DriverSpendingRepository {
             where ps.user_id = :userId
               and ps.entry_time >= :fromInclusive
               and ps.entry_time < :toExclusive
-              and ps.exit_time is not null
-              and ps.revenue_euros is not null
+            """ + BILLABLE_COMPLETED_SESSION_FILTER + """
               and (cast(:vehicleId as uuid) is null or ps.vehicle_id = cast(:vehicleId as uuid))
             order by ps.entry_time desc
             limit :limit offset :offset

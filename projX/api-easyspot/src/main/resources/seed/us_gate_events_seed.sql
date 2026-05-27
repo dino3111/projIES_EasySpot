@@ -77,15 +77,7 @@ VALUES
 -- Europa Aveiro (LE1) exit: normal open
 (GEN_RANDOM_UUID(), '070b4f4d-9a9e-5c4a-92bd-eae711ecb6b3', 'gate-070b4f4d-exit', 'exit', 'gate.opened', 'OPEN', 'CLOSED', '22-CD-32', 'valid_ocr_read', NOW() - INTERVAL '45 minutes', '{"scenario": "normal_exit"}'),
 -- Europa Aveiro (LE1) exit: auto close
-(GEN_RANDOM_UUID(), '070b4f4d-9a9e-5c4a-92bd-eae711ecb6b3', 'gate-070b4f4d-exit', 'exit', 'gate.closed', 'CLOSED', 'OPEN', NULL, 'auto_close_timeout', NOW() - INTERVAL '43 minutes', '{"scenario": "normal_exit"}'),
--- EasySpot EV Hub (EV1) entry: normal open
-(GEN_RANDOM_UUID(), 'ee000001-0000-0000-0000-000000000001', 'gate-ee000001-entry', 'entry', 'gate.opened', 'OPEN', 'CLOSED', 'EA-54-IJ', 'valid_ocr_read', NOW() - INTERVAL '1 hour', '{"scenario": "normal_entry"}'),
--- EasySpot EV Hub (EV1) entry: auto close
-(GEN_RANDOM_UUID(), 'ee000001-0000-0000-0000-000000000001', 'gate-ee000001-entry', 'entry', 'gate.closed', 'CLOSED', 'OPEN', NULL, 'auto_close_timeout', NOW() - INTERVAL '58 minutes', '{"scenario": "normal_entry"}'),
--- EasySpot EV Hub (EV1) exit: normal open
-(GEN_RANDOM_UUID(), 'ee000001-0000-0000-0000-000000000001', 'gate-ee000001-exit', 'exit', 'gate.opened', 'OPEN', 'CLOSED', 'FA-65-KL', 'valid_ocr_read', NOW() - INTERVAL '30 minutes', '{"scenario": "normal_exit"}'),
--- EasySpot EV Hub (EV1) exit: auto close
-(GEN_RANDOM_UUID(), 'ee000001-0000-0000-0000-000000000001', 'gate-ee000001-exit', 'exit', 'gate.closed', 'CLOSED', 'OPEN', NULL, 'auto_close_timeout', NOW() - INTERVAL '28 minutes', '{"scenario": "normal_exit"}')
+(GEN_RANDOM_UUID(), '070b4f4d-9a9e-5c4a-92bd-eae711ecb6b3', 'gate-070b4f4d-exit', 'exit', 'gate.closed', 'CLOSED', 'OPEN', NULL, 'auto_close_timeout', NOW() - INTERVAL '43 minutes', '{"scenario": "normal_exit"}')
 ON CONFLICT DO NOTHING;
 
 COMMIT;
