@@ -36,10 +36,10 @@ TECHNICIAN_REPAIR_PROBABILITY = float(
 OCR_FAULT_PROBABILITY_PER_TICK = float(
     os.getenv("OCR_FAULT_PROBABILITY_PER_TICK", "0.000001")
 )
-OCR_ENTRY_PROBABILITY = float(os.getenv("OCR_ENTRY_PROBABILITY", "0.001"))
+OCR_ENTRY_PROBABILITY = float(os.getenv("OCR_ENTRY_PROBABILITY", "0.002"))
 OCR_EXIT_PROBABILITY = float(os.getenv("OCR_EXIT_PROBABILITY", "0.65"))
-OCR_MIN_PARKING_SECONDS = float(os.getenv("OCR_MIN_PARKING_SECONDS", "180"))
-OCR_MAX_PARKING_SECONDS = float(os.getenv("OCR_MAX_PARKING_SECONDS", "900"))
+OCR_MIN_PARKING_SECONDS = float(os.getenv("OCR_MIN_PARKING_SECONDS", "120"))
+OCR_MAX_PARKING_SECONDS = float(os.getenv("OCR_MAX_PARKING_SECONDS", "720"))
 
 # IR sensor device-level fault simulation
 # With 1s ticks and ~300 sensors:
@@ -82,19 +82,19 @@ SENSOR_NETWORK_DROP_BURST_MAX_SECONDS = float(
 
 # Per-state transition probabilities (must sum to <= 1.0; remainder falls back).
 P_FREE_TO_FREE = float(os.getenv("P_FREE_TO_FREE", "0.985"))
-P_FREE_TO_OCCUPIED = float(os.getenv("P_FREE_TO_OCCUPIED", "0.003"))
-P_FREE_TO_RESERVED = float(os.getenv("P_FREE_TO_RESERVED", "0.0002"))
+P_FREE_TO_OCCUPIED = float(os.getenv("P_FREE_TO_OCCUPIED", "0.006"))
+P_FREE_TO_RESERVED = float(os.getenv("P_FREE_TO_RESERVED", "0.0004"))
 P_FREE_TO_OUT_OF_SERVICE = float(os.getenv("P_FREE_TO_OUT_OF_SERVICE", "0.000005"))
 
 P_OCCUPIED_TO_OCCUPIED = float(os.getenv("P_OCCUPIED_TO_OCCUPIED", "0.985"))
-P_OCCUPIED_TO_FREE = float(os.getenv("P_OCCUPIED_TO_FREE", "0.003"))
+P_OCCUPIED_TO_FREE = float(os.getenv("P_OCCUPIED_TO_FREE", "0.006"))
 P_OCCUPIED_TO_OUT_OF_SERVICE = float(
     os.getenv("P_OCCUPIED_TO_OUT_OF_SERVICE", "0.000005")
 )
 
 P_RESERVED_TO_RESERVED = float(os.getenv("P_RESERVED_TO_RESERVED", "0.985"))
-P_RESERVED_TO_OCCUPIED = float(os.getenv("P_RESERVED_TO_OCCUPIED", "0.003"))
-P_RESERVED_TO_FREE = float(os.getenv("P_RESERVED_TO_FREE", "0.0002"))
+P_RESERVED_TO_OCCUPIED = float(os.getenv("P_RESERVED_TO_OCCUPIED", "0.006"))
+P_RESERVED_TO_FREE = float(os.getenv("P_RESERVED_TO_FREE", "0.0004"))
 P_RESERVED_TO_OUT_OF_SERVICE = float(
     os.getenv("P_RESERVED_TO_OUT_OF_SERVICE", "0.000005")
 )

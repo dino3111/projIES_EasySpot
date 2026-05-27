@@ -195,10 +195,10 @@ class OcrEventGenerator:
         fault_probability_per_tick: float = 0.0,
         technician_repair_probability: float = 0.3,
         failure_rate: float = 0.0,
-        entry_probability: float = 0.001,
+        entry_probability: float = 0.002,
         exit_probability: float = 0.65,
-        min_parking_seconds: float = 180.0,
-        max_parking_seconds: float = 900.0,
+        min_parking_seconds: float = 120.0,
+        max_parking_seconds: float = 720.0,
     ):
         self.spots = spots
         self.rng = random.Random(seed)
