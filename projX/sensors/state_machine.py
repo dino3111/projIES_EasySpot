@@ -124,7 +124,7 @@ class SpotStateMachine:
             cumulative += max(0.0, probability)
             if roll < cumulative:
                 return status
-        return transitions[-1][0]
+        return transitions[0][0]
 
     def _default_transition_probs(self):
         from config import (

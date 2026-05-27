@@ -80,17 +80,17 @@ SENSOR_NETWORK_DROP_BURST_MAX_SECONDS = float(
 
 # Per-state transition probabilities (must sum to <= 1.0; remainder falls back).
 P_FREE_TO_FREE = float(os.getenv("P_FREE_TO_FREE", "0.985"))
-P_FREE_TO_OCCUPIED = float(os.getenv("P_FREE_TO_OCCUPIED", "0.014"))
-P_FREE_TO_RESERVED = float(os.getenv("P_FREE_TO_RESERVED", "0.0008"))
+P_FREE_TO_OCCUPIED = float(os.getenv("P_FREE_TO_OCCUPIED", "0.0015"))
+P_FREE_TO_RESERVED = float(os.getenv("P_FREE_TO_RESERVED", "0.0002"))
 P_FREE_TO_OUT_OF_SERVICE = float(os.getenv("P_FREE_TO_OUT_OF_SERVICE", "0"))
 
 P_OCCUPIED_TO_OCCUPIED = float(os.getenv("P_OCCUPIED_TO_OCCUPIED", "0.985"))
-P_OCCUPIED_TO_FREE = float(os.getenv("P_OCCUPIED_TO_FREE", "0.0148"))
+P_OCCUPIED_TO_FREE = float(os.getenv("P_OCCUPIED_TO_FREE", "0.0015"))
 P_OCCUPIED_TO_OUT_OF_SERVICE = float(os.getenv("P_OCCUPIED_TO_OUT_OF_SERVICE", "0"))
 
 P_RESERVED_TO_RESERVED = float(os.getenv("P_RESERVED_TO_RESERVED", "0.985"))
-P_RESERVED_TO_OCCUPIED = float(os.getenv("P_RESERVED_TO_OCCUPIED", "0.014"))
-P_RESERVED_TO_FREE = float(os.getenv("P_RESERVED_TO_FREE", "0.0008"))
+P_RESERVED_TO_OCCUPIED = float(os.getenv("P_RESERVED_TO_OCCUPIED", "0.0015"))
+P_RESERVED_TO_FREE = float(os.getenv("P_RESERVED_TO_FREE", "0.0002"))
 P_RESERVED_TO_OUT_OF_SERVICE = float(os.getenv("P_RESERVED_TO_OUT_OF_SERVICE", "0"))
 
 P_OUT_OF_SERVICE_TO_OUT_OF_SERVICE = float(

@@ -148,3 +148,22 @@ def test_reservation_integration():
     status, reason, _ = machine.next_status("free", has_pending_reservation=True)
     assert status == "reserved"
     assert "backend" in reason
+
+
+def test_probability_remainder_keeps_stable_state():
+    machine = SpotStateMachine(
+        seed=2,
+        transition_probs={
+            "free": [
+                ("free", "stable_free", 0.0),
+                ("occupied", "vehicle_entered", 0.0),
+                ("reserved", "reservation_started", 0.0),
+                ("out_of_service", "temporary_failure", 0.0),
+            ]
+        },
+    )
+
+    status, reason, _ = machine.next_status("free")
+
+    assert status == "free"
+    assert reason == "stable_free"
