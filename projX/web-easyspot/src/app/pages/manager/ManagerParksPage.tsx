@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   fetchManagerParks,
   fetchParkAssignments,
@@ -10,28 +10,43 @@ import {
 } from '../../services/managerApi';
 import { CreateParkModal } from './components/CreateParkModal';
 import { AssignTechnicianModal } from './components/AssignTechnicianModal';
+import { useOptionalWs } from '../../context/WsContext';
+import { useOptionalAuth } from '../../context/AuthContext';
+
+const managerRealtimeFallbackFromEnv = Number(import.meta.env.VITE_MANAGER_REALTIME_FALLBACK_MS ?? 60000);
+const MANAGER_REALTIME_FALLBACK_MS = Number.isFinite(managerRealtimeFallbackFromEnv) && managerRealtimeFallbackFromEnv >= 10000
+  ? managerRealtimeFallbackFromEnv
+  : 60000;
 
 export function ManagerParksPage() {
+  const { client, status } = useOptionalWs();
+  const auth = useOptionalAuth();
+  const user = auth?.user;
   const [parks, setParks] = useState<ManagerParkSummary[]>([]);
   const [assignments, setAssignments] = useState<ParkAssignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [assignPark, setAssignPark] = useState<{ id: string; name: string; technicians: TechnicianSummary[] } | null>(null);
   const [togglingStatus, setTogglingStatus] = useState<string | null>(null);
+  const refreshTimeoutRef = useRef<number | null>(null);
 
-  const loadData = () => {
-    setLoading(true);
+  const loadData = useCallback((background = false) => {
+    if (!background) setLoading(true);
     Promise.all([
-      fetchManagerParks(),
-      fetchParkAssignments().catch(() => []),
+      fetchManagerParks({ background }),
+      fetchParkAssignments({ background }).catch(() => []),
     ])
       .then(([parksData, assignmentsData]) => {
         setParks(parksData);
         setAssignments(assignmentsData);
       })
-      .catch(() => setParks([]))
-      .finally(() => setLoading(false));
-  };
+      .catch(() => {
+        if (!background) setParks([]);
+      })
+      .finally(() => {
+        if (!background) setLoading(false);
+      });
+  }, []);
 
   const handleToggleStatus = async (parkId: string, current: ParkOperationalStatus) => {
     const next: ParkOperationalStatus = current === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
@@ -46,7 +61,36 @@ export function ManagerParksPage() {
     }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); }, [loadData]);
+
+  useEffect(() => {
+    const intervalId = globalThis.setInterval(() => {
+      loadData(true);
+    }, MANAGER_REALTIME_FALLBACK_MS);
+    return () => globalThis.clearInterval(intervalId);
+  }, [loadData]);
+
+  useEffect(() => {
+    if (status !== 'connected' || !client || !user?.sub) return;
+    const scheduleRefresh = () => {
+      if (refreshTimeoutRef.current != null) return;
+      refreshTimeoutRef.current = globalThis.setTimeout(() => {
+        refreshTimeoutRef.current = null;
+        loadData(true);
+      }, 250);
+    };
+    const subscriptions = [
+      client.subscribe(`/topic/alerts/${user.sub}`, scheduleRefresh),
+      client.subscribe('/topic/occupancy/parks', scheduleRefresh),
+    ];
+    return () => {
+      subscriptions.forEach((subscription) => subscription.unsubscribe());
+      if (refreshTimeoutRef.current != null) {
+        globalThis.clearTimeout(refreshTimeoutRef.current);
+        refreshTimeoutRef.current = null;
+      }
+    };
+  }, [client, status, user?.sub, loadData]);
 
   const getTechnicians = (parkId: string): TechnicianSummary[] =>
     assignments.find((a) => a.parkId === parkId)?.technicians ?? [];

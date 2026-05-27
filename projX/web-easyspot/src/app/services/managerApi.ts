@@ -69,8 +69,12 @@ export interface ManagerDashboardResponse {
   performancePerPark: DashboardParkSummary[];
 }
 
-export const fetchManagerDashboard = () =>
-  request<ManagerDashboardResponse>('/api/manager/dashboard');
+type FetchOptions = {
+  background?: boolean;
+};
+
+export const fetchManagerDashboard = (options: FetchOptions = {}) =>
+  request<ManagerDashboardResponse>('/api/manager/dashboard', options);
 
 export interface TariffResponse {
   id: string;
@@ -115,7 +119,7 @@ export interface TariffListParams {
   parkId?: string;
 }
 
-export const fetchManagerTariffs = async (params?: TariffListParams): Promise<Page<TariffResponse>> => {
+export const fetchManagerTariffs = async (params?: TariffListParams, options: FetchOptions = {}): Promise<Page<TariffResponse>> => {
   const query = new URLSearchParams();
   if (params?.page !== undefined) query.append('page', String(params.page));
   if (params?.size !== undefined) query.append('size', String(params.size));
@@ -123,7 +127,7 @@ export const fetchManagerTariffs = async (params?: TariffListParams): Promise<Pa
   if (params?.parkStatus) query.append('parkStatus', params.parkStatus);
   if (params?.parkId) query.append('parkId', params.parkId);
   const qs = query.toString() ? `?${query.toString()}` : '';
-  return request<Page<TariffResponse>>(`/api/manager/tariffs${qs}`);
+  return request<Page<TariffResponse>>(`/api/manager/tariffs${qs}`, options);
 };
 
 export type AlertStateFilter    = 'todos' | 'aberto' | 'em-progresso' | 'resolvido';
@@ -144,7 +148,7 @@ export interface AlertListParams {
   size?: number;
 }
 
-export const fetchManagerAlerts = async (params?: AlertListParams): Promise<Page<AlertResponse>> => {
+export const fetchManagerAlerts = async (params?: AlertListParams, options: FetchOptions = {}): Promise<Page<AlertResponse>> => {
   const query = new URLSearchParams();
   if (params?.parkId) query.append('parkId', params.parkId);
   const stateParam = params?.state ? ALERT_STATE_PARAM[params.state] : undefined;
@@ -154,7 +158,7 @@ export const fetchManagerAlerts = async (params?: AlertListParams): Promise<Page
   if (params?.page !== undefined) query.append('page', String(params.page));
   if (params?.size !== undefined) query.append('size', String(params.size));
   const qs = query.toString() ? `?${query.toString()}` : '';
-  const raw = await request<Page<AlertResponse> | AlertResponse[]>(`/api/alerts${qs}`);
+  const raw = await request<Page<AlertResponse> | AlertResponse[]>(`/api/alerts${qs}`, options);
   if (Array.isArray(raw)) {
     return { content: raw, totalElements: raw.length, totalPages: raw.length > 0 ? 1 : 0 };
   }
@@ -196,10 +200,10 @@ export interface BillingSessionResponse {
   total: number;
 }
 
-export const fetchManagerBilling = async (parkId?: string, days = 2, page = 0, pageSize = 20) => {
+export const fetchManagerBilling = async (parkId?: string, days = 2, page = 0, pageSize = 20, options: FetchOptions = {}) => {
   const params = new URLSearchParams({ days: String(days), page: String(page), size: String(pageSize) });
   if (parkId) params.append('parkId', parkId);
-  const response = await request<Page<BillingSessionResponse>>(`/api/manager/billing?${params.toString()}`);
+  const response = await request<Page<BillingSessionResponse>>(`/api/manager/billing?${params.toString()}`, options);
   return response;
 };
 
@@ -293,8 +297,8 @@ export interface ParkAssignment {
   technicians: TechnicianSummary[];
 }
 
-export const fetchParkAssignments = () =>
-  request<ParkAssignment[]>('/api/manager/parks/assignments');
+export const fetchParkAssignments = (options: FetchOptions = {}) =>
+  request<ParkAssignment[]>('/api/manager/parks/assignments', options);
 
 export const assignTechnicianToPark = (parkId: string, technicianId: string) =>
   request<void>(`/api/manager/parks/${parkId}/technician/${technicianId}`, { method: 'PUT' });
@@ -316,8 +320,8 @@ export interface ManagerParkSummary {
   status: ParkOperationalStatus;
 }
 
-export const fetchManagerParks = () =>
-  request<ManagerParkSummary[]>('/api/manager/parks');
+export const fetchManagerParks = (options: FetchOptions = {}) =>
+  request<ManagerParkSummary[]>('/api/manager/parks', options);
 
 export const updateParkStatus = (parkId: string, status: ParkOperationalStatus) =>
   request<ManagerParkSummary>(`/api/manager/parks/${parkId}/status`, {

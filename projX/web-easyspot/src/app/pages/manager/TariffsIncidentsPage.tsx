@@ -20,10 +20,16 @@ import {
   type AlertResponse,
   type BillingSessionResponse,
 } from '../../services/managerApi';
+import { useOptionalWs } from '../../context/WsContext';
+import { useOptionalAuth } from '../../context/AuthContext';
 
 const TARIFF_PAGE_SIZE = 10;
 const INCIDENT_PAGE_SIZE = 10;
 const BILLING_DAYS = 30;
+const managerRealtimeFallbackFromEnv = Number(import.meta.env.VITE_MANAGER_REALTIME_FALLBACK_MS ?? 60000);
+const MANAGER_REALTIME_FALLBACK_MS = Number.isFinite(managerRealtimeFallbackFromEnv) && managerRealtimeFallbackFromEnv >= 10000
+  ? managerRealtimeFallbackFromEnv
+  : 60000;
 
 type PageTab    = 'tarifas' | 'ocorrencias' | 'faturacao';
 type IssueFilter = 'todos' | 'aberto' | 'em-progresso' | 'resolvido';
@@ -118,6 +124,9 @@ function computeBillingStats(records: BillingRecord[]) {
 }
 
 export function TariffsIncidentsPage() {
+  const { client, status } = useOptionalWs();
+  const auth = useOptionalAuth();
+  const user = auth?.user;
   const [tab, setTab]               = useState<PageTab>('tarifas');
   const [selectedIssue, setSelectedIssue] = useState<IssueReport | null>(null);
   const [editTariff, setEditTariff] = useState<TariffEntry | null>(null);
@@ -150,18 +159,37 @@ export function TariffsIncidentsPage() {
   const [billingStats, setBillingStats] = useState({ pago: 0, pendente: 0, contestado: 0 });
 
   const isInitialMount = useRef(true);
+  const refreshTimeoutRef = useRef<number | null>(null);
 
-  // Initial load
-  useEffect(() => {
-    setLoading(true);
-    Promise.all([
-      fetchManagerTariffs({ page: 0, size: TARIFF_PAGE_SIZE }),
-      fetchManagerAlerts({ page: 0, size: INCIDENT_PAGE_SIZE }),
-      fetchManagerBilling(undefined, BILLING_DAYS),
-      fetchManagerBilling(undefined, BILLING_DAYS, 0, 1000),
-      fetchManagerAlerts({ page: 0, size: 1, state: 'aberto' }),
-      fetchManagerParks(),
-    ]).then(([tariffsData, alertsData, billingData, allBillingData, openAlertsData, parksData]) => {
+  const refreshCurrentData = useCallback(async (background = false) => {
+    if (!background) setLoading(true);
+    try {
+      const requestOptions = { background };
+      const [
+        tariffsData,
+        alertsData,
+        billingData,
+        allBillingData,
+        openAlertsData,
+        parksData,
+      ] = await Promise.all([
+        fetchManagerTariffs({
+          page: tariffPage,
+          size: TARIFF_PAGE_SIZE,
+          district: tariffDistrict || undefined,
+          parkStatus: tariffStatus || undefined,
+        }, requestOptions),
+        fetchManagerAlerts({
+          page: incidentPage,
+          size: INCIDENT_PAGE_SIZE,
+          state: issueFilter !== 'todos' ? issueFilter : undefined,
+          severity: sevFilter !== 'todos' ? sevFilter : undefined,
+        }, requestOptions),
+        fetchManagerBilling(billingParkId || undefined, BILLING_DAYS, billingPage, 20, requestOptions),
+        fetchManagerBilling(billingParkId || undefined, BILLING_DAYS, 0, 1000, requestOptions),
+        fetchManagerAlerts({ page: 0, size: 1, state: 'aberto' }, requestOptions),
+        fetchManagerParks(requestOptions),
+      ]);
       setTariffs(tariffsData.content.map(mapTariff));
       setTariffTotalPages(tariffsData.totalPages);
       setTariffTotalElements(tariffsData.totalElements);
@@ -174,13 +202,49 @@ export function TariffsIncidentsPage() {
       setBillingStats(computeBillingStats(allBillingData.content.map(mapBilling)));
       setOpenIncidentsCount(openAlertsData.totalElements);
       setBillingParks(parksData.map(p => ({ id: p.id, name: p.name })));
-    }).catch(err => {
+    } catch (err) {
       console.error('Error fetching manager data:', err);
-    }).finally(() => {
-      setLoading(false);
-      isInitialMount.current = false;
-    });
+    } finally {
+      if (!background) {
+        setLoading(false);
+        isInitialMount.current = false;
+      }
+    }
+  }, [billingPage, billingParkId, incidentPage, issueFilter, sevFilter, tariffDistrict, tariffPage, tariffStatus]);
+
+  // Initial load
+  useEffect(() => {
+    void refreshCurrentData();
   }, []);
+
+  useEffect(() => {
+    const intervalId = globalThis.setInterval(() => {
+      void refreshCurrentData(true);
+    }, MANAGER_REALTIME_FALLBACK_MS);
+    return () => globalThis.clearInterval(intervalId);
+  }, [refreshCurrentData]);
+
+  useEffect(() => {
+    if (status !== 'connected' || !client || !user?.sub) return;
+    const scheduleRefresh = () => {
+      if (refreshTimeoutRef.current != null) return;
+      refreshTimeoutRef.current = globalThis.setTimeout(() => {
+        refreshTimeoutRef.current = null;
+        void refreshCurrentData(true);
+      }, 250);
+    };
+    const subscriptions = [
+      client.subscribe(`/topic/alerts/${user.sub}`, scheduleRefresh),
+      client.subscribe('/topic/occupancy/parks', scheduleRefresh),
+    ];
+    return () => {
+      subscriptions.forEach((subscription) => subscription.unsubscribe());
+      if (refreshTimeoutRef.current != null) {
+        globalThis.clearTimeout(refreshTimeoutRef.current);
+        refreshTimeoutRef.current = null;
+      }
+    };
+  }, [client, status, user?.sub, refreshCurrentData]);
 
   // Re-fetch tariffs when page/district/status changes
   useEffect(() => {

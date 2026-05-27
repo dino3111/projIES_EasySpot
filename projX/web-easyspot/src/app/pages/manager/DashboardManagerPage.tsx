@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   AreaChart, Area, PieChart, Pie, Cell,
@@ -19,6 +19,11 @@ import {
 } from '../../services/managerApi';
 
 type ChartTab = 'entradas' | 'receita';
+
+const managerRealtimeFallbackFromEnv = Number(import.meta.env.VITE_MANAGER_REALTIME_FALLBACK_MS ?? 60000);
+const MANAGER_REALTIME_FALLBACK_MS = Number.isFinite(managerRealtimeFallbackFromEnv) && managerRealtimeFallbackFromEnv >= 10000
+  ? managerRealtimeFallbackFromEnv
+  : 60000;
 
 const ZONE_COLORS: Record<string, string> = {
   standard: '#7357ec',
@@ -89,36 +94,53 @@ export function DashboardManagerPage() {
   const [data, setData] = useState<ManagerDashboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const refreshTimeoutRef = useRef<number | null>(null);
 
-  useEffect(() => {
-    let mounted = true;
-    const load = async (background = false) => {
-      try {
-        if (!background) setLoading(true);
-        const dashboard = await fetchManagerDashboard();
-        if (!mounted) return;
-        setData(dashboard);
-        setError(null);
-      } catch (e: unknown) {
-        if (!mounted) return;
-        if (!background) setError(e instanceof Error ? e.message : 'Erro ao carregar dados');
-      } finally {
-        if (mounted && !background) setLoading(false);
-      }
-    };
-    void load();
-    return () => {
-      mounted = false;
-    };
+  const loadDashboard = useCallback(async (background = false) => {
+    try {
+      if (!background) setLoading(true);
+      const dashboard = await fetchManagerDashboard({ background });
+      setData(dashboard);
+      setError(null);
+    } catch (e: unknown) {
+      if (!background) setError(e instanceof Error ? e.message : 'Erro ao carregar dados');
+    } finally {
+      if (!background) setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
+    void loadDashboard();
+  }, [loadDashboard]);
+
+  useEffect(() => {
+    const intervalId = globalThis.setInterval(() => {
+      void loadDashboard(true);
+    }, MANAGER_REALTIME_FALLBACK_MS);
+    return () => globalThis.clearInterval(intervalId);
+  }, [loadDashboard]);
+
+  useEffect(() => {
     if (status !== 'connected' || !client || !user?.sub) return;
-    const subscription = client.subscribe(`/topic/alerts/${user.sub}`, () => {
-      void fetchManagerDashboard().then(setData).catch(() => {});
-    });
-    return () => subscription.unsubscribe();
-  }, [client, status, user?.sub]);
+    const scheduleRefresh = () => {
+      if (refreshTimeoutRef.current != null) return;
+      refreshTimeoutRef.current = globalThis.setTimeout(() => {
+        refreshTimeoutRef.current = null;
+        void loadDashboard(true);
+      }, 250);
+    };
+    const subscriptions = [
+      client.subscribe(`/topic/alerts/${user.sub}`, scheduleRefresh),
+      client.subscribe('/topic/occupancy/parks', scheduleRefresh),
+    ];
+    return () => {
+      subscriptions.forEach((subscription) => subscription.unsubscribe());
+      if (refreshTimeoutRef.current != null) {
+        globalThis.clearTimeout(refreshTimeoutRef.current);
+        refreshTimeoutRef.current = null;
+      }
+    };
+  }, [client, status, user?.sub, loadDashboard]);
 
   if (loading) {
     return (

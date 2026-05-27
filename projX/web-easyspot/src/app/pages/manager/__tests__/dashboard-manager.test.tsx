@@ -1,6 +1,6 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
-import { vi, beforeEach } from 'vitest';
+import { act, render, screen, waitFor } from '@testing-library/react';
+import { vi, beforeEach, afterEach } from 'vitest';
 import { MemoryRouter } from 'react-router';
 import { DashboardManagerPage } from '../DashboardManagerPage';
 import type { ManagerDashboardResponse } from '../../../services/managerApi';
@@ -80,6 +80,10 @@ describe('DashboardManagerPage', () => {
     vi.mocked(fetchManagerDashboard).mockReset();
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('shows loading state initially', () => {
     vi.mocked(fetchManagerDashboard).mockReturnValue(new Promise(() => {}));
     render(<MemoryRouter><DashboardManagerPage /></MemoryRouter>);
@@ -130,5 +134,24 @@ describe('DashboardManagerPage', () => {
     expect(await screen.findByText('Ocupação por Zona')).toBeInTheDocument();
     expect(screen.getByText('Normal')).toBeInTheDocument();
     expect(screen.getByText('510/680')).toBeInTheDocument();
+  });
+
+  it('refreshes manager dashboard data automatically in the background', async () => {
+    vi.useFakeTimers();
+    vi.mocked(fetchManagerDashboard).mockResolvedValue(mockDashboard);
+    render(<MemoryRouter><DashboardManagerPage /></MemoryRouter>);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(screen.getByText('Entradas Hoje')).toBeInTheDocument();
+    expect(fetchManagerDashboard).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      vi.advanceTimersByTime(60000);
+      await Promise.resolve();
+    });
+
+    expect(fetchManagerDashboard).toHaveBeenCalledTimes(2);
   });
 });
