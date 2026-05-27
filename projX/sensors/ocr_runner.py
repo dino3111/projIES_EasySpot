@@ -5,7 +5,11 @@ from config import (
     FAULT_MAX_DURATION_SECONDS,
     FAULT_MIN_DURATION_SECONDS,
     KAFKA_TOPIC_OCR,
+    OCR_ENTRY_PROBABILITY,
+    OCR_EXIT_PROBABILITY,
     OCR_FAULT_PROBABILITY_PER_TICK,
+    OCR_MAX_PARKING_SECONDS,
+    OCR_MIN_PARKING_SECONDS,
     SIMULATION_INTERVAL_SECONDS,
     SIMULATION_SEED,
     TECHNICIAN_REPAIR_PROBABILITY,
@@ -40,6 +44,10 @@ def run_ocr():
         fault_max_duration=FAULT_MAX_DURATION_SECONDS,
         fault_probability_per_tick=OCR_FAULT_PROBABILITY_PER_TICK,
         technician_repair_probability=TECHNICIAN_REPAIR_PROBABILITY,
+        entry_probability=OCR_ENTRY_PROBABILITY,
+        exit_probability=OCR_EXIT_PROBABILITY,
+        min_parking_seconds=OCR_MIN_PARKING_SECONDS,
+        max_parking_seconds=OCR_MAX_PARKING_SECONDS,
     )
 
     last_fault_check = time.monotonic()

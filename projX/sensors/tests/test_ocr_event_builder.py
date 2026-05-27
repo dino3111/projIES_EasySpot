@@ -171,6 +171,36 @@ class OcrEventGeneratorTests(unittest.TestCase):
                 seen.add(event["payload"]["plate"])
         self.assertTrue(seen.issubset(set(plates)))
 
+    def test_exit_waits_for_drawn_parking_duration(self):
+        gen = OcrEventGenerator(
+            self._spots(1),
+            seed=1,
+            registered_plates=["AA-00-00"],
+            entry_probability=1.0,
+            exit_probability=1.0,
+            min_parking_seconds=60.0,
+            max_parking_seconds=60.0,
+        )
+
+        early_directions = []
+        for now in range(0, 60, 2):
+            early_directions.extend(
+                event["payload"]["direction"]
+                for event, _ in gen.next_events(now=float(now), fault_check=False)
+            )
+
+        self.assertIn("entry", early_directions)
+        self.assertNotIn("exit", early_directions)
+
+        later_directions = []
+        for now in range(60, 80, 2):
+            later_directions.extend(
+                event["payload"]["direction"]
+                for event, _ in gen.next_events(now=float(now), fault_check=False)
+            )
+
+        self.assertIn("exit", later_directions)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -195,6 +195,10 @@ class OcrEventGenerator:
         fault_probability_per_tick: float = 0.0,
         technician_repair_probability: float = 0.3,
         failure_rate: float = 0.0,
+        entry_probability: float = 0.003,
+        exit_probability: float = 0.65,
+        min_parking_seconds: float = 30.0,
+        max_parking_seconds: float = 300.0,
     ):
         self.spots = spots
         self.rng = random.Random(seed)
@@ -203,9 +207,14 @@ class OcrEventGenerator:
         self.fault_probability_per_tick = fault_probability_per_tick
         self.technician_repair_probability = technician_repair_probability
         self.failure_rate = failure_rate
+        self.entry_probability = entry_probability
+        self.exit_probability = exit_probability
+        self.min_parking_seconds = min_parking_seconds
+        self.max_parking_seconds = max(max_parking_seconds, min_parking_seconds)
 
         # plate -> spotId of where the vehicle currently is (None = outside)
         self._parked: Dict[str, str] = {}
+        self._planned_exit_at: Dict[str, float] = {}
 
         if registered_plates is None:
             self._plate_pool = [
@@ -303,7 +312,10 @@ class OcrEventGenerator:
             parked_plate = self._plate_currently_at(spot_id)
 
             if parked_plate:
-                if self.rng.random() < 0.55:
+                if (
+                    now >= self._planned_exit_at.get(parked_plate, now)
+                    and self.rng.random() < self.exit_probability
+                ):
                     if self._should_fail():
                         event = self._make_failure_event(spot, "exit", parked_plate)
                         # do NOT remove from _parked — plate still inside, state unknown
@@ -311,9 +323,10 @@ class OcrEventGenerator:
                         confidence = self._exit_confidence(spot_id)
                         event = build_ocr_event(spot, "exit", parked_plate, confidence)
                         del self._parked[parked_plate]
+                        self._planned_exit_at.pop(parked_plate, None)
                     events.append((event, spot_id))
             else:
-                if self.rng.random() < 0.45:
+                if self.rng.random() < self.entry_probability:
                     plate = self._pick_free_plate()
                     if plate:
                         if self._should_fail():
@@ -323,6 +336,9 @@ class OcrEventGenerator:
                             confidence = self._entry_confidence(spot_id)
                             event = build_ocr_event(spot, "entry", plate, confidence)
                             self._parked[plate] = spot_id
+                            self._planned_exit_at[plate] = (
+                                now + self._draw_parking_duration_seconds()
+                            )
                         events.append((event, spot_id))
 
         return events
@@ -351,6 +367,9 @@ class OcrEventGenerator:
         if not free:
             return None
         return self.rng.choice(free)
+
+    def _draw_parking_duration_seconds(self) -> float:
+        return self.rng.uniform(self.min_parking_seconds, self.max_parking_seconds)
 
     def _should_fail(self) -> bool:
         return self.rng.random() < self.failure_rate

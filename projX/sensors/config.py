@@ -36,6 +36,10 @@ TECHNICIAN_REPAIR_PROBABILITY = float(
 OCR_FAULT_PROBABILITY_PER_TICK = float(
     os.getenv("OCR_FAULT_PROBABILITY_PER_TICK", "0.000005")
 )
+OCR_ENTRY_PROBABILITY = float(os.getenv("OCR_ENTRY_PROBABILITY", "0.003"))
+OCR_EXIT_PROBABILITY = float(os.getenv("OCR_EXIT_PROBABILITY", "0.65"))
+OCR_MIN_PARKING_SECONDS = float(os.getenv("OCR_MIN_PARKING_SECONDS", "30"))
+OCR_MAX_PARKING_SECONDS = float(os.getenv("OCR_MAX_PARKING_SECONDS", "300"))
 
 # IR sensor device-level fault simulation
 # With 1s ticks and ~300 sensors:

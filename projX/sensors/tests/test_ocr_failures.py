@@ -129,7 +129,11 @@ class OcrGeneratorFailureModeTests(unittest.TestCase):
     def test_failure_rate_produces_failure_events(self):
         spots = _spots(10)
         gen = OcrEventGenerator(
-            spots, seed=42, registered_plates=self.PLATES, failure_rate=1.0
+            spots,
+            seed=42,
+            registered_plates=self.PLATES,
+            failure_rate=1.0,
+            entry_probability=1.0,
         )
         failure_events = []
         normal_events = []
@@ -167,7 +171,11 @@ class OcrGeneratorFailureModeTests(unittest.TestCase):
         """After recover_camera(), spot must produce normal reads again."""
         spots = _spots(5)
         gen = OcrEventGenerator(
-            spots, seed=99, registered_plates=self.PLATES, failure_rate=0.0
+            spots,
+            seed=99,
+            registered_plates=self.PLATES,
+            failure_rate=0.0,
+            entry_probability=1.0,
         )
         gen.set_camera_offline("spot-3")
 
@@ -196,7 +204,11 @@ class OcrGeneratorFailureModeTests(unittest.TestCase):
         """Degraded camera reads must fall in 0.30–0.65 range."""
         spots = _spots(5)
         gen = OcrEventGenerator(
-            spots, seed=10, registered_plates=self.PLATES, failure_rate=0.0
+            spots,
+            seed=10,
+            registered_plates=self.PLATES,
+            failure_rate=0.0,
+            entry_probability=1.0,
         )
         gen.set_camera_degraded("spot-1")
 
