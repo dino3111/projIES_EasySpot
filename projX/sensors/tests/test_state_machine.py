@@ -27,12 +27,12 @@ def test_time_multipliers_evening_peak():
 def test_time_multipliers_night():
     machine = SpotStateMachine()
     entry_mult, exit_mult = machine._get_time_multipliers(3)
-    assert entry_mult == 0.1
-    assert exit_mult == 0.1
+    assert entry_mult == 0.35
+    assert exit_mult == 0.35
 
     entry_mult, exit_mult = machine._get_time_multipliers(23)
-    assert entry_mult == 0.1
-    assert exit_mult == 0.1
+    assert entry_mult == 0.35
+    assert exit_mult == 0.35
 
 
 def test_time_multipliers_normal_daytime():

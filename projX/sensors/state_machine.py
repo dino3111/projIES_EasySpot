@@ -28,7 +28,7 @@ class SpotStateMachine:
         elif 17 <= current_hour <= 19:
             return 0.5, 2.5  # Evening peak: low entry, high exit
         elif 22 <= current_hour or current_hour <= 6:
-            return 0.1, 0.1  # Night: very low activity
+            return 0.35, 0.35  # Night: low activity
         else:
             return 1.0, 1.0  # Normal daytime
 
