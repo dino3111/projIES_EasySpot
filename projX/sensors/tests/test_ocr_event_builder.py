@@ -133,6 +133,7 @@ class OcrEventGeneratorTests(unittest.TestCase):
         gen = OcrEventGenerator(
             self._spots(20),
             seed=1,
+            entry_probability=1.0,
             registered_plates=[
                 "AA-00-00",
                 "BB-11-11",
@@ -149,6 +150,7 @@ class OcrEventGeneratorTests(unittest.TestCase):
         gen = OcrEventGenerator(
             self._spots(20),
             seed=5,
+            entry_probability=1.0,
             registered_plates=[
                 "AA-00-00",
                 "BB-11-11",
